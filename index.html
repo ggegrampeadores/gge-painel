@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Total GGE â Painel de Margem</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>ð</text></svg>" />
+  <title>Controle Total GGE — Painel de Margem</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>📊</text></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -56,15 +56,15 @@
     const { useState, useEffect, useMemo, useCallback } = React;
     const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } = Recharts;
 
-    // ââ Supabase Client ââ
+    // ── Supabase Client ──
     const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // ââ Helpers ââ
-    const fmt = (v) => v == null ? 'â' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtInt = (v) => v == null ? 'â' : Number(v).toLocaleString('pt-BR');
-    const fmtPct = (v) => v == null ? 'â' : Number(v).toFixed(1) + '%';
+    // ── Helpers ──
+    const fmt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtInt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR');
+    const fmtPct = (v) => v == null ? '—' : Number(v).toFixed(1) + '%';
     const fmtMes = (m) => { const d = new Date(m + 'T12:00:00'); return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }); };
 
     const GRUPO_COLORS = {
@@ -73,26 +73,26 @@
       L4: '#22d3ee', L5: '#3b82f6', L6: '#6366f1'
     };
     const GRUPO_LABELS = {
-      P1: 'P1 â PrejuÃ­zo estrutural', P2: 'P2 â PrejuÃ­zo por ADs',
-      P3: 'P3 â SÃ³ ADs, sem vendas',
-      L1: 'L1 â 0-5%', L2: 'L2 â 5-10%', L3: 'L3 â 10-15%',
-      L4: 'L4 â 15-20%', L5: 'L5 â 20-25%', L6: 'L6 â >25%'
+      P1: 'P1 — Prejuízo estrutural', P2: 'P2 — Prejuízo por ADs',
+      P3: 'P3 — Só ADs, sem vendas',
+      L1: 'L1 — 0-5%', L2: 'L2 — 5-10%', L3: 'L3 — 10-15%',
+      L4: 'L4 — 15-20%', L5: 'L5 — 20-25%', L6: 'L6 — >25%'
     };
     const GRUPO_ORDER = ['P1','P2','P3','L1','L2','L3','L4','L5','L6'];
 
     const TIPO_LISTAGEM_LABELS = {
       'gold_special': 'Premium',
-      'gold_pro': 'ClÃ¡ssico',
+      'gold_pro': 'Clássico',
       'Desconhecido': 'Desconhecido'
     };
     const labelTipo = (t) => TIPO_LISTAGEM_LABELS[t] || t;
 
-    // ââ Loading skeleton ââ
+    // ── Loading skeleton ──
     function Skeleton({ className }) {
       return <div className={`bg-gge-border rounded pulse-load ${className || ''}`} />;
     }
 
-    // ââ Metric Card ââ
+    // ── Metric Card ──
     function MetricCard({ label, value, sub, color, icon }) {
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
@@ -106,7 +106,7 @@
       );
     }
 
-    // ââ Filter Select ââ
+    // ── Filter Select ──
     function FilterSelect({ label, value, onChange, options, allLabel, labelFn }) {
       const getLabel = labelFn || (o => o);
       return (
@@ -124,7 +124,7 @@
       );
     }
 
-    // ââ Grupo Badge ââ
+    // ── Grupo Badge ──
     function GrupoBadge({ grupo }) {
       const bg = GRUPO_COLORS[grupo] || '#666';
       return (
@@ -135,7 +135,7 @@
       );
     }
 
-    // ââ Groups Summary Table ââ
+    // ── Groups Summary Table ──
     function GroupsSummary({ data }) {
       const groups = useMemo(() => {
         const map = {};
@@ -157,14 +157,14 @@
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
           <div className="px-5 py-4 border-b border-gge-border">
-            <h3 className="text-lg font-semibold text-white">SegmentaÃ§Ã£o por Grupo</h3>
+            <h3 className="text-lg font-semibold text-white">Segmentação por Grupo</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gge-muted text-xs uppercase tracking-wider">
                   <th className="text-left px-5 py-3">Grupo</th>
-                  <th className="text-right px-4 py-3">AnÃºncios</th>
+                  <th className="text-right px-4 py-3">Anúncios</th>
                   <th className="text-right px-4 py-3">Vendas</th>
                   <th className="text-right px-4 py-3">Receita</th>
                   <th className="text-right px-4 py-3">ADs</th>
@@ -210,7 +210,7 @@
       );
     }
 
-    // ââ Groups Bar Chart ââ
+    // ── Groups Bar Chart ──
     function GroupsChart({ data }) {
       const chartData = useMemo(() => {
         const map = {};
@@ -256,7 +256,7 @@
       );
     }
 
-    // ââ Distribution Pie ââ
+    // ── Distribution Pie ──
     function DistributionPie({ data, title, field, labelFn }) {
       const pieData = useMemo(() => {
         const map = {};
@@ -290,7 +290,7 @@
       );
     }
 
-    // ââ Top AnÃºncios Table ââ
+    // ── Top Anúncios Table ──
     function TopAnuncios({ data, mode }) {
       const sorted = useMemo(() => {
         const filtered = data.filter(d => Number(d.receita) > 0);
@@ -306,7 +306,7 @@
               <thead>
                 <tr className="text-gge-muted text-xs uppercase tracking-wider">
                   <th className="text-left px-4 py-3 w-12">#</th>
-                  <th className="text-left px-4 py-3">AnÃºncio</th>
+                  <th className="text-left px-4 py-3">Anúncio</th>
                   <th className="text-right px-4 py-3">Vendas</th>
                   <th className="text-right px-4 py-3">Receita</th>
                   <th className="text-right px-4 py-3">Margem</th>
@@ -322,7 +322,7 @@
                       <td className="px-4 py-2.5 text-gge-muted">{i+1}</td>
                       <td className="px-4 py-2.5">
                         <div className="text-white text-sm font-medium truncate max-w-xs" title={row.titulo}>{row.titulo}</div>
-                        <div className="text-gge-muted text-xs">{row.sku_vendedor || 'â'} Â· {row.mlb_id}</div>
+                        <div className="text-gge-muted text-xs">{row.sku_vendedor || '—'} · {row.mlb_id}</div>
                       </td>
                       <td className="text-right px-4 py-2.5 text-gge-text">{fmtInt(row.qtd_vendas)}</td>
                       <td className="text-right px-4 py-2.5 text-white">R$ {fmt(row.receita)}</td>
@@ -341,7 +341,7 @@
       );
     }
 
-    // ââ Main App ââ
+    // ── Main App ──
     function App() {
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
@@ -443,7 +443,7 @@
         return (
           <div className="min-h-screen flex items-center justify-center">
             <div className="bg-gge-card border border-red-500/30 rounded-xl p-8 max-w-md text-center">
-              <div className="text-4xl mb-4">â ï¸</div>
+              <div className="text-4xl mb-4">⚠️</div>
               <h2 className="text-xl font-bold text-white mb-2">Erro ao carregar</h2>
               <p className="text-gge-muted text-sm">{error}</p>
               <button onClick={() => window.location.reload()}
@@ -464,7 +464,7 @@
                 <div className="w-10 h-10 bg-gge-accent rounded-xl flex items-center justify-center text-white font-bold text-lg">G</div>
                 <div>
                   <h1 className="text-lg font-bold text-white tracking-tight">Controle Total GGE</h1>
-                  <p className="text-xs text-gge-muted">Painel de Margem de ContribuiÃ§Ã£o</p>
+                  <p className="text-xs text-gge-muted">Painel de Margem de Contribuição</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -479,17 +479,17 @@
             <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-sm font-semibold text-white">Filtros</span>
-                <span className="text-xs text-gge-muted">({fmtInt(filtered.length)} anÃºncios)</span>
+                <span className="text-xs text-gge-muted">({fmtInt(filtered.length)} anúncios)</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
-                <FilterSelect label="MÃªs" value={mesSel} onChange={setMesSel} options={meses} allLabel="Todos os meses" labelFn={fmtMes} />
+                <FilterSelect label="Mês" value={mesSel} onChange={setMesSel} options={meses} allLabel="Todos os meses" labelFn={fmtMes} />
                 <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={contas} />
                 <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} />
-                <FilterSelect label="LogÃ­stica" value={modeSel} onChange={setModeSel} options={filterOpts.modos} />
+                <FilterSelect label="Logística" value={modeSel} onChange={setModeSel} options={filterOpts.modos} />
                 <FilterSelect label="Tipo" value={kitSel} onChange={setKitSel} options={filterOpts.kits} />
-                <FilterSelect label="CatÃ¡logo" value={catSel} onChange={setCatSel} options={filterOpts.cats} />
+                <FilterSelect label="Catálogo" value={catSel} onChange={setCatSel} options={filterOpts.cats} />
                 <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} />
-                <FilterSelect label="Pto SaÃ­da" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} />
+                <FilterSelect label="Pto Saída" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} />
                 <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} />
                 <div className="flex items-end">
                   <button onClick={() => { setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); }}
@@ -508,18 +508,18 @@
               <>
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="ð°" />
+                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="💰" />
                   <MetricCard label="Margem (MC)" value={`R$ ${fmt(totals.margem)}`}
                               color={totals.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc_pct)} da receita`} icon="ð" />
-                  <MetricCard label="Vendas" value={fmtInt(totals.vendas)} sub={`${fmtInt(totals.anuncios)} anÃºncios`} icon="ð" />
-                  <MetricCard label="ComissÃ£o ML" value={`R$ ${fmt(totals.comissao)}`}
+                              sub={`${fmtPct(totals.mc_pct)} da receita`} icon="📈" />
+                  <MetricCard label="Vendas" value={fmtInt(totals.vendas)} sub={`${fmtInt(totals.anuncios)} anúncios`} icon="🛒" />
+                  <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.comissao/totals.receita*100)} da receita` : ''}
-                              icon="ðª" />
-                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`} icon="ð" />
-                  <MetricCard label="Em PrejuÃ­zo" value={fmtInt(totals.prejuizo_count)}
+                              icon="🏪" />
+                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`} icon="🚚" />
+                  <MetricCard label="Em Prejuízo" value={fmtInt(totals.prejuizo_count)}
                               color="text-gge-red"
-                              sub={`de ${fmtInt(totals.anuncios)} anÃºncios`} icon="â ï¸" />
+                              sub={`de ${fmtInt(totals.anuncios)} anúncios`} icon="⚠️" />
                 </div>
 
                 {/* Charts Row */}
@@ -527,7 +527,7 @@
                   <div className="lg:col-span-2">
                     <GroupsChart data={filtered} />
                   </div>
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de SaÃ­da" field="ponto_saida" />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de Saída" field="ponto_saida" />
                 </div>
 
                 {/* Groups Table */}
@@ -537,15 +537,15 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Fornecedor" field="fornecedor" />
                   <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Tipo Listagem" field="tipo_listagem" labelFn={labelTipo} />
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por LogÃ­stica" field="modo_logistica" />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Logística" field="modo_logistica" />
                 </div>
 
-                {/* Top AnÃºncios */}
+                {/* Top Anúncios */}
                 <div>
                   <div className="flex items-center gap-4 mb-3">
-                    <h3 className="text-lg font-semibold text-white">Top 10 AnÃºncios</h3>
+                    <h3 className="text-lg font-semibold text-white">Top 10 Anúncios</h3>
                     <div className="flex gap-1">
-                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior PrejuÃ­zo'], ['receita', 'Maior Receita']].map(([k, label]) => (
+                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuízo'], ['receita', 'Maior Receita']].map(([k, label]) => (
                         <button key={k} onClick={() => setTopMode(k)}
                                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${topMode === k ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
                           {label}
@@ -558,8 +558,8 @@
 
                 {/* Footer */}
                 <div className="text-center text-gge-muted text-xs py-8 border-t border-gge-border">
-                  <p>Controle Total GGE â Dados carregados do Supabase em tempo real</p>
-                  <p className="mt-1">FÃ³rmula: Receita - ComissÃ£o - Frete - Custo Produto - ADs - DIFAL(1.6%) - PIS/COFINS(9.25%) + CrÃ©ditos PIS/COFINS(9.25% Ã (ComissÃ£o+ADs))</p>
+                  <p>Controle Total GGE — Dados carregados do Supabase em tempo real</p>
+                  <p className="mt-1">Fórmula: Receita - Comissão - Frete - Custo Produto - ADs - DIFAL(1.6%) - PIS/COFINS(9.25%) + Créditos PIS/COFINS(9.25% × (Comissão+ADs))</p>
                 </div>
               </>
             )}
