@@ -3,57 +3,50 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Total GGE — Painel de Margem</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>📊</text></svg>" />
+  <title>Controle Total GGE</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
           colors: {
-            gge: {
-              bg: '#0f1117',
-              card: '#1a1d2e',
-              border: '#2a2d3e',
-              accent: '#6366f1',
-              green: '#22c55e',
-              red: '#ef4444',
-              yellow: '#eab308',
-              blue: '#3b82f6',
-              muted: '#94a3b8',
-              text: '#e2e8f0',
-            }
+            'gge-bg': '#0f1117',
+            'gge-card': '#1a1d2e',
+            'gge-border': '#2a2d3e',
+            'gge-text': '#e2e8f0',
+            'gge-muted': '#94a3b8',
+            'gge-accent': '#6366f1',
+            'gge-green': '#22c55e',
+            'gge-red': '#ef4444',
+            'gge-yellow': '#eab308',
+            'gge-orange': '#f97316',
+            'gge-cyan': '#22d3ee',
           }
         }
       }
     }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prop-types/prop-types.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    * { font-family: 'Inter', sans-serif; }
-    body { background: #0f1117; color: #e2e8f0; margin: 0; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #1a1d2e; }
-    ::-webkit-scrollbar-thumb { background: #3a3d4e; border-radius: 3px; }
-    .fade-in { animation: fadeIn 0.3s ease-in; }
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    .fade-in { animation: fadeIn 0.3s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .pulse-load { animation: pulse 1.5s ease-in-out infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
-    select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-      background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;
-      -webkit-appearance: none; -moz-appearance: none; appearance: none; padding-right: 2.5rem; }
+    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1a1d2e; }
+    ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
   </style>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" data-type="module">
+  <script type="text/babel">
     const { useState, useEffect, useMemo, useCallback } = React;
     const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } = Recharts;
 
@@ -74,8 +67,8 @@
       L4: '#22d3ee', L5: '#3b82f6', L6: '#6366f1'
     };
     const GRUPO_LABELS = {
-      P1: 'P1 — Prejuízo estrutural', P2: 'P2 — Prejuízo por ADs',
-      P3: 'P3 — Só ADs, sem vendas',
+      P1: 'P1 — Prejuizo estrutural', P2: 'P2 — Prejuizo por ADs',
+      P3: 'P3 — So ADs, sem vendas',
       L1: 'L1 — 0-5%', L2: 'L2 — 5-10%', L3: 'L3 — 10-15%',
       L4: 'L4 — 15-20%', L5: 'L5 — 20-25%', L6: 'L6 — >25%'
     };
@@ -83,7 +76,7 @@
 
     const TIPO_LISTAGEM_LABELS = {
       'gold_special': 'Premium',
-      'gold_pro': 'Clássico',
+      'gold_pro': 'Classico',
       'Desconhecido': 'Desconhecido'
     };
     const labelTipo = (t) => TIPO_LISTAGEM_LABELS[t] || t;
@@ -136,56 +129,82 @@
       );
     }
 
-    // ── Groups Summary Table ──
+    // ── Groups Summary Table ── ATUALIZADO COM DIFAL
     function GroupsSummary({ data }) {
       const groups = useMemo(() => {
         const map = {};
         data.forEach(row => {
           const g = row.grupo;
-          if (!map[g]) map[g] = { grupo: g, anuncios: 0, vendas: 0, receita: 0, margem: 0, custo_ads: 0 };
+          if (!map[g]) map[g] = { grupo: g, anuncios: 0, vendas: 0, receita: 0, margem: 0, custo_ads: 0, custo_produto: 0, comissao: 0, custo_frete: 0, difal: 0 };
           map[g].anuncios++;
           map[g].vendas += Number(row.qtd_vendas) || 0;
           map[g].receita += Number(row.receita) || 0;
           map[g].margem += Number(row.margem_valor) || 0;
           map[g].custo_ads += Number(row.custo_ads) || 0;
+          map[g].custo_produto += Number(row.custo_produto) || 0;
+          map[g].comissao += Number(row.comissao) || 0;
+          map[g].custo_frete += Number(row.custo_frete) || 0;
+          map[g].difal += Number(row.difal_reserva) || 0;
         });
         return GRUPO_ORDER.filter(g => map[g]).map(g => ({
           ...map[g],
-          mc_pct: map[g].receita > 0 ? (map[g].margem / map[g].receita * 100) : 0
+          mc1: map[g].margem + map[g].difal,
+          mc1_pct: map[g].receita > 0 ? ((map[g].margem + map[g].difal) / map[g].receita * 100) : 0,
+          mc2: map[g].margem,
+          mc2_pct: map[g].receita > 0 ? (map[g].margem / map[g].receita * 100) : 0
         }));
       }, [data]);
+
+      const totG = useMemo(() => {
+        const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, custo_ads: 0, difal: 0 };
+        groups.forEach(g => { t.anuncios += g.anuncios; t.vendas += g.vendas; t.receita += g.receita; t.margem += g.margem; t.custo_ads += g.custo_ads; t.difal += g.difal; });
+        t.mc1 = t.margem + t.difal;
+        return t;
+      }, [groups]);
 
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
           <div className="px-5 py-4 border-b border-gge-border">
-            <h3 className="text-lg font-semibold text-white">Segmentação por Grupo</h3>
+            <h3 className="text-lg font-semibold text-white">Segmentacao por Grupo</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gge-muted text-xs uppercase tracking-wider">
                   <th className="text-left px-5 py-3">Grupo</th>
-                  <th className="text-right px-4 py-3">Anúncios</th>
-                  <th className="text-right px-4 py-3">Vendas</th>
-                  <th className="text-right px-4 py-3">Receita</th>
-                  <th className="text-right px-4 py-3">ADs</th>
-                  <th className="text-right px-4 py-3">Margem R$</th>
-                  <th className="text-right px-5 py-3">MC %</th>
+                  <th className="text-right px-3 py-3">Anuncios</th>
+                  <th className="text-right px-3 py-3">Vendas</th>
+                  <th className="text-right px-3 py-3">Receita</th>
+                  <th className="text-right px-3 py-3">ADs</th>
+                  <th className="text-right px-3 py-3 border-l border-gge-border/50">MC1 R$</th>
+                  <th className="text-right px-3 py-3">MC1 %</th>
+                  <th className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">DIFAL</th>
+                  <th className="text-right px-3 py-3 border-l border-gge-border/50">MC2 R$</th>
+                  <th className="text-right px-5 py-3">MC2 %</th>
                 </tr>
               </thead>
               <tbody>
                 {groups.map((g, i) => (
                   <tr key={g.grupo} className={`border-t border-gge-border/50 hover:bg-white/5 transition-colors ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
                     <td className="px-5 py-3"><GrupoBadge grupo={g.grupo} /></td>
-                    <td className="text-right px-4 py-3 text-gge-text">{fmtInt(g.anuncios)}</td>
-                    <td className="text-right px-4 py-3 text-gge-text">{fmtInt(g.vendas)}</td>
-                    <td className="text-right px-4 py-3 text-white font-medium">R$ {fmt(g.receita)}</td>
-                    <td className="text-right px-4 py-3 text-gge-yellow">R$ {fmt(g.custo_ads)}</td>
-                    <td className={`text-right px-4 py-3 font-medium ${g.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      R$ {fmt(g.margem)}
+                    <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.anuncios)}</td>
+                    <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.vendas)}</td>
+                    <td className="text-right px-3 py-3 text-white font-medium">R$ {fmt(g.receita)}</td>
+                    <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(g.custo_ads)}</td>
+                    <td className={`text-right px-3 py-3 font-medium border-l border-gge-border/50 ${g.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                      R$ {fmt(g.mc1)}
                     </td>
-                    <td className={`text-right px-5 py-3 font-bold ${g.mc_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      {fmtPct(g.mc_pct)}
+                    <td className={`text-right px-3 py-3 ${g.mc1_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                      {fmtPct(g.mc1_pct)}
+                    </td>
+                    <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">
+                      R$ {fmt(g.difal)}
+                    </td>
+                    <td className={`text-right px-3 py-3 font-bold border-l border-gge-border/50 ${g.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                      R$ {fmt(g.mc2)}
+                    </td>
+                    <td className={`text-right px-5 py-3 font-bold ${g.mc2_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                      {fmtPct(g.mc2_pct)}
                     </td>
                   </tr>
                 ))}
@@ -193,16 +212,23 @@
               <tfoot>
                 <tr className="border-t-2 border-gge-border font-bold">
                   <td className="px-5 py-3 text-white">TOTAL</td>
-                  <td className="text-right px-4 py-3 text-white">{fmtInt(groups.reduce((s,g) => s+g.anuncios, 0))}</td>
-                  <td className="text-right px-4 py-3 text-white">{fmtInt(groups.reduce((s,g) => s+g.vendas, 0))}</td>
-                  <td className="text-right px-4 py-3 text-white">R$ {fmt(groups.reduce((s,g) => s+g.receita, 0))}</td>
-                  <td className="text-right px-4 py-3 text-gge-yellow">R$ {fmt(groups.reduce((s,g) => s+g.custo_ads, 0))}</td>
-                  {(() => { const tm = groups.reduce((s,g) => s+g.margem, 0); const tr = groups.reduce((s,g) => s+g.receita, 0);
-                    return (<>
-                      <td className={`text-right px-4 py-3 ${tm >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>R$ {fmt(tm)}</td>
-                      <td className={`text-right px-5 py-3 ${tm >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(tr > 0 ? tm/tr*100 : 0)}</td>
-                    </>);
-                  })()}
+                  <td className="text-right px-3 py-3 text-white">{fmtInt(totG.anuncios)}</td>
+                  <td className="text-right px-3 py-3 text-white">{fmtInt(totG.vendas)}</td>
+                  <td className="text-right px-3 py-3 text-white">R$ {fmt(totG.receita)}</td>
+                  <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(totG.custo_ads)}</td>
+                  <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                    R$ {fmt(totG.mc1)}
+                  </td>
+                  <td className={`text-right px-3 py-3 ${totG.receita > 0 && totG.mc1/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                    {fmtPct(totG.receita > 0 ? totG.mc1/totG.receita*100 : 0)}
+                  </td>
+                  <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">R$ {fmt(totG.difal)}</td>
+                  <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                    R$ {fmt(totG.margem)}
+                  </td>
+                  <td className={`text-right px-5 py-3 ${totG.receita > 0 && totG.margem/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                    {fmtPct(totG.receita > 0 ? totG.margem/totG.receita*100 : 0)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
@@ -217,11 +243,15 @@
         const map = {};
         data.forEach(row => {
           const g = row.grupo;
-          if (!map[g]) map[g] = { grupo: g, receita: 0, margem: 0 };
+          if (!map[g]) map[g] = { grupo: g, receita: 0, mc1: 0, mc2: 0, difal: 0 };
           map[g].receita += Number(row.receita) || 0;
-          map[g].margem += Number(row.margem_valor) || 0;
+          map[g].mc2 += Number(row.margem_valor) || 0;
+          map[g].difal += Number(row.difal_reserva) || 0;
         });
-        return GRUPO_ORDER.filter(g => map[g]).map(g => map[g]);
+        return GRUPO_ORDER.filter(g => map[g]).map(g => ({
+          ...map[g],
+          mc1: map[g].mc2 + map[g].difal
+        }));
       }, [data]);
 
       const CustomTooltip = ({ active, payload }) => {
@@ -231,7 +261,9 @@
           <div className="bg-gge-card border border-gge-border rounded-lg p-3 shadow-xl">
             <p className="font-semibold text-white mb-1">{GRUPO_LABELS[d.grupo] || d.grupo}</p>
             <p className="text-sm text-gge-muted">Receita: <span className="text-white">R$ {fmt(d.receita)}</span></p>
-            <p className="text-sm text-gge-muted">Margem: <span className={d.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.margem)}</span></p>
+            <p className="text-sm text-gge-muted">MC1 (s/ DIFAL): <span className={d.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc1)}</span></p>
+            <p className="text-sm text-gge-muted">DIFAL: <span className="text-gge-orange">R$ {fmt(d.difal)}</span></p>
+            <p className="text-sm text-gge-muted">MC2 (c/ DIFAL): <span className={d.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc2)}</span></p>
           </div>
         );
       };
@@ -246,7 +278,7 @@
               <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#2a2d3e' }}
                      tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="margem" radius={[6, 6, 0, 0]}>
+              <Bar dataKey="mc2" radius={[6, 6, 0, 0]}>
                 {chartData.map((entry, i) => (
                   <Cell key={i} fill={GRUPO_COLORS[entry.grupo] || '#666'} opacity={0.85} />
                 ))}
@@ -282,7 +314,7 @@
                    stroke="#1a1d2e" strokeWidth={2}>
                 {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
-              <Tooltip formatter={v => `R$ ${fmt(v)}`}
+              <Tooltip formatter={v =>> `R$ ${fmt(v)}`}
                        contentStyle={{ backgroundColor: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8, color: '#e2e8f0' }} />
               <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
             </PieChart>
@@ -291,7 +323,7 @@
       );
     }
 
-    // ── Top Anúncios Table ──
+    // ── Top Anuncios Table ── ATUALIZADO COM DIFAL
     function TopAnuncios({ data, mode }) {
       const sorted = useMemo(() => {
         const filtered = data.filter(d => Number(d.receita) > 0);
@@ -307,17 +339,20 @@
               <thead>
                 <tr className="text-gge-muted text-xs uppercase tracking-wider">
                   <th className="text-left px-4 py-3 w-12">#</th>
-                  <th className="text-left px-4 py-3">Anúncio</th>
+                  <th className="text-left px-4 py-3">Anuncio</th>
                   <th className="text-right px-4 py-3">Vendas</th>
                   <th className="text-right px-4 py-3">Receita</th>
-                  <th className="text-right px-4 py-3">Margem</th>
-                  <th className="text-right px-4 py-3">MC%</th>
+                  <th className="text-right px-4 py-3">DIFAL</th>
+                  <th className="text-right px-4 py-3">MC2</th>
+                  <th className="text-right px-4 py-3">MC2%</th>
                   <th className="text-center px-4 py-3">Grupo</th>
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((row, i) => {
-                  const mc = Number(row.receita) > 0 ? Number(row.margem_valor)/Number(row.receita)*100 : 0;
+                  const mc2 = Number(row.margem_valor) || 0;
+                  const mc2pct = Number(row.receita) > 0 ? mc2/Number(row.receita)*100 : 0;
+                  const difal = Number(row.difal_reserva) || 0;
                   return (
                     <tr key={row.mlb_id + '-' + i} className="border-t border-gge-border/50 hover:bg-white/5 transition-colors">
                       <td className="px-4 py-2.5 text-gge-muted">{i+1}</td>
@@ -327,10 +362,11 @@
                       </td>
                       <td className="text-right px-4 py-2.5 text-gge-text">{fmtInt(row.qtd_vendas)}</td>
                       <td className="text-right px-4 py-2.5 text-white">R$ {fmt(row.receita)}</td>
-                      <td className={`text-right px-4 py-2.5 font-medium ${Number(row.margem_valor) >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                        R$ {fmt(row.margem_valor)}
+                      <td className="text-right px-4 py-2.5 text-gge-orange">{difal > 0 ? `R$ ${fmt(difal)}` : '—'}</td>
+                      <td className={`text-right px-4 py-2.5 font-medium ${mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        R$ {fmt(mc2)}
                       </td>
-                      <td className={`text-right px-4 py-2.5 font-bold ${mc >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(mc)}</td>
+                      <td className={`text-right px-4 py-2.5 font-bold ${mc2pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(mc2pct)}</td>
                       <td className="text-center px-4 py-2.5"><GrupoBadge grupo={row.grupo} /></td>
                     </tr>
                   );
@@ -347,6 +383,7 @@
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
       const [rawData, setRawData] = useState([]);
+      const [saldoData, setSaldoData] = useState([]);
       const [meses, setMeses] = useState([]);
       const [contas, setContas] = useState([]);
 
@@ -368,21 +405,20 @@
           setLoading(true);
           setError(null);
           try {
-            // Fetch all data (the view is already aggregated by mlb_id+month)
-            const { data, error: err } = await supabase
-              .from('vw_margem_segmentada')
-              .select('*')
-              .order('mes', { ascending: false });
-            if (err) throw err;
-            setRawData(data || []);
+            // Buscar margem E cancelamentos em paralelo
+            const [margemRes, saldoRes] = await Promise.all([
+              supabase.from('vw_margem_segmentada').select('*').order('mes', { ascending: false }),
+              supabase.from('vw_saldo_vendas').select('*').order('mes', { ascending: false })
+            ]);
+            if (margemRes.error) throw margemRes.error;
+            const data = margemRes.data || [];
+            setRawData(data);
+            setSaldoData(saldoRes.data || []);
 
-            // Extract unique months and contas
             const ms = [...new Set(data.map(d => d.mes))].sort((a,b) => b.localeCompare(a));
             const cs = [...new Set(data.map(d => d.conta_nome))].sort();
             setMeses(ms);
             setContas(cs);
-
-            // Default to most recent month
             if (ms.length > 0 && !mesSel) setMesSel(ms[0]);
           } catch (e) {
             setError(e.message || 'Erro ao carregar dados');
@@ -408,9 +444,9 @@
         });
       }, [rawData, mesSel, contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
 
-      // Totals
+      // Totals - ATUALIZADO COM DIFAL E MC1/MC2
       const totals = useMemo(() => {
-        const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, ads: 0, frete: 0, custo: 0, comissao: 0, prejuizo_count: 0 };
+        const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, ads: 0, frete: 0, custo: 0, comissao: 0, difal: 0, prejuizo_count: 0 };
         filtered.forEach(d => {
           t.anuncios++;
           t.vendas += Number(d.qtd_vendas) || 0;
@@ -420,13 +456,17 @@
           t.frete += Number(d.custo_frete) || 0;
           t.custo += Number(d.custo_produto) || 0;
           t.comissao += Number(d.comissao) || 0;
+          t.difal += Number(d.difal_reserva) || 0;
           if (Number(d.margem_valor) < 0) t.prejuizo_count++;
         });
-        t.mc_pct = t.receita > 0 ? (t.margem / t.receita * 100) : 0;
+        t.mc1 = t.margem + t.difal; // MC1 = margem antes do DIFAL
+        t.mc2 = t.margem;            // MC2 = margem final (com DIFAL)
+        t.mc1_pct = t.receita > 0 ? (t.mc1 / t.receita * 100) : 0;
+        t.mc2_pct = t.receita > 0 ? (t.mc2 / t.receita * 100) : 0;
         return t;
       }, [filtered]);
 
-      // Unique filter options from current month
+      // Unique filter options
       const filterOpts = useMemo(() => {
         const mesData = rawData.filter(d => !mesSel || d.mes === mesSel);
         return {
@@ -440,11 +480,32 @@
         };
       }, [rawData, mesSel]);
 
+      // Totais de cancelamento do mês selecionado
+      const cancelTotals = useMemo(() => {
+        const rows = saldoData.filter(d => {
+          if (mesSel && d.mes !== mesSel) return false;
+          if (contaSel && d.conta_nome !== contaSel) return false;
+          return true;
+        });
+        const t = { bruto: 0, cancelado: 0, liquido: 0, qtd_vendas: 0, qtd_cancel: 0, qtd_refund: 0, refund_valor: 0 };
+        rows.forEach(r => {
+          t.bruto += Number(r.faturamento_bruto) || 0;
+          t.cancelado += Number(r.cancelamentos) || 0;
+          t.qtd_vendas += Number(r.qtd_vendas) || 0;
+          t.qtd_cancel += Number(r.qtd_cancelamentos) || 0;
+          t.qtd_refund += Number(r.qtd_parcial_refund) || 0;
+          t.refund_valor += Number(r.valor_parcial_refund_original) || 0;
+        });
+        t.liquido = t.bruto - t.cancelado;
+        t.pct = t.bruto > 0 ? (t.cancelado / (t.bruto + t.cancelado) * 100) : 0;
+        return t;
+      }, [saldoData, mesSel, contaSel]);
+
       if (error) {
         return (
           <div className="min-h-screen flex items-center justify-center">
             <div className="bg-gge-card border border-red-500/30 rounded-xl p-8 max-w-md text-center">
-              <div className="text-4xl mb-4">⚠️</div>
+              <div className="text-4xl mb-4">&#9888;&#65039;</div>
               <h2 className="text-xl font-bold text-white mb-2">Erro ao carregar</h2>
               <p className="text-gge-muted text-sm">{error}</p>
               <button onClick={() => window.location.reload()}
@@ -465,7 +526,7 @@
                 <div className="w-10 h-10 bg-gge-accent rounded-xl flex items-center justify-center text-white font-bold text-lg">G</div>
                 <div>
                   <h1 className="text-lg font-bold text-white tracking-tight">Controle Total GGE</h1>
-                  <p className="text-xs text-gge-muted">Painel de Margem de Contribuição</p>
+                  <p className="text-xs text-gge-muted">Painel de Margem de Contribuicao</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -480,17 +541,17 @@
             <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-sm font-semibold text-white">Filtros</span>
-                <span className="text-xs text-gge-muted">({fmtInt(filtered.length)} anúncios)</span>
+                <span className="text-xs text-gge-muted">({fmtInt(filtered.length)} anuncios)</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
-                <FilterSelect label="Mês" value={mesSel} onChange={setMesSel} options={meses} allLabel="Todos os meses" labelFn={fmtMes} />
+                <FilterSelect label="Mes" value={mesSel} onChange={setMesSel} options={meses} allLabel="Todos os meses" labelFn={fmtMes} />
                 <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={contas} />
                 <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} />
-                <FilterSelect label="Logística" value={modeSel} onChange={setModeSel} options={filterOpts.modos} />
+                <FilterSelect label="Logistica" value={modeSel} onChange={setModeSel} options={filterOpts.modos} />
                 <FilterSelect label="Tipo" value={kitSel} onChange={setKitSel} options={filterOpts.kits} />
-                <FilterSelect label="Catálogo" value={catSel} onChange={setCatSel} options={filterOpts.cats} />
+                <FilterSelect label="Catalogo" value={catSel} onChange={setCatSel} options={filterOpts.cats} />
                 <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} />
-                <FilterSelect label="Pto Saída" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} />
+                <FilterSelect label="Pto Saida" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} />
                 <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} />
                 <div className="flex items-end">
                   <button onClick={() => { setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); }}
@@ -502,25 +563,72 @@
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28" />)}
               </div>
             ) : (
               <>
-                {/* KPI Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="💰" />
-                  <MetricCard label="Margem (MC)" value={`R$ ${fmt(totals.margem)}`}
-                              color={totals.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc_pct)} da receita`} icon="📈" />
-                  <MetricCard label="Vendas" value={fmtInt(totals.vendas)} sub={`${fmtInt(totals.anuncios)} anúncios`} icon="🛒" />
-                  <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
+                {/* Barra de Cancelamentos */}
+                {cancelTotals.qtd_cancel > 0 && (
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-lg font-semibold text-white">Vendas Brutas vs Cancelamentos</span>
+                      <span className="text-xs text-gge-muted">(status das ordens no ML)</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                      <div className="text-center">
+                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Brutas</div>
+                        <div className="text-xl font-bold text-white">R$ {fmt(cancelTotals.bruto + cancelTotals.cancelado)}</div>
+                        <div className="text-gge-muted text-xs">{fmtInt(cancelTotals.qtd_vendas + cancelTotals.qtd_cancel)} ordens</div>
+                      </div>
+                      <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
+                      <div className="text-center">
+                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Cancelamentos</div>
+                        <div className="text-xl font-bold text-gge-red">- R$ {fmt(cancelTotals.cancelado)}</div>
+                        <div className="text-gge-red text-xs">{fmtInt(cancelTotals.qtd_cancel)} ordens ({fmtPct(cancelTotals.pct)})</div>
+                      </div>
+                      <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
+                      <div className="text-center">
+                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Realizadas</div>
+                        <div className="text-xl font-bold text-gge-green">R$ {fmt(cancelTotals.liquido)}</div>
+                        <div className="text-gge-green text-xs">{fmtInt(cancelTotals.qtd_vendas)} ordens efetivas</div>
+                      </div>
+                    </div>
+                    {/* Barra visual de proporção */}
+                    <div className="mt-4 h-3 rounded-full bg-gge-border overflow-hidden flex">
+                      <div className="bg-gge-green h-full rounded-l-full transition-all" style={{ width: `${100 - cancelTotals.pct}%` }} />
+                      <div className="bg-gge-red h-full rounded-r-full transition-all" style={{ width: `${cancelTotals.pct}%` }} />
+                    </div>
+                    <div className="flex justify-between mt-1 text-xs text-gge-muted">
+                      <span>Realizadas ({fmtPct(100 - cancelTotals.pct)})</span>
+                      <span>Canceladas ({fmtPct(cancelTotals.pct)})</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* KPI Cards - ATUALIZADO COM MC1, DIFAL, MC2 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="&#128176;" />
+                  <MetricCard label="Custo Produto" value={`R$ ${fmt(totals.custo)}`}
+                              sub={totals.receita > 0 ? `${fmtPct(totals.custo/totals.receita*100)} da receita` : ''}
+                              icon="&#128230;" />
+                  <MetricCard label="Comissao ML" value={`R$ ${fmt(totals.comissao)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.comissao/totals.receita*100)} da receita` : ''}
-                              icon="🏪" />
-                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`} icon="🚚" />
-                  <MetricCard label="Em Prejuízo" value={fmtInt(totals.prejuizo_count)}
-                              color="text-gge-red"
-                              sub={`de ${fmtInt(totals.anuncios)} anúncios`} icon="⚠️" />
+                              icon="&#127978;" />
+                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`} icon="&#128666;" />
+                  <MetricCard label="MC1 (s/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
+                              color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="&#128200;" />
+                  <MetricCard label="DIFAL" value={`R$ ${fmt(totals.difal)}`}
+                              color="text-gge-orange"
+                              sub={totals.receita > 0 ? `${fmtPct(totals.difal/totals.receita*100)} da receita` : ''}
+                              icon="&#127970;" />
+                  <MetricCard label="MC2 (c/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
+                              color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="&#127919;" />
+                  <MetricCard label="Vendas" value={fmtInt(totals.vendas)}
+                              sub={`${fmtInt(totals.prejuizo_count)} em prejuizo`}
+                              icon="&#128722;" />
                 </div>
 
                 {/* Charts Row */}
@@ -528,7 +636,7 @@
                   <div className="lg:col-span-2">
                     <GroupsChart data={filtered} />
                   </div>
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de Saída" field="ponto_saida" />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de Saida" field="ponto_saida" />
                 </div>
 
                 {/* Groups Table */}
@@ -538,15 +646,15 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Fornecedor" field="fornecedor" />
                   <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Tipo Listagem" field="tipo_listagem" labelFn={labelTipo} />
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Logística" field="modo_logistica" />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Logistica" field="modo_logistica" />
                 </div>
 
-                {/* Top Anúncios */}
+                {/* Top Anuncios */}
                 <div>
                   <div className="flex items-center gap-4 mb-3">
-                    <h3 className="text-lg font-semibold text-white">Top 10 Anúncios</h3>
+                    <h3 className="text-lg font-semibold text-white">Top 10 Anuncios</h3>
                     <div className="flex gap-1">
-                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuízo'], ['receita', 'Maior Receita']].map(([k, label]) => (
+                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuizo'], ['receita', 'Maior Receita']].map(([k, label]) => (
                         <button key={k} onClick={() => setTopMode(k)}
                                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${topMode === k ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
                           {label}
@@ -557,10 +665,11 @@
                   <TopAnuncios data={filtered} mode={topMode} />
                 </div>
 
-                {/* Footer */}
-                <div className="text-center text-gge-muted text-xs py-8 border-t border-gge-border">
-                  <p>Controle Total GGE — Dados carregados do Supabase em tempo real</p>
-                  <p className="mt-1">Fórmula: Receita - Comissão - Frete - Custo Produto - ADs - DIFAL(1.6%) - PIS/COFINS(9.25%) + Créditos PIS/COFINS(9.25% × (Comissão+ADs))</p>
+                {/* Footer - FORMULA CORRIGIDA */}
+                <div className="text-center text-gge-muted text-xs py-8 border-t border-gge-border space-y-1">
+                  <p className="font-medium text-gge-text">Controle Total GGE — Dados do Supabase em tempo real</p>
+                  <p><strong>MC1</strong> = Receita - Comissao - Frete - Custo Produto - ADs - PIS/COFINS(9,25%) + Creditos PIS/COFINS(9,25%) - Simples(8,65% TOOW)</p>
+                  <p><strong>MC2</strong> = MC1 - DIFAL (aliq. interna destino - aliq. interestadual, por UF, apenas GGE)</p>
                 </div>
               </>
             )}
