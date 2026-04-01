@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle Total GGE</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -43,6 +43,7 @@
     ::-webkit-scrollbar-track { background: #1a1d2e; }
     ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
+    .filter-active select { border-color: #6366f1 !important; color: #fff !important; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -62,25 +63,99 @@
     const fmtPct = (v) => v == null ? '—' : Number(v).toFixed(1) + '%';
     const fmtMes = (m) => { const d = new Date(m + 'T12:00:00'); return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }); };
 
+    // ── Grupo config com L7 e L8 ──
     const GRUPO_COLORS = {
       P1: '#ef4444', P2: '#f97316', P3: '#a855f7',
       L1: '#fbbf24', L2: '#a3e635', L3: '#4ade80',
-      L4: '#22d3ee', L5: '#3b82f6', L6: '#6366f1'
+      L4: '#22d3ee', L5: '#3b82f6', L6: '#6366f1',
+      L7: '#8b5cf6', L8: '#ec4899'
     };
     const GRUPO_LABELS = {
-      P1: 'P1 — Prejuizo estrutural', P2: 'P2 — Prejuizo por ADs',
-      P3: 'P3 — So ADs, sem vendas',
+      P1: 'P1 — Prejuízo estrutural', P2: 'P2 — Prejuízo por ADs',
+      P3: 'P3 — Só ADs, sem vendas',
       L1: 'L1 — 0-5%', L2: 'L2 — 5-10%', L3: 'L3 — 10-15%',
-      L4: 'L4 — 15-20%', L5: 'L5 — 20-25%', L6: 'L6 — >25%'
+      L4: 'L4 — 15-20%', L5: 'L5 — 20-25%', L6: 'L6 — 25-30%',
+      L7: 'L7 — 30-40%', L8: 'L8 — >40%'
     };
-    const GRUPO_ORDER = ['P1','P2','P3','L1','L2','L3','L4','L5','L6'];
+    const GRUPO_ORDER = ['P1','P2','P3','L1','L2','L3','L4','L5','L6','L7','L8'];
 
     const TIPO_LISTAGEM_LABELS = {
       'gold_special': 'Premium',
-      'gold_pro': 'Classico',
+      'gold_pro': 'Clássico',
       'Desconhecido': 'Desconhecido'
     };
     const labelTipo = (t) => TIPO_LISTAGEM_LABELS[t] || t;
+
+    // ── Período config ──
+    const PERIODO_OPTIONS = [
+      { value: '7d', label: '7 dias' },
+      { value: '15d', label: '15 dias' },
+      { value: '30d', label: '30 dias' },
+      { value: 'mes_passado', label: 'Mês passado' },
+      { value: '2m_atras', label: '2 meses atrás' },
+      { value: '3m_atras', label: '3 meses atrás' },
+      { value: '90d', label: '90 dias' },
+      { value: '180d', label: '180 dias' },
+      { value: '1a', label: '1 ano' },
+    ];
+
+    function getMesesForPeriodo(periodo, allMeses) {
+      if (!allMeses.length) return [];
+      const sorted = [...allMeses].sort((a,b) => b.localeCompare(a));
+      const today = new Date();
+      const toYM = (d) => d.toISOString().slice(0, 7);
+
+      switch (periodo) {
+        case '7d': case '15d': case '30d': {
+          // Last N days — include months that overlap
+          const days = periodo === '7d' ? 7 : periodo === '15d' ? 15 : 30;
+          const cutoff = new Date(today);
+          cutoff.setDate(cutoff.getDate() - days);
+          const cutoffYM = toYM(cutoff);
+          const todayYM = toYM(today);
+          return sorted.filter(m => m >= cutoffYM && m <= todayYM);
+        }
+        case 'mes_passado': {
+          const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+          const ym = toYM(d);
+          return sorted.filter(m => m === ym);
+        }
+        case '2m_atras': {
+          const d = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+          const ym = toYM(d);
+          return sorted.filter(m => m === ym);
+        }
+        case '3m_atras': {
+          const d = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+          const ym = toYM(d);
+          return sorted.filter(m => m === ym);
+        }
+        case '90d': {
+          const cutoff = new Date(today);
+          cutoff.setDate(cutoff.getDate() - 90);
+          const cutoffYM = toYM(cutoff);
+          return sorted.filter(m => m >= cutoffYM);
+        }
+        case '180d': {
+          const cutoff = new Date(today);
+          cutoff.setDate(cutoff.getDate() - 180);
+          const cutoffYM = toYM(cutoff);
+          return sorted.filter(m => m >= cutoffYM);
+        }
+        case '1a': {
+          const cutoff = new Date(today);
+          cutoff.setFullYear(cutoff.getFullYear() - 1);
+          const cutoffYM = toYM(cutoff);
+          return sorted.filter(m => m >= cutoffYM);
+        }
+        default:
+          return sorted.slice(0, 1);
+      }
+    }
+
+    // ── Idade sort order (chronological) ──
+    const IDADE_ORDER = { '7d': 1, '15d': 2, '30d': 3, '90d': 4, '180d': 5, '1 ano': 6, '+1 ano': 7 };
+    const sortIdades = (arr) => [...arr].sort((a, b) => (IDADE_ORDER[a] || 99) - (IDADE_ORDER[b] || 99));
 
     // ── Loading skeleton ──
     function Skeleton({ className }) {
@@ -101,12 +176,12 @@
       );
     }
 
-    // ── Filter Select ──
-    function FilterSelect({ label, value, onChange, options, allLabel, labelFn }) {
+    // ── Filter Select with active styling ──
+    function FilterSelect({ label, value, onChange, options, allLabel, labelFn, isActive }) {
       const getLabel = labelFn || (o => o);
       return (
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gge-muted font-medium uppercase tracking-wider">{label}</label>
+        <div className={`flex flex-col gap-1 ${isActive ? 'filter-active' : ''}`}>
+          <label className={`text-xs font-medium uppercase tracking-wider ${isActive ? 'text-gge-accent' : 'text-gge-muted'}`}>{label}</label>
           <select
             value={value}
             onChange={e => onChange(e.target.value)}
@@ -130,7 +205,7 @@
       );
     }
 
-    // ── Groups Summary Table ── ATUALIZADO COM DIFAL
+    // ── Groups Summary Table — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL ──
     function GroupsSummary({ data }) {
       const groups = useMemo(() => {
         const map = {};
@@ -149,39 +224,42 @@
         });
         return GRUPO_ORDER.filter(g => map[g]).map(g => ({
           ...map[g],
-          mc1: map[g].margem + map[g].difal,
-          mc1_pct: map[g].receita > 0 ? ((map[g].margem + map[g].difal) / map[g].receita * 100) : 0,
-          mc2: map[g].margem,
-          mc2_pct: map[g].receita > 0 ? (map[g].margem / map[g].receita * 100) : 0
+          mc1: map[g].margem,
+          mc1_pct: map[g].receita > 0 ? (map[g].margem / map[g].receita * 100) : 0,
+          mc2: map[g].margem + map[g].difal,
+          mc2_pct: map[g].receita > 0 ? ((map[g].margem + map[g].difal) / map[g].receita * 100) : 0
         }));
       }, [data]);
 
       const totG = useMemo(() => {
         const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, custo_ads: 0, difal: 0 };
         groups.forEach(g => { t.anuncios += g.anuncios; t.vendas += g.vendas; t.receita += g.receita; t.margem += g.margem; t.custo_ads += g.custo_ads; t.difal += g.difal; });
-        t.mc1 = t.margem + t.difal;
+        t.mc1 = t.margem;
+        t.mc2 = t.margem + t.difal;
         return t;
       }, [groups]);
 
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
           <div className="px-5 py-4 border-b border-gge-border">
-            <h3 className="text-lg font-semibold text-white">Segmentacao por Grupo</h3>
+            <h3 className="text-lg font-semibold text-white">Segmentação por Grupo</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gge-muted text-xs uppercase tracking-wider">
                   <th className="text-left px-5 py-3">Grupo</th>
-                  <th className="text-right px-3 py-3">Anuncios</th>
+                  <th className="text-right px-3 py-3">Anúncios</th>
                   <th className="text-right px-3 py-3">Vendas</th>
                   <th className="text-right px-3 py-3">Receita</th>
                   <th className="text-right px-3 py-3">ADs</th>
+                  <th className="text-right px-3 py-3 border-l border-gge-border/50">MC2 R$</th>
+                  <th className="text-right px-3 py-3">MC2 %</th>
+                  <th className="text-right px-3 py-3 text-gge-cyan">Share MC2</th>
+                  <th className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">DIFAL</th>
                   <th className="text-right px-3 py-3 border-l border-gge-border/50">MC1 R$</th>
                   <th className="text-right px-3 py-3">MC1 %</th>
-                  <th className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">DIFAL</th>
-                  <th className="text-right px-3 py-3 border-l border-gge-border/50">MC2 R$</th>
-                  <th className="text-right px-5 py-3">MC2 %</th>
+                  <th className="text-right px-5 py-3 text-gge-cyan">Share MC1</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,20 +270,26 @@
                     <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.vendas)}</td>
                     <td className="text-right px-3 py-3 text-white font-medium">R$ {fmt(g.receita)}</td>
                     <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(g.custo_ads)}</td>
-                    <td className={`text-right px-3 py-3 font-medium border-l border-gge-border/50 ${g.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      R$ {fmt(g.mc1)}
+                    <td className={`text-right px-3 py-3 font-medium border-l border-gge-border/50 ${g.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                      R$ {fmt(g.mc2)}
                     </td>
-                    <td className={`text-right px-3 py-3 ${g.mc1_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      {fmtPct(g.mc1_pct)}
+                    <td className={`text-right px-3 py-3 ${g.mc2_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                      {fmtPct(g.mc2_pct)}
+                    </td>
+                    <td className="text-right px-3 py-3 text-gge-cyan">
+                      {totG.mc2 !== 0 ? fmtPct(g.mc2 / totG.mc2 * 100) : '—'}
                     </td>
                     <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">
                       R$ {fmt(g.difal)}
                     </td>
-                    <td className={`text-right px-3 py-3 font-bold border-l border-gge-border/50 ${g.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      R$ {fmt(g.mc2)}
+                    <td className={`text-right px-3 py-3 font-bold border-l border-gge-border/50 ${g.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                      R$ {fmt(g.mc1)}
                     </td>
-                    <td className={`text-right px-5 py-3 font-bold ${g.mc2_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      {fmtPct(g.mc2_pct)}
+                    <td className={`text-right px-3 py-3 font-bold ${g.mc1_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                      {fmtPct(g.mc1_pct)}
+                    </td>
+                    <td className="text-right px-5 py-3 text-gge-cyan">
+                      {totG.mc1 !== 0 ? fmtPct(g.mc1 / totG.mc1 * 100) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -217,19 +301,21 @@
                   <td className="text-right px-3 py-3 text-white">{fmtInt(totG.vendas)}</td>
                   <td className="text-right px-3 py-3 text-white">R$ {fmt(totG.receita)}</td>
                   <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(totG.custo_ads)}</td>
+                  <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                    R$ {fmt(totG.mc2)}
+                  </td>
+                  <td className={`text-right px-3 py-3 ${totG.receita > 0 && totG.mc2/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                    {fmtPct(totG.receita > 0 ? totG.mc2/totG.receita*100 : 0)}
+                  </td>
+                  <td className="text-right px-3 py-3 text-gge-cyan">100%</td>
+                  <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">R$ {fmt(totG.difal)}</td>
                   <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
                     R$ {fmt(totG.mc1)}
                   </td>
                   <td className={`text-right px-3 py-3 ${totG.receita > 0 && totG.mc1/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
                     {fmtPct(totG.receita > 0 ? totG.mc1/totG.receita*100 : 0)}
                   </td>
-                  <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">R$ {fmt(totG.difal)}</td>
-                  <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                    R$ {fmt(totG.margem)}
-                  </td>
-                  <td className={`text-right px-5 py-3 ${totG.receita > 0 && totG.margem/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                    {fmtPct(totG.receita > 0 ? totG.margem/totG.receita*100 : 0)}
-                  </td>
+                  <td className="text-right px-5 py-3 text-gge-cyan">100%</td>
                 </tr>
               </tfoot>
             </table>
@@ -238,7 +324,7 @@
       );
     }
 
-    // ── Groups Bar Chart ──
+    // ── Groups Bar Chart — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL ──
     function GroupsChart({ data }) {
       const chartData = useMemo(() => {
         const map = {};
@@ -246,12 +332,12 @@
           const g = row.grupo;
           if (!map[g]) map[g] = { grupo: g, receita: 0, mc1: 0, mc2: 0, difal: 0 };
           map[g].receita += Number(row.receita) || 0;
-          map[g].mc2 += Number(row.margem_valor) || 0;
+          map[g].mc1 += Number(row.margem_valor) || 0;
           map[g].difal += Number(row.difal_reserva) || 0;
         });
         return GRUPO_ORDER.filter(g => map[g]).map(g => ({
           ...map[g],
-          mc1: map[g].mc2 + map[g].difal
+          mc2: map[g].mc1 + map[g].difal
         }));
       }, [data]);
 
@@ -262,9 +348,9 @@
           <div className="bg-gge-card border border-gge-border rounded-lg p-3 shadow-xl">
             <p className="font-semibold text-white mb-1">{GRUPO_LABELS[d.grupo] || d.grupo}</p>
             <p className="text-sm text-gge-muted">Receita: <span className="text-white">R$ {fmt(d.receita)}</span></p>
-            <p className="text-sm text-gge-muted">MC1 (s/ DIFAL): <span className={d.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc1)}</span></p>
+            <p className="text-sm text-gge-muted">MC2 (s/ DIFAL): <span className={d.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc2)}</span></p>
             <p className="text-sm text-gge-muted">DIFAL: <span className="text-gge-orange">R$ {fmt(d.difal)}</span></p>
-            <p className="text-sm text-gge-muted">MC2 (c/ DIFAL): <span className={d.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc2)}</span></p>
+            <p className="text-sm text-gge-muted">MC1 (c/ DIFAL): <span className={d.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc1)}</span></p>
           </div>
         );
       };
@@ -279,7 +365,7 @@
               <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#2a2d3e' }}
                      tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="mc2" radius={[6, 6, 0, 0]}>
+              <Bar dataKey="mc1" radius={[6, 6, 0, 0]}>
                 {chartData.map((entry, i) => (
                   <Cell key={i} fill={GRUPO_COLORS[entry.grupo] || '#666'} opacity={0.85} />
                 ))}
@@ -324,7 +410,7 @@
       );
     }
 
-    // ── Top Anuncios Table ── ATUALIZADO COM DIFAL
+    // ── Top Anúncios Table — MC1 = c/ DIFAL (final) ──
     function TopAnuncios({ data, mode }) {
       const sorted = useMemo(() => {
         const filtered = data.filter(d => Number(d.receita) > 0);
@@ -340,19 +426,19 @@
               <thead>
                 <tr className="text-gge-muted text-xs uppercase tracking-wider">
                   <th className="text-left px-4 py-3 w-12">#</th>
-                  <th className="text-left px-4 py-3">Anuncio</th>
+                  <th className="text-left px-4 py-3">Anúncio</th>
                   <th className="text-right px-4 py-3">Vendas</th>
                   <th className="text-right px-4 py-3">Receita</th>
                   <th className="text-right px-4 py-3">DIFAL</th>
-                  <th className="text-right px-4 py-3">MC2</th>
-                  <th className="text-right px-4 py-3">MC2%</th>
+                  <th className="text-right px-4 py-3">MC1</th>
+                  <th className="text-right px-4 py-3">MC1%</th>
                   <th className="text-center px-4 py-3">Grupo</th>
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((row, i) => {
-                  const mc2 = Number(row.margem_valor) || 0;
-                  const mc2pct = Number(row.receita) > 0 ? mc2/Number(row.receita)*100 : 0;
+               {sorted.map((row, i) => {
+                  const mc1 = Number(row.margem_valor) || 0;
+                  const mc1pct = Number(row.receita) > 0 ? mc1/Number(row.receita)*100 : 0;
                   const difal = Number(row.difal_reserva) || 0;
                   return (
                     <tr key={row.mlb_id + '-' + i} className="border-t border-gge-border/50 hover:bg-white/5 transition-colors">
@@ -364,10 +450,10 @@
                       <td className="text-right px-4 py-2.5 text-gge-text">{fmtInt(row.qtd_vendas)}</td>
                       <td className="text-right px-4 py-2.5 text-white">R$ {fmt(row.receita)}</td>
                       <td className="text-right px-4 py-2.5 text-gge-orange">{difal > 0 ? `R$ ${fmt(difal)}` : '—'}</td>
-                      <td className={`text-right px-4 py-2.5 font-medium ${mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                        R$ {fmt(mc2)}
+                      <td className={`text-right px-4 py-2.5 font-medium ${mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        R$ {fmt(mc1)}
                       </td>
-                      <td className={`text-right px-4 py-2.5 font-bold ${mc2pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(mc2pct)}</td>
+                      <td className={`text-right px-4 py-2.5 font-bold ${mc1pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(mc1pct)}</td>
                       <td className="text-center px-4 py-2.5"><GrupoBadge grupo={row.grupo} /></td>
                     </tr>
                   );
@@ -388,8 +474,8 @@
       const [meses, setMeses] = useState([]);
       const [contas, setContas] = useState([]);
 
-      // Filters
-      const [mesSel, setMesSel] = useState('');
+      // Filters — período replaces mês
+      const [periodoSel, setPeriodoSel] = useState('30d');
       const [contaSel, setContaSel] = useState('');
       const [tipoSel, setTipoSel] = useState('');
       const [modeSel, setModeSel] = useState('');
@@ -406,7 +492,6 @@
           setLoading(true);
           setError(null);
           try {
-            // Buscar margem E cancelamentos em paralelo
             const [margemRes, saldoRes] = await Promise.all([
               supabase.from('vw_margem_segmentada').select('*').order('mes', { ascending: false }),
               supabase.from('vw_saldo_vendas').select('*').order('mes', { ascending: false })
@@ -420,7 +505,6 @@
             const cs = [...new Set(data.map(d => d.conta_nome))].sort();
             setMeses(ms);
             setContas(cs);
-            if (ms.length > 0 && !mesSel) setMesSel(ms[0]);
           } catch (e) {
             setError(e.message || 'Erro ao carregar dados');
           }
@@ -429,10 +513,22 @@
         load();
       }, []);
 
+      // Active months for the selected period
+      const activeMeses = useMemo(() => getMesesForPeriodo(periodoSel, meses), [periodoSel, meses]);
+
+      // Period label for header
+      const periodoLabel = useMemo(() => {
+        const opt = PERIODO_OPTIONS.find(p => p.value === periodoSel);
+        if (!opt) return '';
+        if (activeMeses.length === 1) return fmtMes(activeMeses[0]);
+        if (activeMeses.length > 1) return `${fmtMes(activeMeses[activeMeses.length - 1])} a ${fmtMes(activeMeses[0])}`;
+        return opt.label;
+      }, [periodoSel, activeMeses]);
+
       // Filtered data
       const filtered = useMemo(() => {
         return rawData.filter(d => {
-          if (mesSel && d.mes !== mesSel) return false;
+          if (!activeMeses.includes(d.mes)) return false;
           if (contaSel && d.conta_nome !== contaSel) return false;
           if (tipoSel && d.tipo_listagem !== tipoSel) return false;
           if (modeSel && d.modo_logistica !== modeSel) return false;
@@ -443,9 +539,9 @@
           if (idadeSel && d.idade_anuncio !== idadeSel) return false;
           return true;
         });
-      }, [rawData, mesSel, contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
+      }, [rawData, activeMeses, contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
 
-      // Totals - ATUALIZADO COM DIFAL E MC1/MC2
+      // Totals — MC1 = c/ DIFAL (margem final), MC2 = s/ DIFAL
       const totals = useMemo(() => {
         const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, ads: 0, frete: 0, custo: 0, comissao: 0, difal: 0, prejuizo_count: 0 };
         filtered.forEach(d => {
@@ -460,16 +556,17 @@
           t.difal += Number(d.difal_reserva) || 0;
           if (Number(d.margem_valor) < 0) t.prejuizo_count++;
         });
-        t.mc1 = t.margem + t.difal; // MC1 = margem antes do DIFAL
-        t.mc2 = t.margem;            // MC2 = margem final (com DIFAL)
+        t.mc1 = t.margem;                    // MC1 = margem final (c/ DIFAL)
+        t.mc2 = t.margem + t.difal;          // MC2 = margem antes do DIFAL (s/ DIFAL)
         t.mc1_pct = t.receita > 0 ? (t.mc1 / t.receita * 100) : 0;
         t.mc2_pct = t.receita > 0 ? (t.mc2 / t.receita * 100) : 0;
+        t.ticket = t.vendas > 0 ? (t.receita / t.vendas) : 0;
         return t;
       }, [filtered]);
 
       // Unique filter options
       const filterOpts = useMemo(() => {
-        const mesData = rawData.filter(d => !mesSel || d.mes === mesSel);
+        const mesData = rawData.filter(d => activeMeses.includes(d.mes));
         return {
           tipos: [...new Set(mesData.map(d => d.tipo_listagem))].sort(),
           modos: [...new Set(mesData.map(d => d.modo_logistica))].sort(),
@@ -477,14 +574,14 @@
           cats: [...new Set(mesData.map(d => d.catalogo_anuncio))].sort(),
           forns: [...new Set(mesData.map(d => d.fornecedor))].sort(),
           pontos: [...new Set(mesData.map(d => d.ponto_saida))].sort(),
-          idades: [...new Set(mesData.map(d => d.idade_anuncio))].sort(),
+          idades: sortIdades([...new Set(mesData.map(d => d.idade_anuncio))]),
         };
-      }, [rawData, mesSel]);
+      }, [rawData, activeMeses]);
 
-      // Totais de cancelamento do mês selecionado
+      // Cancel totals for selected period
       const cancelTotals = useMemo(() => {
         const rows = saldoData.filter(d => {
-          if (mesSel && d.mes !== mesSel) return false;
+          if (!activeMeses.includes(d.mes)) return false;
           if (contaSel && d.conta_nome !== contaSel) return false;
           return true;
         });
@@ -498,9 +595,10 @@
           t.refund_valor += Number(r.valor_parcial_refund_original) || 0;
         });
         t.liquido = t.bruto - t.cancelado;
-        t.pct = t.bruto > 0 ? (t.cancelado / (t.bruto + t.cancelado) * 100) : 0;
+        t.vendas_brutas = t.bruto + t.cancelado;
+        t.pct = t.vendas_brutas > 0 ? (t.cancelado / t.vendas_brutas * 100) : 0;
         return t;
-      }, [saldoData, mesSel, contaSel]);
+      }, [saldoData, activeMeses, contaSel]);
 
       if (error) {
         return (
@@ -527,11 +625,11 @@
                 <div className="w-10 h-10 bg-gge-accent rounded-xl flex items-center justify-center text-white font-bold text-lg">G</div>
                 <div>
                   <h1 className="text-lg font-bold text-white tracking-tight">Controle Total GGE</h1>
-                  <p className="text-xs text-gge-muted">Painel de Margem de Contribuicao</p>
+                  <p className="text-xs text-gge-muted">Painel de Margem de Contribuição</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                {mesSel && <span className="text-sm text-gge-muted">Dados de <span className="text-white font-medium">{fmtMes(mesSel)}</span></span>}
+                {periodoLabel && <span className="text-sm text-gge-muted">Dados: <span className="text-white font-medium">{periodoLabel}</span></span>}
                 <div className="w-2 h-2 rounded-full bg-gge-green animate-pulse" title="Conectado ao Supabase"></div>
               </div>
             </div>
@@ -542,20 +640,24 @@
             <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-sm font-semibold text-white">Filtros</span>
-                <span className="text-xs text-gge-muted">({fmtInt(filtered.length)} anuncios)</span>
+                <span className="text-xs text-gge-muted">({fmtInt(filtered.length)} anúncios)</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
-                <FilterSelect label="Mes" value={mesSel} onChange={setMesSel} options={meses} allLabel="Todos os meses" labelFn={fmtMes} />
-                <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={contas} />
-                <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} />
-                <FilterSelect label="Logistica" value={modeSel} onChange={setModeSel} options={filterOpts.modos} />
-                <FilterSelect label="Tipo" value={kitSel} onChange={setKitSel} options={filterOpts.kits} />
-                <FilterSelect label="Catalogo" value={catSel} onChange={setCatSel} options={filterOpts.cats} />
-                <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} />
-                <FilterSelect label="Pto Saida" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} />
-                <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} />
+                <FilterSelect label="Período" value={periodoSel} onChange={setPeriodoSel}
+                              options={PERIODO_OPTIONS.map(p => p.value)}
+                              allLabel="Todo o período"
+                              labelFn={v => PERIODO_OPTIONS.find(p => p.value === v)?.label || v}
+                              isActive={periodoSel !== '30d'} />
+                <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={contas} isActive={!!contaSel} />
+                <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} isActive={!!tipoSel} />
+                <FilterSelect label="Logística" value={modeSel} onChange={setModeSel} options={filterOpts.modos} isActive={!!modeSel} />
+                <FilterSelect label="Tipo" value={kitSel} onChange={setKitSel} options={filterOpts.kits} isActive={!!kitSel} />
+                <FilterSelect label="Catálogo" value={catSel} onChange={setCatSel} options={filterOpts.cats} isActive={!!catSel} />
+                <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} isActive={!!fornSel} />
+                <FilterSelect label="Pto Saída" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} isActive={!!pontoSel} />
+                <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} isActive={!!idadeSel} />
                 <div className="flex items-end">
-                  <button onClick={() => { setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); }}
+                  <button onClick={() => { setPeriodoSel('30d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); }}
                           className="w-full px-3 py-2 text-sm text-gge-muted border border-gge-border rounded-lg hover:bg-white/5 transition-colors">
                     Limpar
                   </button>
@@ -564,22 +666,22 @@
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+              <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
+                {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-28" />)}
               </div>
             ) : (
               <>
-                {/* Barra de Cancelamentos */}
-                {cancelTotals.qtd_cancel > 0 && (
+                {/* Vendas Brutas vs Cancelamentos */}
+                {(cancelTotals.qtd_cancel > 0 || cancelTotals.qtd_refund > 0) && (
                   <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-lg font-semibold text-white">Vendas Brutas vs Cancelamentos</span>
                       <span className="text-xs text-gge-muted">(status das ordens no ML)</span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                    <div className={`grid grid-cols-1 gap-4 items-center ${cancelTotals.qtd_refund > 0 ? 'md:grid-cols-7' : 'md:grid-cols-5'}`}>
                       <div className="text-center">
                         <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Brutas</div>
-                        <div className="text-xl font-bold text-white">R$ {fmt(cancelTotals.bruto + cancelTotals.cancelado)}</div>
+                        <div className="text-xl font-bold text-white">R$ {fmt(cancelTotals.vendas_brutas)}</div>
                         <div className="text-gge-muted text-xs">{fmtInt(cancelTotals.qtd_vendas + cancelTotals.qtd_cancel)} ordens</div>
                       </div>
                       <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
@@ -594,8 +696,18 @@
                         <div className="text-xl font-bold text-gge-green">R$ {fmt(cancelTotals.liquido)}</div>
                         <div className="text-gge-green text-xs">{fmtInt(cancelTotals.qtd_vendas)} ordens efetivas</div>
                       </div>
+                      {cancelTotals.qtd_refund > 0 && (
+                        <>
+                          <div className="text-center text-gge-muted text-2xl hidden md:block">&#8634;</div>
+                          <div className="text-center">
+                            <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais</div>
+                            <div className="text-xl font-bold text-gge-yellow">R$ {fmt(cancelTotals.refund_valor)}</div>
+                            <div className="text-gge-yellow text-xs">{fmtInt(cancelTotals.qtd_refund)} devoluções</div>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {/* Barra visual de proporção */}
+                    {/* Visual proportion bar */}
                     <div className="mt-4 h-3 rounded-full bg-gge-border overflow-hidden flex">
                       <div className="bg-gge-green h-full rounded-l-full transition-all" style={{ width: `${100 - cancelTotals.pct}%` }} />
                       <div className="bg-gge-red h-full rounded-r-full transition-all" style={{ width: `${cancelTotals.pct}%` }} />
@@ -607,28 +719,37 @@
                   </div>
                 )}
 
-                {/* KPI Cards - ATUALIZADO COM MC1, DIFAL, MC2 */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                {/* KPI Cards — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL */}
+                <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
                   <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="&#128176;" />
                   <MetricCard label="Custo Produto" value={`R$ ${fmt(totals.custo)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.custo/totals.receita*100)} da receita` : ''}
                               icon="&#128230;" />
-                  <MetricCard label="Comissao ML" value={`R$ ${fmt(totals.comissao)}`}
+                  <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.comissao/totals.receita*100)} da receita` : ''}
                               icon="&#127978;" />
-                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`} icon="&#128666;" />
-                  <MetricCard label="MC1 (s/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
-                              color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="&#128200;" />
+                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`}
+                              sub={totals.receita > 0 ? `${fmtPct(totals.frete/totals.receita*100)} da receita` : ''}
+                              icon="&#128666;" />
+                  <MetricCard label="ADs" value={`R$ ${fmt(totals.ads)}`}
+                              color="text-gge-yellow"
+                              sub={totals.receita > 0 ? `${fmtPct(totals.ads/totals.receita*100)} da receita` : ''}
+                              icon="&#128226;" />
+                  <MetricCard label="MC2 (s/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
+                              color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="&#128200;" />
                   <MetricCard label="DIFAL" value={`R$ ${fmt(totals.difal)}`}
                               color="text-gge-orange"
                               sub={totals.receita > 0 ? `${fmtPct(totals.difal/totals.receita*100)} da receita` : ''}
                               icon="&#127970;" />
-                  <MetricCard label="MC2 (c/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
-                              color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="&#127919;" />
+                  <MetricCard label="MC1 (c/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
+                              color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="&#127919;" />
+                  <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`}
+                              sub={`${fmtInt(totals.vendas)} vendas`}
+                              icon="&#127915;" />
                   <MetricCard label="Vendas" value={fmtInt(totals.vendas)}
-                              sub={`${fmtInt(totals.prejuizo_count)} em prejuizo`}
+                              sub={`${fmtInt(totals.prejuizo_count)} em prejuízo`}
                               icon="&#128722;" />
                 </div>
 
@@ -637,7 +758,7 @@
                   <div className="lg:col-span-2">
                     <GroupsChart data={filtered} />
                   </div>
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de Saida" field="ponto_saida" />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de Saída" field="ponto_saida" />
                 </div>
 
                 {/* Groups Table */}
@@ -647,15 +768,15 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Fornecedor" field="fornecedor" />
                   <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Tipo Listagem" field="tipo_listagem" labelFn={labelTipo} />
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Logistica" field="modo_logistica" />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Logística" field="modo_logistica" />
                 </div>
 
-                {/* Top Anuncios */}
+                {/* Top Anúncios */}
                 <div>
                   <div className="flex items-center gap-4 mb-3">
-                    <h3 className="text-lg font-semibold text-white">Top 10 Anuncios</h3>
+                    <h3 className="text-lg font-semibold text-white">Top 10 Anúncios</h3>
                     <div className="flex gap-1">
-                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuizo'], ['receita', 'Maior Receita']].map(([k, label]) => (
+                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuízo'], ['receita', 'Maior Receita']].map(([k, label]) => (
                         <button key={k} onClick={() => setTopMode(k)}
                                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${topMode === k ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
                           {label}
@@ -666,11 +787,11 @@
                   <TopAnuncios data={filtered} mode={topMode} />
                 </div>
 
-                {/* Footer - FORMULA CORRIGIDA */}
+                {/* Footer — fórmulas atualizadas MC1/MC2 */}
                 <div className="text-center text-gge-muted text-xs py-8 border-t border-gge-border space-y-1">
                   <p className="font-medium text-gge-text">Controle Total GGE — Dados do Supabase em tempo real</p>
-                  <p><strong>MC1</strong> = Receita - Comissao - Frete - Custo Produto - ADs - PIS/COFINS(9,25%) + Creditos PIS/COFINS(9,25%) - Simples(8,65% TOOW)</p>
-                  <p><strong>MC2</strong> = MC1 - DIFAL (aliq. interna destino - aliq. interestadual, por UF, apenas GGE)</p>
+                  <p><strong>MC2</strong> = Receita - Comissão - Frete - Custo Produto - ADs - PIS/COFINS(9,25%) + Créditos PIS/COFINS(9,25%) - Simples(8,65% TOOW)</p>
+                  <p><strong>MC1</strong> = MC2 - DIFAL (alíq. interna destino - alíq. interestadual, por UF, apenas GGE)</p>
                 </div>
               </>
             )}
