@@ -594,7 +594,7 @@
           t.qtd_refund += Number(r.qtd_parcial_refund) || 0;
           t.refund_valor += Number(r.valor_parcial_refund_original) || 0;
         });
-        t.liquido = t.bruto - t.cancelado;
+        t.liquido = t.bruto;
         t.vendas_brutas = t.bruto + t.cancelado;
         t.pct = t.vendas_brutas > 0 ? (t.cancelado / t.vendas_brutas * 100) : 0;
         return t;
