@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel II — Precificação | Controle Total GGE</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card: #1a1d27;
+            --border: #2a2d3a;
+            --text: #e4e4e7;
+            --text-secondary: #a1a1a6;
+            --accent: #6366f1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .header-title h1 {
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .header-title p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .header-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .header-link:hover {
+            background-color: var(--card);
+            border-color: var(--accent);
+        }
+
+        .settings-bar {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            max-height: 50px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .settings-bar.expanded {
+            max-height: 500px;
+        }
+
+        .settings-toggle {
+            background: none;
+            border: none;
+            color: var(--accent);
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .setting-item label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .setting-item input {
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .setting-item input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+            padding-bottom: 15px;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            position: relative;
+            white-space: nowrap;
+            transition: color 0.2s;
+        }
+
+        .tab-button:hover {
+            color: var(--text);
+        }
+
+        .tab-button.active {
+            color: var(--accent);
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px;
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            background-color: rgba(99, 102, 241, 0.1);
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--accent);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th:hover {
+            background-color: rgba(99, 102, 241, 0.15);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr:hover {
+            background-color: rgba(99, 102, 241, 0.05);
+        }
+
+        tbody tr.no-cost {
+            opacity: 0.6;
+            background-color: rgba(99, 102, 241, 0.02);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-no-cost {
+            background-color: var(--border);
+            color: var(--text-secondary);
+        }
+
+        .badge-estimated {
+            background-color: rgba(245, 158, 11, 0.2);
+            color: #fcd34d;
+        }
+
+        .mc-good {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .mc-warning {
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        .mc-danger {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .price-lower {
+            color: var(--success);
+        }
+
+        .price-higher {
+            color: var(--danger);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .error {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state h3 {
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 1024px) {
+            table { font-size: 12px; }
+            th, td { padding: 10px 8px; }
+            .header { flex-direction: column; gap: 15px; align-items: flex-start; }
+            .settings-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .header-title h1 { font-size: 20px; }
+            table { font-size: 11px; }
+            th, td { padding: 8px 5px; }
+            .settings-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">GGE</div>
+                <div class="header-title">
+                    <h1>Controle Total — Precificação</h1>
+                    <p>Painel II: Reverse-engineered pricing por margem alvo</p>
+                </div>
+            </div>
+            <a href="index.html" class="header-link">← Dashboard</a>
+        </div>
+
+        <div class="settings-bar" id="settingsBar">
+            <button class="settings-toggle" id="settingsToggle">⚙️ Configurações de Taxa</button>
+            <div class="settings-grid" id="settingsGrid" style="display: none;">
+                <div class="setting-item">
+                    <label>Comissão Clássico (%)</label>
+                    <input type="number" id="comissaoClassico" value="12" step="0.1" min="0" max="100">
+                </div>
+                <div class="setting-item">
+                    <label>Comissão Premium (%)</label>
+                    <input type="number" id="comissaoPremium" value="17" step="0.1" min="0" max="100">
+                </div>
+                <div class="setting-item">
+                    <label>PIS/COFINS Líquido (%)</label>
+                    <input type="number" id="pisCofins" value="6.64" step="0.1" min="0" max="100">
+                </div>
+                <div class="setting-item">
+                    <label>ICMS Coleta RJ (%)</label>
+                    <input type="number" id="icmsRj" value="5.40" step="0.1" min="0" max="100">
+                </div>
+                <div class="setting-item">
+                    <label>DIFAL Médio (%)</label>
+                    <input type="number" id="difal" value="7.15" step="0.1" min="0" max="100">
+                </div>
+                <div class="setting-item">
+                    <label>ADs (%)</label>
+                    <input type="number" id="ads" value="3.80" step="0.1" min="0" max="100">
+                </div>
+                <div class="setting-item">
+                    <label>Simples (%)</label>
+                    <input type="number" id="simples" value="8.65" step="0.1" min="0" max="100">
+                </div>
+                <div class="setting-item">
+                    <label>ICMS SP (%)</label>
+                    <input type="number" id="icmsSp" value="18.68" step="0.1" min="0" max="100">
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs" id="tabs"></div>
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Buscar por SKU ou título...">
+            </div>
+        </div>
+        <div id="tabsContent"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+
+        const CONTAS = {
+            'e761652f-07fa-49d2-a6c7-1b738862ab08': { nome: 'GGE-GRAMPEADORES', regime: 'lucro_real', uf: 'RJ' },
+            '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c': { nome: 'GGESP', regime: 'lucro_real', uf: 'SP' },
+            '8284ee61-87f9-4162-9f1f-542587fbbf53': { nome: 'TOOWCOMERCIAL', regime: 'simples', uf: 'SP' }
+        };
+
+        let state = {
+            anuncios: [],
+            custos: {},
+            freteTable: [],
+            rates: {
+                comissaoClassico: 12,
+                comissaoPremium: 17,
+                pisCofins: 6.64,
+                icmsRj: 5.40,
+                difal: 7.15,
+                ads: 3.80,
+                simples: 8.65,
+                icmsSp: 18.68
+            },
+            searchTerm: ''
+        };
+
+        async function init() {
+            await setupEventListeners();
+            await loadData();
+            render();
+        }
+
+        function setupEventListeners() {
+            document.getElementById('settingsToggle').addEventListener('click', toggleSettings);
+            ['comissaoClassico', 'comissaoPremium', 'pisCofins', 'icmsRj', 'difal', 'ads', 'simples', 'icmsSp'].forEach(id => {
+                document.getElementById(id).addEventListener('change', (e) => {
+                    const key = id.charAt(0).toLowerCase() + id.slice(1);
+                    state.rates[key] = parseFloat(e.target.value);
+                    renderTables();
+                });
+            });
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                state.searchTerm = e.target.value.toLowerCase();
+                renderTables();
+            });
+        }
+
+        function toggleSettings() {
+            const bar = document.getElementById('settingsBar');
+            const grid = document.getElementById('settingsGrid');
+            bar.classList.toggle('expanded');
+            grid.style.display = bar.classList.contains('expanded') ? 'grid' : 'none';
+        }
+
+        async function loadData() {
+            try {
+                const [anuncios, custos, frete] = await Promise.all([
+                    fetchSupabase('anuncios', 'select=mlb_id,titulo,preco_atual,sku_vendedor,tipo_listagem,modo_logistica,conta_id,categoria_id&status=eq.active'),
+                    fetchSupabase('skus_custo_historico', 'select=sku,custo_cif_rj,custo_cif_sp,data_vigencia&order=data_vigencia.desc'),
+                    fetchSupabase('tabela_frete_ml', 'select=modo,peso_max_kg,preco_min,preco_max,frete&modo=eq.coleta')
+                ]);
+                state.anuncios = anuncios || [];
+                state.freteTable = frete || [];
+                if (custos) {
+                    const custosMap = {};
+                    custos.forEach(c => { if (!custosMap[c.sku]) custosMap[c.sku] = c; });
+                    state.custos = custosMap;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                showError('Erro ao conectar com Supabase: ' + error.message);
+            }
+        }
+
+        async function fetchSupabase(table, params) {
+            const url = SUPABASE_URL + '/rest/v1/' + table + '?' + params;
+            const response = await fetch(url, {
+                headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+            });
+            if (!response.ok) throw new Error('Supabase error: ' + response.statusText);
+            return response.json();
+        }
+
+        function render() { renderTabs(); renderTables(); }
+
+        function renderTabs() {
+            const tabs = [
+                { id: 'toow', label: 'TOOW Convencional', conta: '8284ee61-87f9-4162-9f1f-542587fbbf53' },
+                { id: 'ggerj-coleta', label: 'GGERJ Coleta Convencional', conta: 'e761652f-07fa-49d2-a6c7-1b738862ab08' },
+                { id: 'ggerj-sem-imposto', label: 'GGERJ Coleta Sem Imposto', conta: 'e761652f-07fa-49d2-a6c7-1b738862ab08' },
+                { id: 'ggerj-full', label: 'GGERJ Full', conta: 'e761652f-07fa-49d2-a6c7-1b738862ab08' },
+                { id: 'ggesp', label: 'GGESP Convencional', conta: '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c' },
+                { id: 'b2b', label: 'VENDA DIRETA B2B', conta: null }
+            ];
+            document.getElementById('tabs').innerHTML = tabs.map((tab, idx) =>
+                '<button class="tab-button ' + (idx === 0 ? 'active' : '') + '" data-tab="' + tab.id + '">' + tab.label + '</button>'
+            ).join('');
+            tabs.forEach(tab => {
+                document.querySelector('[data-tab="' + tab.id + '"]').addEventListener('click', () => switchTab(tab.id, tabs));
+            });
+            document.getElementById('tabsContent').innerHTML = tabs.map((tab, idx) =>
+                '<div class="tab-content ' + (idx === 0 ? 'active' : '') + '" id="tab-' + tab.id + '"></div>'
+            ).join('');
+            state.tabs = tabs;
+        }
+
+        function switchTab(tabId, tabs) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector('[data-tab="' + tabId + '"]').classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+            renderTableForTab(tabId);
+        }
+
+        function renderTables() { state.tabs.forEach(tab => renderTableForTab(tab.id)); }
+
+        function renderTableForTab(tabId) {
+            const container = document.getElementById('tab-' + tabId);
+            let filtered = [];
+            switch (tabId) {
+                case 'toow':
+                    filtered = state.anuncios.filter(a => a.conta_id === '8284ee61-87f9-4162-9f1f-542587fbbf53'); break;
+                case 'ggerj-coleta':
+                    filtered = state.anuncios.filter(a => a.conta_id === 'e761652f-07fa-49d2-a6c7-1b738862ab08' && a.modo_logistica === 'coleta'); break;
+                case 'ggerj-sem-imposto':
+                    filtered = state.anuncios.filter(a => a.conta_id === 'e761652f-07fa-49d2-a6c7-1b738862ab08' && a.modo_logistica === 'coleta'); break;
+                case 'ggerj-full':
+                    filtered = state.anuncios.filter(a => a.conta_id === 'e761652f-07fa-49d2-a6c7-1b738862ab08' && (a.modo_logistica.includes('fulfillment') || a.modo_logistica.includes('full'))); break;
+                case 'ggesp':
+                    filtered = state.anuncios.filter(a => a.conta_id === '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c'); break;
+                case 'b2b':
+                    container.innerHTML = '<div class="empty-state"><h3>Em construção</h3><p>Seção VENDA DIRETA B2B será implementada em breve</p></div>'; return;
+            }
+            if (state.searchTerm) {
+                filtered = filtered.filter(a =>
+                    (a.sku_vendedor || '').toLowerCase().includes(state.searchTerm) ||
+                    (a.titulo || '').toLowerCase().includes(state.searchTerm)
+                );
+            }
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>Nenhum anúncio encontrado</h3><p>Tente ajustar os filtros de busca</p></div>'; return;
+            }
+            const rows = filtered.sort((a, b) => (a.sku_vendedor || '').localeCompare(b.sku_vendedor || '')).map(anuncio => {
+                const custo = state.custos[anuncio.sku_vendedor] || {};
+                const cif = custo.custo_cif_rj || custo.custo_cif_sp || 0;
+                const hasCusto = cif > 0;
+                const peso = 1.0;
+                let comissaoPct = state.rates.comissaoClassico / 100;
+                if (anuncio.tipo_listagem === 'gold_special') comissaoPct = state.rates.comissaoPremium / 100;
+                const deductions = getDeductions(tabId, comissaoPct);
+                const frete = lookupFrete(peso, anuncio.preco_atual);
+                const mcAtual = calculateMC(anuncio.preco_atual, cif, frete, deductions);
+                const prices = {
+                    mc10: calcPrice(cif, peso, deductions, 0.10, tabId),
+                    mc15: calcPrice(cif, peso, deductions, 0.15, tabId),
+                    mc20: calcPrice(cif, peso, deductions, 0.20, tabId),
+                    mc25: calcPrice(cif, peso, deductions, 0.25, tabId)
+                };
+                return { sku: anuncio.sku_vendedor, titulo: (anuncio.titulo || '').substring(0, 40), precoAtual: anuncio.preco_atual, cif: cif, frete: frete, mcAtual: mcAtual, prices: prices, hasCusto: hasCusto, noCostBadge: !hasCusto };
+            });
+            container.innerHTML = '<div class="table-wrapper"><table><thead><tr><th>SKU</th><th>Título</th><th>Preço Atual</th><th>Custo CIF</th><th>Frete Est.</th><th>MC Atual</th><th>MC 10%</th><th>MC 15%</th><th>MC 20%</th><th>MC 25%</th></tr></thead><tbody>' + rows.map(row => renderTableRow(row)).join('') + '</tbody></table></div>';
+        }
+
+        function renderTableRow(row) {
+            const mcClass = row.mcAtual > 0.15 ? 'mc-good' : row.mcAtual > 0.03 ? 'mc-warning' : 'mc-danger';
+            const noCostClass = row.noCostBadge ? ' class="no-cost"' : '';
+            return '<tr' + noCostClass + '><td>' + row.sku + '</td><td>' + row.titulo + '</td><td>' + formatCurrency(row.precoAtual) + '</td><td>' + (row.hasCusto ? formatCurrency(row.cif) : '<span class="badge badge-no-cost">SEM CUSTO</span>') + '</td><td>' + formatCurrency(row.frete) + '<span class="badge badge-estimated">EST.</span></td><td class="' + mcClass + '">' + formatPercent(row.mcAtual) + '</td><td class="' + (row.prices.mc10 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(row.prices.mc10) + '</td><td class="' + (row.prices.mc15 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(row.prices.mc15) + '</td><td class="' + (row.prices.mc20 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(row.prices.mc20) + '</td><td class="' + (row.prices.mc25 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(row.prices.mc25) + '</td></tr>';
+        }
+
+        function getDeductions(tabId, comissaoPct) {
+            const d = { comissao: comissaoPct };
+            switch (tabId) {
+                case 'toow': d.simples = state.rates.simples / 100; d.ads = state.rates.ads / 100; break;
+                case 'ggerj-coleta': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsRj / 100; d.difal = state.rates.difal / 100; d.ads = state.rates.ads / 100; break;
+                case 'ggerj-sem-imposto': d.ads = state.rates.ads / 100; break;
+                case 'ggerj-full': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsSp / 100; d.ads = state.rates.ads / 100; break;
+                case 'ggesp': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsSp / 100; d.difal = state.rates.difal / 100; d.ads = state.rates.ads / 100; break;
+            }
+            return d;
+        }
+
+        function lookupFrete(pesoKg, preco) {
+            if (preco < 12.50) return 0.50;
+            if (preco < 29.00) return 6.25;
+            if (preco < 50.00) return 6.50;
+            if (preco < 79.00) return 6.75;
+            const row = state.freteTable.find(r => Number(r.peso_max_kg) >= pesoKg && preco >= Number(r.preco_min) && preco <= Number(r.preco_max));
+            return row ? Number(row.frete) : 20;
+        }
+
+        function calculateMC(price, cif, frete, deductions) {
+            if (price <= 0) return 0;
+            const deductionsPct = Object.values(deductions).reduce((a, b) => a + b, 0);
+            return Math.max(0, 1 - deductionsPct - frete / price - cif / price);
+        }
+
+        function calcPrice(cif, peso, deductions, targetMC, tabId) {
+            const deductionsPct = Object.values(deductions).reduce((a, b) => a + b, 0);
+            const denominador = 1 - deductionsPct - targetMC;
+            if (denominador <= 0) return 0;
+            let price = cif / denominador;
+            for (let i = 0; i < 3; i++) { const frete = lookupFrete(peso, price); price = (cif + frete) / denominador; }
+            return price;
+        }
+
+        function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
+        function formatPercent(value) { return (value * 100).toFixed(1) + '%'; }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.settings-bar'));
+        }
+
+        init();
+    </script>
+</body>
+</html>
