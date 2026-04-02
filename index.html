@@ -1,806 +1,416 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Total GGE</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'gge-bg': '#0f1117',
-            'gge-card': '#1a1d2e',
-            'gge-border': '#2a2d3e',
-            'gge-text': '#e2e8f0',
-            'gge-muted': '#94a3b8',
-            'gge-accent': '#6366f1',
-            'gge-green': '#22c55e',
-            'gge-red': '#ef4444',
-            'gge-yellow': '#eab308',
-            'gge-orange': '#f97316',
-            'gge-cyan': '#22d3ee',
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    .fade-in { animation: fadeIn 0.3s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .pulse-load { animation: pulse 1.5s ease-in-out infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #1a1d2e; }
-    ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
-    .filter-active select { border-color: #6366f1 !important; color: #fff !important; font-weight: 600; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle Total GGE — Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card-hover: #222532;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --text-muted: #8b8fa3;
+    --accent: #6366f1;
+    --accent-light: #818cf8;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,.12);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,.12);
+    --blue: #3b82f6;
+    --blue-bg: rgba(59,130,246,.12);
+    --orange: #f97316;
+    --orange-bg: rgba(249,115,22,.12);
+    --red: #ef4444;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #1e2235 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 18px; color: #fff;
+  }
+  .header h1 {
+    font-size: 22px; font-weight: 700;
+    background: linear-gradient(135deg, #e4e4e7, #a1a1aa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header h1 span { font-weight: 400; color: var(--text-muted); -webkit-text-fill-color: var(--text-muted); }
+  .filter-bar {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .filter-bar label { font-size: 13px; color: var(--text-muted); }
+  .filter-bar select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer;
+    outline: none; transition: border-color .2s;
+  }
+  .filter-bar select:hover { border-color: var(--accent); }
+  .container { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+  .section-title {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::before {
+    content: ''; width: 4px; height: 16px; border-radius: 2px;
+    background: var(--accent);
+  }
+  .proj-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 900px) { .proj-grid { grid-template-columns: 1fr; } }
+  .proj-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    transition: all .25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .proj-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .proj-card .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 12px;
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .badge-30 { background: var(--blue-bg); color: var(--blue); }
+  .badge-15 { background: var(--yellow-bg); color: var(--yellow); }
+  .badge-7  { background: var(--orange-bg); color: var(--orange); }
+  .proj-card .label {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 4px;
+  }
+  .proj-card .value {
+    font-size: 28px; font-weight: 700; margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .proj-card .sub {
+    font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;
+  }
+  .proj-card .sub .avg {
+    color: var(--accent-light); font-weight: 600;
+  }
+  .month-detail {
+    font-size: 12px; color: var(--text-muted); margin-top: 8px;
+    line-height: 1.6;
+  }
+  .month-detail strong { color: var(--text); font-weight: 600; }
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 900px) { .summary-row { grid-template-columns: repeat(2, 1fr); } }
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+  }
+  .summary-card .label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+  .summary-card .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary-card .change { font-size: 12px; margin-top: 4px; }
+  .change.up { color: var(--green); }
+  .change.down { color: var(--red); }
+  .panels-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 700px) { .panels-grid { grid-template-columns: 1fr; } }
+  .panel-link {
+    display: flex; align-items: center; gap: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    text-decoration: none; color: var(--text);
+    transition: all .25s;
+    cursor: pointer;
+  }
+  .panel-link:hover {
+    border-color: var(--accent); transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  }
+  .panel-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0;
+  }
+  .panel-icon.margem { background: linear-gradient(135deg, rgba(34,197,94,.15), rgba(34,197,94,.05)); color: var(--green); }
+  .panel-icon.preco  { background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(99,102,241,.05)); color: var(--accent-light); }
+  .panel-link h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .panel-link p  { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+  .panel-arrow {
+    margin-left: auto; font-size: 20px; color: var(--text-muted);
+    transition: transform .2s, color .2s;
+  }
+  .panel-link:hover .panel-arrow { transform: translateX(4px); color: var(--accent); }
+  .hist-table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .hist-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  .hist-table th {
+    background: rgba(99,102,241,.06);
+    padding: 12px 16px; text-align: left;
+    font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--text-muted); border-bottom: 1px solid var(--border);
+  }
+  .hist-table td {
+    padding: 11px 16px; border-bottom: 1px solid rgba(42,45,58,.5);
+    font-variant-numeric: tabular-nums;
+  }
+  .hist-table tr:last-child td { border-bottom: none; }
+  .hist-table tr:hover td { background: rgba(99,102,241,.04); }
+  .loading {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-muted); font-size: 15px;
+  }
+  .spinner {
+    display: inline-block; width: 28px; height: 28px;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite;
+    margin-bottom: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .footer {
+    text-align: center; padding: 20px;
+    font-size: 12px; color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 16px;
+  }
+</style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback } = React;
-    const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } = Recharts;
-
-    // ── Supabase Client ──
-    const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
-    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-    // ── Helpers ──
-    const fmt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtInt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR');
-    const fmtPct = (v) => v == null ? '—' : Number(v).toFixed(1) + '%';
-    const fmtMes = (m) => { const d = new Date(m + 'T12:00:00'); return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }); };
-
-    // ── Grupo config com L7 e L8 ──
-    const GRUPO_COLORS = {
-      P1: '#ef4444', P2: '#f97316', P3: '#a855f7',
-      L1: '#fbbf24', L2: '#a3e635', L3: '#4ade80',
-      L4: '#22d3ee', L5: '#3b82f6', L6: '#6366f1',
-      L7: '#8b5cf6', L8: '#ec4899'
-    };
-    const GRUPO_LABELS = {
-      P1: 'P1 — Prejuízo estrutural', P2: 'P2 — Prejuízo por ADs',
-      P3: 'P3 — Só ADs, sem vendas',
-      L1: 'L1 — 0-5%', L2: 'L2 — 5-10%', L3: 'L3 — 10-15%',
-      L4: 'L4 — 15-20%', L5: 'L5 — 20-25%', L6: 'L6 — 25-30%',
-      L7: 'L7 — 30-40%', L8: 'L8 — >40%'
-    };
-    const GRUPO_ORDER = ['P1','P2','P3','L1','L2','L3','L4','L5','L6','L7','L8'];
-
-    const TIPO_LISTAGEM_LABELS = {
-      'gold_special': 'Premium',
-      'gold_pro': 'Clássico',
-      'Desconhecido': 'Desconhecido'
-    };
-    const labelTipo = (t) => TIPO_LISTAGEM_LABELS[t] || t;
-
-    // ── Período config ──
-    const PERIODO_OPTIONS = [
-      { value: '7d', label: '7 dias' },
-      { value: '15d', label: '15 dias' },
-      { value: '30d', label: '30 dias' },
-      { value: 'mes_passado', label: 'Mês passado' },
-      { value: '2m_atras', label: '2 meses atrás' },
-      { value: '3m_atras', label: '3 meses atrás' },
-      { value: '90d', label: '90 dias' },
-      { value: '180d', label: '180 dias' },
-      { value: '1a', label: '1 ano' },
-    ];
-
-    function getMesesForPeriodo(periodo, allMeses) {
-      if (!allMeses.length) return [];
-      const sorted = [...allMeses].sort((a,b) => b.localeCompare(a));
-      const today = new Date();
-      const toYM = (d) => d.toISOString().slice(0, 7);
-
-      switch (periodo) {
-        case '7d': case '15d': case '30d': {
-          // Last N days — include months that overlap
-          const days = periodo === '7d' ? 7 : periodo === '15d' ? 15 : 30;
-          const cutoff = new Date(today);
-          cutoff.setDate(cutoff.getDate() - days);
-          const cutoffYM = toYM(cutoff);
-          const todayYM = toYM(today);
-          return sorted.filter(m => m >= cutoffYM && m <= todayYM);
-        }
-        case 'mes_passado': {
-          const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-          const ym = toYM(d);
-          return sorted.filter(m => m === ym);
-        }
-        case '2m_atras': {
-          const d = new Date(today.getFullYear(), today.getMonth() - 2, 1);
-          const ym = toYM(d);
-          return sorted.filter(m => m === ym);
-        }
-        case '3m_atras': {
-          const d = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-          const ym = toYM(d);
-          return sorted.filter(m => m === ym);
-        }
-        case '90d': {
-          const cutoff = new Date(today);
-          cutoff.setDate(cutoff.getDate() - 90);
-          const cutoffYM = toYM(cutoff);
-          return sorted.filter(m => m >= cutoffYM);
-        }
-        case '180d': {
-          const cutoff = new Date(today);
-          cutoff.setDate(cutoff.getDate() - 180);
-          const cutoffYM = toYM(cutoff);
-          return sorted.filter(m => m >= cutoffYM);
-        }
-        case '1a': {
-          const cutoff = new Date(today);
-          cutoff.setFullYear(cutoff.getFullYear() - 1);
-          const cutoffYM = toYM(cutoff);
-          return sorted.filter(m => m >= cutoffYM);
-        }
-        default:
-          return sorted.slice(0, 1);
-      }
-    }
-
-    // ── Idade sort order (chronological) ──
-    const IDADE_ORDER = { '7d': 1, '15d': 2, '30d': 3, '90d': 4, '180d': 5, '1 ano': 6, '+1 ano': 7 };
-    const sortIdades = (arr) => [...arr].sort((a, b) => (IDADE_ORDER[a] || 99) - (IDADE_ORDER[b] || 99));
-
-    // ── Loading skeleton ──
-    function Skeleton({ className }) {
-      return <div className={`bg-gge-border rounded pulse-load ${className || ''}`} />;
-    }
-
-    // ── Metric Card ──
-    function MetricCard({ label, value, sub, color, icon }) {
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-gge-muted text-sm font-medium">{label}</span>
-            {icon && <span className="text-2xl opacity-60">{icon}</span>}
-          </div>
-          <div className={`text-2xl font-bold ${color || 'text-white'}`}>{value}</div>
-          {sub && <div className="text-gge-muted text-xs mt-1">{sub}</div>}
-        </div>
-      );
-    }
-
-    // ── Filter Select with active styling ──
-    function FilterSelect({ label, value, onChange, options, allLabel, labelFn, isActive }) {
-      const getLabel = labelFn || (o => o);
-      return (
-        <div className={`flex flex-col gap-1 ${isActive ? 'filter-active' : ''}`}>
-          <label className={`text-xs font-medium uppercase tracking-wider ${isActive ? 'text-gge-accent' : 'text-gge-muted'}`}>{label}</label>
-          <select
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            className="bg-gge-card border border-gge-border text-gge-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gge-accent transition-colors"
-          >
-            <option value="">{allLabel || 'Todos'}</option>
-            {options.map(o => <option key={o} value={o}>{getLabel(o)}</option>)}
-          </select>
-        </div>
-      );
-    }
-
-    // ── Grupo Badge ──
-    function GrupoBadge({ grupo }) {
-      const bg = GRUPO_COLORS[grupo] || '#666';
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
-              style={{ backgroundColor: bg + '22', color: bg, border: `1px solid ${bg}44` }}>
-          {grupo}
-        </span>
-      );
-    }
-
-    // ── Groups Summary Table — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL ──
-    function GroupsSummary({ data }) {
-      const groups = useMemo(() => {
-        const map = {};
-        data.forEach(row => {
-          const g = row.grupo;
-          if (!map[g]) map[g] = { grupo: g, anuncios: 0, vendas: 0, receita: 0, margem: 0, custo_ads: 0, custo_produto: 0, comissao: 0, custo_frete: 0, difal: 0 };
-          map[g].anuncios++;
-          map[g].vendas += Number(row.qtd_vendas) || 0;
-          map[g].receita += Number(row.receita) || 0;
-          map[g].margem += Number(row.margem_valor) || 0;
-          map[g].custo_ads += Number(row.custo_ads) || 0;
-          map[g].custo_produto += Number(row.custo_produto) || 0;
-          map[g].comissao += Number(row.comissao) || 0;
-          map[g].custo_frete += Number(row.custo_frete) || 0;
-          map[g].difal += Number(row.difal_reserva) || 0;
-        });
-        return GRUPO_ORDER.filter(g => map[g]).map(g => ({
-          ...map[g],
-          mc1: map[g].margem,
-          mc1_pct: map[g].receita > 0 ? (map[g].margem / map[g].receita * 100) : 0,
-          mc2: map[g].margem + map[g].difal,
-          mc2_pct: map[g].receita > 0 ? ((map[g].margem + map[g].difal) / map[g].receita * 100) : 0
-        }));
-      }, [data]);
-
-      const totG = useMemo(() => {
-        const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, custo_ads: 0, difal: 0 };
-        groups.forEach(g => { t.anuncios += g.anuncios; t.vendas += g.vendas; t.receita += g.receita; t.margem += g.margem; t.custo_ads += g.custo_ads; t.difal += g.difal; });
-        t.mc1 = t.margem;
-        t.mc2 = t.margem + t.difal;
-        return t;
-      }, [groups]);
-
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
-          <div className="px-5 py-4 border-b border-gge-border">
-            <h3 className="text-lg font-semibold text-white">Segmentação por Grupo</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gge-muted text-xs uppercase tracking-wider">
-                  <th className="text-left px-5 py-3">Grupo</th>
-                  <th className="text-right px-3 py-3">Anúncios</th>
-                  <th className="text-right px-3 py-3">Vendas</th>
-                  <th className="text-right px-3 py-3">Receita</th>
-                  <th className="text-right px-3 py-3">ADs</th>
-                  <th className="text-right px-3 py-3 border-l border-gge-border/50">MC2 R$</th>
-                  <th className="text-right px-3 py-3">MC2 %</th>
-                  <th className="text-right px-3 py-3 text-gge-cyan">Share MC2</th>
-                  <th className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">DIFAL</th>
-                  <th className="text-right px-3 py-3 border-l border-gge-border/50">MC1 R$</th>
-                  <th className="text-right px-3 py-3">MC1 %</th>
-                  <th className="text-right px-5 py-3 text-gge-cyan">Share MC1</th>
-                </tr>
-              </thead>
-              <tbody>
-                {groups.map((g, i) => (
-                  <tr key={g.grupo} className={`border-t border-gge-border/50 hover:bg-white/5 transition-colors ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
-                    <td className="px-5 py-3"><GrupoBadge grupo={g.grupo} /></td>
-                    <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.anuncios)}</td>
-                    <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.vendas)}</td>
-                    <td className="text-right px-3 py-3 text-white font-medium">R$ {fmt(g.receita)}</td>
-                    <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(g.custo_ads)}</td>
-                    <td className={`text-right px-3 py-3 font-medium border-l border-gge-border/50 ${g.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      R$ {fmt(g.mc2)}
-                    </td>
-                    <td className={`text-right px-3 py-3 ${g.mc2_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      {fmtPct(g.mc2_pct)}
-                    </td>
-                    <td className="text-right px-3 py-3 text-gge-cyan">
-                      {totG.mc2 !== 0 ? fmtPct(g.mc2 / totG.mc2 * 100) : '—'}
-                    </td>
-                    <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">
-                      R$ {fmt(g.difal)}
-                    </td>
-                    <td className={`text-right px-3 py-3 font-bold border-l border-gge-border/50 ${g.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      R$ {fmt(g.mc1)}
-                    </td>
-                    <td className={`text-right px-3 py-3 font-bold ${g.mc1_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      {fmtPct(g.mc1_pct)}
-                    </td>
-                    <td className="text-right px-5 py-3 text-gge-cyan">
-                      {totG.mc1 !== 0 ? fmtPct(g.mc1 / totG.mc1 * 100) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gge-border font-bold">
-                  <td className="px-5 py-3 text-white">TOTAL</td>
-                  <td className="text-right px-3 py-3 text-white">{fmtInt(totG.anuncios)}</td>
-                  <td className="text-right px-3 py-3 text-white">{fmtInt(totG.vendas)}</td>
-                  <td className="text-right px-3 py-3 text-white">R$ {fmt(totG.receita)}</td>
-                  <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(totG.custo_ads)}</td>
-                  <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                    R$ {fmt(totG.mc2)}
-                  </td>
-                  <td className={`text-right px-3 py-3 ${totG.receita > 0 && totG.mc2/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                    {fmtPct(totG.receita > 0 ? totG.mc2/totG.receita*100 : 0)}
-                  </td>
-                  <td className="text-right px-3 py-3 text-gge-cyan">100%</td>
-                  <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">R$ {fmt(totG.difal)}</td>
-                  <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                    R$ {fmt(totG.mc1)}
-                  </td>
-                  <td className={`text-right px-3 py-3 ${totG.receita > 0 && totG.mc1/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                    {fmtPct(totG.receita > 0 ? totG.mc1/totG.receita*100 : 0)}
-                  </td>
-                  <td className="text-right px-5 py-3 text-gge-cyan">100%</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      );
-    }
-
-    // ── Groups Bar Chart — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL ──
-    function GroupsChart({ data }) {
-      const chartData = useMemo(() => {
-        const map = {};
-        data.forEach(row => {
-          const g = row.grupo;
-          if (!map[g]) map[g] = { grupo: g, receita: 0, mc1: 0, mc2: 0, difal: 0 };
-          map[g].receita += Number(row.receita) || 0;
-          map[g].mc1 += Number(row.margem_valor) || 0;
-          map[g].difal += Number(row.difal_reserva) || 0;
-        });
-        return GRUPO_ORDER.filter(g => map[g]).map(g => ({
-          ...map[g],
-          mc2: map[g].mc1 + map[g].difal
-        }));
-      }, [data]);
-
-      const CustomTooltip = ({ active, payload }) => {
-        if (!active || !payload?.length) return null;
-        const d = payload[0].payload;
-        return (
-          <div className="bg-gge-card border border-gge-border rounded-lg p-3 shadow-xl">
-            <p className="font-semibold text-white mb-1">{GRUPO_LABELS[d.grupo] || d.grupo}</p>
-            <p className="text-sm text-gge-muted">Receita: <span className="text-white">R$ {fmt(d.receita)}</span></p>
-            <p className="text-sm text-gge-muted">MC2 (s/ DIFAL): <span className={d.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc2)}</span></p>
-            <p className="text-sm text-gge-muted">DIFAL: <span className="text-gge-orange">R$ {fmt(d.difal)}</span></p>
-            <p className="text-sm text-gge-muted">MC1 (c/ DIFAL): <span className={d.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc1)}</span></p>
-          </div>
-        );
+<div class="header">
+  <div class="header-left">
+    <div class="logo">GGE</div>
+    <h1>Controle Total <span>— Dashboard</span></h1>
+  </div>
+  <div class="filter-bar">
+    <label>Conta:</label>
+    <select id="contaFilter" onchange="applyFilter()">
+      <option value="all">Consolidado</option>
+      <option value="GGE-GRAMPEADORES">GGE-GRAMPEADORES</option>
+      <option value="GGESP">GGESP</option>
+      <option value="TOOWCOMERCIAL">TOOWCOMERCIAL</option>
+    </select>
+  </div>
+</div>
+<div class="container" id="mainContent">
+  <div class="loading">
+    <div class="spinner"></div>
+    <div>Carregando dados...</div>
+  </div>
+</div>
+<div class="footer">Controle Total GGE &copy; 2026 — Atualizado em tempo real via Supabase</div>
+<script>
+const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+const CONTAS_MAP = {
+  'e761652f-07fa-49d2-a6c7-1b738862ab08': 'GGE-GRAMPEADORES',
+  '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c': 'GGESP',
+  '8284ee61-87f9-4162-9f1f-542587fbbf53': 'TOOWCOMERCIAL'
+};
+let rawDailyData = [];
+let rawMonthlyData = [];
+function fmt(v) {
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtN(v) { return Number(v).toLocaleString('pt-BR'); }
+function fmtPct(v) { return Number(v).toFixed(1) + '%'; }
+async function sbQuery(endpoint, params) {
+  const url = new URL(SUPABASE_URL + '/rest/v1/' + endpoint);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const r = await fetch(url, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  });
+  return r.json();
+}
+async function loadData() {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const d31 = new Date(today); d31.setDate(d31.getDate() - 31);
+  const d31Str = d31.toISOString().slice(0,10);
+  const [dailyRaw, monthly] = await Promise.all([
+    sbQuery('vendas', {
+      select: 'conta_id,data_venda,preco_total,status',
+      'data_venda': 'gte.' + d31Str + 'T00:00:00',
+      'status': 'in.(paid,partially_refunded)',
+      limit: '50000'
+    }),
+    sbQuery('vw_saldo_vendas', {
+      select: '*', order: 'mes.desc', limit: '30'
+    })
+  ]);
+  const dailyMap = {};
+  dailyRaw.forEach(r => {
+    const conta = CONTAS_MAP[r.conta_id] || r.conta_id;
+    const dia = r.data_venda.slice(0,10);
+    if (dia >= todayStr) return;
+    const key = conta + '|' + dia;
+    if (!dailyMap[key]) dailyMap[key] = {conta, dia, faturamento: 0, qtd: 0};
+    dailyMap[key].faturamento += Number(r.preco_total);
+    dailyMap[key].qtd += 1;
+  });
+  rawDailyData = Object.values(dailyMap).sort((a,b) => b.dia.localeCompare(a.dia));
+  rawMonthlyData = monthly;
+  applyFilter();
+}
+function filterDaily(data, conta) {
+  if (conta === 'all') return data;
+  return data.filter(d => d.conta === conta);
+}
+function filterMonthly(data, conta) {
+  if (conta === 'all') {
+    const byMonth = {};
+    data.forEach(r => {
+      const m = r.mes;
+      if (!byMonth[m]) byMonth[m] = {
+        mes: m, conta_nome: 'Consolidado',
+        faturamento_bruto: 0, cancelamentos: 0, saldo_vendas: 0,
+        qtd_vendas: 0, qtd_cancelamentos: 0, comissao_ml_total: 0
       };
-
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-          <h3 className="text-lg font-semibold text-white mb-4">Margem por Grupo (R$)</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
-              <XAxis dataKey="grupo" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={{ stroke: '#2a2d3e' }} />
-              <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#2a2d3e' }}
-                     tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="mc1" radius={[6, 6, 0, 0]}>
-                {chartData.map((entry, i) => (
-                  <Cell key={i} fill={GRUPO_COLORS[entry.grupo] || '#666'} opacity={0.85} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      );
+      byMonth[m].faturamento_bruto += Number(r.faturamento_bruto);
+      byMonth[m].cancelamentos += Number(r.cancelamentos);
+      byMonth[m].saldo_vendas += Number(r.saldo_vendas);
+      byMonth[m].qtd_vendas += Number(r.qtd_vendas);
+      byMonth[m].qtd_cancelamentos += Number(r.qtd_cancelamentos);
+      byMonth[m].comissao_ml_total += Number(r.comissao_ml_total);
+    });
+    return Object.values(byMonth).sort((a,b) => b.mes.localeCompare(a.mes));
+  }
+  return data.filter(r => r.conta_nome === conta);
+}
+function calcProjections(daily, conta) {
+  const filtered = filterDaily(daily, conta);
+  const byDay = {};
+  filtered.forEach(d => {
+    if (!byDay[d.dia]) byDay[d.dia] = {dia: d.dia, faturamento: 0, qtd: 0};
+    byDay[d.dia].faturamento += d.faturamento;
+    byDay[d.dia].qtd += d.qtd;
+  });
+  const days = Object.values(byDay).sort((a,b) => b.dia.localeCompare(a.dia));
+  const calc = (n) => {
+    const slice = days.slice(0, n);
+    if (slice.length === 0) return {avg: 0, proj30: 0, n: 0, avgQtd: 0};
+    const total = slice.reduce((s,d) => s + d.faturamento, 0);
+    const totalQtd = slice.reduce((s,d) => s + d.qtd, 0);
+    return {avg: total/slice.length, avgQtd: totalQtd/slice.length, proj30: (total/slice.length)*30, n: slice.length, total};
+  };
+  return { d30: calc(30), d15: calc(15), d7: calc(7) };
+}
+function calcMonthProjections(daily, conta) {
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const daysPassed = today.getDate() - 1;
+  const daysRemaining = daysInMonth - daysPassed;
+  const monthStr = today.toISOString().slice(0,7);
+  const filtered = filterDaily(daily, conta);
+  const mtdDays = {};
+  filtered.forEach(d => {
+    if (d.dia.startsWith(monthStr)) {
+      if (!mtdDays[d.dia]) mtdDays[d.dia] = 0;
+      mtdDays[d.dia] += d.faturamento;
     }
-
-    // ── Distribution Pie ──
-    function DistributionPie({ data, title, field, labelFn }) {
-      const pieData = useMemo(() => {
-        const map = {};
-        data.forEach(row => {
-          const rawKey = row[field] || 'Desconhecido';
-          const displayKey = labelFn ? labelFn(rawKey) : rawKey;
-          if (!map[displayKey]) map[displayKey] = { name: displayKey, value: 0 };
-          map[displayKey].value += Number(row.receita) || 0;
-        });
-        return Object.values(map).sort((a,b) => b.value - a.value);
-      }, [data, field, labelFn]);
-
-      const COLORS = ['#6366f1','#22c55e','#3b82f6','#eab308','#ef4444','#a855f7','#f97316','#14b8a6'];
-
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-          <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                   outerRadius={85} innerRadius={45} paddingAngle={2}
-                   stroke="#1a1d2e" strokeWidth={2}>
-                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Tooltip formatter={v => `R$ ${fmt(v)}`}
-                       contentStyle={{ backgroundColor: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8, color: '#e2e8f0' }} />
-              <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      );
-    }
-
-    // ── Top Anúncios Table — MC1 = c/ DIFAL (final) ──
-    function TopAnuncios({ data, mode }) {
-      const sorted = useMemo(() => {
-        const filtered = data.filter(d => Number(d.receita) > 0);
-        if (mode === 'lucro') return [...filtered].sort((a,b) => Number(b.margem_valor) - Number(a.margem_valor)).slice(0, 10);
-        if (mode === 'prejuizo') return [...filtered].sort((a,b) => Number(a.margem_valor) - Number(b.margem_valor)).slice(0, 10);
-        return [...filtered].sort((a,b) => Number(b.receita) - Number(a.receita)).slice(0, 10);
-      }, [data, mode]);
-
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gge-muted text-xs uppercase tracking-wider">
-                  <th className="text-left px-4 py-3 w-12">#</th>
-                  <th className="text-left px-4 py-3">Anúncio</th>
-                  <th className="text-right px-4 py-3">Vendas</th>
-                  <th className="text-right px-4 py-3">Receita</th>
-                  <th className="text-right px-4 py-3">DIFAL</th>
-                  <th className="text-right px-4 py-3">MC1</th>
-                  <th className="text-right px-4 py-3">MC1%</th>
-                  <th className="text-center px-4 py-3">Grupo</th>
-                </tr>
-              </thead>
-              <tbody>
-               {sorted.map((row, i) => {
-                  const mc1 = Number(row.margem_valor) || 0;
-                  const mc1pct = Number(row.receita) > 0 ? mc1/Number(row.receita)*100 : 0;
-                  const difal = Number(row.difal_reserva) || 0;
-                  return (
-                    <tr key={row.mlb_id + '-' + i} className="border-t border-gge-border/50 hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-2.5 text-gge-muted">{i+1}</td>
-                      <td className="px-4 py-2.5">
-                        <div className="text-white text-sm font-medium truncate max-w-xs" title={row.titulo}>{row.titulo}</div>
-                        <div className="text-gge-muted text-xs">{row.sku_vendedor || '—'} · {row.mlb_id}</div>
-                      </td>
-                      <td className="text-right px-4 py-2.5 text-gge-text">{fmtInt(row.qtd_vendas)}</td>
-                      <td className="text-right px-4 py-2.5 text-white">R$ {fmt(row.receita)}</td>
-                      <td className="text-right px-4 py-2.5 text-gge-orange">{difal > 0 ? `R$ ${fmt(difal)}` : '—'}</td>
-                      <td className={`text-right px-4 py-2.5 font-medium ${mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                        R$ {fmt(mc1)}
-                      </td>
-                      <td className={`text-right px-4 py-2.5 font-bold ${mc1pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(mc1pct)}</td>
-                      <td className="text-center px-4 py-2.5"><GrupoBadge grupo={row.grupo} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      );
-    }
-
-    // ── Main App ──
-    function App() {
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState(null);
-      const [rawData, setRawData] = useState([]);
-      const [saldoData, setSaldoData] = useState([]);
-      const [meses, setMeses] = useState([]);
-      const [contas, setContas] = useState([]);
-
-      // Filters — período replaces mês
-      const [periodoSel, setPeriodoSel] = useState('30d');
-      const [contaSel, setContaSel] = useState('');
-      const [tipoSel, setTipoSel] = useState('');
-      const [modeSel, setModeSel] = useState('');
-      const [kitSel, setKitSel] = useState('');
-      const [catSel, setCatSel] = useState('');
-      const [fornSel, setFornSel] = useState('');
-      const [pontoSel, setPontoSel] = useState('');
-      const [idadeSel, setIdadeSel] = useState('');
-      const [topMode, setTopMode] = useState('lucro');
-
-      // Fetch data
-      useEffect(() => {
-        async function load() {
-          setLoading(true);
-          setError(null);
-          try {
-            const [margemRes, saldoRes] = await Promise.all([
-              supabase.from('vw_margem_segmentada').select('*').order('mes', { ascending: false }),
-              supabase.from('vw_saldo_vendas').select('*').order('mes', { ascending: false })
-            ]);
-            if (margemRes.error) throw margemRes.error;
-            const data = margemRes.data || [];
-            setRawData(data);
-            setSaldoData(saldoRes.data || []);
-
-            const ms = [...new Set(data.map(d => d.mes))].sort((a,b) => b.localeCompare(a));
-            const cs = [...new Set(data.map(d => d.conta_nome))].sort();
-            setMeses(ms);
-            setContas(cs);
-          } catch (e) {
-            setError(e.message || 'Erro ao carregar dados');
-          }
-          setLoading(false);
-        }
-        load();
-      }, []);
-
-      // Active months for the selected period
-      const activeMeses = useMemo(() => getMesesForPeriodo(periodoSel, meses), [periodoSel, meses]);
-
-      // Period label for header
-      const periodoLabel = useMemo(() => {
-        const opt = PERIODO_OPTIONS.find(p => p.value === periodoSel);
-        if (!opt) return '';
-        if (activeMeses.length === 1) return fmtMes(activeMeses[0]);
-        if (activeMeses.length > 1) return `${fmtMes(activeMeses[activeMeses.length - 1])} a ${fmtMes(activeMeses[0])}`;
-        return opt.label;
-      }, [periodoSel, activeMeses]);
-
-      // Filtered data
-      const filtered = useMemo(() => {
-        return rawData.filter(d => {
-          if (!activeMeses.includes(d.mes)) return false;
-          if (contaSel && d.conta_nome !== contaSel) return false;
-          if (tipoSel && d.tipo_listagem !== tipoSel) return false;
-          if (modeSel && d.modo_logistica !== modeSel) return false;
-          if (kitSel && d.kit_produto !== kitSel) return false;
-          if (catSel && d.catalogo_anuncio !== catSel) return false;
-          if (fornSel && d.fornecedor !== fornSel) return false;
-          if (pontoSel && d.ponto_saida !== pontoSel) return false;
-          if (idadeSel && d.idade_anuncio !== idadeSel) return false;
-          return true;
-        });
-      }, [rawData, activeMeses, contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
-
-      // Totals — MC1 = c/ DIFAL (margem final), MC2 = s/ DIFAL
-      const totals = useMemo(() => {
-        const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, ads: 0, frete: 0, custo: 0, comissao: 0, difal: 0, prejuizo_count: 0 };
-        filtered.forEach(d => {
-          t.anuncios++;
-          t.vendas += Number(d.qtd_vendas) || 0;
-          t.receita += Number(d.receita) || 0;
-          t.margem += Number(d.margem_valor) || 0;
-          t.ads += Number(d.custo_ads) || 0;
-          t.frete += Number(d.custo_frete) || 0;
-          t.custo += Number(d.custo_produto) || 0;
-          t.comissao += Number(d.comissao) || 0;
-          t.difal += Number(d.difal_reserva) || 0;
-          if (Number(d.margem_valor) < 0) t.prejuizo_count++;
-        });
-        t.mc1 = t.margem;                    // MC1 = margem final (c/ DIFAL)
-        t.mc2 = t.margem + t.difal;          // MC2 = margem antes do DIFAL (s/ DIFAL)
-        t.mc1_pct = t.receita > 0 ? (t.mc1 / t.receita * 100) : 0;
-        t.mc2_pct = t.receita > 0 ? (t.mc2 / t.receita * 100) : 0;
-        t.ticket = t.vendas > 0 ? (t.receita / t.vendas) : 0;
-        return t;
-      }, [filtered]);
-
-      // Unique filter options
-      const filterOpts = useMemo(() => {
-        const mesData = rawData.filter(d => activeMeses.includes(d.mes));
-        return {
-          tipos: [...new Set(mesData.map(d => d.tipo_listagem))].sort(),
-          modos: [...new Set(mesData.map(d => d.modo_logistica))].sort(),
-          kits: [...new Set(mesData.map(d => d.kit_produto))].sort(),
-          cats: [...new Set(mesData.map(d => d.catalogo_anuncio))].sort(),
-          forns: [...new Set(mesData.map(d => d.fornecedor))].sort(),
-          pontos: [...new Set(mesData.map(d => d.ponto_saida))].sort(),
-          idades: sortIdades([...new Set(mesData.map(d => d.idade_anuncio))]),
-        };
-      }, [rawData, activeMeses]);
-
-      // Cancel totals for selected period
-      const cancelTotals = useMemo(() => {
-        const rows = saldoData.filter(d => {
-          if (!activeMeses.includes(d.mes)) return false;
-          if (contaSel && d.conta_nome !== contaSel) return false;
-          return true;
-        });
-        const t = { bruto: 0, cancelado: 0, liquido: 0, qtd_vendas: 0, qtd_cancel: 0, qtd_refund: 0, refund_valor: 0 };
-        rows.forEach(r => {
-          t.bruto += Number(r.faturamento_bruto) || 0;
-          t.cancelado += Number(r.cancelamentos) || 0;
-          t.qtd_vendas += Number(r.qtd_vendas) || 0;
-          t.qtd_cancel += Number(r.qtd_cancelamentos) || 0;
-          t.qtd_refund += Number(r.qtd_parcial_refund) || 0;
-          t.refund_valor += Number(r.valor_parcial_refund_original) || 0;
-        });
-        t.liquido = t.bruto;
-        t.vendas_brutas = t.bruto + t.cancelado;
-        t.pct = t.vendas_brutas > 0 ? (t.cancelado / t.vendas_brutas * 100) : 0;
-        return t;
-      }, [saldoData, activeMeses, contaSel]);
-
-      if (error) {
-        return (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="bg-gge-card border border-red-500/30 rounded-xl p-8 max-w-md text-center">
-              <div className="text-4xl mb-4">&#9888;&#65039;</div>
-              <h2 className="text-xl font-bold text-white mb-2">Erro ao carregar</h2>
-              <p className="text-gge-muted text-sm">{error}</p>
-              <button onClick={() => window.location.reload()}
-                      className="mt-4 px-4 py-2 bg-gge-accent text-white rounded-lg text-sm hover:bg-gge-accent/80 transition-colors">
-                Tentar novamente
-              </button>
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div className="min-h-screen">
-          {/* Header */}
-          <header className="border-b border-gge-border bg-gge-card/50 backdrop-blur-sm sticky top-0 z-50">
-            <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gge-accent rounded-xl flex items-center justify-center text-white font-bold text-lg">G</div>
-                <div>
-                  <h1 className="text-lg font-bold text-white tracking-tight">Controle Total GGE</h1>
-                  <p className="text-xs text-gge-muted">Painel de Margem de Contribuição</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                {periodoLabel && <span className="text-sm text-gge-muted">Dados: <span className="text-white font-medium">{periodoLabel}</span></span>}
-                <div className="w-2 h-2 rounded-full bg-gge-green animate-pulse" title="Conectado ao Supabase"></div>
-              </div>
-            </div>
-          </header>
-
-          <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
-            {/* Filters */}
-            <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm font-semibold text-white">Filtros</span>
-                <span className="text-xs text-gge-muted">({fmtInt(filtered.length)} anúncios)</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
-                <FilterSelect label="Período" value={periodoSel} onChange={setPeriodoSel}
-                              options={PERIODO_OPTIONS.map(p => p.value)}
-                              allLabel="Todo o período"
-                              labelFn={v => PERIODO_OPTIONS.find(p => p.value === v)?.label || v}
-                              isActive={periodoSel !== '30d'} />
-                <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={contas} isActive={!!contaSel} />
-                <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} isActive={!!tipoSel} />
-                <FilterSelect label="Logística" value={modeSel} onChange={setModeSel} options={filterOpts.modos} isActive={!!modeSel} />
-                <FilterSelect label="Tipo" value={kitSel} onChange={setKitSel} options={filterOpts.kits} isActive={!!kitSel} />
-                <FilterSelect label="Catálogo" value={catSel} onChange={setCatSel} options={filterOpts.cats} isActive={!!catSel} />
-                <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} isActive={!!fornSel} />
-                <FilterSelect label="Pto Saída" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} isActive={!!pontoSel} />
-                <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} isActive={!!idadeSel} />
-                <div className="flex items-end">
-                  <button onClick={() => { setPeriodoSel('30d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); }}
-                          className="w-full px-3 py-2 text-sm text-gge-muted border border-gge-border rounded-lg hover:bg-white/5 transition-colors">
-                    Limpar
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-                {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-28" />)}
-              </div>
-            ) : (
-              <>
-                {/* Vendas Brutas vs Cancelamentos */}
-                {(cancelTotals.qtd_cancel > 0 || cancelTotals.qtd_refund > 0) && (
-                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg font-semibold text-white">Vendas Brutas vs Cancelamentos</span>
-                      <span className="text-xs text-gge-muted">(status das ordens no ML)</span>
-                    </div>
-                    <div className={`grid grid-cols-1 gap-4 items-center ${cancelTotals.qtd_refund > 0 ? 'md:grid-cols-7' : 'md:grid-cols-5'}`}>
-                      <div className="text-center">
-                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Brutas</div>
-                        <div className="text-xl font-bold text-white">R$ {fmt(cancelTotals.vendas_brutas)}</div>
-                        <div className="text-gge-muted text-xs">{fmtInt(cancelTotals.qtd_vendas + cancelTotals.qtd_cancel)} ordens</div>
-                      </div>
-                      <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
-                      <div className="text-center">
-                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Cancelamentos</div>
-                        <div className="text-xl font-bold text-gge-red">- R$ {fmt(cancelTotals.cancelado)}</div>
-                        <div className="text-gge-red text-xs">{fmtInt(cancelTotals.qtd_cancel)} ordens ({fmtPct(cancelTotals.pct)})</div>
-                      </div>
-                      <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
-                      <div className="text-center">
-                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Realizadas</div>
-                        <div className="text-xl font-bold text-gge-green">R$ {fmt(cancelTotals.liquido)}</div>
-                        <div className="text-gge-green text-xs">{fmtInt(cancelTotals.qtd_vendas)} ordens efetivas</div>
-                      </div>
-                      {cancelTotals.qtd_refund > 0 && (
-                        <>
-                          <div className="text-center text-gge-muted text-2xl hidden md:block">&#8634;</div>
-                          <div className="text-center">
-                            <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais</div>
-                            <div className="text-xl font-bold text-gge-yellow">R$ {fmt(cancelTotals.refund_valor)}</div>
-                            <div className="text-gge-yellow text-xs">{fmtInt(cancelTotals.qtd_refund)} devoluções</div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    {/* Visual proportion bar */}
-                    <div className="mt-4 h-3 rounded-full bg-gge-border overflow-hidden flex">
-                      <div className="bg-gge-green h-full rounded-l-full transition-all" style={{ width: `${100 - cancelTotals.pct}%` }} />
-                      <div className="bg-gge-red h-full rounded-r-full transition-all" style={{ width: `${cancelTotals.pct}%` }} />
-                    </div>
-                    <div className="flex justify-between mt-1 text-xs text-gge-muted">
-                      <span>Realizadas ({fmtPct(100 - cancelTotals.pct)})</span>
-                      <span>Canceladas ({fmtPct(cancelTotals.pct)})</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* KPI Cards — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL */}
-                <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="&#128176;" />
-                  <MetricCard label="Custo Produto" value={`R$ ${fmt(totals.custo)}`}
-                              sub={totals.receita > 0 ? `${fmtPct(totals.custo/totals.receita*100)} da receita` : ''}
-                              icon="&#128230;" />
-                  <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
-                              sub={totals.receita > 0 ? `${fmtPct(totals.comissao/totals.receita*100)} da receita` : ''}
-                              icon="&#127978;" />
-                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`}
-                              sub={totals.receita > 0 ? `${fmtPct(totals.frete/totals.receita*100)} da receita` : ''}
-                              icon="&#128666;" />
-                  <MetricCard label="ADs" value={`R$ ${fmt(totals.ads)}`}
-                              color="text-gge-yellow"
-                              sub={totals.receita > 0 ? `${fmtPct(totals.ads/totals.receita*100)} da receita` : ''}
-                              icon="&#128226;" />
-                  <MetricCard label="MC2 (s/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
-                              color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="&#128200;" />
-                  <MetricCard label="DIFAL" value={`R$ ${fmt(totals.difal)}`}
-                              color="text-gge-orange"
-                              sub={totals.receita > 0 ? `${fmtPct(totals.difal/totals.receita*100)} da receita` : ''}
-                              icon="&#127970;" />
-                  <MetricCard label="MC1 (c/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
-                              color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="&#127919;" />
-                  <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`}
-                              sub={`${fmtInt(totals.vendas)} vendas`}
-                              icon="&#127915;" />
-                  <MetricCard label="Vendas" value={fmtInt(totals.vendas)}
-                              sub={`${fmtInt(totals.prejuizo_count)} em prejuízo`}
-                              icon="&#128722;" />
-                </div>
-
-                {/* Charts Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div className="lg:col-span-2">
-                    <GroupsChart data={filtered} />
-                  </div>
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de Saída" field="ponto_saida" />
-                </div>
-
-                {/* Groups Table */}
-                <GroupsSummary data={filtered} />
-
-                {/* Distribution charts */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Fornecedor" field="fornecedor" />
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Tipo Listagem" field="tipo_listagem" labelFn={labelTipo} />
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Logística" field="modo_logistica" />
-                </div>
-
-                {/* Top Anúncios */}
-                <div>
-                  <div className="flex items-center gap-4 mb-3">
-                    <h3 className="text-lg font-semibold text-white">Top 10 Anúncios</h3>
-                    <div className="flex gap-1">
-                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuízo'], ['receita', 'Maior Receita']].map(([k, label]) => (
-                        <button key={k} onClick={() => setTopMode(k)}
-                                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${topMode === k ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <TopAnuncios data={filtered} mode={topMode} />
-                </div>
-
-                {/* Footer — fórmulas atualizadas MC1/MC2 */}
-                <div className="text-center text-gge-muted text-xs py-8 border-t border-gge-border space-y-1">
-                  <p className="font-medium text-gge-text">Controle Total GGE — Dados do Supabase em tempo real</p>
-                  <p><strong>MC2</strong> = Receita - Comissão - Frete - Custo Produto - ADs - PIS/COFINS(9,25%) + Créditos PIS/COFINS(9,25%) - Simples(8,65% TOOW)</p>
-                  <p><strong>MC1</strong> = MC2 - DIFAL (alíq. interna destino - alíq. interestadual, por UF, apenas GGE)</p>
-                </div>
-              </>
-            )}
-          </main>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+  });
+  const mtdTotal = Object.values(mtdDays).reduce((s,v) => s + v, 0);
+  const proj = calcProjections(daily, conta);
+  const calcMonth = (wd) => ({
+    mtd: mtdTotal, avgDay: wd.avg, daysRemaining, daysPassed, daysInMonth,
+    projected: mtdTotal + (wd.avg * daysRemaining), mtdDayCount: Object.keys(mtdDays).length
+  });
+  return { d30: calcMonth(proj.d30), d15: calcMonth(proj.d15), d7: calcMonth(proj.d7) };
+}
+function applyFilter() {
+  const conta = document.getElementById('contaFilter').value;
+  const proj = calcProjections(rawDailyData, conta);
+  const mProj = calcMonthProjections(rawDailyData, conta);
+  const monthly = filterMonthly(rawMonthlyData, conta);
+  const now = new Date();
+  const curMonthStr = now.toISOString().slice(0,7) + '-01';
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const lastMonthStr = lastMonthDate.toISOString().slice(0,10);
+  const curMonth = monthly.find(m => m.mes === curMonthStr);
+  const lastMonth = monthly.find(m => m.mes === lastMonthStr);
+  document.getElementById('mainContent').innerHTML = buildDashboard(proj, mProj, monthly, curMonth, lastMonth);
+}
+function buildDashboard(proj, mProj, monthly, curMonth, lastMonth) {
+  const now = new Date();
+  const MN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const cm = MN[now.getMonth()], cy = now.getFullYear();
+  let ch = '';
+  if (lastMonth && curMonth) {
+    const p = ((Number(curMonth.faturamento_bruto)/Number(lastMonth.faturamento_bruto))-1)*100;
+    ch = '<div class="change '+(p>=0?'up':'down')+'">'+(p>=0?'&#9650;':'&#9660;')+' '+Math.abs(p).toFixed(1)+'% vs mês anterior</div>';
+  }
+  let sc = '';
+  if (curMonth) {
+    sc = '<div class="summary-row"><div class="summary-card"><div class="label">Faturamento Bruto ('+cm+')</div><div class="value">'+fmt(curMonth.faturamento_bruto)+'</div>'+ch+'</div><div class="summary-card"><div class="label">Vendas Realizadas</div><div class="value">'+fmtN(curMonth.qtd_vendas)+'</div></div><div class="summary-card"><div class="label">Cancelamentos</div><div class="value">'+fmt(curMonth.cancelamentos)+'</div><div class="change" style="color:var(--text-muted)">'+fmtPct(Number(curMonth.cancelamentos)/(Number(curMonth.faturamento_bruto)+Number(curMonth.cancelamentos))*100)+' do bruto+canc</div></div><div class="summary-card"><div class="label">Comissão ML</div><div class="value">'+fmt(curMonth.comissao_ml_total)+'</div><div class="change" style="color:var(--text-muted)">'+fmtPct(Number(curMonth.comissao_ml_total)/Number(curMonth.saldo_vendas)*100)+' do saldo</div></div></div>';
+  } else {
+    sc = '<div class="summary-row"><div class="summary-card"><div class="label">Faturamento ('+cm+')</div><div class="value" style="color:var(--text-muted)">Sem dados ainda</div></div><div class="summary-card"><div class="label">Vendas</div><div class="value">—</div></div><div class="summary-card"><div class="label">Cancelamentos</div><div class="value">—</div></div><div class="summary-card"><div class="label">Comissão ML</div><div class="value">—</div></div></div>';
+  }
+  const p30 = '<div class="section-title">Projeção 30 Dias</div><div class="proj-grid">'+projCard('Últimos 30 dias',proj.d30,'30',30)+projCard('Últimos 15 dias',proj.d15,'15',15)+projCard('Últimos 7 dias',proj.d7,'7',7)+'</div>';
+  const mp = '<div class="section-title">Projeção do Mês ('+cm+' '+cy+')</div><div class="proj-grid">'+monthProjCard('Base: últimos 30 dias',mProj.d30,'30')+monthProjCard('Base: últimos 15 dias',mProj.d15,'15')+monthProjCard('Base: últimos 7 dias',mProj.d7,'7')+'</div>';
+  const pl = '<div class="section-title">Painéis</div><div class="panels-grid"><a class="panel-link" href="margem.html"><div class="panel-icon margem">&#128200;</div><div><h3>Painel I — Margem</h3><p>Análise de margem por anúncio, custos, frete, comissão e impostos por conta ML</p></div><div class="panel-arrow">&#8594;</div></a><a class="panel-link" href="precificacao.html" style="opacity:.5;pointer-events:none;"><div class="panel-icon preco">&#128176;</div><div><h3>Painel II — Precificação</h3><p>Precificação B2B e Marketplace com cálculo reverso de MC</p></div><div class="panel-arrow">&#128274;</div></a></div>';
+  const hr = monthly.slice(0,6).map(m => {
+    const md = new Date(m.mes+'T12:00:00');
+    const ml = MN[md.getMonth()]+'/'+md.getFullYear();
+    const cp = Number(m.saldo_vendas)>0?(Number(m.comissao_ml_total)/Number(m.saldo_vendas)*100).toFixed(1):'0.0';
+    const xp = (Number(m.cancelamentos)/(Number(m.faturamento_bruto)+Number(m.cancelamentos))*100).toFixed(1);
+    return '<tr><td>'+ml+'</td><td>'+fmt(m.faturamento_bruto)+'</td><td>'+fmtN(m.qtd_vendas)+'</td><td>'+fmt(m.cancelamentos)+' <span style="color:var(--text-muted)">('+xp+'%)</span></td><td>'+fmt(m.comissao_ml_total)+' <span style="color:var(--text-muted)">('+cp+'%)</span></td><td>'+fmt(Number(m.saldo_vendas)/Number(m.qtd_vendas))+'</td></tr>';
+  }).join('');
+  const ht = '<div class="section-title">Histórico Mensal</div><div class="hist-table-wrap"><table class="hist-table"><thead><tr><th>Mês</th><th>Faturamento Bruto</th><th>Vendas</th><th>Cancelamentos</th><th>Comissão ML</th><th>Ticket Médio</th></tr></thead><tbody>'+hr+'</tbody></table></div>';
+  return sc+p30+mp+pl+ht;
+}
+function projCard(label, data, badge, n) {
+  const bc = badge==='30'?'badge-30':badge==='15'?'badge-15':'badge-7';
+  return '<div class="proj-card"><div class="badge '+bc+'">'+n+' dias</div><div class="label">'+label+'</div><div class="value">'+fmt(data.proj30)+'</div><div class="sub">Média diária: <span class="avg">'+fmt(data.avg)+'</span></div><div class="sub" style="margin-top:4px">'+fmtN(Math.round(data.avgQtd))+' vendas/dia &middot; '+data.n+' dias amostrados</div></div>';
+}
+function monthProjCard(label, data, badge) {
+  const bc = badge==='30'?'badge-30':badge==='15'?'badge-15':'badge-7';
+  return '<div class="proj-card"><div class="badge '+bc+'">'+label.replace('Base: ú','Ú')+'</div><div class="label">'+label+'</div><div class="value">'+fmt(data.projected)+'</div><div class="month-detail"><strong>'+fmt(data.mtd)+'</strong> realizados em '+data.daysPassed+' dia'+(data.daysPassed!==1?'s':'')+'<br>+ <strong>'+fmt(data.avgDay)+'</strong>/dia &times; '+data.daysRemaining+' dias restantes<br>Mês: '+data.daysInMonth+' dias (faltam '+data.daysRemaining+')</div></div>';
+}
+loadData().catch(err => {
+  document.getElementById('mainContent').innerHTML = '<div class="loading" style="color:var(--red)">Erro ao carregar dados: '+err.message+'</div>';
+});
+</script>
 </body>
 </html>
