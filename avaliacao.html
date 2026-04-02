@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avaliação de Produtos | Controle Total GGE</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --card-hover: #222532;
+    --border: #2a2d3a; --text: #e4e4e7; --text-muted: #8b8fa3;
+    --accent: #6366f1; --accent-light: #818cf8;
+    --green: #22c55e; --green-bg: rgba(34,197,94,.12);
+    --yellow: #eab308; --yellow-bg: rgba(234,179,8,.12);
+    --red: #ef4444; --red-bg: rgba(239,68,68,.12);
+    --blue: #3b82f6; --blue-bg: rgba(59,130,246,.12);
+    --orange: #f97316;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  .header {
+    background:linear-gradient(135deg,#1a1d27,#1e2235);
+    border-bottom:1px solid var(--border);
+    padding:24px 32px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;
+  }
+  .header-left { display:flex; align-items:center; gap:16px; }
+  .logo { width:44px;height:44px;background:linear-gradient(135deg,var(--accent),#a855f7);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff; }
+  .header h1 { font-size:22px;font-weight:700;background:linear-gradient(135deg,#e4e4e7,#a1a1aa);-webkit-background-clip:text;-webkit-text-fill-color:transparent; }
+  .header h1 span { font-weight:400;color:var(--text-muted);-webkit-text-fill-color:var(--text-muted); }
+  .header-link { color:var(--accent);text-decoration:none;font-size:14px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;transition:all .2s; }
+  .header-link:hover { background:var(--card);border-color:var(--accent); }
+  .container { max-width:1600px; margin:0 auto; padding:28px 24px; }
+  .section-title {
+    font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;
+  }
+  .section-title::before { content:'';width:4px;height:16px;border-radius:2px;background:var(--accent); }
+  .groups-bar {
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:20px 24px; margin-bottom:24px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;
+  }
+  .groups-bar select, .groups-bar input, .groups-bar button {
+    background:var(--bg); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:10px 14px; font-size:13px; outline:none;
+  }
+  .groups-bar select { min-width:280px; cursor:pointer; }
+  .groups-bar select:hover, .groups-bar input:focus { border-color:var(--accent); }
+  .groups-bar input { min-width:220px; }
+  .btn { cursor:pointer; font-weight:600; transition:all .2s; }
+  .btn-primary { background:var(--accent);color:#fff;border-color:var(--accent); }
+  .btn-primary:hover { background:var(--accent-light); }
+  .btn-danger { background:transparent;color:var(--red);border-color:var(--red); }
+  .btn-danger:hover { background:var(--red-bg); }
+  .btn-outline { background:transparent;color:var(--accent);border-color:var(--accent); }
+  .btn-outline:hover { background:rgba(99,102,241,.1); }
+  .upload-area {
+    background:var(--card); border:2px dashed var(--border); border-radius:14px;
+    padding:32px; text-align:center; margin-bottom:24px; transition:all .3s; cursor:pointer;
+  }
+  .upload-area:hover, .upload-area.dragover { border-color:var(--accent); background:rgba(99,102,241,.05); }
+  .upload-area h3 { font-size:16px; margin-bottom:8px; }
+  .upload-area p { font-size:13px; color:var(--text-muted); line-height:1.6; }
+  .upload-area input[type=file] { display:none; }
+  .add-form {
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:20px 24px; margin-bottom:24px;
+  }
+  .form-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px;
+  }
+  .form-group { display:flex; flex-direction:column; gap:4px; }
+  .form-group label { font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+  .form-group input { background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:13px; }
+  .form-group input:focus { outline:none;border-color:var(--accent); }
+  .form-actions { display:flex; gap:10px; }
+  .summary-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:24px; }
+  .summary-card { background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 22px; }
+  .summary-card .label { font-size:12px;color:var(--text-muted);margin-bottom:4px; }
+  .summary-card .value { font-size:22px;font-weight:700;font-variant-numeric:tabular-nums; }
+  .summary-card .sub { font-size:12px;color:var(--text-muted);margin-top:4px; }
+  .table-wrap { background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px; }
+  .table-scroll { overflow-x:auto; }
+  table { width:100%;border-collapse:collapse;font-size:12px; }
+  thead { background:rgba(99,102,241,.06); }
+  th { padding:12px 10px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap; }
+  td { padding:10px;border-bottom:1px solid rgba(42,45,58,.5);font-variant-numeric:tabular-nums; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(99,102,241,.04); }
+  td.num { text-align:right; }
+  .mc-good { color:var(--green);font-weight:600; }
+  .mc-warn { color:var(--yellow);font-weight:600; }
+  .mc-bad { color:var(--red);font-weight:600; }
+  .price-ok { color:var(--green); }
+  .price-high { color:var(--red); }
+  .badge { display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600; }
+  .badge-green { background:var(--green-bg);color:var(--green); }
+  .badge-yellow { background:var(--yellow-bg);color:var(--yellow); }
+  .badge-red { background:var(--red-bg);color:var(--red); }
+  .btn-sm { padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;background:transparent;color:var(--red);border:1px solid var(--border); }
+  .btn-sm:hover { background:var(--red-bg);border-color:var(--red); }
+  .acct-tabs { display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px; }
+  .acct-tab { background:none;border:none;color:var(--text-muted);cursor:pointer;padding:8px 14px;font-size:13px;font-weight:500;position:relative;transition:color .2s; }
+  .acct-tab:hover { color:var(--text); }
+  .acct-tab.active { color:var(--accent); }
+  .acct-tab.active::after { content:'';position:absolute;bottom:-12px;left:0;right:0;height:2px;background:var(--accent); }
+  .empty-state { text-align:center;padding:40px;color:var(--text-muted); }
+  .empty-state h3 { color:var(--text);margin-bottom:8px; }
+  .footer { text-align:center;padding:20px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:16px; }
+  .hidden { display:none; }
+  @media(max-width:900px) {
+    .header { padding:16px; }
+    .form-grid { grid-template-columns:repeat(2,1fr); }
+    .summary-row { grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <div class="logo">GGE</div>
+    <h1>Avaliação de Produtos <span>— Simulador de Compra</span></h1>
+  </div>
+  <a href="index.html" class="header-link">← Dashboard</a>
+</div>
+<div class="container">
+  <div class="section-title">Grupo de Avaliação</div>
+  <div class="groups-bar">
+    <select id="groupSelect"><option value="">Carregando...</option></select>
+    <input type="text" id="newGroupName" placeholder="Nome do novo grupo...">
+    <button class="btn btn-primary" onclick="createGroup()">+ Criar Grupo</button>
+    <button class="btn btn-danger" id="btnArchive" onclick="archiveGroup()" style="display:none">Arquivar Grupo</button>
+  </div>
+  <div class="section-title">Importar Produtos</div>
+  <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+    <h3>Arraste um arquivo Excel aqui ou clique para selecionar</h3>
+    <p>Colunas esperadas: nome, sku_fornecedor, marca, modelo, ean, preco_fob, frete_fornecedor, ipi_pct, st_valor, peso_kg, categoria_ml, preco_referencia_ml, vendas_mes, num_anuncios, num_concorrentes</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+  </div>
+  <div class="section-title">Adicionar Produto Manual</div>
+  <div class="add-form">
+    <div class="form-grid">
+      <div class="form-group"><label>Nome *</label><input id="f_nome" placeholder="Grampeador 80/16"></div>
+      <div class="form-group"><label>SKU Fornecedor</label><input id="f_sku"></div>
+      <div class="form-group"><label>Marca</label><input id="f_marca"></div>
+      <div class="form-group"><label>Modelo</label><input id="f_modelo"></div>
+      <div class="form-group"><label>EAN</label><input id="f_ean"></div>
+      <div class="form-group"><label>Preço FOB *</label><input id="f_fob" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label>Frete Fornecedor</label><input id="f_frete" type="number" step="0.01" value="0"></div>
+      <div class="form-group"><label>IPI %</label><input id="f_ipi" type="number" step="0.1" value="0"></div>
+      <div class="form-group"><label>ST (R$)</label><input id="f_st" type="number" step="0.01" value="0"></div>
+      <div class="form-group"><label>Peso (kg)</label><input id="f_peso" type="number" step="0.01" value="1.0"></div>
+      <div class="form-group"><label>Categoria ML</label><input id="f_cat" placeholder="ex: MLB1196"></div>
+      <div class="form-group"><label>Preço Ref. ML</label><input id="f_refml" type="number" step="0.01" placeholder="Concorrente"></div>
+      <div class="form-group"><label>Vendas/Mês</label><input id="f_vendas" type="number" placeholder="Volume"></div>
+      <div class="form-group"><label>Nº Anúncios</label><input id="f_anuncios" type="number"></div>
+      <div class="form-group"><label>Nº Concorrentes</label><input id="f_concorrentes" type="number"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="addManual()">Adicionar Produto</button>
+      <button class="btn btn-outline" onclick="clearForm()">Limpar</button>
+    </div>
+  </div>
+  <div class="section-title">Simulação de Preços por Conta</div>
+  <div class="acct-tabs" id="acctTabs">
+    <button class="acct-tab active" data-acct="toow" onclick="switchAcct('toow')">TOOW (Simples)</button>
+    <button class="acct-tab" data-acct="ggerj" onclick="switchAcct('ggerj')">GGE RJ (Lucro Real)</button>
+    <button class="acct-tab" data-acct="ggerj-si" onclick="switchAcct('ggerj-si')">GGE RJ Sem Imposto</button>
+    <button class="acct-tab" data-acct="ggesp" onclick="switchAcct('ggesp')">GGE SP (Lucro Real)</button>
+  </div>
+  <div class="summary-row" id="summaryRow"></div>
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table>
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="empty-state hidden" id="emptyState">
+    <h3>Nenhum produto neste grupo</h3>
+    <p>Importe um Excel ou adicione produtos manualmente acima</p>
+  </div>
+</div>
+<div class="footer">Controle Total GGE © 2026 — Simulador de Avaliação de Compra</div>
+<script>
+const SB_URL='https://opceujqpqyvxsatzdarg.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+const RATES={comClassico:0.12,comPremium:0.17,pisCofins:0.0664,icmsRj:0.054,difal:0.0715,ads:0.038,simples:0.0865,icmsSp:0.1868};
+let grupos=[],produtos=[],freteTable=[],currentGroup=null,currentAcct='toow';
+async function sbFetch(t,p){const u=SB_URL+'/rest/v1/'+t+'?'+p;const r=await fetch(u,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});if(!r.ok)throw new Error('Supabase '+r.status);return r.json();}
+async function sbPost(t,d){const r=await fetch(SB_URL+'/rest/v1/'+t,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify(d)});if(!r.ok){const x=await r.text();throw new Error('Insert error: '+x);}return r.json();}
+async function sbDelete(t,p){const r=await fetch(SB_URL+'/rest/v1/'+t+'?'+p,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});return r.ok;}
+async function sbPatch(t,p,d){const r=await fetch(SB_URL+'/rest/v1/'+t+'?'+p,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify(d)});return r.json();}
+async function init(){try{const[g,ft]=await Promise.all([sbFetch('grupos_avaliacao','select=*&status=eq.ativo&order=criado_em.desc'),sbFetch('tabela_frete_ml','select=modo,peso_max_kg,preco_min,preco_max,frete&modo=eq.coleta')]);grupos=g||[];freteTable=ft||[];renderGroupSelect();setupUpload();}catch(e){console.error('Init error',e);}}
+function renderGroupSelect(){const s=document.getElementById('groupSelect');if(grupos.length===0){s.innerHTML='<option value="">— Crie um grupo primeiro —</option>';document.getElementById('btnArchive').style.display='none';currentGroup=null;produtos=[];renderAll();return;}s.innerHTML=grupos.map(g=>'<option value="'+g.id+'">'+g.nome+' ('+new Date(g.criado_em).toLocaleDateString('pt-BR')+')</option>').join('');s.onchange=()=>selectGroup(s.value);selectGroup(grupos[0].id);}
+async function selectGroup(id){currentGroup=id;document.getElementById('btnArchive').style.display=id?'inline-block':'none';if(!id){produtos=[];renderAll();return;}try{produtos=await sbFetch('produtos_avaliacao','select=*&grupo_id=eq.'+id+'&order=criado_em');}catch(e){produtos=[];}renderAll();}
+async function createGroup(){const n=document.getElementById('newGroupName').value.trim();if(!n)return alert('Digite um nome para o grupo');try{const r=await sbPost('grupos_avaliacao',{nome:n});grupos.unshift(r[0]);document.getElementById('newGroupName').value='';renderGroupSelect();}catch(e){alert('Erro ao criar grupo: '+e.message);}}
+async function archiveGroup(){if(!currentGroup)return;if(!confirm('Arquivar este grupo? Os produtos serão mantidos.'))return;await sbPatch('grupos_avaliacao','id=eq.'+currentGroup,{status:'arquivado'});grupos=grupos.filter(g=>g.id!==currentGroup);renderGroupSelect();}
+function setupUpload(){const a=document.getElementById('uploadArea');const i=document.getElementById('fileInput');a.addEventListener('dragover',e=>{e.preventDefault();a.classList.add('dragover');});a.addEventListener('dragleave',()=>a.classList.remove('dragover'));a.addEventListener('drop',e=>{e.preventDefault();a.classList.remove('dragover');handleFile(e.dataTransfer.files[0]);});i.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});}
+function handleFile(file){if(!currentGroup)return alert('Selecione ou crie um grupo primeiro');const reader=new FileReader();reader.onload=async(e)=>{try{const wb=XLSX.read(e.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});if(rows.length===0)return alert('Planilha vazia');const mapped=rows.map(r=>normalizeRow(r)).filter(r=>r.nome);if(mapped.length===0)return alert('Nenhuma linha válida (coluna "nome" obrigatória)');const toInsert=mapped.map(r=>({...r,grupo_id:currentGroup}));for(let i=0;i<toInsert.length;i+=50){const batch=toInsert.slice(i,i+50);const res=await sbPost('produtos_avaliacao',batch);produtos.push(...res);}renderAll();alert(mapped.length+' produtos importados com sucesso!');}catch(err){alert('Erro ao ler arquivo: '+err.message);}};reader.readAsArrayBuffer(file);}
+function normalizeRow(r){const get=(...keys)=>{for(const k of keys){const v=r[k]||r[k.toLowerCase()]||r[k.toUpperCase()];if(v!==undefined&&v!=='')return v;}return '';};return{nome:get('nome','produto','descricao','description','name')||'',sku_fornecedor:get('sku_fornecedor','sku','codigo','cod','code')||null,marca:get('marca','brand')||null,modelo:get('modelo','model')||null,ean:String(get('ean','gtin','barcode')||'')||null,preco_fob:num(get('preco_fob','fob','custo','preco','cost','valor')),frete_fornecedor:num(get('frete_fornecedor','frete','shipping')),ipi_pct:num(get('ipi_pct','ipi','ipi%')),st_valor:num(get('st_valor','st','substituicao')),peso_kg:num(get('peso_kg','peso','weight'))||1.0,categoria_ml:get('categoria_ml','categoria','category')||null,preco_referencia_ml:num(get('preco_referencia_ml','preco_ml','ref_ml','referencia','preco_concorrente'))||null,vendas_mes:intN(get('vendas_mes','vendas','sales')),num_anuncios:intN(get('num_anuncios','anuncios','listings')),num_concorrentes:intN(get('num_concorrentes','concorrentes','competitors'))};}
+function num(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?0:n;}
+function intN(v){const n=parseInt(v);return isNaN(n)?null:n;}
+async function addManual(){if(!currentGroup)return alert('Selecione ou crie um grupo primeiro');const nome=document.getElementById('f_nome').value.trim();if(!nome)return alert('Nome é obrigatório');const fob=parseFloat(document.getElementById('f_fob').value)||0;if(fob<=0)return alert('Preço FOB é obrigatório');const prod={grupo_id:currentGroup,nome,sku_fornecedor:document.getElementById('f_sku').value.trim()||null,marca:document.getElementById('f_marca').value.trim()||null,modelo:document.getElementById('f_modelo').value.trim()||null,ean:document.getElementById('f_ean').value.trim()||null,preco_fob:fob,frete_fornecedor:parseFloat(document.getElementById('f_frete').value)||0,ipi_pct:parseFloat(document.getElementById('f_ipi').value)||0,st_valor:parseFloat(document.getElementById('f_st').value)||0,peso_kg:parseFloat(document.getElementById('f_peso').value)||1.0,categoria_ml:document.getElementById('f_cat').value.trim()||null,preco_referencia_ml:parseFloat(document.getElementById('f_refml').value)||null,vendas_mes:parseInt(document.getElementById('f_vendas').value)||null,num_anuncios:parseInt(document.getElementById('f_anuncios').value)||null,num_concorrentes:parseInt(document.getElementById('f_concorrentes').value)||null};try{const res=await sbPost('produtos_avaliacao',prod);produtos.push(res[0]);clearForm();renderAll();}catch(e){alert('Erro: '+e.message);}}
+function clearForm(){['f_nome','f_sku','f_marca','f_modelo','f_ean','f_fob','f_refml','f_cat','f_vendas','f_anuncios','f_concorrentes'].forEach(id=>document.getElementById(id).value='');document.getElementById('f_frete').value='0';document.getElementById('f_ipi').value='0';document.getElementById('f_st').value='0';document.getElementById('f_peso').value='1.0';}
+async function deleteProd(id){if(!confirm('Remover este produto?'))return;await sbDelete('produtos_avaliacao','id=eq.'+id);produtos=produtos.filter(p=>p.id!==id);renderAll();}
+function calcCIF(p){return p.preco_fob+p.frete_fornecedor+(p.preco_fob*(p.ipi_pct/100))+p.st_valor;}
+function lookupFrete(w,pr){if(pr<12.5)return 0.5;if(pr<29)return 6.25;if(pr<50)return 6.5;if(pr<79)return 6.75;const row=freteTable.find(r=>Number(r.peso_max_kg)>=w&&pr>=Number(r.preco_min)&&pr<=Number(r.preco_max));return row?Number(row.frete):20;}
+function getDeductions(a,c){const d={comissao:c};switch(a){case'toow':d.simples=RATES.simples;d.ads=RATES.ads;break;case'ggerj':d.pisCofins=RATES.pisCofins;d.icms=RATES.icmsRj;d.difal=RATES.difal;d.ads=RATES.ads;break;case'ggerj-si':d.ads=RATES.ads;break;case'ggesp':d.pisCofins=RATES.pisCofins;d.icms=RATES.icmsSp;d.difal=RATES.difal;d.ads=RATES.ads;break;}return d;}
+function calcPrice(cif,w,ded,mc){const dp=Object.values(ded).reduce((a,b)=>a+b,0);const dn=1-dp-mc;if(dn<=0)return 0;let p=cif/dn;for(let i=0;i<3;i++){p=(cif+lookupFrete(w,p))/dn;}return p;}
+function calcMC(pr,cif,fr,ded){if(pr<=0)return 0;const dp=Object.values(ded).reduce((a,b)=>a+b,0);return Math.max(0,1-dp-fr/pr-cif/pr);}
+function pricingForProduct(p,a){const cif=calcCIF(p);const ded=getDeductions(a,RATES.comClassico);const prices={mc10:calcPrice(cif,p.peso_kg,ded,0.10),mc15:calcPrice(cif,p.peso_kg,ded,0.15),mc20:calcPrice(cif,p.peso_kg,ded,0.20),mc25:calcPrice(cif,p.peso_kg,ded,0.25)};let mcRef=null;if(p.preco_referencia_ml&&p.preco_referencia_ml>0){mcRef=calcMC(p.preco_referencia_ml,cif,lookupFrete(p.peso_kg,p.preco_referencia_ml),ded);}return{cif,prices,mcRef};}
+function switchAcct(a){currentAcct=a;document.querySelectorAll('.acct-tab').forEach(t=>t.classList.remove('active'));document.querySelector('[data-acct="'+a+'"]').classList.add('active');renderAll();}
+function renderAll(){renderSummary();renderTable();}
+function renderSummary(){const c=document.getElementById('summaryRow');if(produtos.length===0){c.innerHTML='';return;}let tCIF=0,tRef=0,cRef=0,tVendas=0,cVendas=0;const prs=produtos.map(p=>{const pr=pricingForProduct(p,currentAcct);tCIF+=pr.cif;if(p.preco_referencia_ml>0){tRef+=p.preco_referencia_ml;cRef++;}if(p.vendas_mes>0){tVendas+=p.vendas_mes;cVendas++;}return pr;});let avgMC=0;if(cRef>0){avgMC=prs.filter((pr,i)=>produtos[i].preco_referencia_ml>0).reduce((s,pr)=>s+(pr.mcRef||0),0)/cRef;}const tMC15=prs.reduce((s,pr)=>s+pr.prices.mc15,0);const mcCl=avgMC>0.15?'mc-good':avgMC>0.05?'mc-warn':'mc-bad';c.innerHTML='<div class="summary-card"><div class="label">Produtos no Grupo</div><div class="value">'+produtos.length+'</div><div class="sub">'+cRef+' com preço ref.</div></div><div class="summary-card"><div class="label">Investimento Total (CIF)</div><div class="value">'+fmt(tCIF)+'</div><div class="sub">FOB + frete + IPI + ST</div></div><div class="summary-card"><div class="label">Faturamento (MC 15%)</div><div class="value">'+fmt(tMC15)+'</div><div class="sub">Preço necessário p/ 15% MC</div></div>'+(cRef>0?'<div class="summary-card"><div class="label">MC Média (Preço Ref.)</div><div class="value '+mcCl+'">'+fmtPct(avgMC)+'</div><div class="sub">Baseado nos '+cRef+' com preço ref.</div></div>':'')+(cVendas>0?'<div class="summary-card"><div class="label">Vendas/Mês (Total)</div><div class="value">'+tVendas.toLocaleString('pt-BR')+'</div><div class="sub">'+cVendas+' produtos com dado de vendas</div></div>':'');}
+function renderTable(){const h=document.getElementById('tableHead');const b=document.getElementById('tableBody');const e=document.getElementById('emptyState');if(produtos.length===0){h.innerHTML='';b.innerHTML='';e.classList.remove('hidden');return;}e.classList.add('hidden');h.innerHTML='<tr><th>Nome</th><th>Marca</th><th>EAN</th><th>FOB</th><th>CIF</th><th>Peso</th><th>Ref. ML</th><th>MC Ref.</th><th>MC 10%</th><th>MC 15%</th><th>MC 20%</th><th>MC 25%</th><th>Vendas/M</th><th>Anúncios</th><th>Conc.</th><th></th></tr>';b.innerHTML=produtos.map(p=>{const pr=pricingForProduct(p,currentAcct);const mcRC=pr.mcRef!==null?(pr.mcRef>0.15?'mc-good':pr.mcRef>0.05?'mc-warn':'mc-bad'):'';const mcRT=pr.mcRef!==null?fmtPct(pr.mcRef):'—';const rP=p.preco_referencia_ml||0;const pC=v=>rP>0?(v<=rP?'price-ok':'price-high'):'';let badge='';if(pr.mcRef!==null){if(pr.mcRef>=0.15)badge='<span class="badge badge-green">Viável</span>';else if(pr.mcRef>=0.05)badge='<span class="badge badge-yellow">Atenção</span>';else badge='<span class="badge badge-red">Inviável</span>';}return'<tr><td><strong>'+esc(p.nome)+'</strong>'+(badge?'<br>'+badge:'')+'</td><td>'+esc(p.marca||'—')+'</td><td style="font-size:11px">'+esc(p.ean||'—')+'</td><td class="num">'+fmt(p.preco_fob)+'</td><td class="num"><strong>'+fmt(pr.cif)+'</strong></td><td class="num">'+p.peso_kg+'kg</td><td class="num">'+(rP>0?fmt(rP):'—')+'</td><td class="num '+mcRC+'">'+mcRT+'</td><td class="num '+pC(pr.prices.mc10)+'">'+fmt(pr.prices.mc10)+'</td><td class="num '+pC(pr.prices.mc15)+'">'+fmt(pr.prices.mc15)+'</td><td class="num '+pC(pr.prices.mc20)+'">'+fmt(pr.prices.mc20)+'</td><td class="num '+pC(pr.prices.mc25)+'">'+fmt(pr.prices.mc25)+'</td><td class="num">'+(p.vendas_mes||'—')+'</td><td class="num">'+(p.num_anuncios||'—')+'</td><td class="num">'+(p.num_concorrentes||'—')+'</td><td><button class="btn-sm" onclick="deleteProd(\''+p.id+'\')">&#10005;</button></td></tr>';}).join('');}
+function fmt(v){return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtPct(v){return(v*100).toFixed(1)+'%';}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+init();
+</script>
+</body>
+</html>
