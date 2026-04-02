@@ -129,7 +129,7 @@
     gap: 16px;
     margin-bottom: 32px;
   }
-  @media (max-width: 900px) { .summary-row { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 900px) { .summary-row { grid-template-columns: repeat(3, 1fr); } }
   .summary-card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -143,7 +143,7 @@
   .change.down { color: var(--red); }
   .panels-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     margin-bottom: 32px;
   }
@@ -389,7 +389,7 @@ function buildDashboard(proj, mProj, monthly, curMonth, lastMonth) {
   }
   const p30 = '<div class="section-title">Projeção 30 Dias</div><div class="proj-grid">'+projCard('Últimos 30 dias',proj.d30,'30',30)+projCard('Últimos 15 dias',proj.d15,'15',15)+projCard('Últimos 7 dias',proj.d7,'7',7)+'</div>';
   const mp = '<div class="section-title">Projeção do Mês ('+cm+' '+cy+')</div><div class="proj-grid">'+monthProjCard('Base: últimos 30 dias',mProj.d30,'30')+monthProjCard('Base: últimos 15 dias',mProj.d15,'15')+monthProjCard('Base: últimos 7 dias',mProj.d7,'7')+'</div>';
-  const pl = '<div class="section-title">Painéis</div><div class="panels-grid"><a class="panel-link" href="margem.html"><div class="panel-icon margem">&#128200;</div><div><h3>Painel I — Margem</h3><p>Análise de margem por anúncio, custos, frete, comissão e impostos por conta ML</p></div><div class="panel-arrow">&#8594;</div></a><a class="panel-link" href="precificacao.html"><div class="panel-icon preco">&#128176;</div><div><h3>Painel II — Precificação</h3><p>Precificação B2B e Marketplace com cálculo reverso de MC</p></div><div class="panel-arrow">&#8594;</div></a></div>';
+  const pl = '<div class="section-title">Painéis</div><div class="panels-grid"><a class="panel-link" href="margem.html"><div class="panel-icon margem">&#128200;</div><div><h3>Painel I — Margem</h3><p>Análise de margem por anúncio, custos, frete, comissão e impostos por conta ML</p></div><div class="panel-arrow">&#8594;</div></a><a class="panel-link" href="precificacao.html"><div class="panel-icon preco">&#128176;</div><div><h3>Painel II — Precificação</h3><p>Precificação B2B e Marketplace com cálculo reverso de MC</p></div><div class="panel-arrow">&#8594;</div></a><a class="panel-link" href="avaliacao.html"><div class="panel-icon" style="background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(59,130,246,.05));color:var(--blue);">&#128202;</div><div><h3>Avaliação de Produtos</h3><p>Simulador de compra com upload Excel e cálculo por conta ML</p></div><div class="panel-arrow">&#8594;</div></a></div>';
   const hr = monthly.slice(0,6).map(m => {
     const md = new Date(m.mes+'T12:00:00');
     const ml = MN[md.getMonth()]+'/'+md.getFullYear();
