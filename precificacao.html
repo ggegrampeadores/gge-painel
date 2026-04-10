@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel II â PrecificaÃ§Ã£o | Controle Total GGE</title>
+    <title>Painel II — Precificação | Controle Total GGE</title>
     <style>
         :root {
             --bg: #0f1117;
@@ -232,26 +232,26 @@
             <div class="header-left">
                 <div class="logo">GGE</div>
                 <div class="header-title">
-                    <h1>Controle Total â PrecificaÃ§Ã£o</h1>
-                    <p>Painel II: Reverse-engineered pricing por margem alvo Â· clique em uma linha para simular mÃºltiplas unidades</p>
+                    <h1>Controle Total — Precificação</h1>
+                    <p>Painel II: Reverse-engineered pricing por margem alvo · clique em uma linha para simular múltiplas unidades</p>
                 </div>
             </div>
-            <a href="index.html" class="header-link">â Dashboard</a>
+            <a href="index.html" class="header-link">← Dashboard</a>
         </div>
 
         <div class="settings-bar" id="settingsBar">
-            <button class="settings-toggle" id="settingsToggle">âï¸ ConfiguraÃ§Ãµes de Taxa</button>
+            <button class="settings-toggle" id="settingsToggle">⚙️ Configurações de Taxa</button>
             <div class="settings-grid" id="settingsGrid" style="display: none;">
                 <div class="setting-item">
-                    <label>ComissÃ£o ClÃ¡ssico (%)</label>
+                    <label>Comissão Clássico (%)</label>
                     <input type="number" id="comissaoClassico" value="12" step="0.1" min="0" max="100">
                 </div>
                 <div class="setting-item">
-                    <label>ComissÃ£o Premium (%)</label>
+                    <label>Comissão Premium (%)</label>
                     <input type="number" id="comissaoPremium" value="17" step="0.1" min="0" max="100">
                 </div>
                 <div class="setting-item">
-                    <label>PIS/COFINS LÃ­quido (%)</label>
+                    <label>PIS/COFINS Líquido (%)</label>
                     <input type="number" id="pisCofins" value="6.64" step="0.1" min="0" max="100">
                 </div>
                 <div class="setting-item">
@@ -259,7 +259,7 @@
                     <input type="number" id="icmsRj" value="5.40" step="0.1" min="0" max="100">
                 </div>
                 <div class="setting-item">
-                    <label>DIFAL MÃ©dio (%)</label>
+                    <label>DIFAL Médio (%)</label>
                     <input type="number" id="difal" value="7.15" step="0.1" min="0" max="100">
                 </div>
                 <div class="setting-item">
@@ -275,7 +275,7 @@
                     <input type="number" id="icmsSp" value="18.68" step="0.1" min="0" max="100">
                 </div>
                 <div class="setting-item">
-                    <label>Peso padrÃ£o (kg)</label>
+                    <label>Peso padrão (kg)</label>
                     <input type="number" id="pesoDefault" value="1.0" step="0.1" min="0.05" max="100">
                 </div>
             </div>
@@ -284,7 +284,7 @@
         <div class="tabs" id="tabs"></div>
         <div class="controls">
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Buscar por SKU, MLB ou tÃ­tulo...">
+                <input type="text" id="searchInput" placeholder="Buscar por SKU, MLB ou título...">
             </div>
             <div class="hint"><span class="hint-key">clique</span> na linha para simular 1, 2, 4, 6, 10 e 15 unidades</div>
         </div>
@@ -443,7 +443,7 @@
         function renderTableForTab(tabId) {
             const container = document.getElementById('tab-' + tabId);
             if (tabId === 'b2b') {
-                container.innerHTML = '<div class="empty-state"><h3>Em construÃ§Ã£o</h3><p>SeÃ§Ã£o VENDA DIRETA B2B serÃ¡ implementada em breve</p></div>';
+                container.innerHTML = '<div class="empty-state"><h3>Em construção</h3><p>Seção VENDA DIRETA B2B será implementada em breve</p></div>';
                 return;
             }
             let filtered = filterAnunciosForTab(tabId);
@@ -455,7 +455,7 @@
                 );
             }
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="empty-state"><h3>Nenhum anÃºncio encontrado</h3><p>Tente ajustar os filtros de busca</p></div>';
+                container.innerHTML = '<div class="empty-state"><h3>Nenhum anúncio encontrado</h3><p>Tente ajustar os filtros de busca</p></div>';
                 return;
             }
             const rows = filtered
@@ -465,8 +465,8 @@
             const header = '<thead><tr>' +
                 '<th style="width:26px"></th>' +
                 '<th>SKU / MLB</th>' +
-                '<th>TÃ­tulo</th>' +
-                '<th>PreÃ§o Atual</th>' +
+                '<th>Título</th>' +
+                '<th>Preço Atual</th>' +
                 '<th>Custo CIF</th>' +
                 '<th>Frete Est.</th>' +
                 '<th>MC Atual</th>' +
@@ -517,7 +517,7 @@
             };
             return {
                 mlb_id: anuncio.mlb_id,
-                sku: anuncio.sku_vendedor || 'â',
+                sku: anuncio.sku_vendedor || '—',
                 titulo: anuncio.titulo || '',
                 tituloCurto: (anuncio.titulo || '').substring(0, 40),
                 precoAtual: Number(anuncio.preco_atual),
@@ -532,13 +532,13 @@
             const mcClass = row.mcAtual > 0.15 ? 'mc-good' : row.mcAtual > 0.03 ? 'mc-warning' : 'mc-danger';
             const isExpanded = state.expandedMlb === row.mlb_id;
             const trClass = 'main-row' + (isExpanded ? ' expanded' : '') + (row.hasCusto ? '' : ' no-cost');
-            const zonaCritica = row.precoAtual >= 74 && row.precoAtual <= 79 ? '<span class="badge badge-zona">â  zona R$ 79</span>' : '';
+            const zonaCritica = row.precoAtual >= 74 && row.precoAtual <= 79 ? '<span class="badge badge-zona">⚠ zona R$ 79</span>' : '';
             const mlbLink = row.permalink
-                ? '<a href="' + row.permalink + '" target="_blank" class="mlb-link" onclick="event.stopPropagation()">' + row.mlb_id + ' â</a>'
+                ? '<a href="' + row.permalink + '" target="_blank" class="mlb-link" onclick="event.stopPropagation()">' + row.mlb_id + ' ↗</a>'
                 : '<span class="mlb-link">' + row.mlb_id + '</span>';
 
             let html = '<tr class="' + trClass + '" data-mlb="' + row.mlb_id + '">' +
-                '<td><span class="chevron">â¶</span></td>' +
+                '<td><span class="chevron">▶</span></td>' +
                 '<td><strong>' + row.sku + '</strong><br>' + mlbLink + '</td>' +
                 '<td>' + escapeHtml(row.tituloCurto) + zonaCritica + '</td>' +
                 '<td>' + formatCurrency(row.precoAtual) + '</td>' +
@@ -558,8 +558,8 @@
         function renderExpansionRow(row, tabId) {
             if (!row.hasCusto) {
                 return '<tr class="expansion-row"><td colspan="11"><div class="expansion-content">' +
-                    '<div class="expansion-header"><div class="expansion-title">SimulaÃ§Ã£o indisponÃ­vel</div>' +
-                    '<div class="expansion-meta">Este anÃºncio ainda nÃ£o tem custo CIF cadastrado.</div></div>' +
+                    '<div class="expansion-header"><div class="expansion-title">Simulação indisponível</div>' +
+                    '<div class="expansion-meta">Este anúncio ainda não tem custo CIF cadastrado.</div></div>' +
                     '</td></tr>';
             }
             const pesoUnit = row.pesoUnit;
@@ -589,12 +589,12 @@
             });
 
             const headerCells = '<th>Qtde</th><th>Peso total</th>' +
-                MARGEM_ALVOS.map(m => '<th>MC ' + (m * 100) + '% Â· preÃ§o unit.</th>').join('') +
-                '<th>Frete total (MC 20%)</th><th>PreÃ§o total (MC 20%)</th>';
+                MARGEM_ALVOS.map(m => '<th>MC ' + (m * 100) + '% · preço unit.</th>').join('') +
+                '<th>Frete total (MC 20%)</th><th>Preço total (MC 20%)</th>';
 
             const bodyCells = simLines.map(line => {
                 const rowClass = line.isFaixaJump ? 'faixa-jump' : '';
-                const jumpIcon = line.isFaixaJump ? '<span class="jump-icon">â </span>' : '';
+                const jumpIcon = line.isFaixaJump ? '<span class="jump-icon">⚠</span>' : '';
                 const faixa20 = line.priceByMC[0.20].faixa;
                 const faixaBadge = '<span class="faixa-badge ' + faixa20 + '">' + (faixa20 === 'fix' ? 'faixa fixa' : 'por peso') + '</span>';
                 return '<tr class="' + rowClass + '">' +
@@ -606,30 +606,30 @@
                     '</tr>';
             }).join('');
 
-            // Insight: detectar "zona morta" â quando uma qtde cruza a barreira dos R$ 79
+            // Insight: detectar "zona morta" — quando uma qtde cruza a barreira dos R$ 79
             const cruzaBarreira = simLines.find(l => l.isFaixaJump);
             let insightHtml = '';
             if (cruzaBarreira) {
                 const f20_antes = lookupFrete(pesoUnit * (cruzaBarreira.qty - 1 || 1), 78);
                 const f20_depois = cruzaBarreira.priceByMC[0.20].frete;
                 const delta = f20_depois - f20_antes;
-                insightHtml = '<div class="insight-box warn">ð¡ <strong>Barreira R$ 79 detectada em ' + cruzaBarreira.qty + 'x</strong>: o frete salta de ~' +
+                insightHtml = '<div class="insight-box warn">💡 <strong>Barreira R$ 79 detectada em ' + cruzaBarreira.qty + 'x</strong>: o frete salta de ~' +
                     formatCurrency(f20_antes) + ' para ' + formatCurrency(f20_depois) +
-                    ' (+' + formatCurrency(delta) + '). Considere ajustar manualmente o preÃ§o para se manter abaixo ou acima da faixa conforme o volume mais frequente de venda.</div>';
+                    ' (+' + formatCurrency(delta) + '). Considere ajustar manualmente o preço para se manter abaixo ou acima da faixa conforme o volume mais frequente de venda.</div>';
             } else {
                 const mcMax = simLines[simLines.length - 1].priceByMC[0.20];
                 const mc1 = simLines[0].priceByMC[0.20];
                 if (mcMax.precoUnit < mc1.precoUnit * 0.98) {
-                    insightHtml = '<div class="insight-box good">ð¡ <strong>Vantagem de escala</strong>: em 15x o preÃ§o unitÃ¡rio para MC 20% cai de ' +
+                    insightHtml = '<div class="insight-box good">💡 <strong>Vantagem de escala</strong>: em 15x o preço unitário para MC 20% cai de ' +
                         formatCurrency(mc1.precoUnit) + ' para ' + formatCurrency(mcMax.precoUnit) +
                         ', sem saltos de frete. Boa oportunidade para kits ou descontos progressivos.</div>';
                 } else {
-                    insightHtml = '<div class="insight-box">ð¡ Nesta faixa de peso e preÃ§o, o frete impacta pouco a escala. PreÃ§o unitÃ¡rio estÃ¡vel em vÃ¡rias quantidades.</div>';
+                    insightHtml = '<div class="insight-box">💡 Nesta faixa de peso e preço, o frete impacta pouco a escala. Preço unitário estável em várias quantidades.</div>';
                 }
             }
 
             const productInfo =
-                '<div class="expansion-title">SimulaÃ§Ã£o de preÃ§o por quantidade</div>' +
+                '<div class="expansion-title">Simulação de preço por quantidade</div>' +
                 '<div class="expansion-meta">' + escapeHtml(row.titulo) + '</div>' +
                 '<div class="weight-input"><label>Peso por unidade:</label><input type="number" step="0.05" min="0.05" value="' + pesoUnit + '" data-mlb="' + row.mlb_id + '"><span style="font-size:11px;color:var(--text-secondary)">kg</span></div>';
 
@@ -657,10 +657,10 @@
             if (preco < 29.00) return 6.25;
             if (preco < 50.00) return 6.50;
             if (preco < 79.00) return 6.75;
-            // busca a menor faixa de peso que comporta o peso total, na faixa de preÃ§o correspondente
+            // busca a menor faixa de peso que comporta o peso total, na faixa de preço correspondente
             const row = state.freteTable.find(r => r.peso_max_kg >= pesoKg && preco >= r.preco_min && preco <= r.preco_max);
             if (row) return row.frete;
-            // fallback: se peso excede o mÃ¡ximo da tabela, usa a maior faixa disponÃ­vel para o preÃ§o
+            // fallback: se peso excede o máximo da tabela, usa a maior faixa disponível para o preço
             const byPrice = state.freteTable.filter(r => preco >= r.preco_min && preco <= r.preco_max);
             if (byPrice.length) return byPrice[byPrice.length - 1].frete;
             return 22;
@@ -673,8 +673,8 @@
         }
 
         /**
-         * Calcula o preÃ§o total da ordem (qty unidades) que entrega a margem-alvo.
-         * Retorna preÃ§o TOTAL, nÃ£o unitÃ¡rio â divida por qty pra preÃ§o unitÃ¡rio.
+         * Calcula o preço total da ordem (qty unidades) que entrega a margem-alvo.
+         * Retorna preço TOTAL, não unitário — divida por qty pra preço unitário.
          */
         function calcPrice(cif, pesoUnit, deductions, targetMC, qty) {
             if (!qty || qty < 1) qty = 1;
@@ -694,7 +694,7 @@
         }
 
         function formatCurrency(value) {
-            if (!isFinite(value) || value === null || value === undefined) return 'â';
+            if (!isFinite(value) || value === null || value === undefined) return '—';
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
         }
         function formatPercent(value) { return (value * 100).toFixed(1) + '%'; }
