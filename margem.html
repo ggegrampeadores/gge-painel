@@ -105,6 +105,9 @@
       const sorted = [...allMeses].sort((a,b) => b.localeCompare(a));
       const today = new Date();
       const toYM = (d) => d.toISOString().slice(0, 7);
+      // Normaliza valores de `allMeses` (que podem vir em 'YYYY-MM-DD')
+      // para 'YYYY-MM' antes de comparar com os cutoffs calculados via toYM(Date).
+      const mYM = (m) => String(m).slice(0, 7);
 
       switch (periodo) {
         case '7d': case '15d': case '30d': {
@@ -114,40 +117,40 @@
           cutoff.setDate(cutoff.getDate() - days);
           const cutoffYM = toYM(cutoff);
           const todayYM = toYM(today);
-          return sorted.filter(m => m >= cutoffYM && m <= todayYM);
+          return sorted.filter(m => mYM(m) >= cutoffYM && mYM(m) <= todayYM);
         }
         case 'mes_passado': {
           const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
           const ym = toYM(d);
-          return sorted.filter(m => m === ym);
+          return sorted.filter(m => mYM(m) === ym);
         }
         case '2m_atras': {
           const d = new Date(today.getFullYear(), today.getMonth() - 2, 1);
           const ym = toYM(d);
-          return sorted.filter(m => m === ym);
+          return sorted.filter(m => mYM(m) === ym);
         }
         case '3m_atras': {
           const d = new Date(today.getFullYear(), today.getMonth() - 3, 1);
           const ym = toYM(d);
-          return sorted.filter(m => m === ym);
+          return sorted.filter(m => mYM(m) === ym);
         }
         case '90d': {
           const cutoff = new Date(today);
           cutoff.setDate(cutoff.getDate() - 90);
           const cutoffYM = toYM(cutoff);
-          return sorted.filter(m => m >= cutoffYM);
+          return sorted.filter(m => mYM(m) >= cutoffYM);
         }
         case '180d': {
           const cutoff = new Date(today);
           cutoff.setDate(cutoff.getDate() - 180);
           const cutoffYM = toYM(cutoff);
-          return sorted.filter(m => m >= cutoffYM);
+          return sorted.filter(m => mYM(m) >= cutoffYM);
         }
         case '1a': {
           const cutoff = new Date(today);
           cutoff.setFullYear(cutoff.getFullYear() - 1);
           const cutoffYM = toYM(cutoff);
-          return sorted.filter(m => m >= cutoffYM);
+          return sorted.filter(m => mYM(m) >= cutoffYM);
         }
         default:
           return sorted.slice(0, 1);
