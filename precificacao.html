@@ -195,19 +195,44 @@
         }
 
 
-        /* B2B Layout styles */
-        .b2b-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-        .b2b-toolbar .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 13px; cursor: pointer; transition: all 0.2s; }
-        .b2b-toolbar .btn:hover { border-color: var(--accent); color: var(--accent); }
+        /* B2B Layout styles — Redesigned */
+        .b2b-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+        .b2b-toolbar .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 13px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+        .b2b-toolbar .btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.05); }
         .b2b-toolbar .btn svg { width: 15px; height: 15px; }
         .b2b-toolbar .btn-upload { border-color: var(--success); color: var(--success); }
-        .b2b-toolbar .btn-upload:hover { background: rgba(16,185,129,0.1); }
+        .b2b-toolbar .btn-upload:hover { background: rgba(16,185,129,0.08); }
         .b2b-toolbar .status-msg { font-size: 12px; color: var(--text-secondary); }
         .b2b-toolbar .status-msg.ok { color: var(--success); }
         .b2b-toolbar .status-msg.err { color: var(--danger); }
 
-        .b2b-titulo-row td { background: var(--accent) !important; color: #fff !important; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 10px !important; border: none !important; }
-        .b2b-cabecalho-row td { background: rgba(99,102,241,0.12) !important; color: var(--accent) !important; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; padding: 9px 10px !important; border-bottom: 2px solid var(--accent) !important; }    </style>
+        .b2b-titulo-row td {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%) !important;
+            color: #fff !important; font-size: 14px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.2px; padding: 14px 16px !important; border: none !important;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .b2b-cabecalho-row td {
+            font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+            padding: 10px 12px !important; border-bottom: 2px solid transparent !important;
+        }
+        .b2b-cabecalho-row.maquina td {
+            background: rgba(99,102,241,0.07) !important; color: var(--accent) !important;
+            border-bottom-color: var(--accent) !important;
+        }
+        .b2b-cabecalho-row.maquina td:first-child { border-left: 3px solid var(--accent); }
+        .b2b-cabecalho-row.insumo td {
+            background: rgba(16,185,129,0.07) !important; color: var(--success) !important;
+            border-bottom-color: var(--success) !important;
+        }
+        .b2b-cabecalho-row.insumo td:first-child { border-left: 3px solid var(--success); }
+        .b2b-cabecalho-row td.b2b-margin-label { text-align: center; font-size: 11px; font-weight: 600; }
+        .b2b-product-row { transition: background 0.15s; }
+        .b2b-product-row:hover { background: rgba(99,102,241,0.04) !important; }
+        .b2b-product-row td { padding: 9px 12px !important; font-size: 13px; border-bottom: 1px solid rgba(42,45,58,0.5) !important; }
+        .b2b-product-row:nth-child(even of .b2b-product-row) td { background: rgba(255,255,255,0.012); }
+        .b2b-price-cell { font-weight: 500; font-variant-numeric: tabular-nums; }
+        .b2b-sob-consulta { color: var(--text-secondary); font-size: 11px; font-style: italic; text-align: center; }    </style>
 <script src="auth.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -288,7 +313,8 @@
 
         const QUANTIDADES_SIMULACAO = [2, 4, 6, 10, 15];
         const MARGEM_ALVOS = [0.10, 0.15, 0.20, 0.25];
-        const MARGEM_B2B = [0.25, 0.30, 0.35, 0.40, 0.45];
+        const MARGEM_B2B_MAQ = [0.25, 0.30, 0.35, 0.40];
+        const MARGEM_B2B_INS = [0.35, 0.40, 0.45, 0.50];
         const ICMS_IMPORTADO = 0.04;
         const ICMS_NACIONAL = 0.12;
         const PIS_COFINS_B2B = 0.0925;
@@ -590,13 +616,12 @@
             }).join('');
         }
 
-        // ====================== B2B VENDA DIRETA ======================
+        // ====================== B2B VENDA DIRETA — REDESIGNED ======================
         function renderB2bTab(container) {
             const skuMap = {};
             state.skusB2b.forEach(s => { skuMap[s.sku] = s; });
             const hasLayout = state.b2bLayout.length > 0;
 
-            // Toolbar: download + upload
             const toolbar = '<div class="b2b-toolbar">' +
                 '<button class="btn" onclick="downloadB2bLayout()" title="Baixar planilha de layout para editar no Excel">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
@@ -605,81 +630,98 @@
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
                 'Enviar Layout <input type="file" accept=".xlsx,.xls" style="display:none" onchange="uploadB2bLayout(this)"></label>' +
                 '<span id="b2bStatus" class="status-msg">' +
-                (hasLayout ? state.b2bLayout.length + ' linhas no layout' : 'Nenhum layout configurado — mostrando todos os SKUs') +
+                (hasLayout ? state.b2bLayout.length + ' linhas no layout' : 'Sem layout \u2014 mostrando todos') +
                 '</span></div>';
 
-            const subtitle = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">' +
-                'Venda interestadual (SP\u2194RJ) \u00b7 contribuinte \u00b7 sem DIFAL \u00b7 frete por conta do cliente \u00b7 ' +
-                '<strong style="color:var(--accent)">M\u00e1quinas:</strong> 25\u201340% \u00b7 ' +
-                '<strong style="color:var(--accent)">Insumos:</strong> 30\u201345%</div>';
+            const subtitle = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.7;">' +
+                'Venda interestadual B2B \u00b7 contribuinte \u00b7 sem DIFAL \u00b7 frete CIF cliente \u00b7 ' +
+                '<span style="color:var(--accent);font-weight:600;">\u2699 M\u00e1quinas</span> 25\u201340% \u00b7 ' +
+                '<span style="color:var(--success);font-weight:600;">\u26a1 Insumos</span> 35\u201350%</div>';
 
-            const header = '<thead><tr>' +
-                '<th>SKU</th><th>Descri\u00e7\u00e3o</th><th>Origem</th><th>Custo CIF</th><th>ICMS</th>' +
-                '<th>MC 25%</th><th>MC 30%</th><th>MC 35%</th><th>MC 40%</th><th>MC 45%</th>' +
-                '</tr></thead>';
-
+            const NCOLS = 9;
             let bodyHtml = '';
+            let currentMargins = MARGEM_B2B_MAQ;
+
             if (hasLayout) {
                 for (const item of state.b2bLayout) {
                     if (item.tipo === 'titulo') {
-                        bodyHtml += '<tr class="b2b-titulo-row"><td colspan="10">' + escapeHtml(item.texto || '') + '</td></tr>';
-                    } else if (item.tipo === 'cabecalho_maquina' || item.tipo === 'cabecalho_insumo') {
-                        const label = item.tipo === 'cabecalho_maquina' ? '\u2699 M\u00c1QUINAS' : '\u26a1 INSUMOS';
-                        bodyHtml += '<tr class="b2b-cabecalho-row"><td colspan="10">' + escapeHtml(item.texto || label) + '</td></tr>';
+                        bodyHtml += '<tr class="b2b-titulo-row"><td colspan="' + NCOLS + '">' + escapeHtml(item.texto || '') + '</td></tr>';
+                    } else if (item.tipo === 'cabecalho_maquina') {
+                        currentMargins = MARGEM_B2B_MAQ;
+                        bodyHtml += renderB2bSectionHeader(item.texto || 'M\u00c1QUINAS', 'maquina', currentMargins);
+                    } else if (item.tipo === 'cabecalho_insumo') {
+                        currentMargins = MARGEM_B2B_INS;
+                        bodyHtml += renderB2bSectionHeader(item.texto || 'INSUMOS', 'insumo', currentMargins);
                     } else if (item.tipo === 'produto' && item.sku) {
                         const sku = skuMap[item.sku];
                         if (sku) {
                             if (!state.searchTerm || sku.sku.toLowerCase().includes(state.searchTerm) || sku.descricao.toLowerCase().includes(state.searchTerm)) {
-                                bodyHtml += renderB2bRow(sku);
+                                bodyHtml += renderB2bRow(sku, currentMargins);
                             }
                         } else {
-                            bodyHtml += '<tr class="main-row" style="cursor:default"><td><strong>' + escapeHtml(item.sku) + '</strong></td>' +
-                                '<td colspan="9" style="color:var(--danger);font-size:12px">SKU n\u00e3o encontrado em skus_custo</td></tr>';
+                            bodyHtml += '<tr class="b2b-product-row"><td colspan="' + NCOLS + '" style="color:var(--danger);font-size:12px;padding:8px 12px;">' +
+                                '\u26a0 SKU <strong>' + escapeHtml(item.sku) + '</strong> n\u00e3o encontrado em skus_custo</td></tr>';
                         }
                     }
                 }
             } else {
-                // Fallback: sem layout, mostra todos os SKUs em ordem alfabética
                 let skus = state.skusB2b.slice().sort((a, b) => a.sku.localeCompare(b.sku));
                 if (state.searchTerm) {
                     skus = skus.filter(s => s.sku.toLowerCase().includes(state.searchTerm) || s.descricao.toLowerCase().includes(state.searchTerm));
                 }
-                bodyHtml = skus.map(s => renderB2bRow(s)).join('');
+                bodyHtml += renderB2bSectionHeader('TODOS OS PRODUTOS', 'maquina', MARGEM_B2B_MAQ);
+                bodyHtml += skus.map(s => renderB2bRow(s, MARGEM_B2B_MAQ)).join('');
             }
 
             if (!bodyHtml) {
-                container.innerHTML = toolbar + subtitle + '<div class="empty-state"><h3>Nenhum SKU encontrado</h3><p>Tente ajustar os filtros de busca</p></div>';
+                container.innerHTML = toolbar + subtitle + '<div class="empty-state"><h3>Nenhum SKU encontrado</h3></div>';
                 return;
             }
 
+            const thead = '<thead><tr>' +
+                '<th style="width:30%">Produto</th><th style="width:13%">SKU</th>' +
+                '<th style="width:6%">Origem</th><th style="width:9%">CIF</th><th style="width:5%">ICMS</th>' +
+                '<th style="width:9.25%">Pre\u00e7o \u2460</th><th style="width:9.25%">Pre\u00e7o \u2461</th>' +
+                '<th style="width:9.25%">Pre\u00e7o \u2462</th><th style="width:9.25%">Pre\u00e7o \u2463</th>' +
+                '</tr></thead>';
+
             container.innerHTML = toolbar + subtitle +
-                '<div class="table-wrapper"><table>' + header + '<tbody>' + bodyHtml + '</tbody></table></div>';
+                '<div class="table-wrapper"><table>' + thead + '<tbody>' + bodyHtml + '</tbody></table></div>';
         }
 
-        function renderB2bRow(sku) {
+        function renderB2bSectionHeader(texto, tipo, margins) {
+            const icon = tipo === 'maquina' ? '\u2699' : '\u26a1';
+            return '<tr class="b2b-cabecalho-row ' + tipo + '">' +
+                '<td colspan="5">' + icon + ' ' + escapeHtml(texto) + '</td>' +
+                margins.map(m => '<td class="b2b-margin-label">' + (m * 100).toFixed(0) + '% MRG</td>').join('') +
+                '</tr>';
+        }
+
+        function renderB2bRow(sku, margins) {
             const cif = sku.cifSp > 0 ? sku.cifSp : sku.cifRj;
             const isImport = (sku.origem || '').toLowerCase().includes('import');
             const icmsPct = isImport ? ICMS_IMPORTADO : ICMS_NACIONAL;
-            const origemLabel = isImport
-                ? '<span class="badge" style="background:rgba(59,130,246,0.15);color:var(--info);border:1px solid rgba(59,130,246,0.3)">Import</span>'
-                : '<span class="badge" style="background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3)">Nacional</span>';
-            const icmsLabel = (icmsPct * 100).toFixed(0) + '%';
             const hasCusto = cif > 0;
-            const prices = MARGEM_B2B.map(m => {
+
+            const origemBadge = isImport
+                ? '<span class="badge" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25);font-size:10px;">IMP</span>'
+                : '<span class="badge" style="background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.25);font-size:10px;">NAC</span>';
+
+            const prices = margins.map(m => {
                 if (!hasCusto) return null;
                 const denom = 1 - icmsPct - PIS_COFINS_B2B - m;
                 return denom > 0 ? cif / denom : 0;
             });
-            const descCurto = (sku.descricao || '').substring(0, 50);
-            return '<tr class="main-row" style="cursor:default">' +
-                '<td><strong>' + escapeHtml(sku.sku) + '</strong></td>' +
-                '<td>' + escapeHtml(descCurto) + '</td>' +
-                '<td>' + origemLabel + '</td>' +
-                '<td>' + (hasCusto ? formatCurrency(cif) : '<span class="badge badge-no-cost">SEM CUSTO</span>') + '</td>' +
-                '<td style="font-weight:600;color:' + (isImport ? 'var(--info)' : 'var(--warning)') + '">' + icmsLabel + '</td>' +
+
+            return '<tr class="b2b-product-row">' +
+                '<td>' + escapeHtml((sku.descricao || '').substring(0, 60)) + '</td>' +
+                '<td style="font-family:monospace;font-size:11px;color:var(--text-secondary);">' + escapeHtml(sku.sku) + '</td>' +
+                '<td style="text-align:center;">' + origemBadge + '</td>' +
+                '<td>' + (hasCusto ? formatCurrency(cif) : '<span class="badge badge-no-cost">\u2014</span>') + '</td>' +
+                '<td style="font-weight:600;text-align:center;color:' + (isImport ? '#60a5fa' : '#fbbf24') + ';">' + (icmsPct * 100).toFixed(0) + '%</td>' +
                 prices.map(p => {
-                    if (p === null) return '<td style="color:var(--text-secondary);font-size:12px">or\u00e7amento</td>';
-                    return '<td>' + formatCurrency(p) + '</td>';
+                    if (p === null) return '<td class="b2b-sob-consulta">\u2014</td>';
+                    return '<td class="b2b-price-cell">' + formatCurrency(p) + '</td>';
                 }).join('') +
                 '</tr>';
         }
@@ -692,19 +734,22 @@
                     rows.push([item.tipo, item.sku || '', item.texto || '']);
                 });
             } else {
-                // Gera template default com todos os SKUs
                 rows.push(['titulo', '', 'TABELA DE PRE\u00c7OS B2B']);
                 rows.push(['cabecalho_maquina', '', 'M\u00c1QUINAS']);
-                state.skusB2b.filter(s => !s.sku.toLowerCase().includes('grampo') && !s.sku.toLowerCase().includes('prego'))
-                    .sort((a, b) => a.sku.localeCompare(b.sku))
-                    .forEach(s => rows.push(['produto', s.sku, '']));
+                state.skusB2b.filter(s => {
+                    const k = s.sku.toLowerCase();
+                    return !k.includes('gr') && !k.includes('pack') && !k.includes('prego') && !k.includes('cx') && !k.includes('un');
+                }).sort((a, b) => a.sku.localeCompare(b.sku))
+                  .forEach(s => rows.push(['produto', s.sku, '']));
                 rows.push(['cabecalho_insumo', '', 'INSUMOS']);
-                state.skusB2b.filter(s => s.sku.toLowerCase().includes('grampo') || s.sku.toLowerCase().includes('prego'))
-                    .sort((a, b) => a.sku.localeCompare(b.sku))
-                    .forEach(s => rows.push(['produto', s.sku, '']));
+                state.skusB2b.filter(s => {
+                    const k = s.sku.toLowerCase();
+                    return k.includes('gr') || k.includes('pack') || k.includes('prego') || k.includes('cx') || k.includes('un');
+                }).sort((a, b) => a.sku.localeCompare(b.sku))
+                  .forEach(s => rows.push(['produto', s.sku, '']));
             }
             const ws = XLSX.utils.aoa_to_sheet(rows);
-            ws['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 40 }];
+            ws['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 45 }];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Layout B2B');
             XLSX.writeFile(wb, 'layout_b2b.xlsx');
@@ -724,7 +769,6 @@
                 const ws = wb.Sheets[wb.SheetNames[0]];
                 const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-                // Pula header
                 const layoutRows = [];
                 let ordem = 0;
                 for (let i = 1; i < rows.length; i++) {
@@ -748,7 +792,6 @@
                     return;
                 }
 
-                // Delete all existing rows, then insert new ones
                 await fetch(SUPABASE_URL + '/rest/v1/b2b_layout?id=not.is.null', {
                     method: 'DELETE',
                     headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
@@ -760,10 +803,7 @@
                     body: JSON.stringify(layoutRows)
                 });
 
-                if (!resp.ok) {
-                    const err = await resp.text();
-                    throw new Error('Erro ao salvar: ' + err);
-                }
+                if (!resp.ok) throw new Error('Erro ao salvar: ' + await resp.text());
 
                 state.b2bLayout = layoutRows.sort((a, b) => a.ordem - b.ordem);
                 statusEl.className = 'status-msg ok';
