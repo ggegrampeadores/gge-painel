@@ -273,13 +273,18 @@
 
         const QUANTIDADES_SIMULACAO = [2, 4, 6, 10, 15];
         const MARGEM_ALVOS = [0.10, 0.15, 0.20, 0.25];
+        const MARGEM_B2B = [0.25, 0.30, 0.35, 0.40, 0.45];
+        const ICMS_IMPORTADO = 0.04;
+        const ICMS_NACIONAL = 0.12;
+        const PIS_COFINS_B2B = 0.0925;
         const PESO_KEY = 'precif_pesos_v1';
 
         let state = {
             anuncios: [],
             custos: {},
             freteTable: [],
-            pesos: loadPesos(), // peso por unidade por mlb_id (editável em Configurações)
+            skusB2b: [],
+            pesos: loadPesos(),
             expandedMlb: null,
             rates: {
                 comissaoClassico: 12, comissaoPremium: 17, pisCofins: 6.64,
@@ -327,12 +332,20 @@
 
         async function loadData() {
             try {
-                const [anuncios, custos, frete] = await Promise.all([
+                const [anuncios, custos, frete, skusB2b] = await Promise.all([
                     fetchSupabase('anuncios', 'select=mlb_id,titulo,preco_atual,sku_vendedor,tipo_listagem,modo_logistica,conta_id,categoria_id,permalink&status=eq.active'),
                     fetchSupabase('skus_custo_historico', 'select=sku,custo_cif_rj,custo_cif_sp,data_vigencia&order=data_vigencia.desc'),
-                    fetchSupabase('tabela_frete_ml', 'select=modo,peso_max_kg,preco_min,preco_max,frete&modo=eq.coleta')
+                    fetchSupabase('tabela_frete_ml', 'select=modo,peso_max_kg,preco_min,preco_max,frete&modo=eq.coleta'),
+                    fetchSupabase('skus_custo', 'select=sku,descricao,origem,custo_cif_rj,custo_cif_sp,is_combo&is_combo=eq.false&or=(custo_cif_sp.gt.0,custo_cif_rj.gt.0)')
                 ]);
                 state.anuncios = anuncios || [];
+                state.skusB2b = (skusB2b || []).map(s => ({
+                    sku: s.sku,
+                    descricao: s.descricao || '',
+                    origem: s.origem || '',
+                    cifSp: Number(s.custo_cif_sp || 0),
+                    cifRj: Number(s.custo_cif_rj || 0)
+                }));
                 state.freteTable = (frete || []).map(r => ({
                     modo: r.modo,
                     peso_max_kg: Number(r.peso_max_kg),
@@ -413,7 +426,7 @@
         function renderTableForTab(tabId) {
             const container = document.getElementById('tab-' + tabId);
             if (tabId === 'b2b') {
-                container.innerHTML = '<div class="empty-state"><h3>Em construção</h3><p>Seção VENDA DIRETA B2B será implementada em breve</p></div>';
+                renderB2bTab(container);
                 return;
             }
             let filtered = filterAnunciosForTab(tabId);
@@ -489,7 +502,7 @@
         function renderMainRow(row, tabId) {
             const mcClass = row.mcAtual > 0.15 ? 'mc-good' : row.mcAtual > 0.03 ? 'mc-warning' : 'mc-danger';
             const isExpanded = state.expandedMlb === row.mlb_id;
-            const trClass = 'main-row' + (isExpanded ? ' expanded' : '') + (row.hasCusto ? '' : ' no-cost');
+            const trClass = 'main-row' + (isExpanded? ' expanded' : '') + (row.hasCusto ? '' : ' no-cost');
             const zonaCritica = row.precoAtual >= 74 && row.precoAtual <= 79 ? '<span class="badge badge-zona">⚠ zona R$ 79</span>' : '';
             const mlbLink = row.permalink
                 ? '<a href="' + row.permalink + '" target="_blank" class="mlb-link" onclick="event.stopPropagation()">' + row.mlb_id + ' ↗</a>'
@@ -522,7 +535,7 @@
             // Faixa de referência: 1 unidade (já no main row)
             const faixa1 = calcPrice(row.cif, pesoUnit, row.deductions, 0.20, 1) < 79 ? 'fix' : 'peso';
 
-            return QUANTIDADES_SIMULACAO.map(qty => {
+            return QUANTIDADES_SIMULACAM�map(qty => {
                 const pesoTotal = pesoUnit * qty;
                 const precoRefTotal = row.precoAtual * qty;
                 const custoTotal = row.cif * qty;
@@ -559,76 +572,150 @@
             }).join('');
         }
 
-        function getDeductions(tabId, comissaoPct) {
-            const d = { comissao: comissaoPct };
-            switch (tabId) {
-                case 'toow': d.simples = state.rates.simples / 100; d.ads = state.rates.ads / 100; break;
-                case 'ggerj-coleta': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsRj / 100; d.difal = state.rates.difal / 100; d.ads = state.rates.ads / 100; break;
-                case 'ggerj-sem-imposto': d.ads = state.rates.ads / 100; break;
-                case 'ggerj-full': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsSp / 100; d.ads = state.rates.ads / 100; break;
-                case 'ggesp': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsSp / 100; d.difal = state.rates.difal / 100; d.ads = state.rates.ads / 100; break;
-            }
-            return d;
-        }
+        // ====================== B2B VENDA DIRETA ======================
+        function renderB2bTab(container) {
+            let skus = state.skusB2b;
+            if (state.searchTerm) {
+                skus = skus.filter(s =>
+                    s.sku.toLowerCase().includes(state.searchTerm) ||
+                    ˙\�ܚX�[˝���\��\�J
+K�[��Y\��]K��X\��\�JB�
+NB�Y�
+��\˛[��OOH
+H�۝Z[�\��[��\�SH	�]��\��H�[\K\�]H��ϓ�[�[H��H[��۝�Y��Ϗ�[�HZ�\�\����[���H�\��O���]����]\��B���\�H��\˜�ܝ
 
-        function lookupFrete(pesoKg, preco) {
-            if (preco < 12.50) return 0.50;
-            if (preco < 29.00) return 6.25;
-            if (preco < 50.00) return 6.50;
-            if (preco < 79.00) return 6.75;
-            // busca a menor faixa de peso que comporta o peso total, na faixa de preço correspondente
-            const row = state.freteTable.find(r => r.peso_max_kg >= pesoKg && preco >= r.preco_min && preco <= r.preco_max);
-            if (row) return row.frete;
-            // fallback: se peso excede o máximo da tabela, usa a maior faixa disponível para o preço
-            const byPrice = state.freteTable.filter(r => preco >= r.preco_min && preco <= r.preco_max);
-            if (byPrice.length) return byPrice[byPrice.length - 1].frete;
-            return 22;
-        }
+K�HO�K���K���[P��\\�J����JJN��ۜ�XY\�H	�XY����
+	����O���
+	��\�ܚp��������
+	��ܚY�[O���
+	���\���Q����
+	��P�T����
+	��P��IO���P��	O���P��IO���P�
+	O���P�
 
-        function calculateMC(price, cif, frete, deductions) {
-            if (price <= 0) return 0;
-            const deductionsPct = Object.values(deductions).reduce((a, b) => a + b, 0);
-            return Math.max(0, 1 - deductionsPct - frete / price - cif / price);
-        }
+IO���
+	�����XY����ۜ���HH	���O��
+���\˛X\
+�O��[�\��������JK���[�	��H
+�	����O���۝Z[�\��[��\�SH	�]��[OH��۝\�^�N�L����܎��\�K]^\�X�ۙ\�JN�X\��[�X���N�Lȏ��
+	ՙ[�H[�\�\�YX[
+�8����H0���۝�X�Z[�H0���[HQ�S0����]H܈�۝H��Y[�H0��	�
+	���ۙ��[OH���܎��\�KXX��[�
+H��p�\]Z[�\Ώ���ۙψ�x�$�	H0��	�
+	���ۙ��[OH���܎��\�KXX��[�
+H��[��[[�Ώ���ۙψ�8�$�
+IO�]���
+	�]��\��H�X�K]ܘ\\���X�O��
+�XY\�
+���H
+�	��X�O��]���B���[��[ۈ�[�\���������JH�ۜ��Y�H��K��Y������K��Y�����K��Y����ۜ�\�[\ܝH
+��K�ܚY�[H	��K����\��\�J
+K�[��Y\�	�[\ܝ	�N�ۜ�X�\��H\�[\ܝ�P�T��STԕQ��P�T�ӐP�SӐS�ۜ�ܚY�[SX�[H\�[\ܝ��	��[��\��H��Y�H��[OH��X��ܛ�[���ؘJ
+NKL��
+��MJN���܎��\�KZ[���N؛ܙ\��\��Y�ؘJ
+NKL��
+���H��[\ܝ��[���	��[��\��H��Y�H��[OH��X��ܛ�[���ؘJM�N
+KL�K�MJN���܎��\�K\�X��\��N؛ܙ\��\��Y�ؘJM�N
+KL�K��H���X�[ۘ[��[����ۜ�X�\�X�[H
+X�\��
+�L
+K�њ^Y
+
+H
+�	�I��ۜ�\��\��H�Y����ۜ��X�\�HPT��SWЌ���X\
+HO�Y�
+Z\��\��H�]\���[�ۜ�[��HHHHX�\��HT���ђS��Ќ��HN�]\��[��H���Y��[��H�JN��ۜ�\���\��H
+��K�\�ܚX�[�	��K��X���[��
+L
+N��]\��	���\��H�XZ[�\��Ȉ�[OH��\��܎�Y�][���
+	����ۙω�
+�\��\R[
+��K���JH
+�	����ۙϏ���
+	���
+�\��\R[
+\���\��H
+�	����
+	���
+�ܚY�[SX�[
+�	����
+	���
+�
+\��\����ܛX]�\��[��J�Y�H�	��[��\��H��Y�H�Y�K[��X������SH�T����[���H
+�	����
+	��[OH��۝]�ZY������܎��
+�
+\�[\ܝ�	ݘ\�KZ[���I��	ݘ\�K]�\��[��I�H
+�	ȏ��
+�X�\�X�[
+�	����
+�X�\˛X\
+O�Y�
+OOH�[
+H�]\��	��[OH���܎��\�K]^\�X�ۙ\�JNٛ۝\�^�N�L���ܰ��[Y[������]\��	���
+��ܛX]�\��[��J
+H
+�	����JK���[�	��H
+	�����B���OOOOOOOOOOOOOOOOOOOOOH�SH���OOOOOOOOOOOOOOOOOOOOOB���[��[ۈ�]YX�[ۜ�X�Y��Z\��[��
+H�ۜ�H���Z\��[Έ��Z\��[��N��]�
+X�Y
+H�\�H	����Έ��[\\�H�]K��]\˜�[\\��L��Y�H�]K��]\˘Y��L���XZ��\�H	���\��X��]IΈ�\��ٚ[��H�]K��]\˜\��ٚ[���L��X�\�H�]K��]\˚X�\Ԛ��L��Y�[H�]K��]\˙Y�[�L��Y�H�]K��]\˘Y��L���XZ��\�H	���\��\�[KZ[\���Έ�Y�H�]K��]\˘Y��L���XZ��\�H	���\��Y�[	Έ�\��ٚ[��H�]K��]\˜\��ٚ[���L��X�\�H�]K��]\˚X�\���L��Y�H�]K��]\˘Y��L���XZ��\�H	���\�	Έ�\��ٚ[��H�]K��]\˜\��ٚ[���L��X�\�H�]K��]\˚X�\���L��Y�[H�]K��]\˙Y�[�L��Y�H�]K��]\˘Y��L���XZ�B��]\��B���[��[ۈ���\��]J\�����X��HY�
+�X��L��L
+H�]\���LY�
+�X���K�
+H�]\��
+���NY�
+�X��
+L�
+H�]\��
+��LY�
+�X��
+�K�
+H�]\��
+���N���\��HHY[�܈�Z^HH\��]YH��\ܝH�\���[�H�Z^HH�p����ܜ�\�ۙ[�B��ۜ����H�]K���]UX�K��[�
+�O���\���X^����H\����	���X���H���X���Z[�	���X��H���X���X^
+NY�
+���H�]\����˙��]N���[�X�Έ�H\��^�YH�p�^[[�HX�[K\�HHXZ[܈�Z^H\�۰�]�[\�H��p���ۜ��T�X�HH�]K���]UX�K��[\��O��X���H���X���Z[�	���X��H���X���X^
+NY�
+�T�X�K�[��
+H�]\���T�X�V؞T�X�K�[��HWK���]N�]\����B���[��[ۈ�[�[]SP��X�K�Y���]KYX�[ۜ�HY�
+�X�HH
+H�]\���ۜ�YX�[ۜ��Hؚ�X���[Y\�YX�[ۜ�K��YX�J
+K�HO�H
+��
+N�]\��X]�X^
+HHYX�[ۜ��H��]H��X�HH�Y���X�JNB��ʊ��
+��[�[H��p����[Hܙ[H
+]H[�YY\�H]YH[��Y�HHX\��[KX[�˂�
+��]ܛ�H�p����S����[�]0�\�[�8�%]�YH܈]H�H�p���[�]0�\�[˂�
+��[��[ۈ�[��X�J�Y�\��[�]YX�[ۜ�\��]P�]JHY�
+\]H]HJH]HHN�ۜ��\���[H�Y�
+�]N�ۜ�\���[H\��[�]
+�]N�ۜ�YX�[ۜ��Hؚ�X���[Y\�YX�[ۜ�K��YX�J
+K�HO�H
+��
+N�ۜ�[��Z[�Y܈HHHYX�[ۜ��H\��]P�Y�
+[��Z[�Y܈H
+H�]\��]�X�U�[H�\���[�[��Z[�Y܎�܈
+]HH�H
+��J��H�ۜ���]HH���\��]J\���[�X�U�[
+N�ۜ��ݛ�H
+�\���[
+���]JH�[��Z[�Y܎Y�
+X]�X���ݛ�H�X�U�[
+H�JH��X�U�[H�ݛ����XZ��B��X�U�[H�ݛ�B��]\���X�U�[B���[��[ۈ�ܛX]�\��[��J�[YJHY�
+Z\њ[�]J�[YJH�[YHOOH�[�[YHOOH[�Y�[�Y
+H�]\��	��%	��]\���]�[���[X�\��ܛX]
+	�P�����[N�	��\��[��I��\��[��N�	Д�	�JK��ܛX]
+�[YJNB��[��[ۈ�ܛX]\��[�
+�[YJH��]\��
+�[YH
+�L
+K�њ^Y
+JH
+�	�I��B��[��[ۈ\��\R[
+�H�]\����[���	��K��\X�J�ɏ���K���O�
+�	ɉΈ	ɘ[\��	�	Έ	ɛ��	ωΈ	ə���	ȉΈ	ɜ][����Ȏ�	Ɉ��N��V��JJNB���[��[ۈ���\��܊Y\��Y�JH�ۜ�\��ܑ]�H��[Y[��ܙX]Q[[Y[�
+	�]��N\��ܑ]���\�Ә[YHH	�\��܉�\��ܑ]��^�۝[�HY\��Y�N��[Y[��]Y\�T�[X�܊	˘�۝Z[�\��K�[��\��Y�ܙJ\��ܑ]���[Y[��]Y\�T�[X�܊	˜�][���X�\��JNB��[�]
 
-        /**
-         * Calcula o preço total da ordem (qty unidades) que entrega a margem-alvo.
-         * Retorna preço TOTAL, não unitário — divida por qty pra preço unitário.
-         */
-        function calcPrice(cif, pesoUnit, deductions, targetMC, qty) {
-            if (!qty || qty < 1) qty = 1;
-            const custoTotal = cif * qty;
-            const pesoTotal = pesoUnit * qty;
-            const deductionsPct = Object.values(deductions).reduce((a, b) => a + b, 0);
-            const denominador = 1 - deductionsPct - targetMC;
-            if (denominador <= 0) return 0;
-            let priceTotal = custoTotal / denominador;
-            for (let i = 0; i < 6; i++) {
-                const frete = lookupFrete(pesoTotal, priceTotal);
-                const novo = (custoTotal + frete) / denominador;
-                if (Math.abs(novo - priceTotal) < 0.01) { priceTotal = novo; break; }
-                priceTotal = novo;
-            }
-            return priceTotal;
-        }
-
-        function formatCurrency(value) {
-            if (!isFinite(value) || value === null || value === undefined) return '—';
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-        }
-        function formatPercent(value) { return (value * 100).toFixed(1) + '%'; }
-        function escapeHtml(s) {
-            return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        }
-
-        function showError(message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error';
-            errorDiv.textContent = message;
-            document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.settings-bar'));
-        }
-
-        init();
-    </script>
-</body>
-</html>
+N��ܚ\��؛�O���[�
