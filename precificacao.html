@@ -378,7 +378,7 @@
                     fetchSupabase('anuncios', 'select=mlb_id,titulo,preco_atual,sku_vendedor,tipo_listagem,modo_logistica,conta_id,categoria_id,permalink&status=eq.active'),
                     fetchSupabase('skus_custo_historico', 'select=sku,custo_cif_rj,custo_cif_sp,data_vigencia&order=data_vigencia.desc'),
                     fetchSupabase('tabela_frete_ml', 'select=modo,peso_max_kg,preco_min,preco_max,frete&modo=eq.coleta'),
-                    fetchSupabase('skus_custo', 'select=sku,descricao,origem,custo_cif_rj,custo_cif_sp,is_combo&is_combo=eq.false&or=(custo_cif_sp.gt.0,custo_cif_rj.gt.0)'),
+                    fetchSupabase('skus_custo', 'select=sku,descricao,origem,custo_cif_rj,custo_cif_sp,is_combo&or=(custo_cif_sp.gt.0,custo_cif_rj.gt.0)'),
                     fetchSupabase('b2b_layout', 'select=ordem,tipo,sku,texto&order=ordem.asc')
                 ]);
                 state.anuncios = anuncios || [];
