@@ -193,8 +193,23 @@
             th, td { padding: 8px 5px; }
             .settings-grid { grid-template-columns: repeat(2, 1fr); }
         }
-    </style>
+
+
+        /* B2B Layout styles */
+        .b2b-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+        .b2b-toolbar .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+        .b2b-toolbar .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .b2b-toolbar .btn svg { width: 15px; height: 15px; }
+        .b2b-toolbar .btn-upload { border-color: var(--success); color: var(--success); }
+        .b2b-toolbar .btn-upload:hover { background: rgba(16,185,129,0.1); }
+        .b2b-toolbar .status-msg { font-size: 12px; color: var(--text-secondary); }
+        .b2b-toolbar .status-msg.ok { color: var(--success); }
+        .b2b-toolbar .status-msg.err { color: var(--danger); }
+
+        .b2b-titulo-row td { background: var(--accent) !important; color: #fff !important; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 10px !important; border: none !important; }
+        .b2b-cabecalho-row td { background: rgba(99,102,241,0.12) !important; color: var(--accent) !important; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; padding: 9px 10px !important; border-bottom: 2px solid var(--accent) !important; }    </style>
 <script src="auth.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -284,6 +299,7 @@
             custos: {},
             freteTable: [],
             skusB2b: [],
+            b2bLayout: [],
             pesos: loadPesos(),
             expandedMlb: null,
             rates: {
@@ -332,11 +348,12 @@
 
         async function loadData() {
             try {
-                const [anuncios, custos, frete, skusB2b] = await Promise.all([
+                const [anuncios, custos, frete, skusB2b, b2bLayout] = await Promise.all([
                     fetchSupabase('anuncios', 'select=mlb_id,titulo,preco_atual,sku_vendedor,tipo_listagem,modo_logistica,conta_id,categoria_id,permalink&status=eq.active'),
                     fetchSupabase('skus_custo_historico', 'select=sku,custo_cif_rj,custo_cif_sp,data_vigencia&order=data_vigencia.desc'),
                     fetchSupabase('tabela_frete_ml', 'select=modo,peso_max_kg,preco_min,preco_max,frete&modo=eq.coleta'),
-                    fetchSupabase('skus_custo', 'select=sku,descricao,origem,custo_cif_rj,custo_cif_sp,is_combo&is_combo=eq.false&or=(custo_cif_sp.gt.0,custo_cif_rj.gt.0)')
+                    fetchSupabase('skus_custo', 'select=sku,descricao,origem,custo_cif_rj,custo_cif_sp,is_combo&is_combo=eq.false&or=(custo_cif_sp.gt.0,custo_cif_rj.gt.0)'),
+                    fetchSupabase('b2b_layout', 'select=ordem,tipo,sku,texto&order=ordem.asc')
                 ]);
                 state.anuncios = anuncios || [];
                 state.skusB2b = (skusB2b || []).map(s => ({
@@ -358,6 +375,7 @@
                     custos.forEach(c => { if (!custosMap[c.sku]) custosMap[c.sku] = c; });
                     state.custos = custosMap;
                 }
+                state.b2bLayout = (b2bLayout || []).sort((a, b) => a.ordem - b.ordem);
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
                 showError('Erro ao conectar com Supabase: ' + error.message);
@@ -574,34 +592,68 @@
 
         // ====================== B2B VENDA DIRETA ======================
         function renderB2bTab(container) {
-            let skus = state.skusB2b;
-            if (state.searchTerm) {
-                skus = skus.filter(s =>
-                    s.sku.toLowerCase().includes(state.searchTerm) ||
-                    s.descricao.toLowerCase().includes(state.searchTerm)
-                );
-            }
-            if (skus.length === 0) {
-                container.innerHTML = '<div class="empty-state"><h3>Nenhum SKU encontrado</h3><p>Tente ajustar os filtros de busca</p></div>';
-                return;
-            }
-            skus = skus.sort((a, b) => a.sku.localeCompare(b.sku));
+            const skuMap = {};
+            state.skusB2b.forEach(s => { skuMap[s.sku] = s; });
+            const hasLayout = state.b2bLayout.length > 0;
+
+            // Toolbar: download + upload
+            const toolbar = '<div class="b2b-toolbar">' +
+                '<button class="btn" onclick="downloadB2bLayout()" title="Baixar planilha de layout para editar no Excel">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+                'Baixar Layout</button>' +
+                '<label class="btn btn-upload" title="Enviar planilha de layout editada">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
+                'Enviar Layout <input type="file" accept=".xlsx,.xls" style="display:none" onchange="uploadB2bLayout(this)"></label>' +
+                '<span id="b2bStatus" class="status-msg">' +
+                (hasLayout ? state.b2bLayout.length + ' linhas no layout' : 'Nenhum layout configurado — mostrando todos os SKUs') +
+                '</span></div>';
+
+            const subtitle = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">' +
+                'Venda interestadual (SP\u2194RJ) \u00b7 contribuinte \u00b7 sem DIFAL \u00b7 frete por conta do cliente \u00b7 ' +
+                '<strong style="color:var(--accent)">M\u00e1quinas:</strong> 25\u201340% \u00b7 ' +
+                '<strong style="color:var(--accent)">Insumos:</strong> 30\u201345%</div>';
 
             const header = '<thead><tr>' +
-                '<th>SKU</th>' +
-                '<th>Descrição</th>' +
-                '<th>Origem</th>' +
-                '<th>Custo CIF</th>' +
-                '<th>ICMS</th>' +
+                '<th>SKU</th><th>Descri\u00e7\u00e3o</th><th>Origem</th><th>Custo CIF</th><th>ICMS</th>' +
                 '<th>MC 25%</th><th>MC 30%</th><th>MC 35%</th><th>MC 40%</th><th>MC 45%</th>' +
                 '</tr></thead>';
 
-            const body = '<tbody>' + skus.map(s => renderB2bRow(s)).join('') + '</tbody>';
-            container.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">' +
-                'Venda interestadual (SP↔RJ) · contribuinte · sem DIFAL · frete por conta do cliente · ' +
-                '<strong style="color:var(--accent)">Máquinas:</strong> 25–40% · ' +
-                '<strong style="color:var(--accent)">Insumos:</strong> 30–45%</div>' +
-                '<div class="table-wrapper"><table>' + header + body + '</table></div>';
+            let bodyHtml = '';
+            if (hasLayout) {
+                for (const item of state.b2bLayout) {
+                    if (item.tipo === 'titulo') {
+                        bodyHtml += '<tr class="b2b-titulo-row"><td colspan="10">' + escapeHtml(item.texto || '') + '</td></tr>';
+                    } else if (item.tipo === 'cabecalho_maquina' || item.tipo === 'cabecalho_insumo') {
+                        const label = item.tipo === 'cabecalho_maquina' ? '\u2699 M\u00c1QUINAS' : '\u26a1 INSUMOS';
+                        bodyHtml += '<tr class="b2b-cabecalho-row"><td colspan="10">' + escapeHtml(item.texto || label) + '</td></tr>';
+                    } else if (item.tipo === 'produto' && item.sku) {
+                        const sku = skuMap[item.sku];
+                        if (sku) {
+                            if (!state.searchTerm || sku.sku.toLowerCase().includes(state.searchTerm) || sku.descricao.toLowerCase().includes(state.searchTerm)) {
+                                bodyHtml += renderB2bRow(sku);
+                            }
+                        } else {
+                            bodyHtml += '<tr class="main-row" style="cursor:default"><td><strong>' + escapeHtml(item.sku) + '</strong></td>' +
+                                '<td colspan="9" style="color:var(--danger);font-size:12px">SKU n\u00e3o encontrado em skus_custo</td></tr>';
+                        }
+                    }
+                }
+            } else {
+                // Fallback: sem layout, mostra todos os SKUs em ordem alfabética
+                let skus = state.skusB2b.slice().sort((a, b) => a.sku.localeCompare(b.sku));
+                if (state.searchTerm) {
+                    skus = skus.filter(s => s.sku.toLowerCase().includes(state.searchTerm) || s.descricao.toLowerCase().includes(state.searchTerm));
+                }
+                bodyHtml = skus.map(s => renderB2bRow(s)).join('');
+            }
+
+            if (!bodyHtml) {
+                container.innerHTML = toolbar + subtitle + '<div class="empty-state"><h3>Nenhum SKU encontrado</h3><p>Tente ajustar os filtros de busca</p></div>';
+                return;
+            }
+
+            container.innerHTML = toolbar + subtitle +
+                '<div class="table-wrapper"><table>' + header + '<tbody>' + bodyHtml + '</tbody></table></div>';
         }
 
         function renderB2bRow(sku) {
@@ -613,15 +665,12 @@
                 : '<span class="badge" style="background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3)">Nacional</span>';
             const icmsLabel = (icmsPct * 100).toFixed(0) + '%';
             const hasCusto = cif > 0;
-
             const prices = MARGEM_B2B.map(m => {
                 if (!hasCusto) return null;
                 const denom = 1 - icmsPct - PIS_COFINS_B2B - m;
                 return denom > 0 ? cif / denom : 0;
             });
-
             const descCurto = (sku.descricao || '').substring(0, 50);
-
             return '<tr class="main-row" style="cursor:default">' +
                 '<td><strong>' + escapeHtml(sku.sku) + '</strong></td>' +
                 '<td>' + escapeHtml(descCurto) + '</td>' +
@@ -629,10 +678,103 @@
                 '<td>' + (hasCusto ? formatCurrency(cif) : '<span class="badge badge-no-cost">SEM CUSTO</span>') + '</td>' +
                 '<td style="font-weight:600;color:' + (isImport ? 'var(--info)' : 'var(--warning)') + '">' + icmsLabel + '</td>' +
                 prices.map(p => {
-                    if (p === null) return '<td style="color:var(--text-secondary);font-size:12px">orçamento</td>';
+                    if (p === null) return '<td style="color:var(--text-secondary);font-size:12px">or\u00e7amento</td>';
                     return '<td>' + formatCurrency(p) + '</td>';
                 }).join('') +
                 '</tr>';
+        }
+
+        // ==================== B2B LAYOUT DOWNLOAD ====================
+        function downloadB2bLayout() {
+            const rows = [['TIPO', 'SKU', 'TEXTO']];
+            if (state.b2bLayout.length > 0) {
+                state.b2bLayout.forEach(item => {
+                    rows.push([item.tipo, item.sku || '', item.texto || '']);
+                });
+            } else {
+                // Gera template default com todos os SKUs
+                rows.push(['titulo', '', 'TABELA DE PRE\u00c7OS B2B']);
+                rows.push(['cabecalho_maquina', '', 'M\u00c1QUINAS']);
+                state.skusB2b.filter(s => !s.sku.toLowerCase().includes('grampo') && !s.sku.toLowerCase().includes('prego'))
+                    .sort((a, b) => a.sku.localeCompare(b.sku))
+                    .forEach(s => rows.push(['produto', s.sku, '']));
+                rows.push(['cabecalho_insumo', '', 'INSUMOS']);
+                state.skusB2b.filter(s => s.sku.toLowerCase().includes('grampo') || s.sku.toLowerCase().includes('prego'))
+                    .sort((a, b) => a.sku.localeCompare(b.sku))
+                    .forEach(s => rows.push(['produto', s.sku, '']));
+            }
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 40 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Layout B2B');
+            XLSX.writeFile(wb, 'layout_b2b.xlsx');
+        }
+
+        // ==================== B2B LAYOUT UPLOAD ====================
+        async function uploadB2bLayout(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const statusEl = document.getElementById('b2bStatus');
+            statusEl.className = 'status-msg';
+            statusEl.textContent = 'Processando...';
+
+            try {
+                const data = await file.arrayBuffer();
+                const wb = XLSX.read(data, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+                // Pula header
+                const layoutRows = [];
+                let ordem = 0;
+                for (let i = 1; i < rows.length; i++) {
+                    const [tipo, sku, texto] = rows[i];
+                    if (!tipo) continue;
+                    const tipoNorm = String(tipo).trim().toLowerCase();
+                    if (!['titulo', 'cabecalho_maquina', 'cabecalho_insumo', 'produto'].includes(tipoNorm)) continue;
+                    ordem++;
+                    layoutRows.push({
+                        ordem,
+                        tipo: tipoNorm,
+                        sku: tipoNorm === 'produto' ? String(sku || '').trim() : null,
+                        texto: tipoNorm !== 'produto' ? String(texto || '').trim() : null
+                    });
+                }
+
+                if (layoutRows.length === 0) {
+                    statusEl.className = 'status-msg err';
+                    statusEl.textContent = 'Planilha vazia ou sem linhas v\u00e1lidas';
+                    input.value = '';
+                    return;
+                }
+
+                // Delete all existing rows, then insert new ones
+                await fetch(SUPABASE_URL + '/rest/v1/b2b_layout?id=not.is.null', {
+                    method: 'DELETE',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
+                });
+
+                const resp = await fetch(SUPABASE_URL + '/rest/v1/b2b_layout', {
+                    method: 'POST',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                    body: JSON.stringify(layoutRows)
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.text();
+                    throw new Error('Erro ao salvar: ' + err);
+                }
+
+                state.b2bLayout = layoutRows.sort((a, b) => a.ordem - b.ordem);
+                statusEl.className = 'status-msg ok';
+                statusEl.textContent = layoutRows.length + ' linhas salvas com sucesso!';
+                renderTableForTab('b2b');
+            } catch (err) {
+                console.error('Erro upload layout:', err);
+                statusEl.className = 'status-msg err';
+                statusEl.textContent = 'Erro: ' + err.message;
+            }
+            input.value = '';
         }
         // ====================== FIM B2B ======================
 
