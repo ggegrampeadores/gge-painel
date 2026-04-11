@@ -121,51 +121,21 @@
         tbody tr.main-row.expanded { background-color: rgba(99, 102, 241, 0.08); }
         tbody tr.no-cost { opacity: 0.6; background-color: rgba(99, 102, 241, 0.02); }
 
-        .expansion-row td { padding: 0; background: rgba(15, 17, 23, 0.6); border-bottom: 1px solid var(--border); }
-        .expansion-content { padding: 20px 24px; animation: slideDown 0.2s ease; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-        .expansion-header {
-            display: flex; flex-wrap: wrap; align-items: center; gap: 20px;
-            margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px dashed var(--border);
-        }
-        .expansion-title { font-size: 14px; font-weight: 600; color: var(--accent); }
-        .expansion-meta { font-size: 12px; color: var(--text-secondary); }
-        .weight-input {
-            display: flex; align-items: center; gap: 8px;
-            background: var(--card); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border);
-        }
-        .weight-input label { font-size: 12px; color: var(--text-secondary); }
-        .weight-input input {
-            background: var(--bg); color: var(--text); border: 1px solid var(--border);
-            padding: 4px 6px; border-radius: 3px; font-size: 12px; width: 80px; text-align: right;
-        }
-        .sim-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .sim-table th {
-            font-size: 11px; color: var(--text-secondary); font-weight: 600; cursor: default;
-            padding: 8px 10px; background: transparent; text-align: right; border-bottom: 1px solid var(--border);
-        }
-        .sim-table th:first-child, .sim-table td:first-child { text-align: left; }
-        .sim-table td {
-            padding: 8px 10px; border-bottom: 1px solid rgba(42, 45, 58, 0.5);
-            text-align: right; font-variant-numeric: tabular-nums;
-        }
-        .sim-table tr:last-child td { border-bottom: none; }
-        .sim-table tr.faixa-jump td { background: rgba(245, 158, 11, 0.08); }
-        .qty-label { font-weight: 600; color: var(--text); }
+        tbody tr.sim-row { background: rgba(99, 102, 241, 0.04); animation: slideDown 0.2s ease; }
+        tbody tr.sim-row:hover { background: rgba(99, 102, 241, 0.08); }
+        tbody tr.sim-row td { font-size: 12px; border-bottom: 1px solid rgba(42, 45, 58, 0.5); }
+        tbody tr.sim-row:last-of-type td { border-bottom: 1px solid var(--border); }
+        tbody tr.sim-row.faixa-jump td { background: rgba(245, 158, 11, 0.06); }
+        .qty-label { font-weight: 700; color: var(--accent); font-size: 13px; }
+        .qty-peso { font-size: 11px; color: var(--text-secondary); font-weight: 400; margin-left: 4px; }
+        .jump-icon { color: var(--warning); margin-right: 4px; }
         .faixa-badge {
             display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px;
             background: var(--border); color: var(--text-secondary); font-weight: 600; margin-left: 6px;
         }
         .faixa-badge.fix { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
         .faixa-badge.peso { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
-        .jump-icon { color: var(--warning); margin-right: 4px; }
-        .insight-box {
-            margin-top: 14px; padding: 10px 14px;
-            background: rgba(59, 130, 246, 0.08); border-left: 3px solid var(--info);
-            border-radius: 4px; font-size: 12px; color: var(--text);
-        }
-        .insight-box.warn { background: rgba(245, 158, 11, 0.08); border-left-color: var(--warning); }
-        .insight-box.good { background: rgba(16, 185, 129, 0.08); border-left-color: var(--success); }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
         .badge {
             display: inline-block; padding: 3px 8px; border-radius: 3px;
@@ -286,7 +256,7 @@
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Buscar por SKU, MLB ou título...">
             </div>
-            <div class="hint"><span class="hint-key">clique</span> na linha para simular 1, 2, 4, 6, 10 e 15 unidades</div>
+            <div class="hint"><span class="hint-key">clique</span> na linha para ver precificação em 2, 4, 6, 10 e 15 unidades</div>
         </div>
         <div id="tabsContent"></div>
     </div>
@@ -301,7 +271,7 @@
             '8284ee61-87f9-4162-9f1f-542587fbbf53': { nome: 'TOOWCOMERCIAL', regime: 'simples', uf: 'SP' }
         };
 
-        const QUANTIDADES_SIMULACAO = [1, 2, 4, 6, 10, 15];
+        const QUANTIDADES_SIMULACAO = [2, 4, 6, 10, 15];
         const MARGEM_ALVOS = [0.10, 0.15, 0.20, 0.25];
         const PESO_KEY = 'precif_pesos_v1';
 
@@ -309,7 +279,7 @@
             anuncios: [],
             custos: {},
             freteTable: [],
-            pesos: loadPesos(),
+            pesos: loadPesos(), // peso por unidade por mlb_id (editável em Configurações)
             expandedMlb: null,
             rates: {
                 comissaoClassico: 12, comissaoPremium: 17, pisCofins: 6.64,
@@ -485,18 +455,6 @@
                 });
             });
 
-            const expanded = container.querySelector('.weight-input input');
-            if (expanded) {
-                expanded.addEventListener('change', (e) => {
-                    const mlb = e.target.getAttribute('data-mlb');
-                    const val = parseFloat(e.target.value);
-                    if (mlb && val > 0) {
-                        state.pesos[mlb] = val;
-                        savePesos();
-                        renderTableForTab(tabId);
-                    }
-                });
-            }
         }
 
         function buildRow(anuncio, tabId) {
@@ -557,87 +515,48 @@
 
         function renderExpansionRow(row, tabId) {
             if (!row.hasCusto) {
-                return '<tr class="expansion-row"><td colspan="11"><div class="expansion-content">' +
-                    '<div class="expansion-header"><div class="expansion-title">Simulação indisponível</div>' +
-                    '<div class="expansion-meta">Este anúncio ainda não tem custo CIF cadastrado.</div></div>' +
-                    '</td></tr>';
+                return '<tr class="sim-row"><td colspan="11" style="text-align:center;color:var(--text-secondary);padding:14px;">' +
+                    'Simulação indisponível — sem custo CIF cadastrado</td></tr>';
             }
             const pesoUnit = row.pesoUnit;
-            const simLines = QUANTIDADES_SIMULACAO.map(qty => {
-                const priceByMC = {};
-                let anyJump = false;
-                MARGEM_ALVOS.forEach(m => {
-                    const precoTotal = calcPrice(row.cif, pesoUnit, row.deductions, m, qty);
-                    const precoUnit = precoTotal / qty;
-                    const frete = lookupFrete(pesoUnit * qty, precoTotal);
-                    const faixa = precoTotal < 79 ? 'fix' : 'peso';
-                    if (qty > 1 && faixa === 'peso' && QUANTIDADES_SIMULACAO[0] === 1) {
-                        const precoTotal1 = calcPrice(row.cif, pesoUnit, row.deductions, m, 1);
-                        if (precoTotal1 < 79 && precoTotal >= 79) anyJump = true;
-                    }
-                    priceByMC[m] = { precoUnit, precoTotal, frete, faixa };
-                });
-                return { qty, priceByMC, anyJump };
-            });
+            // Faixa de referência: 1 unidade (já no main row)
+            const faixa1 = calcPrice(row.cif, pesoUnit, row.deductions, 0.20, 1) < 79 ? 'fix' : 'peso';
 
-            // Detecta transicoes entre faixas comparando preco_total entre quantidades sucessivas
-            let faixaAnterior = null;
-            simLines.forEach(line => {
-                const faixa20 = line.priceByMC[0.20].faixa;
-                line.isFaixaJump = faixaAnterior !== null && faixaAnterior !== faixa20;
-                faixaAnterior = faixa20;
-            });
+            return QUANTIDADES_SIMULACAO.map(qty => {
+                const pesoTotal = pesoUnit * qty;
+                const precoRefTotal = row.precoAtual * qty;
+                const custoTotal = row.cif * qty;
+                const freteRef = lookupFrete(pesoTotal, precoRefTotal);
+                const mcRef = calculateMC(precoRefTotal, custoTotal, freteRef, row.deductions);
 
-            const headerCells = '<th>Qtde</th><th>Peso total</th>' +
-                MARGEM_ALVOS.map(m => '<th>MC ' + (m * 100) + '% · preço unit.</th>').join('') +
-                '<th>Frete total (MC 20%)</th><th>Preço total (MC 20%)</th>';
+                // Preços-alvo por margem (preço UNITÁRIO)
+                const p10 = calcPrice(row.cif, pesoUnit, row.deductions, 0.10, qty) / qty;
+                const p15 = calcPrice(row.cif, pesoUnit, row.deductions, 0.15, qty) / qty;
+                const p20 = calcPrice(row.cif, pesoUnit, row.deductions, 0.20, qty) / qty;
+                const p25 = calcPrice(row.cif, pesoUnit, row.deductions, 0.25, qty) / qty;
 
-            const bodyCells = simLines.map(line => {
-                const rowClass = line.isFaixaJump ? 'faixa-jump' : '';
-                const jumpIcon = line.isFaixaJump ? '<span class="jump-icon">⚠</span>' : '';
-                const faixa20 = line.priceByMC[0.20].faixa;
-                const faixaBadge = '<span class="faixa-badge ' + faixa20 + '">' + (faixa20 === 'fix' ? 'faixa fixa' : 'por peso') + '</span>';
-                return '<tr class="' + rowClass + '">' +
-                    '<td class="qty-label">' + jumpIcon + line.qty + 'x</td>' +
-                    '<td>' + (pesoUnit * line.qty).toFixed(2) + ' kg</td>' +
-                    MARGEM_ALVOS.map(m => '<td>' + formatCurrency(line.priceByMC[m].precoUnit) + '</td>').join('') +
-                    '<td>' + formatCurrency(line.priceByMC[0.20].frete) + faixaBadge + '</td>' +
-                    '<td>' + formatCurrency(line.priceByMC[0.20].precoTotal) + '</td>' +
+                // Detectar salto de faixa comparado com 1 unidade
+                const faixaAtual = (p20 * qty) < 79 ? 'fix' : 'peso';
+                const isFaixaJump = faixaAtual !== faixa1;
+                const jumpIcon = isFaixaJump ? '<span class="jump-icon">⚠</span>' : '';
+                const faixaBadge = '<span class="faixa-badge ' + faixaAtual + '">' + (faixaAtual === 'fix' ? 'fixa' : 'peso') + '</span>';
+
+                const mcClass = mcRef > 0.15 ? 'mc-good' : mcRef > 0.03 ? 'mc-warning' : 'mc-danger';
+
+                return '<tr class="sim-row' + (isFaixaJump ? ' faixa-jump' : '') + '">' +
+                    '<td></td>' +
+                    '<td><span class="qty-label">' + jumpIcon + qty + 'x</span><span class="qty-peso">' + pesoTotal.toFixed(2) + ' kg</span></td>' +
+                    '<td style="font-size:11px;color:var(--text-secondary)">' + escapeHtml(row.tituloCurto) + '</td>' +
+                    '<td>' + formatCurrency(precoRefTotal) + '</td>' +
+                    '<td>' + formatCurrency(custoTotal) + '</td>' +
+                    '<td>' + formatCurrency(freteRef) + faixaBadge + '</td>' +
+                    '<td class="' + mcClass + '">' + formatPercent(mcRef) + '</td>' +
+                    '<td class="' + (p10 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(p10) + '</td>' +
+                    '<td class="' + (p15 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(p15) + '</td>' +
+                    '<td class="' + (p20 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(p20) + '</td>' +
+                    '<td class="' + (p25 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(p25) + '</td>' +
                     '</tr>';
             }).join('');
-
-            // Insight: detectar "zona morta" — quando uma qtde cruza a barreira dos R$ 79
-            const cruzaBarreira = simLines.find(l => l.isFaixaJump);
-            let insightHtml = '';
-            if (cruzaBarreira) {
-                const f20_antes = lookupFrete(pesoUnit * (cruzaBarreira.qty - 1 || 1), 78);
-                const f20_depois = cruzaBarreira.priceByMC[0.20].frete;
-                const delta = f20_depois - f20_antes;
-                insightHtml = '<div class="insight-box warn">💡 <strong>Barreira R$ 79 detectada em ' + cruzaBarreira.qty + 'x</strong>: o frete salta de ~' +
-                    formatCurrency(f20_antes) + ' para ' + formatCurrency(f20_depois) +
-                    ' (+' + formatCurrency(delta) + '). Considere ajustar manualmente o preço para se manter abaixo ou acima da faixa conforme o volume mais frequente de venda.</div>';
-            } else {
-                const mcMax = simLines[simLines.length - 1].priceByMC[0.20];
-                const mc1 = simLines[0].priceByMC[0.20];
-                if (mcMax.precoUnit < mc1.precoUnit * 0.98) {
-                    insightHtml = '<div class="insight-box good">💡 <strong>Vantagem de escala</strong>: em 15x o preço unitário para MC 20% cai de ' +
-                        formatCurrency(mc1.precoUnit) + ' para ' + formatCurrency(mcMax.precoUnit) +
-                        ', sem saltos de frete. Boa oportunidade para kits ou descontos progressivos.</div>';
-                } else {
-                    insightHtml = '<div class="insight-box">💡 Nesta faixa de peso e preço, o frete impacta pouco a escala. Preço unitário estável em várias quantidades.</div>';
-                }
-            }
-
-            const productInfo =
-                '<div class="expansion-title">Simulação de preço por quantidade</div>' +
-                '<div class="expansion-meta">' + escapeHtml(row.titulo) + '</div>' +
-                '<div class="weight-input"><label>Peso por unidade:</label><input type="number" step="0.05" min="0.05" value="' + pesoUnit + '" data-mlb="' + row.mlb_id + '"><span style="font-size:11px;color:var(--text-secondary)">kg</span></div>';
-
-            return '<tr class="expansion-row"><td colspan="11"><div class="expansion-content">' +
-                '<div class="expansion-header">' + productInfo + '</div>' +
-                '<table class="sim-table"><thead><tr>' + headerCells + '</tr></thead><tbody>' + bodyCells + '</tbody></table>' +
-                insightHtml +
-                '</div></td></tr>';
         }
 
         function getDeductions(tabId, comissaoPct) {
