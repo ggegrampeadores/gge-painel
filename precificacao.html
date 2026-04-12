@@ -232,7 +232,8 @@
         .b2b-product-row td { padding: 9px 12px !important; font-size: 13px; border-bottom: 1px solid rgba(42,45,58,0.5) !important; }
         .b2b-product-row:nth-child(even of .b2b-product-row) td { background: rgba(255,255,255,0.012); }
         .b2b-price-cell { font-weight: 500; font-variant-numeric: tabular-nums; }
-        .b2b-sob-consulta { color: var(--text-secondary); font-size: 11px; font-style: italic; text-align: center; }    </style>
+        .b2b-sob-consulta { color: var(--text-secondary); font-size: 11px; font-style: italic; text-align: center; }
+        .b2b-separador-row td { height: 18px; border: none !important; background: transparent !important; }    </style>
 <script src="auth.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -652,6 +653,8 @@
                     } else if (item.tipo === 'cabecalho_insumo') {
                         currentMargins = MARGEM_B2B_INS;
                         bodyHtml += renderB2bSectionHeader(item.texto || 'INSUMOS', 'insumo', currentMargins);
+                    } else if (item.tipo === 'separador') {
+                        bodyHtml += '<tr class="b2b-separador-row"><td colspan="' + NCOLS + '"></td></tr>';
                     } else if (item.tipo === 'produto' && item.sku) {
                         const sku = skuMap[item.sku];
                         if (sku) {
@@ -775,7 +778,7 @@
                     const [tipo, sku, texto] = rows[i];
                     if (!tipo) continue;
                     const tipoNorm = String(tipo).trim().toLowerCase();
-                    if (!['titulo', 'cabecalho_maquina', 'cabecalho_insumo', 'produto'].includes(tipoNorm)) continue;
+                    if (!['titulo', 'cabecalho_maquina', 'cabecalho_insumo', 'produto', 'separador'].includes(tipoNorm)) continue;
                     ordem++;
                     layoutRows.push({
                         ordem,
