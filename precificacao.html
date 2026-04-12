@@ -314,8 +314,8 @@
 
         const QUANTIDADES_SIMULACAO = [2, 4, 6, 10, 15];
         const MARGEM_ALVOS = [0.10, 0.15, 0.20, 0.25];
-        const MARGEM_B2B_MAQ = [0.25, 0.30, 0.35, 0.40];
-        const MARGEM_B2B_INS = [0.35, 0.40, 0.45, 0.50];
+        const MARGEM_B2B_MAQ = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
+        const MARGEM_B2B_INS = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
         const ICMS_IMPORTADO = 0.04;
         const ICMS_NACIONAL = 0.12;
         const PIS_COFINS_B2B = 0.0925;
@@ -636,10 +636,10 @@
 
             const subtitle = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.7;">' +
                 'Venda interestadual B2B \u00b7 contribuinte \u00b7 sem DIFAL \u00b7 frete CIF cliente \u00b7 ' +
-                '<span style="color:var(--accent);font-weight:600;">\u2699 M\u00e1quinas</span> 25\u201340% \u00b7 ' +
-                '<span style="color:var(--success);font-weight:600;">\u26a1 Insumos</span> 35\u201350%</div>';
+                '<span style="color:var(--accent);font-weight:600;">\u2699 M\u00e1quinas</span> 25\u201350% \u00b7 ' +
+                '<span style="color:var(--success);font-weight:600;">\u26a1 Insumos</span> 25\u201350%</div>';
 
-            const NCOLS = 9;
+            const NCOLS = 10;
             let bodyHtml = '';
             let currentMargins = MARGEM_B2B_MAQ;
 
@@ -683,9 +683,10 @@
 
             const thead = '<thead><tr>' +
                 '<th style="width:30%">Produto</th><th style="width:13%">SKU</th>' +
-                '<th style="width:6%">Origem</th><th style="width:9%">CIF</th><th style="width:5%">ICMS</th>' +
-                '<th style="width:9.25%">Pre\u00e7o \u2460</th><th style="width:9.25%">Pre\u00e7o \u2461</th>' +
-                '<th style="width:9.25%">Pre\u00e7o \u2462</th><th style="width:9.25%">Pre\u00e7o \u2463</th>' +
+                '<th style="width:6%">Origem</th><th style="width:5%">ICMS</th>' +
+                '<th style="width:10%;text-align:center;">Pre\u00e7o \u2460</th><th style="width:10%;text-align:center;">Pre\u00e7o \u2461</th>' +
+                '<th style="width:10%;text-align:center;">Pre\u00e7o \u2462</th><th style="width:10%;text-align:center;">Pre\u00e7o \u2463</th>' +
+                '<th style="width:10%;text-align:center;">Pre\u00e7o \u2464</th><th style="width:10%;text-align:center;">Pre\u00e7o \u2465</th>' +
                 '</tr></thead>';
 
             container.innerHTML = toolbar + subtitle +
@@ -695,8 +696,8 @@
         function renderB2bSectionHeader(texto, tipo, margins) {
             const icon = tipo === 'maquina' ? '\u2699' : '\u26a1';
             return '<tr class="b2b-cabecalho-row ' + tipo + '">' +
-                '<td colspan="5">' + icon + ' ' + escapeHtml(texto) + '</td>' +
-                margins.map(m => '<td class="b2b-margin-label">' + (m * 100).toFixed(0) + '% MRG</td>').join('') +
+                '<td colspan="4">' + icon + ' ' + escapeHtml(texto) + '</td>' +
+                margins.map(m => '<td class="b2b-margin-label" style="text-align:center;">' + (m * 100).toFixed(0) + '% MRG</td>').join('') +
                 '</tr>';
         }
 
@@ -720,11 +721,10 @@
                 '<td>' + escapeHtml((sku.descricao || '').substring(0, 60)) + '</td>' +
                 '<td style="font-family:monospace;font-size:11px;color:var(--text-secondary);">' + escapeHtml(sku.sku) + '</td>' +
                 '<td style="text-align:center;">' + origemBadge + '</td>' +
-                '<td>' + (hasCusto ? formatCurrency(cif) : '<span class="badge badge-no-cost">\u2014</span>') + '</td>' +
-                '<td style="font-weight:600;text-align:center;color:' + (isImport ? '#60a5fa' : '#fbbf24') + ';">' + (icmsPct * 100).toFixed(0) + '%</td>' +
+                                '<td style="font-weight:600;text-align:center;color:' + (isImport ? '#60a5fa' : '#fbbf24') + ';">' + (icmsPct * 100).toFixed(0) + '%</td>' +
                 prices.map(p => {
-                    if (p === null) return '<td class="b2b-sob-consulta">\u2014</td>';
-                    return '<td class="b2b-price-cell">' + formatCurrency(p) + '</td>';
+                    if (p === null) return '<td class="b2b-sob-consulta" style="text-align:center;">\u2014</td>';
+                    return '<td class="b2b-price-cell" style="text-align:center;">' + formatCurrency(p) + '</td>';
                 }).join('') +
                 '</tr>';
         }
