@@ -1120,9 +1120,9 @@
                         <>
                           <div className="text-center text-gge-muted text-2xl hidden md:block">&#8634;</div>
                           <div className="text-center">
-                            <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais"</div>
+                            <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais</div>
                             <div className="text-xl font-bold text-gge-yellow">R$ {fmt(cancelTotals.refund_valor)}</div>
-                            <div className="text-gge-iellow text-xs">{fmtInt(cancelTotals.qtd_refund)} devoluções</div>
+                            <div className="text-gge-yellow text-xs">{fmtInt(cancelTotals.qtd_refund)} devoluções</div>
                           </div>
                         </>
                       )}
@@ -1137,7 +1137,7 @@
                       <span>Canceladas ({fmtPct(cancelTotals.pct)})</span>
                     </div>
                   </div>
-                }
+                )}
 
                 {/* KPI Cards — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL */}
                 <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
