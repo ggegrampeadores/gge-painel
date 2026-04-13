@@ -423,7 +423,7 @@
     }
 
     // ── Top Anúncios Table — MC1 = c/ DIFAL (final) ──
-    function TopAnuncios({ data, mode, onDrill }) {
+    function TopAnuncios({ data, mode, onDrill, totals }) {
       const sorted = useMemo(() => {
         const filtered = data.filter(d => Number(d.receita) > 0);
         if (mode === 'lucro') return [...filtered].sort((a,b) => Number(b.margem_valor) - Number(a.margem_valor)).slice(0, 10);
@@ -444,6 +444,8 @@
                   <th className="text-right px-4 py-3">DIFAL</th>
                   <th className="text-right px-4 py-3">MC1</th>
                   <th className="text-right px-4 py-3">MC1%</th>
+                  <th className="text-right px-4 py-3 text-gge-cyan border-l border-gge-border/50">Share Rec.</th>
+                  <th className="text-right px-4 py-3 text-gge-cyan">Share MC1</th>
                   <th className="text-center px-4 py-3">Grupo</th>
                 </tr>
               </thead>
@@ -452,6 +454,8 @@
                   const mc1 = Number(row.margem_valor) || 0;
                   const mc1pct = Number(row.receita) > 0 ? mc1/Number(row.receita)*100 : 0;
                   const difal = Number(row.difal_reserva) || 0;
+                  const shareRec = totals && totals.receita > 0 ? (Number(row.receita) / totals.receita * 100) : 0;
+                  const shareMC1 = totals && totals.mc1 !== 0 ? (mc1 / totals.mc1 * 100) : 0;
                   return (
                     <tr key={row.mlb_id + '-' + i} className="border-t border-gge-border/50 hover:bg-white/5 transition-colors row-clickable"
                         onClick={() => onDrill && onDrill(row.mlb_id, row.titulo)}>
@@ -467,6 +471,8 @@
                         R$ {fmt(mc1)}
                       </td>
                       <td className={`text-right px-4 py-2.5 font-bold ${mc1pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(mc1pct)}</td>
+                      <td className="text-right px-4 py-2.5 text-gge-cyan border-l border-gge-border/50">{fmtPct(shareRec)}</td>
+                      <td className={`text-right px-4 py-2.5 font-medium ${shareMC1 >= 0 ? 'text-gge-cyan' : 'text-gge-red'}`}>{fmtPct(shareMC1)}</td>
                       <td className="text-center px-4 py-2.5"><GrupoBadge grupo={row.grupo} /></td>
                     </tr>
                   );
@@ -523,7 +529,7 @@
       const sevText = { critical: 'text-gge-red', warning: 'text-gge-yellow', info: 'text-gge-accent' };
 
       return (
-        <div className="space-y-2 fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 fade-in">
           {alerts.map((a, i) => (
             <div key={i} className={`border rounded-xl p-4 ${sevColor[a.severity]} alert-pulse`}>
               <div className="flex items-start gap-3">
@@ -1114,9 +1120,9 @@
                         <>
                           <div className="text-center text-gge-muted text-2xl hidden md:block">&#8634;</div>
                           <div className="text-center">
-                            <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais</div>
+                            <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais"</div>
                             <div className="text-xl font-bold text-gge-yellow">R$ {fmt(cancelTotals.refund_valor)}</div>
-                            <div className="text-gge-yellow text-xs">{fmtInt(cancelTotals.qtd_refund)} devoluções</div>
+                            <div className="text-gge-iellow text-xs">{fmtInt(cancelTotals.qtd_refund)} devoluções</div>
                           </div>
                         </>
                       )}
@@ -1131,10 +1137,7 @@
                       <span>Canceladas ({fmtPct(cancelTotals.pct)})</span>
                     </div>
                   </div>
-                )}
-
-                {/* Alerts Panel */}
-                <AlertsPanel data={filtered} />
+                }
 
                 {/* KPI Cards — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL */}
                 <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
@@ -1142,7 +1145,7 @@
                   <MetricCard label="Custo Produto" value={`R$ ${fmt(totals.custo)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.custo/totals.receita*100)} da receita` : ''}
                               icon="&#128230;" />
-                  <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
+  3               <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.comissao/totals.receita*100)} da receita` : ''}
                               icon="&#127978;" />
                   <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`}
@@ -1166,7 +1169,7 @@
                               sub={`${fmtInt(totals.vendas)} vendas`}
                               icon="&#127915;" />
                   <MetricCard label="Vendas" value={fmtInt(totals.vendas)}
-                              sub={`${fmtInt(totals.prejuizo_count)} em prejuízo`}
+                              sub={`${fmtInt(totals.prejuizo_count)} em prejuí�o`}
                               icon="&#128722;" />
                 </div>
 
@@ -1180,6 +1183,9 @@
 
                 {/* Groups Table */}
                 <GroupsSummary data={filtered} />
+
+                {/* Alerts Panel — 2×2 grid */}
+                <AlertsPanel data={filtered} />
 
                 {/* Evolution + Curva ABC */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1207,7 +1213,7 @@
                       ))}
                     </div>
                   </div>
-                  <TopAnuncios data={filtered} mode={topMode} onDrill={(mlb, titulo) => { setDrillMlb(mlb); setDrillTitulo(titulo); }} />
+                  <TopAnuncios data={filtered} mode={topMode} totals={totals} onDrill={(mlb, titulo) => { setDrillMlb(mlb); setDrillTitulo(titulo); }} />
                 </div>
 
                 {/* Drilldown Modal */}
