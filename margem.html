@@ -177,12 +177,12 @@
     // ── Metric Card ──
     function MetricCard({ label, value, sub, color, icon }) {
       return (
-        <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-gge-muted text-sm font-medium">{label}</span>
-            {icon && <span className="text-2xl opacity-60">{icon}</span>}
+        <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-gge-muted text-xs font-medium leading-tight">{label}</span>
+            {icon && <span className="text-lg opacity-60">{icon}</span>}
           </div>
-          <div className={`text-2xl font-bold ${color || 'text-white'}`}>{value}</div>
+          <div className={`text-lg font-bold whitespace-nowrap ${color || 'text-white'}`}>{value}</div>
           {sub && <div className="text-gge-muted text-xs mt-1">{sub}</div>}
         </div>
       );
@@ -488,7 +488,7 @@
           const totalLoss = p1.reduce((s, d) => s + (Number(d.margem_valor) || 0), 0);
           list.push({ severity: 'critical', icon: '\u26A0\uFE0F', title: `${p1.length} anúncios em prejuízo estrutural (P1)`,
             detail: `Perda total: R$ ${fmt(Math.abs(totalLoss))}`,
-            items: p1.slice(0, 3).map(d => `${d.titulo?.slice(0, 50)}... → R$ ${fmt(d.margem_valor)}`) });
+            items: p1.slice(0, 3).map(d => ({ mlb: d.mlb_id, text: `${d.titulo?.slice(0, 50)}... → R$ ${fmt(d.margem_valor)}` })) });
         }
         // P2 — prejuízo por ADs
         const p2 = data.filter(d => d.grupo === 'P2');
@@ -496,21 +496,23 @@
           const adsWasted = p2.reduce((s, d) => s + (Number(d.custo_ads) || 0), 0);
           list.push({ severity: 'warning', icon: '\uD83D\uDCE2', title: `${p2.length} anúncios com prejuízo por ADs (P2)`,
             detail: `Gasto em ADs: R$ ${fmt(adsWasted)} — margem seria positiva sem ADs`,
-            items: p2.slice(0, 3).map(d => `${d.titulo?.slice(0, 50)}... → ADs: R$ ${fmt(d.custo_ads)}`) });
+            items: p2.slice(0, 3).map(d => ({ mlb: d.mlb_id, text: `${d.titulo?.slice(0, 50)}... → ADs: R$ ${fmt(d.custo_ads)}` })) });
         }
         // P3 — Só ads sem vendas
         const p3 = data.filter(d => d.grupo === 'P3' || d.apenas_ads);
         if (p3.length > 0) {
           const wasted = p3.reduce((s, d) => s + (Number(d.custo_ads) || 0), 0);
           list.push({ severity: 'warning', icon: '\uD83D\uDED1', title: `${p3.length} anúncios com gasto em ADs mas sem vendas (P3)`,
-            detail: `R$ ${fmt(wasted)} gastos em ADs sem gerar nenhuma venda no período` });
+            detail: `R$ ${fmt(wasted)} gastos em ADs sem gerar nenhuma venda no período`,
+            items: p3.slice(0, 3).map(d => ({ mlb: d.mlb_id, text: `${d.titulo?.slice(0, 50)}... → ADs: R$ ${fmt(d.custo_ads)}` })) });
         }
         // Sem custo cadastrado
         const semCusto = data.filter(d => !d.tem_custo && Number(d.receita) > 0);
         if (semCusto.length > 0) {
           const receitaSemCusto = semCusto.reduce((s, d) => s + (Number(d.receita) || 0), 0);
           list.push({ severity: 'info', icon: '\u2753', title: `${semCusto.length} anúncios sem custo de produto`,
-            detail: `Receita sem margem calculável: R$ ${fmt(receitaSemCusto)}` });
+            detail: `Receita sem margem calculável: R$ ${fmt(receitaSemCusto)}`,
+            items: semCusto.slice(0, 3).map(d => ({ mlb: d.mlb_id, text: `${d.titulo?.slice(0, 50)}... → Receita: R$ ${fmt(d.receita)}` })) });
         }
         return list;
       }, [data]);
@@ -530,9 +532,16 @@
                   <div className={`font-semibold text-sm ${sevText[a.severity]}`}>{a.title}</div>
                   <div className="text-gge-muted text-xs mt-0.5">{a.detail}</div>
                   {a.items && (
-                    <div className="mt-2 space-y-0.5">
+                    <div className="mt-2 space-y-1">
                       {a.items.map((item, j) => (
-                        <div key={j} className="text-xs text-gge-text truncate">{item}</div>
+                        <div key={j} className="text-xs text-gge-text flex items-center gap-2">
+                          <code className="text-gge-accent font-mono text-xs bg-white/5 px-1.5 py-0.5 rounded shrink-0">{item.mlb}</code>
+                          <button className="shrink-0 opacity-60 hover:opacity-100 transition-opacity" title="Copiar MLB"
+                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.mlb); const b=e.currentTarget; b.textContent='\u2705'; setTimeout(()=>b.textContent='\uD83D\uDCCB',1200); }}>
+                            {'\uD83D\uDCCB'}
+                          </button>
+                          <span className="truncate">{item.text}</span>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -1027,6 +1036,10 @@
               </div>
               <div className="flex items-center gap-4">
                 {periodoLabel && <span className="text-sm text-gge-muted">Dados: <span className="text-white font-medium">{periodoLabel}</span></span>}
+                <a href="index.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-green/15 border border-gge-green/30 rounded-lg text-gge-green hover:bg-gge-green/25 transition-all text-sm font-medium" title="Voltar ao Dashboard">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Dashboard
+                </a>
                 <a href="saude.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-accent/15 border border-gge-accent/30 rounded-lg text-gge-accent hover:bg-gge-accent/25 transition-all text-sm font-medium" title="Saúde do Banco">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                   Saúde
@@ -1139,16 +1152,16 @@
                               color="text-gge-yellow"
                               sub={totals.receita > 0 ? `${fmtPct(totals.ads/totals.receita*100)} da receita` : ''}
                               icon="&#128226;" />
-                  <MetricCard label="MC2 (s/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
-                              color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="&#128200;" />
+                  <MetricCard label="MC1 (c/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
+                              color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="&#127919;" />
                   <MetricCard label="DIFAL" value={`R$ ${fmt(totals.difal)}`}
                               color="text-gge-orange"
                               sub={totals.receita > 0 ? `${fmtPct(totals.difal/totals.receita*100)} da receita` : ''}
                               icon="&#127970;" />
-                  <MetricCard label="MC1 (c/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
-                              color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="&#127919;" />
+                  <MetricCard label="MC2 (s/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
+                              color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="&#128200;" />
                   <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`}
                               sub={`${fmtInt(totals.vendas)} vendas`}
                               icon="&#127915;" />
