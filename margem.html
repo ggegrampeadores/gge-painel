@@ -1086,104 +1086,107 @@
                         <div className="text-gge-muted text-xs">{fmtInt(cancelTotals.qtd_vendas + cancelTotals.qtd_cancel)} ordens</div>
                       </div>
                       <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
-                      <div className="text-cent     t.refund_valor += Number(r.valor_parcial_refund_original) || 0;
-        });
-        t.liquido = t.bruto;
-        t.vendas_brutas = t.bruto + t.cancelado;
-        t.pct = t.vendas_brutas > 0 ? (t.cancelado / t.vendas_brutas * 100) : 0;
-        return t;
-      }, [saldoData, activeMeses, contaSel]);
-
-      if (error) {
-        return (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="bg-gge-card border border-red-500/30 rounded-xl p-8 max-w-md text-center">
-              <div className="text-4xl mb-4">&#9888;&#65039;</div>
-              <h2 className="text-xl font-bold text-white mb-2">Erro ao carregar</h2>
-              <p className="text-gge-muted text-sm">{error}</p>
-              <button onClick={() => window.location.reload()}
-                      className="mt-4 px-4 py-2 bg-gge-accent text-white rounded-lg text-sm hover:bg-gge-accent/80 transition-colors">
-                Tentar novamente
-              </button>
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div className="min-h-screen">
-          {/* Header */}
-          <header className="border-b border-gge-border bg-gge-card/50 backdrop-blur-sm sticky top-0 z-50">
-            <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gge-accent rounded-xl flex items-center justify-center text-white font-bold text-lg">G</div>
-                <div>
-                  <h1 className="text-lg font-bold text-white tracking-tight">Controle Total GGE</h1>
-                  <p className="text-xs text-gge-muted">Painel de Margem de Contribuição</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                {periodoLabel && <span className="text-sm text-gge-muted">Dados: <span className="text-white font-medium">{periodoLabel}</span></span>}
-                <a href="saude.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-accent/15 border border-gge-accent/30 rounded-lg text-gge-accent hover:bg-gge-accent/25 transition-all text-sm font-medium" title="Saúde do Banco">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                  Saúde
-                </a>
-                <div className="w-2 h-2 rounded-full bg-gge-green animate-pulse" title="Conectado ao Supabase"></div>
-              </div>
-            </div>
-          </header>
-
-          <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
-            {/* Filters */}
-            <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm font-semibold text-white">Filtros</span>
-                <span className="text-xs text-gge-muted">({fmtInt(filtered.length)} anúncios)</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
-                <FilterSelect label="Período" value={periodoSel} onChange={setPeriodoSel}
-                              options={PERIODO_OPTIONS.map(p => p.value)}
-                              allLabel="Todo o período"
-                              labelFn={v => PERIODO_OPTIONS.find(p => p.value === v)?.label || v}
-                              isActive={periodoSel !== '30d'} />
-                <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={contas} isActive={!!contaSel} />
-                <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} isActive={!!tipoSel} />
-                <FilterSelect label="Logística" value={modeSel} onChange={setModeSel} options={filterOpts.modos} isActive={!!modeSel} />
-                <FilterSelect label="Tipo" value={kitSel} onChange={setKitSel} options={filterOpts.kits} isActive={!!kitSel} />
-                <FilterSelect label="Catálogo" value={catSel} onChange={setCatSel} options={filterOpts.cats} isActive={!!catSel} />
-                <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} isActive={!!fornSel} />
-                <FilterSelect label="Pto Saída" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} isActive={!!pontoSel} />
-                <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} isActive={!!idadeSel} />
-                <div className="flex items-end">
-                  <button onClick={() => { setPeriodoSel('30d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); }}
-                          className="w-full px-3 py-2 text-sm text-gge-muted border border-gge-border rounded-lg hover:bg-white/5 transition-colors">
-                    Limpar
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-                {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-28" />)}
-              </div>
-            ) : (
-              <>
-                {/* Vendas Brutas vs Cancelamentos */}
-                {(cancelTotals.qtd_cancel > 0 || cancelTotals.qtd_refund > 0) && (
-                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg font-semibold text-white">Vendas Brutas vs Cancelamentos</span>
-                      <span className="text-xs text-gge-muted">(status das ordens no ML)</span>
-                    </div>
-                    <div className={`grid grid-cols-1 gap-4 items-center ${cancelTotals.qtd_refund > 0 ? 'md:grid-cols-7' : 'md:grid-cols-5'}`}>
                       <div className="text-center">
-                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Brutas</div>
-                        <div className="text-xl font-bold text-white">R$ {fmt(cancelTotals.vendas_brutas)}</div>
-                        <div className="text-gge-muted text-xs">{fmtInt(cancelTotals.qtd_vendas + cancelTotals.qtd_cancel)} ordens</div>
+                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Cancelamentos</div>
+                        <div className="text-xl font-bold text-gge-red">- R$ {fmt(cancelTotals.cancelado)}</div>
+                        <div className="text-gge-red text-xs">{fmtInt(cancelTotals.qtd_cancel)} ordens ({fmtPct(cancelTotals.pct)})</div>
                       </div>
                       <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
-                      <div className="text-cent'], ['prejuizo', 'Maior Prejuízo'], ['receita', 'Maior Receita']].map(([k, label]) => (
+                      <div className="text-center">
+                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Realizadas</div>
+                        <div className="text-xl font-bold text-gge-green">R$ {fmt(cancelTotals.liquido)}</div>
+                        <div className="text-gge-green text-xs">{fmtInt(cancelTotals.qtd_vendas)} ordens efetivas</div>
+                      </div>
+                      {cancelTotals.qtd_refund > 0 && (
+                        <>
+                          <div className="text-center text-gge-muted text-2xl hidden md:block">&#8634;</div>
+                          <div className="text-center">
+                            <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais</div>
+                            <div className="text-xl font-bold text-gge-yellow">R$ {fmt(cancelTotals.refund_valor)}</div>
+                            <div className="text-gge-yellow text-xs">{fmtInt(cancelTotals.qtd_refund)} devoluções</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {/* Visual proportion bar */}
+                    <div className="mt-4 h-3 rounded-full bg-gge-border overflow-hidden flex">
+                      <div className="bg-gge-green h-full rounded-l-full transition-all" style={{ width: `${100 - cancelTotals.pct}%` }} />
+                      <div className="bg-gge-red h-full rounded-r-full transition-all" style={{ width: `${cancelTotals.pct}%` }} />
+                    </div>
+                    <div className="flex justify-between mt-1 text-xs text-gge-muted">
+                      <span>Realizadas ({fmtPct(100 - cancelTotals.pct)})</span>
+                      <span>Canceladas ({fmtPct(cancelTotals.pct)})</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Alerts Panel */}
+                <AlertsPanel data={filtered} />
+
+                {/* KPI Cards — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL */}
+                <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
+                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="&#128176;" />
+                  <MetricCard label="Custo Produto" value={`R$ ${fmt(totals.custo)}`}
+                              sub={totals.receita > 0 ? `${fmtPct(totals.custo/totals.receita*100)} da receita` : ''}
+                              icon="&#128230;" />
+                  <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
+                              sub={totals.receita > 0 ? `${fmtPct(totals.comissao/totals.receita*100)} da receita` : ''}
+                              icon="&#127978;" />
+                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`}
+                              sub={totals.receita > 0 ? `${fmtPct(totals.frete/totals.receita*100)} da receita` : ''}
+                              icon="&#128666;" />
+                  <MetricCard label="ADs" value={`R$ ${fmt(totals.ads)}`}
+                              color="text-gge-yellow"
+                              sub={totals.receita > 0 ? `${fmtPct(totals.ads/totals.receita*100)} da receita` : ''}
+                              icon="&#128226;" />
+                  <MetricCard label="MC2 (s/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
+                              color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="&#128200;" />
+                  <MetricCard label="DIFAL" value={`R$ ${fmt(totals.difal)}`}
+                              color="text-gge-orange"
+                              sub={totals.receita > 0 ? `${fmtPct(totals.difal/totals.receita*100)} da receita` : ''}
+                              icon="&#127970;" />
+                  <MetricCard label="MC1 (c/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
+                              color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="&#127919;" />
+                  <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`}
+                              sub={`${fmtInt(totals.vendas)} vendas`}
+                              icon="&#127915;" />
+                  <MetricCard label="Vendas" value={fmtInt(totals.vendas)}
+                              sub={`${fmtInt(totals.prejuizo_count)} em prejuízo`}
+                              icon="&#128722;" />
+                </div>
+
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-2">
+                    <GroupsChart data={filtered} />
+                  </div>
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de Saída" field="ponto_saida" />
+                </div>
+
+                {/* Groups Table */}
+                <GroupsSummary data={filtered} />
+
+                {/* Evolution + Curva ABC */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <EvolutionChart rawData={rawData} allMeses={meses} />
+                  <CurvaABC data={filtered} />
+                </div>
+
+                {/* Distribution charts */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Fornecedor" field="fornecedor" />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Tipo Listagem" field="tipo_listagem" labelFn={labelTipo} />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Por Logística" field="modo_logistica" />
+                </div>
+
+                {/* Top Anúncios */}
+                <div>
+                  <div className="flex items-center gap-4 mb-3">
+                    <h3 className="text-lg font-semibold text-white">Top 10 Anúncios</h3>
+                    <div className="flex gap-1">
+                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuízo'], ['receita', 'Maior Receita']].map(([k, label]) => (
                         <button key={k} onClick={() => setTopMode(k)}
                                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${topMode === k ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
                           {label}
