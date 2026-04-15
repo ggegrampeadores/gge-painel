@@ -91,13 +91,15 @@
             position: sticky; top: 0; z-index: 10;
         }
         th {
-            padding: 10px 12px; text-align: left; font-weight: 600;
+            padding: 10px 8px; text-align: left; font-weight: 600;
             font-size: 11px; text-transform: uppercase; color: #8b949e; letter-spacing: 0.5px;
         }
         th.r { text-align: right; }
-        td { padding: 10px 12px; border-bottom: 1px solid #1a1d27; font-size: 13px; }
+        th.c { text-align: center; }
+        td { padding: 10px 8px; border-bottom: 1px solid #1a1d27; font-size: 13px; }
         td.r { text-align: right; font-variant-numeric: tabular-nums; }
-        td.sku { font-family: 'Monaco', 'Courier New', monospace; font-size: 12px; color: #79c0ff; font-weight: 500; }
+        td.c { text-align: center; }
+        td.sku { font-family: 'Monaco', 'Courier New', monospace; font-size: 12px; color: #79c0ff; font-weight: 500; text-align: center; }
         td.no-cost { color: #f85149; font-weight: 600; }
 
         tbody tr.product-row { cursor: pointer; transition: background-color 0.15s; }
@@ -105,19 +107,32 @@
         tbody tr.product-row.expanded { background-color: #1a1d27; }
 
         /* Category / Subcategory headers */
-        .cat-header {
-            background-color: #1a1d27; padding: 12px; font-weight: 700;
+        .cat-header td:first-child {
+            background-color: #1a1d27; padding: 12px 8px; font-weight: 700;
             font-size: 12px; text-transform: uppercase; color: #f0883e;
             border-top: 2px solid #f0883e; letter-spacing: 0.5px;
         }
-        .sub-header {
-            background-color: #1e3a5f; padding: 10px 12px; font-weight: 600;
+        .cat-header td.col-label {
+            background-color: #1a1d27; border-top: 2px solid #f0883e;
+            font-size: 10px; color: #6e7681; text-transform: uppercase;
+            font-weight: 600; letter-spacing: 0.5px; padding: 12px 8px;
+        }
+        .sub-header td:first-child {
+            background-color: #1e3a5f; padding: 10px 8px; font-weight: 600;
             font-size: 11px; color: #a8c5dd; text-transform: uppercase;
             border-left: 3px solid #4a9eff;
         }
-        .sub-header.insumo {
+        .sub-header td.col-label {
+            background-color: #1e3a5f; font-size: 10px; color: #6e88a8;
+            font-weight: 600; padding: 10px 8px;
+        }
+        .sub-header.insumo td:first-child {
             background-color: #1e3f2e; color: #a8d9a1; border-left-color: #4aff6a;
         }
+        .sub-header.insumo td.col-label {
+            background-color: #1e3f2e; color: #6e996a;
+        }
+        td.produto-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         /* ── Expandable Detail Row ── */
         .detail-row { display: none; }
@@ -272,17 +287,17 @@
                 <table id="pricingTable" style="display: none;">
                     <thead>
                         <tr>
-                            <th style="width:30px;"></th>
-                            <th>Produto</th>
-                            <th style="width:130px;">SKU</th>
-                            <th style="width:65px;">Origem</th>
-                            <th style="width:60px;" class="r">ICMS</th>
-                            <th style="width:90px;" class="r">25%</th>
-                            <th style="width:90px;" class="r">30%</th>
-                            <th style="width:90px;" class="r">35%</th>
-                            <th style="width:90px;" class="r">40%</th>
-                            <th style="width:90px;" class="r">45%</th>
-                            <th style="width:90px;" class="r">50%</th>
+                            <th style="width:24px;"></th>
+                            <th style="max-width:260px;">Produto</th>
+                            <th style="width:120px;" class="c">SKU</th>
+                            <th style="width:55px;" class="c">Origem</th>
+                            <th style="width:55px;" class="c">ICMS</th>
+                            <th style="width:110px;" class="r">25%</th>
+                            <th style="width:110px;" class="r">30%</th>
+                            <th style="width:110px;" class="r">35%</th>
+                            <th style="width:110px;" class="r">40%</th>
+                            <th style="width:110px;" class="r">45%</th>
+                            <th style="width:110px;" class="r">50%</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
@@ -457,14 +472,18 @@
         const fretePorItem = getFretePorItem();
         let rowIndex = 0;
 
+        // Column labels for repeating in cat/sub headers
+        const colLabels = `<td class="col-label c" style="width:120px;">SKU</td><td class="col-label c" style="width:55px;">Orig</td><td class="col-label c" style="width:55px;">ICMS</td>` +
+            MARGINS.map(m => `<td class="col-label" style="text-align:right; width:110px;">${m}%</td>`).join('');
+
         for (const [category, subcategories] of Object.entries(HIERARCHY)) {
             let catHasRows = false;
-            let catHTML = `<tr><td colspan="11" class="cat-header">${category}</td></tr>`;
+            let catHTML = `<tr class="cat-header"><td colspan="2">${category}</td>${colLabels}</tr>`;
 
             for (const [subcategory, config] of Object.entries(subcategories)) {
                 let subHasRows = false;
                 const headerCls = config.type === 'machine' ? '' : 'insumo';
-                let subHTML = `<tr><td colspan="11" class="sub-header ${headerCls}">${subcategory}</td></tr>`;
+                let subHTML = `<tr class="sub-header ${headerCls}"><td colspan="2">${subcategory}</td>${colLabels.replace(/col-label/g, 'col-label')}</tr>`;
 
                 for (const sku of config.skus) {
                     const item = skuData[sku];
@@ -482,11 +501,11 @@
 
                     // Product row
                     subHTML += `<tr class="product-row" data-sku="${sku}" data-idx="${ri}" onclick="toggleDetail('${sku}', ${isMachine}, this)">`;
-                    subHTML += `<td style="text-align:center; color:#6e7681;">▸</td>`;
-                    subHTML += `<td>${item.descricao}</td>`;
+                    subHTML += `<td style="text-align:center; color:#6e7681; width:24px;">▸</td>`;
+                    subHTML += `<td class="produto-name" title="${item.descricao}">${item.descricao}</td>`;
                     subHTML += `<td class="sku">${sku}</td>`;
-                    subHTML += `<td style="font-size:11px;">${origemLabel}</td>`;
-                    subHTML += `<td class="r" style="color:#d29922;">${icmsPct}%</td>`;
+                    subHTML += `<td class="c" style="font-size:11px;">${origemLabel}</td>`;
+                    subHTML += `<td class="c" style="color:#d29922;">${icmsPct}%</td>`;
 
                     if (custo > 0) {
                         MARGINS.forEach(m => {
