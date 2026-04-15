@@ -1,16 +1,17 @@
 {
-  "version": 2,
+    "version": 2,
     "buildCommand": "",
     "framework": null,
-  "name": "gge-painel",
-  "outputDirectory": ".",
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
-    }
-  ]
+    "cleanUrls": true,
+    "name": "gge-painel",
+    "outputDirectory": ".",
+    "headers": [
+          {
+                  "source": "/(.*)",
+                  "headers": [
+                            { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+                            { "key": "X-Content-Type-Options", "value": "nosniff" }
+                  ]
+          }
+    ]
 }
