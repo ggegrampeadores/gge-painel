@@ -1491,53 +1491,68 @@
               </div>
             ) : (
               <>
-                {/* Vendas Brutas vs Cancelamentos */}
-                {(cancelTotals.qtd_cancel > 0 || cancelTotals.qtd_refund > 0) && (
+                {/* Vendas Brutas vs Cancelamentos — uses RPC when available */}
+                {(() => {
+                  const hasRpc = !!rpcTotals;
+                  const r = rpcTotals || {};
+                  const qtdEfetivas = hasRpc ? (r.vendas_efetivas || 0) : cancelTotals.qtd_vendas;
+                  const qtdCancel = hasRpc ? (r.vendas_canceladas || 0) : cancelTotals.qtd_cancel;
+                  const valorCancel = hasRpc ? (r.valor_cancelamentos || 0) : cancelTotals.cancelado;
+                  const receita = hasRpc ? (r.receita || 0) : cancelTotals.liquido;
+                  const vendasBrutas = receita + valorCancel;
+                  const qtdTotal = qtdEfetivas + qtdCancel;
+                  const pctCancel = hasRpc ? (r.taxa_cancelamento_pct || 0) : cancelTotals.pct;
+                  const qtdRefund = cancelTotals.qtd_refund;
+                  const refundValor = cancelTotals.refund_valor;
+
+                  if (qtdCancel <= 0 && qtdRefund <= 0) return null;
+                  return (
                   <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-lg font-semibold text-white">Vendas Brutas vs Cancelamentos</span>
                       <span className="text-xs text-gge-muted">(status das ordens no ML)</span>
                     </div>
-                    <div className={`grid grid-cols-1 gap-4 items-center ${cancelTotals.qtd_refund > 0 ? 'md:grid-cols-7' : 'md:grid-cols-5'}`}>
+                    <div className={`grid grid-cols-1 gap-4 items-center ${qtdRefund > 0 ? 'md:grid-cols-7' : 'md:grid-cols-5'}`}>
                       <div className="text-center">
                         <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Brutas</div>
-                        <div className="text-xl font-bold text-white">R$ {fmt(cancelTotals.vendas_brutas)}</div>
-                        <div className="text-gge-muted text-xs">{fmtInt(cancelTotals.qtd_vendas + cancelTotals.qtd_cancel)} ordens</div>
+                        <div className="text-xl font-bold text-white">R$ {fmt(vendasBrutas)}</div>
+                        <div className="text-gge-muted text-xs">{fmtInt(qtdTotal)} ordens</div>
                       </div>
                       <div className="text-center text-gge-muted text-2xl hidden md:block">→</div>
                       <div className="text-center">
                         <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Cancelamentos</div>
-                        <div className="text-xl font-bold text-gge-red">- R$ {fmt(cancelTotals.cancelado)}</div>
-                        <div className="text-gge-red text-xs">{fmtInt(cancelTotals.qtd_cancel)} ordens ({fmtPct(cancelTotals.pct)})</div>
+                        <div className="text-xl font-bold text-gge-red">- R$ {fmt(valorCancel)}</div>
+                        <div className="text-gge-red text-xs">{fmtInt(qtdCancel)} ordens ({fmtPct(pctCancel)})</div>
                       </div>
                       <div className="text-center text-gge-muted text-2xl hidden md:block">→</div>
                       <div className="text-center">
                         <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Realizadas</div>
-                        <div className="text-xl font-bold text-gge-green">R$ {fmt(cancelTotals.liquido)}</div>
-                        <div className="text-gge-green text-xs">{fmtInt(cancelTotals.qtd_vendas)} ordens efetivas</div>
+                        <div className="text-xl font-bold text-gge-green">R$ {fmt(receita)}</div>
+                        <div className="text-gge-green text-xs">{fmtInt(qtdEfetivas)} ordens efetivas</div>
                       </div>
-                      {cancelTotals.qtd_refund > 0 && (
+                      {qtdRefund > 0 && (
                         <>
                           <div className="text-center text-gge-muted text-2xl hidden md:block">↵</div>
                           <div className="text-center">
                             <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais</div>
-                            <div className="text-xl font-bold text-gge-yellow">R$ {fmt(cancelTotals.refund_valor)}</div>
-                            <div className="text-gge-yellow text-xs">{fmtInt(cancelTotals.qtd_refund)} devoluções</div>
+                            <div className="text-xl font-bold text-gge-yellow">R$ {fmt(refundValor)}</div>
+                            <div className="text-gge-yellow text-xs">{fmtInt(qtdRefund)} devoluções</div>
                           </div>
                         </>
                       )}
                     </div>
                     {/* Visual proportion bar */}
                     <div className="mt-4 h-3 rounded-full bg-gge-border overflow-hidden flex">
-                      <div className="bg-gge-green h-full rounded-l-full transition-all" style={{ width: `${100 - cancelTotals.pct}%` }} />
-                      <div className="bg-gge-red h-full rounded-r-full transition-all" style={{ width: `${cancelTotals.pct}%` }} />
+                      <div className="bg-gge-green h-full rounded-l-full transition-all" style={{ width: `${100 - pctCancel}%` }} />
+                      <div className="bg-gge-red h-full rounded-r-full transition-all" style={{ width: `${pctCancel}%` }} />
                     </div>
                     <div className="flex justify-between mt-1 text-xs text-gge-muted">
-                      <span>Realizadas ({fmtPct(100 - cancelTotals.pct)})</span>
-                      <span>Canceladas ({fmtPct(cancelTotals.pct)})</span>
+                      <span>Realizadas ({fmtPct(100 - pctCancel)})</span>
+                      <span>Canceladas ({fmtPct(pctCancel)})</span>
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* KPI Cards — uses RPC for accurate period data, fallback to view totals */}
                 {(() => {
