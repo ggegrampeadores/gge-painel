@@ -1563,54 +1563,48 @@
 
                 document.getElementById('indicadores-vendas-grid').innerHTML = vendasHtml;
 
-                // Now render visits
+                // Now render visits (desempenho_diario uses data_referencia, no conta_id column)
+                const safeReduce = (arr) => Array.isArray(arr) ? arr.reduce((sum, row) => sum + (row.visitas || 0), 0) : 0;
+
                 // Get today's visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=eq.${todayISO}`;
-                if (conta) url += `&conta_id=eq.${conta}`;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=eq.${todayISO}`;
                 resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const todayVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+                const todayVisits = safeReduce(await resp.json());
 
                 // Get yesterday's visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=eq.${yesterdayISO}`;
-                if (conta) url += `&conta_id=eq.${conta}`;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=eq.${yesterdayISO}`;
                 resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const yesterdayVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+                const yesterdayVisits = safeReduce(await resp.json());
 
                 // Get last 7 days visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${sevenDaysAgoISO}&data=lte.${todayISO}`;
-                if (conta) url += `&conta_id=eq.${conta}`;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${sevenDaysAgoISO}&data_referencia=lte.${todayISO}`;
                 resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const last7dVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+                const last7dVisits = safeReduce(await resp.json());
 
                 // Get previous 7 days visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${fourteenDaysAgoISO}&data=lt.${sevenDaysAgoISO}`;
-                if (conta) url += `&conta_id=eq.${conta}`;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${fourteenDaysAgoISO}&data_referencia=lt.${sevenDaysAgoISO}`;
                 resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const prev7dVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+                const prev7dVisits = safeReduce(await resp.json());
 
                 // Get last 15 days visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${fifteenDaysAgoISO}&data=lte.${todayISO}`;
-                if (conta) url += `&conta_id=eq.${conta}`;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${fifteenDaysAgoISO}&data_referencia=lte.${todayISO}`;
                 resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const last15dVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+                const last15dVisits = safeReduce(await resp.json());
 
                 // Get previous 15 days visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${thirtyDaysAgoISO}&data=lt.${fifteenDaysAgoISO}`;
-                if (conta) url += `&conta_id=eq.${conta}`;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${thirtyDaysAgoISO}&data_referencia=lt.${fifteenDaysAgoISO}`;
                 resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const prev15dVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+                const prev15dVisits = safeReduce(await resp.json());
 
                 // Get current month visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${monthStart}&data=lte.${todayISO}`;
-                if (conta) url += `&conta_id=eq.${conta}`;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${monthStart}&data_referencia=lte.${todayISO}`;
                 resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const monthVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+                const monthVisits = safeReduce(await resp.json());
 
                 // Get previous month visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${prevMonthStart}&data=lt.${nextDayAfterPrevMonth}`;
-                if (conta) url += `&conta_id=eq.${conta}`;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${prevMonthStart}&data_referencia=lt.${nextDayAfterPrevMonth}`;
                 resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const prevMonthVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+                const prevMonthVisits = safeReduce(await resp.json());
 
                 // Calculate visit trends
                 const visitTrendHoje = yesterdayVisits > 0 ? ((todayVisits - yesterdayVisits) / yesterdayVisits) * 100 : 0;
