@@ -17,6 +17,12 @@
     @keyframes alertPulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
     .row-clickable { cursor: pointer; }
     .row-clickable:hover { background: rgba(99, 102, 241, 0.1) !important; }
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 16px; border-radius: 8px; font-size: 12px; z-index: 999; animation: toastSlideIn 0.3s ease-out; }
+    @keyframes toastSlideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .toast.fade-out { animation: toastFadeOut 0.3s ease-in forwards; }
+    @keyframes toastFadeOut { from { opacity: 1; } to { opacity: 0; } }
+    .expandable-row { cursor: pointer; }
+    .expandable-row:hover { background: rgba(99, 102, 241, 0.08); }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -52,13 +58,54 @@
     ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
     .filter-active select { border-color: #6366f1 !important; color: #fff !important; font-weight: 600; }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed; left: 0; top: 0; height: 100vh; width: 48px;
+      background-color: #0a0e14; border-right: 1px solid #2a2d3a;
+      padding: 20px 0; transition: width 0.3s ease; z-index: 1000;
+      overflow-y: auto; overflow-x: hidden;
+    }
+    .sidebar:hover { width: 250px; }
+    .sidebar-header { display: flex; align-items: center; padding: 0 12px; margin-bottom: 30px; min-height: 40px; }
+    .sidebar-logo { display: flex; flex-direction: column; gap: 4px; }
+    .sidebar-logo-text { font-weight: 700; font-size: 20px; color: #58a6ff; }
+    .sidebar-logo-sub { font-size: 10px; color: #8b949e; line-height: 1; }
+    .sidebar:not(:hover) .sidebar-logo-sub { display: none; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 8px; padding: 0 8px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #f0c040; text-decoration: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; font-size: 14px; font-weight: bold; }
+    .nav-item:hover { background-color: #161b22; }
+    .nav-item.active { background-color: #58a6ff; color: #0f1117; }
+    .nav-item-icon { display: flex; align-items: center; justify-content: center; min-width: 20px; }
+    .sidebar:not(:hover) .nav-item-label { display: none; }
+    .main-with-sidebar { margin-left: 48px; min-height: 100vh; }
   </style>
-<script src="auth.js"></script>
+<script src="auth.js" defer></script>
 </head>
 <body>
-  <div id="root"></div>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <span class="sidebar-logo-text">GGE</span>
+        <span class="sidebar-logo-sub">Controle Total</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/" class="nav-item"><span class="nav-item-icon">📊</span><span class="nav-item-label">Dashboard</span></a>
+      <a href="/margem" class="nav-item active"><span class="nav-item-icon">📈</span><span class="nav-item-label">Margem</span></a>
+      <a href="/precificacao" class="nav-item"><span class="nav-item-icon">🏷️</span><span class="nav-item-label">Precificação</span></a>
+      <a href="/saude" class="nav-item"><span class="nav-item-icon">💪</span><span class="nav-item-label">Saúde</span></a>
+      <a href="/avaliacao" class="nav-item"><span class="nav-item-icon">⭐</span><span class="nav-item-label">Avaliação</span></a>
+    </nav>
+  </div>
+
+  <!-- Main content with sidebar offset -->
+  <div class="main-with-sidebar">
+    <div id="root"></div>
+  </div>
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback } = React;
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
     const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, ComposedChart, Area, ReferenceLine } = Recharts;
 
     // ── Supabase Client ──
@@ -113,13 +160,10 @@
       const sorted = [...allMeses].sort((a,b) => b.localeCompare(a));
       const today = new Date();
       const toYM = (d) => d.toISOString().slice(0, 7);
-      // Normaliza valores de `allMeses` (que podem vir em 'YYYY-MM-DD')
-      // para 'YYYY-MM' antes de comparar com os cutoffs calculados via toYM(Date).
       const mYM = (m) => String(m).slice(0, 7);
 
       switch (periodo) {
         case '7d': case '15d': case '30d': {
-          // Last N days — include months that overlap
           const days = periodo === '7d' ? 7 : periodo === '15d' ? 15 : 30;
           const cutoff = new Date(today);
           cutoff.setDate(cutoff.getDate() - days);
@@ -165,6 +209,38 @@
       }
     }
 
+    // ── Get date range for period ──
+    function getDateRangeForPeriodo(periodo) {
+      const today = new Date();
+      const toDate = new Date(today);
+      let fromDate = new Date(today);
+
+      if (periodo === '7d') fromDate.setDate(fromDate.getDate() - 7);
+      else if (periodo === '15d') fromDate.setDate(fromDate.getDate() - 15);
+      else if (periodo === '30d') fromDate.setDate(fromDate.getDate() - 30);
+      else if (periodo === '90d') fromDate.setDate(fromDate.getDate() - 90);
+      else if (periodo === '180d') fromDate.setDate(fromDate.getDate() - 180);
+      else if (periodo === '1a') fromDate.setFullYear(fromDate.getFullYear() - 1);
+      else if (periodo === 'mes_passado') {
+        const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        fromDate = new Date(d);
+        toDate.setDate(0);
+      } else if (periodo === '2m_atras') {
+        const d = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+        fromDate = new Date(d);
+        toDate = new Date(today.getFullYear(), today.getMonth() - 1, 0);
+      } else if (periodo === '3m_atras') {
+        const d = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+        fromDate = new Date(d);
+        toDate = new Date(today.getFullYear(), today.getMonth() - 2, 0);
+      }
+
+      return {
+        from: fromDate.toISOString().split('T')[0],
+        to: toDate.toISOString().split('T')[0]
+      };
+    }
+
     // ── Idade sort order (chronological) ──
     const IDADE_ORDER = { '7d': 1, '15d': 2, '30d': 3, '90d': 4, '180d': 5, '1 ano': 6, '+1 ano': 7 };
     const sortIdades = (arr) => [...arr].sort((a, b) => (IDADE_ORDER[a] || 99) - (IDADE_ORDER[b] || 99));
@@ -172,6 +248,17 @@
     // ── Loading skeleton ──
     function Skeleton({ className }) {
       return <div className={`bg-gge-border rounded pulse-load ${className || ''}`} />;
+    }
+
+    // ── Toast Notification ──
+    function Toast({ message, duration = 1500 }) {
+      const [visible, setVisible] = useState(true);
+      useEffect(() => {
+        const timer = setTimeout(() => setVisible(false), duration);
+        return () => clearTimeout(timer);
+      }, [duration]);
+      if (!visible) return null;
+      return <div className="toast">{message}</div>;
     }
 
     // ── Metric Card ──
@@ -217,8 +304,13 @@
       );
     }
 
-    // ── Groups Summary Table — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL ──
+    // ── Groups Summary Table with click-to-expand ──
     function GroupsSummary({ data }) {
+      const [expandedGrupo, setExpandedGrupo] = useState(null);
+      const [loadingAnuncios, setLoadingAnuncios] = useState({});
+      const [anunciosData, setAnunciosData] = useState({});
+      const [toast, setToast] = useState(null);
+
       const groups = useMemo(() => {
         const map = {};
         data.forEach(row => {
@@ -251,6 +343,33 @@
         return t;
       }, [groups]);
 
+      const handleGrupoClick = async (grupo) => {
+        if (expandedGrupo === grupo) {
+          setExpandedGrupo(null);
+          return;
+        }
+
+        if (anunciosData[grupo]) {
+          setExpandedGrupo(grupo);
+          return;
+        }
+
+        setLoadingAnuncios(prev => ({ ...prev, [grupo]: true }));
+        try {
+          const anuncios = data.filter(d => d.grupo === grupo);
+          setAnunciosData(prev => ({ ...prev, [grupo]: anuncios }));
+          setExpandedGrupo(grupo);
+        } finally {
+          setLoadingAnuncios(prev => ({ ...prev, [grupo]: false }));
+        }
+      };
+
+      const copyToClipboard = (text, type) => {
+        navigator.clipboard.writeText(text);
+        setToast(`${type === 'mlb' ? 'MLB' : 'SKU'} copiado!`);
+        setTimeout(() => setToast(null), 1500);
+      };
+
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
           <div className="px-5 py-4 border-b border-gge-border">
@@ -260,6 +379,7 @@
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gge-muted text-xs uppercase tracking-wider">
+                  <th className="text-left px-5 py-3"></th>
                   <th className="text-left px-5 py-3">Grupo</th>
                   <th className="text-right px-3 py-3">Anúncios</th>
                   <th className="text-right px-3 py-3">Vendas</th>
@@ -276,38 +396,101 @@
               </thead>
               <tbody>
                 {groups.map((g, i) => (
-                  <tr key={g.grupo} className={`border-t border-gge-border/50 hover:bg-white/5 transition-colors ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
-                    <td className="px-5 py-3"><GrupoBadge grupo={g.grupo} /></td>
-                    <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.anuncios)}</td>
-                    <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.vendas)}</td>
-                    <td className="text-right px-3 py-3 text-white font-medium">R$ {fmt(g.receita)}</td>
-                    <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(g.custo_ads)}</td>
-                    <td className={`text-right px-3 py-3 font-medium border-l border-gge-border/50 ${g.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      R$ {fmt(g.mc2)}
-                    </td>
-                    <td className={`text-right px-3 py-3 ${g.mc2_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      {fmtPct(g.mc2_pct)}
-                    </td>
-                    <td className="text-right px-3 py-3 text-gge-cyan">
-                      {totG.mc2 !== 0 ? fmtPct(g.mc2 / totG.mc2 * 100) : '—'}
-                    </td>
-                    <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">
-                      R$ {fmt(g.difal)}
-                    </td>
-                    <td className={`text-right px-3 py-3 font-bold border-l border-gge-border/50 ${g.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      R$ {fmt(g.mc1)}
-                    </td>
-                    <td className={`text-right px-3 py-3 font-bold ${g.mc1_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                      {fmtPct(g.mc1_pct)}
-                    </td>
-                    <td className="text-right px-5 py-3 text-gge-cyan">
-                      {totG.mc1 !== 0 ? fmtPct(g.mc1 / totG.mc1 * 100) : '—'}
-                    </td>
-                  </tr>
+                  <React.Fragment key={g.grupo}>
+                    <tr className={`border-t border-gge-border hover:bg-white/5 transition-colors expandable-row ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}
+                        onClick={() => handleGrupoClick(g.grupo)}>
+                      <td className="px-5 py-3 text-gge-muted text-lg">{expandedGrupo === g.grupo ? '▼' : '▶'}</td>
+                      <td className="px-5 py-3"><GrupoBadge grupo={g.grupo} /></td>
+                      <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.anuncios)}</td>
+                      <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.vendas)}</td>
+                      <td className="text-right px-3 py-3 text-white font-medium">R$ {fmt(g.receita)}</td>
+                      <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(g.custo_ads)}</td>
+                      <td className={`text-right px-3 py-3 font-medium border-l border-gge-border/50 ${g.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        R$ {fmt(g.mc2)}
+                      </td>
+                      <td className={`text-right px-3 py-3 ${g.mc2_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        {fmtPct(g.mc2_pct)}
+                      </td>
+                      <td className="text-right px-3 py-3 text-gge-cyan">
+                        {totG.mc2 !== 0 ? fmtPct(g.mc2 / totG.mc2 * 100) : '—'}
+                      </td>
+                      <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">
+                        R$ {fmt(g.difal)}
+                      </td>
+                      <td className={`text-right px-3 py-3 font-bold border-l border-gge-border/50 ${g.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        R$ {fmt(g.mc1)}
+                      </td>
+                      <td className={`text-right px-3 py-3 font-bold ${g.mc1_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        {fmtPct(g.mc1_pct)}
+                      </td>
+                      <td className="text-right px-5 py-3 text-gge-cyan">
+                        {totG.mc1 !== 0 ? fmtPct(g.mc1 / totG.mc1 * 100) : '—'}
+                      </td>
+                    </tr>
+
+                    {expandedGrupo === g.grupo && (
+                      <tr className="bg-gge-bg/50 border-t border-gge-border/30">
+                        <td colSpan="13" className="px-5 py-4">
+                          {loadingAnuncios[g.grupo] ? (
+                            <div className="text-center text-gge-muted text-sm">Carregando anúncios...</div>
+                          ) : (
+                            <div className="space-y-2">
+                              <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Anúncios no Grupo {g.grupo}</h4>
+                              <div className="overflow-x-auto rounded-lg border border-gge-border/30">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-gge-muted uppercase tracking-wider bg-gge-border/10">
+                                      <th className="text-left px-3 py-2">Título</th>
+                                      <th className="text-left px-3 py-2">MLB ID</th>
+                                      <th className="text-left px-3 py-2">SKU</th>
+                                      <th className="text-right px-3 py-2">Margem %</th>
+                                      <th className="text-right px-3 py-2">Margem R$</th>
+                                      <th className="text-right px-3 py-2">Receita</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {anunciosData[g.grupo]?.map((item, idx) => (
+                                      <tr key={idx} className={`border-t border-gge-border/20 ${idx % 2 === 0 ? '' : 'bg-white/[0.01]'}`}>
+                                        <td className="px-3 py-2 text-gge-text truncate max-w-xs" title={item.titulo}>{item.titulo}</td>
+                                        <td className="px-3 py-2 text-gge-accent font-mono flex items-center gap-1">
+                                          <span>{item.mlb_id}</span>
+                                          <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.mlb_id, 'mlb'); }}
+                                                  className="opacity-50 hover:opacity-100 transition-opacity" title="Copiar MLB">
+                                            📋
+                                          </button>
+                                        </td>
+                                        <td className="px-3 py-2 text-gge-text flex items-center gap-1">
+                                          <span className="truncate">{item.sku_vendedor || '—'}</span>
+                                          {item.sku_vendedor && (
+                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.sku_vendedor, 'sku'); }}
+                                                    className="opacity-50 hover:opacity-100 transition-opacity shrink-0" title="Copiar SKU">
+                                              📋
+                                            </button>
+                                          )}
+                                        </td>
+                                        <td className={`text-right px-3 py-2 ${Number(item.margem_pct) >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                                          {fmtPct(item.margem_pct)}
+                                        </td>
+                                        <td className={`text-right px-3 py-2 font-medium ${Number(item.margem_valor) >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                                          R$ {fmt(item.margem_valor)}
+                                        </td>
+                                        <td className="text-right px-3 py-2 text-white">R$ {fmt(item.receita)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-gge-border font-bold">
+                  <td className="px-5 py-3"></td>
                   <td className="px-5 py-3 text-white">TOTAL</td>
                   <td className="text-right px-3 py-3 text-white">{fmtInt(totG.anuncios)}</td>
                   <td className="text-right px-3 py-3 text-white">{fmtInt(totG.vendas)}</td>
@@ -332,6 +515,7 @@
               </tfoot>
             </table>
           </div>
+          {toast && <Toast message={toast} />}
         </div>
       );
     }
@@ -388,7 +572,7 @@
       );
     }
 
-    // ── Distribution Pie ──
+    // ── Distribution Pie with percentage in legend ──
     function DistributionPie({ data, title, field, labelFn }) {
       const pieData = useMemo(() => {
         const map = {};
@@ -402,6 +586,21 @@
       }, [data, field, labelFn]);
 
       const COLORS = ['#6366f1','#22c55e','#3b82f6','#eab308','#ef4444','#a855f7','#f97316','#14b8a6'];
+      const total = pieData.reduce((s, d) => s + d.value, 0);
+
+      const CustomLegend = (props) => {
+        return (
+          <div className="flex flex-wrap gap-2 justify-center mt-3 text-xs">
+            {pieData.map((item, i) => (
+              <span key={i} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
+                <span className="text-gge-text">{item.name}</span>
+                <span className="text-gge-muted">({fmtPct(total > 0 ? item.value / total * 100 : 0)})</span>
+              </span>
+            ))}
+          </div>
+        );
+      };
 
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
@@ -415,21 +614,37 @@
               </Pie>
               <Tooltip formatter={v => `R$ ${fmt(v)}`}
                        contentStyle={{ backgroundColor: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8, color: '#e2e8f0' }} />
-              <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
             </PieChart>
           </ResponsiveContainer>
+          <CustomLegend />
         </div>
       );
     }
 
-    // ── Top Anúncios Table — MC1 = c/ DIFAL (final) ──
+    // ── Top Anúncios Table with copy buttons ──
     function TopAnuncios({ data, mode, onDrill, totals }) {
+      const [toast, setToast] = useState(null);
+
       const sorted = useMemo(() => {
         const filtered = data.filter(d => Number(d.receita) > 0);
         if (mode === 'lucro') return [...filtered].sort((a,b) => Number(b.margem_valor) - Number(a.margem_valor)).slice(0, 10);
         if (mode === 'prejuizo') return [...filtered].sort((a,b) => Number(a.margem_valor) - Number(b.margem_valor)).slice(0, 10);
+        if (mode === 'crescimento_vendas') {
+          const sorted_all = [...filtered].sort((a,b) => {
+            const aGrowth = Number(b.qtd_vendas_growth) || 0;
+            const bGrowth = Number(a.qtd_vendas_growth) || 0;
+            return aGrowth - bGrowth;
+          }).slice(0, 10);
+          return sorted_all;
+        }
         return [...filtered].sort((a,b) => Number(b.receita) - Number(a.receita)).slice(0, 10);
       }, [data, mode]);
+
+      const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text);
+        setToast('MLB copiado!');
+        setTimeout(() => setToast(null), 1500);
+      };
 
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
@@ -462,7 +677,13 @@
                       <td className="px-4 py-2.5 text-gge-muted">{i+1}</td>
                       <td className="px-4 py-2.5">
                         <div className="text-white text-sm font-medium truncate max-w-xs" title={row.titulo}>{row.titulo}</div>
-                        <div className="text-gge-muted text-xs">{row.sku_vendedor || '—'} · {row.mlb_id}</div>
+                        <div className="text-gge-muted text-xs flex items-center gap-2 mt-0.5">
+                          <span>{row.sku_vendedor || '—'} · {row.mlb_id}</span>
+                          <button onClick={(e) => { e.stopPropagation(); copyToClipboard(row.mlb_id); }}
+                                  className="opacity-50 hover:opacity-100 transition-opacity" title="Copiar MLB ID">
+                            📋
+                          </button>
+                        </div>
                       </td>
                       <td className="text-right px-4 py-2.5 text-gge-text">{fmtInt(row.qtd_vendas)}</td>
                       <td className="text-right px-4 py-2.5 text-white">R$ {fmt(row.receita)}</td>
@@ -480,6 +701,7 @@
               </tbody>
             </table>
           </div>
+          {toast && <Toast message={toast} />}
         </div>
       );
     }
@@ -1104,13 +1326,13 @@
                         <div className="text-xl font-bold text-white">R$ {fmt(cancelTotals.vendas_brutas)}</div>
                         <div className="text-gge-muted text-xs">{fmtInt(cancelTotals.qtd_vendas + cancelTotals.qtd_cancel)} ordens</div>
                       </div>
-                      <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
+                      <div className="text-center text-gge-muted text-2xl hidden md:block">→</div>
                       <div className="text-center">
                         <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Cancelamentos</div>
                         <div className="text-xl font-bold text-gge-red">- R$ {fmt(cancelTotals.cancelado)}</div>
                         <div className="text-gge-red text-xs">{fmtInt(cancelTotals.qtd_cancel)} ordens ({fmtPct(cancelTotals.pct)})</div>
                       </div>
-                      <div className="text-center text-gge-muted text-2xl hidden md:block">&#8594;</div>
+                      <div className="text-center text-gge-muted text-2xl hidden md:block">→</div>
                       <div className="text-center">
                         <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Realizadas</div>
                         <div className="text-xl font-bold text-gge-green">R$ {fmt(cancelTotals.liquido)}</div>
@@ -1118,7 +1340,7 @@
                       </div>
                       {cancelTotals.qtd_refund > 0 && (
                         <>
-                          <div className="text-center text-gge-muted text-2xl hidden md:block">&#8634;</div>
+                          <div className="text-center text-gge-muted text-2xl hidden md:block">↵</div>
                           <div className="text-center">
                             <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais</div>
                             <div className="text-xl font-bold text-gge-yellow">R$ {fmt(cancelTotals.refund_valor)}</div>
@@ -1141,36 +1363,36 @@
 
                 {/* KPI Cards — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL */}
                 <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="&#128176;" />
+                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="💰" />
                   <MetricCard label="Custo Produto" value={`R$ ${fmt(totals.custo)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.custo/totals.receita*100)} da receita` : ''}
-                              icon="&#128230;" />
-  3               <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
+                              icon="📦" />
+                  <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.comissao/totals.receita*100)} da receita` : ''}
-                              icon="&#127978;" />
+                              icon="🏆" />
                   <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`}
                               sub={totals.receita > 0 ? `${fmtPct(totals.frete/totals.receita*100)} da receita` : ''}
-                              icon="&#128666;" />
+                              icon="🚚" />
                   <MetricCard label="ADs" value={`R$ ${fmt(totals.ads)}`}
                               color="text-gge-yellow"
                               sub={totals.receita > 0 ? `${fmtPct(totals.ads/totals.receita*100)} da receita` : ''}
-                              icon="&#128226;" />
+                              icon="📢" />
                   <MetricCard label="MC1 (c/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
                               color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="&#127919;" />
+                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="🏅" />
                   <MetricCard label="DIFAL" value={`R$ ${fmt(totals.difal)}`}
                               color="text-gge-orange"
                               sub={totals.receita > 0 ? `${fmtPct(totals.difal/totals.receita*100)} da receita` : ''}
-                              icon="&#127970;" />
+                              icon="🍰" />
                   <MetricCard label="MC2 (s/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
                               color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="&#128200;" />
+                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="📊" />
                   <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`}
                               sub={`${fmtInt(totals.vendas)} vendas`}
-                              icon="&#127915;" />
+                              icon="🍕" />
                   <MetricCard label="Vendas" value={fmtInt(totals.vendas)}
-                              sub={`${fmtInt(totals.prejuizo_count)} em prejuí�o`}
-                              icon="&#128722;" />
+                              sub={`${fmtInt(totals.prejuizo_count)} em prejuízo`}
+                              icon="🛒" />
                 </div>
 
                 {/* Charts Row */}
@@ -1178,7 +1400,7 @@
                   <div className="lg:col-span-2">
                     <GroupsChart data={filtered} />
                   </div>
-                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Ponto de Saída" field="ponto_saida" />
+                  <DistributionPie data={filtered.filter(d => Number(d.receita) > 0)} title="Receita por Conta" field="conta_nome" />
                 </div>
 
                 {/* Groups Table */}
