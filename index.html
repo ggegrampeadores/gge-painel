@@ -432,6 +432,14 @@
             background-color: #1a1d1a;
         }
 
+        .metric-card.card-ind-vendas {
+            background-color: #1a1f2a;
+        }
+
+        .metric-card.card-ind-visitas {
+            background-color: #1d1a24;
+        }
+
         .metric-value {
             font-size: 20px;
             font-weight: 700;
@@ -845,29 +853,17 @@
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
 
-            <!-- INDICADORES Section -->
+            <!-- INDICADORES — 8 cards em linha única (4 Vendas + 4 Visitas) -->
             <div class="section-title">INDICADORES</div>
-
-            <!-- Vendas subsection -->
-            <div class="indicadores-subgroup">
-                <div class="indicadores-subgroup-title">Vendas</div>
-                <div class="cards-grid-4" id="indicadores-vendas-grid">
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                </div>
-            </div>
-
-            <!-- Visitas subsection -->
-            <div class="indicadores-subgroup" style="margin-bottom: 20px;">
-                <div class="indicadores-subgroup-title">Visitas</div>
-                <div class="cards-grid-4" id="indicadores-visitas-grid">
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                </div>
+            <div class="cards-grid" style="grid-template-columns: repeat(8, 1fr); gap: 10px;" id="indicadores-row">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
 
             <!-- ALERTAS DE GRUPOS Section -->
@@ -1201,14 +1197,13 @@
             `;
         }
 
-        function buildIndicatorCard(title, value, trendPct, previousValue) {
+        function buildIndicatorCard(title, value, trendPct, previousValue, extraClass = '') {
             const delta = value - previousValue;
-            const isPositive = delta > 0;
             const arrow = delta > 0 ? '▲' : (delta < 0 ? '▼' : '—');
             const color = getTrendColorGradient(trendPct);
 
             return `
-                <div class="metric-card indicator">
+                <div class="metric-card indicator ${extraClass}">
                     <div class="metric-value">${fmtNum(value)}</div>
                     <div class="metric-subtitle">
                         <span class="metric-subtitle-main">${title}</span>
@@ -1460,13 +1455,11 @@
                 const trendMonth = prevMonthVendas > 0 ? ((monthVendas - prevMonthVendas) / prevMonthVendas) * 100 : 0;
 
                 const vendasHtml = [
-                    buildIndicatorCard('Hoje', todayVendas, trendHoje, yesterdayVendas),
-                    buildIndicatorCard('Semana', last7dVendas, trend7d, prev7dVendas),
-                    buildIndicatorCard('Quinzena', last15dVendas, trend15d, prev15dVendas),
-                    buildIndicatorCard('Mês', monthVendas, trendMonth, prevMonthVendas)
+                    buildIndicatorCard('Vendas Hoje', todayVendas, trendHoje, yesterdayVendas, 'card-ind-vendas'),
+                    buildIndicatorCard('Vendas Semana', last7dVendas, trend7d, prev7dVendas, 'card-ind-vendas'),
+                    buildIndicatorCard('Vendas Quinzena', last15dVendas, trend15d, prev15dVendas, 'card-ind-vendas'),
+                    buildIndicatorCard('Vendas Mês', monthVendas, trendMonth, prevMonthVendas, 'card-ind-vendas')
                 ].join('');
-
-                document.getElementById('indicadores-vendas-grid').innerHTML = vendasHtml;
 
                 // Now render visits (desempenho_diario uses data_referencia, no conta_id column)
                 const safeReduce = (arr) => Array.isArray(arr) ? arr.reduce((sum, row) => sum + (row.visitas || 0), 0) : 0;
@@ -1518,17 +1511,16 @@
                 const visitTrendMonth = prevMonthVisits > 0 ? ((monthVisits - prevMonthVisits) / prevMonthVisits) * 100 : 0;
 
                 const visitsHtml = [
-                    buildIndicatorCard('Hoje', todayVisits, visitTrendHoje, yesterdayVisits),
-                    buildIndicatorCard('Semana', last7dVisits, visitTrend7d, prev7dVisits),
-                    buildIndicatorCard('Quinzena', last15dVisits, visitTrend15d, prev15dVisits),
-                    buildIndicatorCard('Mês', monthVisits, visitTrendMonth, prevMonthVisits)
+                    buildIndicatorCard('Visitas Hoje', todayVisits, visitTrendHoje, yesterdayVisits, 'card-ind-visitas'),
+                    buildIndicatorCard('Visitas Semana', last7dVisits, visitTrend7d, prev7dVisits, 'card-ind-visitas'),
+                    buildIndicatorCard('Visitas Quinzena', last15dVisits, visitTrend15d, prev15dVisits, 'card-ind-visitas'),
+                    buildIndicatorCard('Visitas Mês', monthVisits, visitTrendMonth, prevMonthVisits, 'card-ind-visitas')
                 ].join('');
 
-                document.getElementById('indicadores-visitas-grid').innerHTML = visitsHtml;
+                document.getElementById('indicadores-row').innerHTML = vendasHtml + visitsHtml;
             } catch (error) {
                 console.error('Error rendering indicadores:', error);
-                document.getElementById('indicadores-vendas-grid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #f85149;">Erro ao carregar indicadores</div>';
-                document.getElementById('indicadores-visitas-grid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #f85149;">Erro ao carregar indicadores</div>';
+                document.getElementById('indicadores-row').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #f85149;">Erro ao carregar indicadores</div>';
             }
         }
 
