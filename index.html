@@ -405,8 +405,8 @@
         .metric-card {
             background-color: #1a1d27;
             border: 1px solid #2a2d3a;
-            border-radius: 14px;
-            padding: 14px;
+            border-radius: 10px;
+            padding: 12px;
             transition: all 0.3s ease;
             cursor: default;
         }
@@ -417,10 +417,10 @@
         }
 
         .metric-value {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             color: #c9d1d9;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .metric-subtitle {
@@ -804,37 +804,17 @@
 
         <!-- Content -->
         <div class="content">
-            <!-- VENDAS Section -->
+            <!-- VENDAS Section — 7 cards em linha única -->
             <div class="section-title">VENDAS</div>
-
-            <!-- UNIDADES subsection -->
-            <div class="indicadores-subgroup">
-                <div class="indicadores-subgroup-title">Unidades</div>
-                <div class="cards-grid-4" style="grid-template-columns: repeat(3, 1fr);">
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                </div>
+            <div class="cards-grid" style="grid-template-columns: repeat(7, 1fr); gap: 10px;" id="vendas-row">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
-
-            <!-- VALORES subsection -->
-            <div class="indicadores-subgroup">
-                <div class="indicadores-subgroup-title">Valores (R$)</div>
-                <div class="cards-grid-4" style="grid-template-columns: repeat(3, 1fr);">
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                </div>
-            </div>
-
-            <!-- TICKET MÉDIO subsection -->
-            <div class="indicadores-subgroup" style="margin-bottom: 20px;">
-                <div class="cards-grid" style="grid-template-columns: 1fr;">
-                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                </div>
-            </div>
-
-            <div id="vendas-cards" style="display: none;"></div>
 
             <!-- CUSTOS Section -->
             <div class="section-title">CUSTOS</div>
@@ -1360,20 +1340,9 @@
                 trend: calculateTrend(data.ticket_medio, prev.ticket_medio)
             };
 
-            const unidadesHtml = unidadesCards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend)).join('');
-            const valoresHtml = valoresCards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend)).join('');
-            const ticketHtml = buildMetricCard(ticketCard.title, ticketCard.value, ticketCard.subtitle, ticketCard.trend);
-
-            // Insert after the VENDAS title
-            const vendasSectionTitle = document.querySelector('.section-title');
-            const unidadesGroup = vendasSectionTitle.nextElementSibling;
-            unidadesGroup.querySelector('.cards-grid-4').innerHTML = unidadesHtml;
-
-            const valoresGroup = unidadesGroup.nextElementSibling;
-            valoresGroup.querySelector('.cards-grid-4').innerHTML = valoresHtml;
-
-            const ticketGroup = valoresGroup.nextElementSibling;
-            ticketGroup.querySelector('.cards-grid').innerHTML = ticketHtml;
+            const allCards = [...unidadesCards, ...valoresCards, ticketCard];
+            const allHtml = allCards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend)).join('');
+            document.getElementById('vendas-row').innerHTML = allHtml;
         }
 
         // ========== RENDER CUSTOS CARDS ==========
