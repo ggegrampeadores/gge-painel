@@ -622,23 +622,60 @@
     }
 
     // ── Top Anúncios Table with copy buttons ──
-    function TopAnuncios({ data, mode, onDrill, totals }) {
+    function TopAnuncios({ data, allData, visitasData, mode, onDrill, totals }) {
       const [toast, setToast] = useState(null);
 
       const sorted = useMemo(() => {
         const filtered = data.filter(d => Number(d.receita) > 0);
         if (mode === 'lucro') return [...filtered].sort((a,b) => Number(b.margem_valor) - Number(a.margem_valor)).slice(0, 10);
         if (mode === 'prejuizo') return [...filtered].sort((a,b) => Number(a.margem_valor) - Number(b.margem_valor)).slice(0, 10);
+
         if (mode === 'crescimento_vendas') {
-          const sorted_all = [...filtered].sort((a,b) => {
-            const aGrowth = Number(b.qtd_vendas_growth) || 0;
-            const bGrowth = Number(a.qtd_vendas_growth) || 0;
-            return aGrowth - bGrowth;
-          }).slice(0, 10);
-          return sorted_all;
+          // Compare current month vs previous month per mlb_id
+          const today = new Date();
+          const curMonth = today.toISOString().slice(0, 7);
+          const prevDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+          const prevMonth = prevDate.toISOString().slice(0, 7);
+
+          const curMap = {};
+          const prevMap = {};
+          (allData || []).forEach(d => {
+            const m = String(d.mes).slice(0, 7);
+            const mlb = d.mlb_id;
+            const qty = Number(d.qtd_vendas) || 0;
+            if (m === curMonth) curMap[mlb] = (curMap[mlb] || 0) + qty;
+            if (m === prevMonth) prevMap[mlb] = (prevMap[mlb] || 0) + qty;
+          });
+
+          // Build growth list with titulo from filtered data
+          const mlbInfo = {};
+          filtered.forEach(d => { if (!mlbInfo[d.mlb_id]) mlbInfo[d.mlb_id] = d; });
+
+          const growthList = Object.keys(curMap).filter(mlb => prevMap[mlb] > 0 && mlbInfo[mlb]).map(mlb => ({
+            ...mlbInfo[mlb],
+            _growth_pct: ((curMap[mlb] - prevMap[mlb]) / prevMap[mlb]) * 100,
+            _cur_vendas: curMap[mlb],
+            _prev_vendas: prevMap[mlb]
+          }));
+          return growthList.sort((a, b) => b._growth_pct - a._growth_pct).slice(0, 10);
         }
+
+        if (mode === 'crescimento_visitas' && visitasData) {
+          // visitasData = { mlb_id: { cur: N, prev: N } }
+          const mlbInfo = {};
+          filtered.forEach(d => { if (!mlbInfo[d.mlb_id]) mlbInfo[d.mlb_id] = d; });
+
+          const growthList = Object.keys(visitasData).filter(mlb => visitasData[mlb].prev > 0 && mlbInfo[mlb]).map(mlb => ({
+            ...mlbInfo[mlb],
+            _growth_pct: ((visitasData[mlb].cur - visitasData[mlb].prev) / visitasData[mlb].prev) * 100,
+            _cur_visitas: visitasData[mlb].cur,
+            _prev_visitas: visitasData[mlb].prev
+          }));
+          return growthList.sort((a, b) => b._growth_pct - a._growth_pct).slice(0, 10);
+        }
+
         return [...filtered].sort((a,b) => Number(b.receita) - Number(a.receita)).slice(0, 10);
-      }, [data, mode]);
+      }, [data, allData, visitasData, mode]);
 
       const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
@@ -654,6 +691,9 @@
                 <tr className="text-gge-muted text-xs uppercase tracking-wider">
                   <th className="text-left px-4 py-3 w-12">#</th>
                   <th className="text-left px-4 py-3">Anúncio</th>
+                  {(mode === 'crescimento_vendas' || mode === 'crescimento_visitas') && (
+                    <th className="text-right px-4 py-3 text-gge-green">Crescimento</th>
+                  )}
                   <th className="text-right px-4 py-3">Vendas</th>
                   <th className="text-right px-4 py-3">Receita</th>
                   <th className="text-right px-4 py-3">DIFAL</th>
@@ -685,6 +725,22 @@
                           </button>
                         </div>
                       </td>
+                      {mode === 'crescimento_vendas' && (
+                        <td className="text-right px-4 py-2.5">
+                          <span className={`font-bold ${(row._growth_pct || 0) >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                            {(row._growth_pct || 0) >= 0 ? '▲' : '▼'} {Math.abs(row._growth_pct || 0).toFixed(1)}%
+                          </span>
+                          <div className="text-gge-muted text-xs">{row._prev_vendas || 0} → {row._cur_vendas || 0}</div>
+                        </td>
+                      )}
+                      {mode === 'crescimento_visitas' && (
+                        <td className="text-right px-4 py-2.5">
+                          <span className={`font-bold ${(row._growth_pct || 0) >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                            {(row._growth_pct || 0) >= 0 ? '▲' : '▼'} {Math.abs(row._growth_pct || 0).toFixed(1)}%
+                          </span>
+                          <div className="text-gge-muted text-xs">{row._prev_visitas || 0} → {row._cur_visitas || 0}</div>
+                        </td>
+                      )}
                       <td className="text-right px-4 py-2.5 text-gge-text">{fmtInt(row.qtd_vendas)}</td>
                       <td className="text-right px-4 py-2.5 text-white">R$ {fmt(row.receita)}</td>
                       <td className="text-right px-4 py-2.5 text-gge-orange">{difal > 0 ? `R$ ${fmt(difal)}` : '—'}</td>
@@ -1119,6 +1175,7 @@
       const [topMode, setTopMode] = useState('lucro');
       const [drillMlb, setDrillMlb] = useState(null);
       const [drillTitulo, setDrillTitulo] = useState('');
+      const [visitasGrowth, setVisitasGrowth] = useState(null);
 
       // Fetch data
       useEffect(() => {
@@ -1146,6 +1203,39 @@
         }
         load();
       }, []);
+
+      // Fetch visitas growth data when mode changes to crescimento_visitas
+      useEffect(() => {
+        if (topMode !== 'crescimento_visitas' || visitasGrowth) return;
+        async function loadVisitas() {
+          try {
+            const today = new Date();
+            const thirtyAgo = new Date(today.getTime() - 30 * 86400000).toISOString().split('T')[0];
+            const sixtyAgo = new Date(today.getTime() - 60 * 86400000).toISOString().split('T')[0];
+            const todayISO = today.toISOString().split('T')[0];
+
+            const [curRes, prevRes] = await Promise.all([
+              supabase.from('desempenho_diario').select('mlb_id,visitas').gte('data_referencia', thirtyAgo).lte('data_referencia', todayISO),
+              supabase.from('desempenho_diario').select('mlb_id,visitas').gte('data_referencia', sixtyAgo).lt('data_referencia', thirtyAgo)
+            ]);
+
+            const map = {};
+            (curRes.data || []).forEach(r => {
+              if (!map[r.mlb_id]) map[r.mlb_id] = { cur: 0, prev: 0 };
+              map[r.mlb_id].cur += Number(r.visitas) || 0;
+            });
+            (prevRes.data || []).forEach(r => {
+              if (!map[r.mlb_id]) map[r.mlb_id] = { cur: 0, prev: 0 };
+              map[r.mlb_id].prev += Number(r.visitas) || 0;
+            });
+            setVisitasGrowth(map);
+          } catch (e) {
+            console.error('Erro ao carregar visitas:', e);
+            setVisitasGrowth({});
+          }
+        }
+        loadVisitas();
+      }, [topMode, visitasGrowth]);
 
       // Active months for the selected period
       const activeMeses = useMemo(() => getMesesForPeriodo(periodoSel, meses), [periodoSel, meses]);
@@ -1427,7 +1517,7 @@
                   <div className="flex items-center gap-4 mb-3">
                     <h3 className="text-lg font-semibold text-white">Top 10 Anúncios</h3>
                     <div className="flex gap-1">
-                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuízo'], ['receita', 'Maior Receita']].map(([k, label]) => (
+                      {[['lucro', 'Maior Lucro'], ['prejuizo', 'Maior Prejuízo'], ['receita', 'Maior Receita'], ['crescimento_vendas', '📈 Cresc. Vendas 30d'], ['crescimento_visitas', '👁 Cresc. Visitas 30d']].map(([k, label]) => (
                         <button key={k} onClick={() => setTopMode(k)}
                                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${topMode === k ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
                           {label}
@@ -1435,7 +1525,7 @@
                       ))}
                     </div>
                   </div>
-                  <TopAnuncios data={filtered} mode={topMode} totals={totals} onDrill={(mlb, titulo) => { setDrillMlb(mlb); setDrillTitulo(titulo); }} />
+                  <TopAnuncios data={filtered} allData={rawData} visitasData={visitasGrowth} mode={topMode} totals={totals} onDrill={(mlb, titulo) => { setDrillMlb(mlb); setDrillTitulo(titulo); }} />
                 </div>
 
                 {/* Drilldown Modal */}
