@@ -26,30 +26,31 @@
             left: 0;
             top: 0;
             height: 100vh;
-            width: 250px;
+            width: 48px;
             background-color: #0a0e14;
             border-right: 1px solid #2a2d3a;
             padding: 20px 0;
             transition: width 0.3s ease;
             z-index: 1000;
             overflow-y: auto;
+            overflow-x: hidden;
         }
 
-        .sidebar.collapsed {
-            width: 48px;
+        .sidebar:hover {
+            width: 250px;
         }
 
         .sidebar-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 16px;
+            padding: 0 12px;
             margin-bottom: 30px;
             min-height: 40px;
         }
 
-        .sidebar.collapsed .sidebar-header {
-            justify-content: center;
+        .sidebar:hover .sidebar-header {
+            justify-content: flex-start;
         }
 
         .sidebar-logo {
@@ -70,28 +71,8 @@
             line-height: 1;
         }
 
-        .sidebar.collapsed .sidebar-logo-sub {
+        .sidebar:not(:hover) .sidebar-logo-sub {
             display: none;
-        }
-
-        .sidebar-toggle {
-            background: none;
-            border: none;
-            color: #8b949e;
-            cursor: pointer;
-            padding: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: color 0.2s;
-        }
-
-        .sidebar-toggle:hover {
-            color: #c9d1d9;
-        }
-
-        .sidebar.collapsed .sidebar-logo-text {
-            font-size: 16px;
         }
 
         .sidebar-nav {
@@ -107,17 +88,17 @@
             gap: 12px;
             padding: 10px 12px;
             border-radius: 6px;
-            color: #8b949e;
+            color: #f0c040;
             text-decoration: none;
             cursor: pointer;
             transition: all 0.2s;
             white-space: nowrap;
             font-size: 14px;
+            font-weight: bold;
         }
 
         .nav-item:hover {
             background-color: #161b22;
-            color: #c9d1d9;
         }
 
         .nav-item.active {
@@ -132,20 +113,16 @@
             min-width: 20px;
         }
 
-        .sidebar.collapsed .nav-item-label {
+        .sidebar:not(:hover) .nav-item-label {
             display: none;
         }
 
         /* Main content */
         .container {
-            margin-left: 250px;
+            margin-left: 48px;
             transition: margin-left 0.3s ease;
             min-height: 100vh;
             background-color: #0f1117;
-        }
-
-        .container.expanded {
-            margin-left: 48px;
         }
 
         /* Header */
@@ -238,14 +215,14 @@
         /* Cards Grid */
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(7, 1fr);
             gap: 16px;
             margin-bottom: 20px;
         }
 
         @media (max-width: 1600px) {
             .cards-grid {
-                grid-template-columns: repeat(4, 1fr);
+                grid-template-columns: repeat(5, 1fr);
             }
         }
 
@@ -259,6 +236,41 @@
             .cards-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+        }
+
+        /* Cards Grid for Indicadores */
+        .cards-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .cards-grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .cards-grid-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Indicadores subsection group */
+        .indicadores-subgroup {
+            margin-bottom: 30px;
+        }
+
+        .indicadores-subgroup-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            margin-left: 2px;
         }
 
         /* Alert Grupos Grid */
@@ -287,8 +299,9 @@
             border: 1px solid #2a2d3a;
             border-left: 4px solid #2a2d3a;
             border-radius: 14px;
-            padding: 20px;
+            padding: 14px;
             transition: all 0.3s ease;
+            cursor: pointer;
         }
 
         .alert-grupo-card:hover {
@@ -360,12 +373,40 @@
             color: #c9d1d9;
         }
 
+        /* Expanded table for alert grupos */
+        .alert-expanded-table {
+            margin-top: 16px;
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .alert-expanded-table thead {
+            background-color: #0d1117;
+            border-bottom: 1px solid #2a2d3a;
+        }
+
+        .alert-expanded-table th {
+            padding: 8px;
+            text-align: left;
+            color: #8b949e;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .alert-expanded-table td {
+            padding: 8px;
+            border-bottom: 1px solid #2a2d3a;
+            color: #c9d1d9;
+        }
+
         /* Metric Card */
         .metric-card {
             background-color: #1a1d27;
             border: 1px solid #2a2d3a;
             border-radius: 14px;
-            padding: 20px;
+            padding: 14px;
             transition: all 0.3s ease;
             cursor: default;
         }
@@ -376,7 +417,7 @@
         }
 
         .metric-value {
-            font-size: 28px;
+            font-size: 22px;
             font-weight: 700;
             color: #c9d1d9;
             margin-bottom: 8px;
@@ -420,7 +461,7 @@
 
         /* Percentage card styling */
         .metric-card.pct .metric-value {
-            font-size: 36px;
+            font-size: 28px;
             color: #58a6ff;
         }
 
@@ -430,6 +471,24 @@
 
         .metric-card.pct-negative .metric-value {
             color: #f85149;
+        }
+
+        /* Indicator card - with trend color gradient */
+        .metric-card.indicator .metric-value {
+            font-size: 24px;
+            color: #c9d1d9;
+        }
+
+        .indicator-trend-arrow {
+            font-size: 14px;
+            margin-top: 8px;
+            margin-bottom: 4px;
+        }
+
+        .indicator-trend-pct {
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 4px;
         }
 
         /* Alert card */
@@ -498,11 +557,6 @@
             justify-content: space-between;
             font-size: 13px;
             padding: 6px 0;
-            border-bottom: 1px solid #2a2d3a;
-        }
-
-        .projection-row:last-child {
-            border-bottom: none;
         }
 
         .projection-label {
@@ -511,91 +565,55 @@
 
         .projection-val {
             color: #c9d1d9;
-            font-weight: 500;
+            font-weight: 600;
         }
 
-        /* Panels section */
-        .panels-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin: 30px 0;
-        }
-
-        @media (max-width: 1200px) {
-            .panels-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .panels-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .panel-link {
+        /* Charts */
+        .chart-container {
             background-color: #1a1d27;
             border: 1px solid #2a2d3a;
             border-radius: 14px;
             padding: 20px;
-            text-decoration: none;
-            color: #c9d1d9;
-            transition: all 0.3s ease;
+            height: 400px;
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
         }
 
-        .panel-link:hover {
-            border-color: #58a6ff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.1);
-        }
-
-        .panel-icon {
-            font-size: 32px;
-        }
-
-        .panel-title {
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .panel-desc {
-            font-size: 12px;
-            color: #8b949e;
-        }
-
-        /* History table */
+        /* History Table */
         .history-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            font-size: 13px;
             background-color: #1a1d27;
-            border-radius: 14px;
-            overflow: hidden;
             border: 1px solid #2a2d3a;
+            border-radius: 8px;
+            overflow: hidden;
         }
 
         .history-table thead {
-            background-color: #161b22;
+            background-color: #0d1117;
+            border-bottom: 1px solid #2a2d3a;
         }
 
         .history-table th {
-            padding: 12px 16px;
+            padding: 12px;
             text-align: left;
-            font-weight: 600;
-            font-size: 12px;
             color: #8b949e;
+            font-weight: 600;
             text-transform: uppercase;
-            border-bottom: 1px solid #2a2d3a;
+            font-size: 11px;
         }
 
         .history-table td {
-            padding: 12px 16px;
+            padding: 12px;
             border-bottom: 1px solid #2a2d3a;
-            font-size: 13px;
+            color: #c9d1d9;
+        }
+
+        .history-table tbody tr {
+            transition: background-color 0.2s;
         }
 
         .history-table tbody tr:hover {
@@ -628,7 +646,7 @@
             background-color: #1a1d27;
             border: 1px solid #2a2d3a;
             border-radius: 14px;
-            padding: 20px;
+            padding: 14px;
         }
 
         .card-skeleton .skeleton {
@@ -678,7 +696,6 @@
                 <span class="sidebar-logo-text">GGE</span>
                 <span class="sidebar-logo-sub">Controle Total</span>
             </div>
-            <button class="sidebar-toggle" id="sidebarToggle">☰</button>
         </div>
         <nav class="sidebar-nav">
             <a href="/" class="nav-item active" data-page="dashboard">
@@ -789,13 +806,35 @@
         <div class="content">
             <!-- VENDAS Section -->
             <div class="section-title">VENDAS</div>
-            <div class="cards-grid" id="vendas-cards">
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+
+            <!-- UNIDADES subsection -->
+            <div class="indicadores-subgroup">
+                <div class="indicadores-subgroup-title">Unidades</div>
+                <div class="cards-grid-4" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                </div>
             </div>
+
+            <!-- VALORES subsection -->
+            <div class="indicadores-subgroup">
+                <div class="indicadores-subgroup-title">Valores (R$)</div>
+                <div class="cards-grid-4" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                </div>
+            </div>
+
+            <!-- TICKET MÉDIO subsection -->
+            <div class="indicadores-subgroup" style="margin-bottom: 20px;">
+                <div class="cards-grid" style="grid-template-columns: 1fr;">
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                </div>
+            </div>
+
+            <div id="vendas-cards" style="display: none;"></div>
 
             <!-- CUSTOS Section -->
             <div class="section-title">CUSTOS</div>
@@ -807,16 +846,38 @@
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
 
-            <!-- IMPOSTOS E MARGEM FINAL Section -->
-            <div class="section-title">IMPOSTOS E MARGEM FINAL</div>
-            <div class="cards-grid" id="impostos-cards">
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+            <!-- MARGENS Section -->
+            <div class="section-title">MARGENS</div>
+            <div class="cards-grid" style="grid-template-columns: repeat(3, 1fr);" id="margens-cards">
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
 
+            <!-- INDICADORES Section -->
+            <div class="section-title">INDICADORES</div>
+
+            <!-- Vendas subsection -->
+            <div class="indicadores-subgroup">
+                <div class="indicadores-subgroup-title">Vendas</div>
+                <div class="cards-grid-4" id="indicadores-vendas-grid">
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                </div>
+            </div>
+
+            <!-- Visitas subsection -->
+            <div class="indicadores-subgroup" style="margin-bottom: 20px;">
+                <div class="indicadores-subgroup-title">Visitas</div>
+                <div class="cards-grid-4" id="indicadores-visitas-grid">
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                    <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                </div>
+            </div>
 
             <!-- ALERTAS DE GRUPOS Section -->
             <div class="section-title">ALERTAS DE GRUPOS</div>
@@ -829,13 +890,13 @@
 
             <!-- EVOLUÇÃO MENSAL Chart -->
             <div class="section-title">EVOLUÇÃO MENSAL</div>
-            <div class="metric-card" style="padding: 20px; height: 400px; display: flex; align-items: center; justify-content: center;">
+            <div class="chart-container">
                 <canvas id="evolucao-mensal-chart"></canvas>
             </div>
 
             <!-- CURVA ABC Chart -->
             <div class="section-title">CURVA ABC</div>
-            <div class="metric-card" style="padding: 20px; height: 400px; display: flex; align-items: center; justify-content: center;">
+            <div class="chart-container">
                 <canvas id="curva-abc-chart"></canvas>
             </div>
 
@@ -845,26 +906,6 @@
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-            </div>
-
-            <!-- Panels -->
-            <div class="section-title">OUTROS PAINÉIS</div>
-            <div class="panels-grid">
-                <a href="/margem" class="panel-link">
-                    <div class="panel-icon">📈</div>
-                    <div class="panel-title">Análise de Margem</div>
-                    <div class="panel-desc">Detalhamento de custos por produto e categoria</div>
-                </a>
-                <a href="/precificacao" class="panel-link">
-                    <div class="panel-icon">🏷️</div>
-                    <div class="panel-title">Precificação Dinâmica</div>
-                    <div class="panel-desc">Otimize seus preços com base em margem e demanda</div>
-                </a>
-                <a href="/avaliacao" class="panel-link">
-                    <div class="panel-icon">⭐</div>
-                    <div class="panel-title">Saúde de Avaliações</div>
-                    <div class="panel-desc">Monitore e melhore suas notas no Mercado Livre</div>
-                </a>
             </div>
 
             <!-- History Table -->
@@ -909,26 +950,13 @@
         };
 
         // ========== GLOBAL STATE ==========
-        let sidebarCollapsed = false;
         let currentData = null;
         let previousData = null;
         let contas = [];
         let fornecedores = [];
-
-        // ========== SIDEBAR TOGGLE ==========
-        document.getElementById('sidebarToggle').addEventListener('click', () => {
-            sidebarCollapsed = !sidebarCollapsed;
-            const sidebar = document.getElementById('sidebar');
-            const container = document.getElementById('container');
-
-            if (sidebarCollapsed) {
-                sidebar.classList.add('collapsed');
-                container.classList.add('expanded');
-            } else {
-                sidebar.classList.remove('collapsed');
-                container.classList.remove('expanded');
-            }
-        });
+        let currentDateRange = null;
+        let currentPeriod = '30d';
+        let currentConta = '';
 
         // ========== SUPABASE HELPERS ==========
         async function sbRpc(name, params) {
@@ -1093,6 +1121,19 @@
             };
         }
 
+        function getDaysElapsed(period) {
+            const today = new Date();
+            const dateRange = getDateRange(period);
+            const from = new Date(dateRange.from);
+            return Math.floor((today - from) / (1000 * 60 * 60 * 24));
+        }
+
+        function getRemainingDaysInMonth() {
+            const today = new Date();
+            const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+            return daysInMonth - today.getDate();
+        }
+
         // ========== FORMAT HELPERS ==========
         function fmt(num) {
             if (!num) return 'R$ 0,00';
@@ -1104,7 +1145,7 @@
             }).format(num);
         }
 
-        function fmtN(num) {
+        function fmtNum(num) {
             if (!num) return '0';
             return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
@@ -1112,11 +1153,6 @@
         function fmtPct(num) {
             if (!num) return '0,00%';
             return num.toFixed(2).replace('.', ',') + '%';
-        }
-
-        function fmtPercent(num) {
-            if (num === null || num === undefined) return '0%';
-            return Math.round(num) + '%';
         }
 
         // ========== COMPARISON LOGIC ==========
@@ -1147,25 +1183,46 @@
             };
         }
 
+        function getTrendColorGradient(pctChange) {
+            // Red (#f85149) for big decrease, Orange, Gray, Light Blue, Blue (#58a6ff) for big increase
+            if (pctChange <= -20) return '#f85149'; // Red
+            if (pctChange < -5) return '#f0883e'; // Orange
+            if (pctChange <= 5) return '#8b949e'; // Gray
+            if (pctChange < 20) return '#a0d8ff'; // Light Blue
+            return '#58a6ff'; // Blue
+        }
+
         // ========== BUILD METRIC CARD ==========
-        function buildMetricCard(title, value, subtitle = '', trend = null, isPct = false, isAlert = false) {
+        function buildMetricCard(title, value, subtitle = '', trend = null, isPct = false) {
             const trendHtml = trend ? `<span class="metric-trend ${trend.className}">${trend.trend}</span>` : '';
-            let cardClass = isAlert ? 'alert-card' : 'pct';
-            
-            if (isPct) {
-                if (typeof value === 'string' && value.includes('%')) {
-                    const pctNum = parseFloat(value.replace('%', '').replace(',', '.'));
-                    cardClass = pctNum > 0 ? 'pct pct-positive' : (pctNum < 0 ? 'pct pct-negative' : 'pct');
-                }
-            }
+            let cardClass = isPct ? 'pct' : '';
 
             return `
                 <div class="metric-card ${cardClass}">
                     <div class="metric-value">${value}</div>
                     <div class="metric-subtitle">
-                        <span class="metric-subtitle-main">${subtitle}</span>
-                        ${trendHtml}
+                        <span class="metric-subtitle-main">${title}</span>
                     </div>
+                    <div style="font-size: 11px; color: #8b949e; margin-top: 4px;">${subtitle}</div>
+                    ${trendHtml}
+                </div>
+            `;
+        }
+
+        function buildIndicatorCard(title, value, trendPct, previousValue) {
+            const delta = value - previousValue;
+            const isPositive = delta > 0;
+            const arrow = delta > 0 ? '▲' : (delta < 0 ? '▼' : '—');
+            const color = getTrendColorGradient(trendPct);
+
+            return `
+                <div class="metric-card indicator">
+                    <div class="metric-value">${fmtNum(value)}</div>
+                    <div class="metric-subtitle">
+                        <span class="metric-subtitle-main">${title}</span>
+                    </div>
+                    <div class="indicator-trend-arrow" style="color: ${color};">${arrow}</div>
+                    <div class="indicator-trend-pct">${trendPct > 0 ? '+' : ''}${trendPct.toFixed(1)}%</div>
                 </div>
             `;
         }
@@ -1182,17 +1239,6 @@
                     option.value = conta.id;
                     option.textContent = conta.nome || CONTAS_MAP[conta.id] || conta.id;
                     contaSelect.appendChild(option);
-                });
-
-                const fornecedoresData = await sbQuery('fornecedores', 'id,nome', {});
-                fornecedores = fornecedoresData;
-
-                const fornecedorSelect = document.getElementById('filterFornecedor');
-                fornecedores.forEach(forn => {
-                    const option = document.createElement('option');
-                    option.value = forn.id;
-                    option.textContent = forn.nome;
-                    fornecedorSelect.appendChild(option);
                 });
 
                 await applyFilter();
@@ -1212,8 +1258,11 @@
                 const logistica = document.getElementById('filterLogistica').value;
                 const fornecedor = document.getElementById('filterFornecedor').value;
 
+                currentPeriod = period;
+                currentConta = conta;
                 const dateRange = getDateRange(period);
                 const prevDateRange = getPreviousDateRange(period);
+                currentDateRange = dateRange;
 
                 const rpcParams = {
                     p_from: dateRange.from,
@@ -1238,7 +1287,8 @@
 
                 renderVendasCards();
                 renderCustosCards();
-                renderImpostosCards();
+                renderMargensCards();
+                renderIndicadores(conta, dateRange);
                 renderAlertaGrupos(conta, dateRange);
                 renderEvolucaoMensal(conta, dateRange);
                 renderCurvaABC(conta, dateRange);
@@ -1256,41 +1306,72 @@
             const data = currentData;
             const prev = previousData;
 
-            const cards = [
+            // UNIDADES cards
+            const unidadesCards = [
                 {
-                    title: 'Vendas',
-                    value: fmtN(data.vendas_feitas),
-                    subtitle: `${fmtN(data.unidades_vendidas)} unidades`,
+                    title: 'Pedidos',
+                    value: fmtNum(data.vendas_feitas),
+                    subtitle: 'unidades pedidas',
                     trend: calculateTrend(data.vendas_feitas, prev.vendas_feitas)
                 },
                 {
-                    title: 'Cancelamentos',
-                    value: fmtN(data.vendas_canceladas),
-                    subtitle: `${fmtPct(data.taxa_cancelamento_pct)} — ${fmt(data.valor_cancelamentos)}`,
+                    title: 'Canceladas',
+                    value: fmtNum(data.vendas_canceladas),
+                    subtitle: fmtPct(data.taxa_cancelamento_pct),
                     trend: calculateTrend(data.vendas_canceladas, prev.vendas_canceladas, true)
                 },
                 {
-                    title: 'Vendas Efetivas',
-                    value: fmtN(data.vendas_efetivas),
-                    subtitle: `${fmtN(data.unidades_vendidas)} unidades`,
+                    title: 'Vendas',
+                    value: fmtNum(data.vendas_efetivas),
+                    subtitle: 'confirmadas',
                     trend: calculateTrend(data.vendas_efetivas, prev.vendas_efetivas)
-                },
-                {
-                    title: 'Receita',
-                    value: fmt(data.receita),
-                    subtitle: 'Vendas efetivas',
-                    trend: calculateTrend(data.receita, prev.receita)
-                },
-                {
-                    title: 'Ticket Médio',
-                    value: fmt(data.ticket_medio),
-                    subtitle: 'Por venda',
-                    trend: calculateTrend(data.ticket_medio, prev.ticket_medio)
                 }
             ];
 
-            const html = cards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend)).join('');
-            document.getElementById('vendas-cards').innerHTML = html;
+            // VALORES cards
+            const valoresCards = [
+                {
+                    title: 'Pedidos (R$)',
+                    value: (data.receita + data.valor_cancelamentos).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                    subtitle: 'total bruto',
+                    trend: calculateTrend(data.receita + data.valor_cancelamentos, prev.receita + prev.valor_cancelamentos)
+                },
+                {
+                    title: 'Cancelado (R$)',
+                    value: data.valor_cancelamentos.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                    subtitle: 'valor perdido',
+                    trend: calculateTrend(data.valor_cancelamentos, prev.valor_cancelamentos, true)
+                },
+                {
+                    title: 'Vendas (R$)',
+                    value: data.receita.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                    subtitle: 'efetivas',
+                    trend: calculateTrend(data.receita, prev.receita)
+                }
+            ];
+
+            // TICKET MÉDIO card
+            const ticketCard = {
+                title: 'Ticket Médio (R$)',
+                value: data.ticket_medio.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                subtitle: 'por venda',
+                trend: calculateTrend(data.ticket_medio, prev.ticket_medio)
+            };
+
+            const unidadesHtml = unidadesCards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend)).join('');
+            const valoresHtml = valoresCards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend)).join('');
+            const ticketHtml = buildMetricCard(ticketCard.title, ticketCard.value, ticketCard.subtitle, ticketCard.trend);
+
+            // Insert after the VENDAS title
+            const vendasSectionTitle = document.querySelector('.section-title');
+            const unidadesGroup = vendasSectionTitle.nextElementSibling;
+            unidadesGroup.querySelector('.cards-grid-4').innerHTML = unidadesHtml;
+
+            const valoresGroup = unidadesGroup.nextElementSibling;
+            valoresGroup.querySelector('.cards-grid-4').innerHTML = valoresHtml;
+
+            const ticketGroup = valoresGroup.nextElementSibling;
+            ticketGroup.querySelector('.cards-grid').innerHTML = ticketHtml;
         }
 
         // ========== RENDER CUSTOS CARDS ==========
@@ -1328,71 +1409,234 @@
                     isPct: true
                 },
                 {
-                    title: 'MC1 - Margem Operacional',
-                    value: fmtPct(data.mc1_pct),
-                    subtitle: fmt(data.mc1_valor),
-                    trend: calculateTrend(data.mc1_pct, prev.mc1_pct),
-                    isPct: true
-                }
-            ];
-
-            const html = cards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend, card.isPct)).join('');
-            document.getElementById('custos-cards').innerHTML = html;
-        }
-
-        // ========== RENDER IMPOSTOS CARDS ==========
-        function renderImpostosCards() {
-            const data = currentData;
-            const prev = previousData;
-
-            const cards = [
-                {
                     title: 'MC1',
                     value: fmtPct(data.mc1_pct),
                     subtitle: fmt(data.mc1_valor),
                     trend: calculateTrend(data.mc1_pct, prev.mc1_pct),
                     isPct: true
-                },
+                }
+            ];
+
+            const html = cards.map(card => {
+                const trendHtml = card.trend ? `<span class="metric-trend ${card.trend.className}">${card.trend.trend}</span>` : '';
+                return `
+                    <div class="metric-card pct">
+                        <div class="metric-value">${card.value}</div>
+                        <div class="metric-subtitle">
+                            <span class="metric-subtitle-main">${card.title}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #8b949e; margin-top: 4px;">${card.subtitle}</div>
+                        ${trendHtml}
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('custos-cards').innerHTML = html;
+        }
+
+        // ========== RENDER MARGENS CARDS ==========
+        function renderMargensCards() {
+            const data = currentData;
+            const prev = previousData;
+
+            const cards = [
                 {
-                    title: 'Impostos',
-                    value: fmtPct(data.impostos_pct),
-                    subtitle: fmt(data.impostos_valor),
-                    trend: calculateTrend(data.impostos_pct, prev.impostos_pct, true),
+                    title: 'MC1 — Margem com DIFAL',
+                    value: fmtPct(data.mc1_pct),
+                    subtitle: fmt(data.mc1_valor),
+                    trend: calculateTrend(data.mc1_pct, prev.mc1_pct),
                     isPct: true
                 },
                 {
-                    title: 'DIFAL',
-                    value: fmtPct(data.difal_pct),
-                    subtitle: fmt(data.difal_valor),
-                    trend: calculateTrend(data.difal_pct, prev.difal_pct, true),
-                    isPct: true
+                    title: 'DIFAL (R$)',
+                    value: data.difal_valor.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                    subtitle: fmtPct(data.difal_pct),
+                    trend: calculateTrend(data.difal_valor, prev.difal_valor),
+                    isPct: false
                 },
                 {
-                    title: 'MC2 - Margem Final',
+                    title: 'MC2 — Entrada de Caixa',
                     value: fmtPct(data.mc2_pct),
                     subtitle: fmt(data.mc2_valor),
                     trend: calculateTrend(data.mc2_pct, prev.mc2_pct),
                     isPct: true
-                },
-                {
-                    title: 'Alertas',
-                    value: `${data.alerta_prejuizo + data.alerta_sem_custo}`,
-                    subtitle: `${data.alerta_prejuizo} prejuízo, ${data.alerta_sem_custo} sem custo`,
-                    trend: null,
-                    isPct: false,
-                    isAlert: true
                 }
             ];
 
-            const html = cards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend, card.isPct, card.isAlert)).join('');
-            document.getElementById('impostos-cards').innerHTML = html;
+            const html = cards.map(card => {
+                const cardClass = card.isPct ? 'pct' : '';
+                const trendHtml = card.trend ? `<span class="metric-trend ${card.trend.className}">${card.trend.trend}</span>` : '';
+                return `
+                    <div class="metric-card ${cardClass}">
+                        <div class="metric-value">${card.value}</div>
+                        <div class="metric-subtitle">
+                            <span class="metric-subtitle-main">${card.title}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #8b949e; margin-top: 4px;">${card.subtitle}</div>
+                        ${trendHtml}
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('margens-cards').innerHTML = html;
+        }
+
+        // ========== RENDER INDICADORES ==========
+        async function renderIndicadores(conta, dateRange) {
+            try {
+                const today = new Date();
+                const todayISO = today.toISOString().split('T')[0];
+                const tomorrowISO = new Date(today.getTime() + 86400000).toISOString().split('T')[0];
+
+                // Yesterday for comparison
+                const yesterdayISO = new Date(today.getTime() - 86400000).toISOString().split('T')[0];
+                const twoDaysAgoISO = new Date(today.getTime() - 172800000).toISOString().split('T')[0];
+
+                // Get today's sales
+                let url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${todayISO}&data_venda=lt.${tomorrowISO}&status=neq.cancelled`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                let resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const todayVendas = (await resp.json()).length;
+
+                // Get yesterday's sales
+                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${yesterdayISO}&data_venda=lt.${todayISO}&status=neq.cancelled`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const yesterdayVendas = (await resp.json()).length;
+
+                // Get last 7 days
+                const sevenDaysAgoISO = new Date(today.getTime() - 604800000).toISOString().split('T')[0];
+                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${sevenDaysAgoISO}&data_venda=lt.${todayISO}&status=neq.cancelled`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const last7dVendas = (await resp.json()).length;
+
+                // Get previous 7 days
+                const fourteenDaysAgoISO = new Date(today.getTime() - 1209600000).toISOString().split('T')[0];
+                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${fourteenDaysAgoISO}&data_venda=lt.${sevenDaysAgoISO}&status=neq.cancelled`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const prev7dVendas = (await resp.json()).length;
+
+                // Get last 15 days
+                const fifteenDaysAgoISO = new Date(today.getTime() - 1296000000).toISOString().split('T')[0];
+                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${fifteenDaysAgoISO}&data_venda=lt.${todayISO}&status=neq.cancelled`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const last15dVendas = (await resp.json()).length;
+
+                // Get previous 15 days
+                const thirtyDaysAgoISO = new Date(today.getTime() - 2592000000).toISOString().split('T')[0];
+                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${thirtyDaysAgoISO}&data_venda=lt.${fifteenDaysAgoISO}&status=neq.cancelled`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const prev15dVendas = (await resp.json()).length;
+
+                // Get current month
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${monthStart}&data_venda=lt.${tomorrowISO}&status=neq.cancelled`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const monthVendas = (await resp.json()).length;
+
+                // Get previous month
+                const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
+                const prevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
+                const nextDayAfterPrevMonth = new Date(new Date(prevMonthEnd).getTime() + 86400000).toISOString().split('T')[0];
+                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${prevMonthStart}&data_venda=lt.${nextDayAfterPrevMonth}&status=neq.cancelled`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const prevMonthVendas = (await resp.json()).length;
+
+                // Calculate trends
+                const trendHoje = yesterdayVendas > 0 ? ((todayVendas - yesterdayVendas) / yesterdayVendas) * 100 : 0;
+                const trend7d = prev7dVendas > 0 ? ((last7dVendas - prev7dVendas) / prev7dVendas) * 100 : 0;
+                const trend15d = prev15dVendas > 0 ? ((last15dVendas - prev15dVendas) / prev15dVendas) * 100 : 0;
+                const trendMonth = prevMonthVendas > 0 ? ((monthVendas - prevMonthVendas) / prevMonthVendas) * 100 : 0;
+
+                const vendasHtml = [
+                    buildIndicatorCard('Hoje', todayVendas, trendHoje, yesterdayVendas),
+                    buildIndicatorCard('Semana', last7dVendas, trend7d, prev7dVendas),
+                    buildIndicatorCard('Quinzena', last15dVendas, trend15d, prev15dVendas),
+                    buildIndicatorCard('Mês', monthVendas, trendMonth, prevMonthVendas)
+                ].join('');
+
+                document.getElementById('indicadores-vendas-grid').innerHTML = vendasHtml;
+
+                // Now render visits
+                // Get today's visits
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=eq.${todayISO}`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const todayVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+
+                // Get yesterday's visits
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=eq.${yesterdayISO}`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const yesterdayVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+
+                // Get last 7 days visits
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${sevenDaysAgoISO}&data=lte.${todayISO}`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const last7dVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+
+                // Get previous 7 days visits
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${fourteenDaysAgoISO}&data=lt.${sevenDaysAgoISO}`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const prev7dVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+
+                // Get last 15 days visits
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${fifteenDaysAgoISO}&data=lte.${todayISO}`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const last15dVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+
+                // Get previous 15 days visits
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${thirtyDaysAgoISO}&data=lt.${fifteenDaysAgoISO}`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const prev15dVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+
+                // Get current month visits
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${monthStart}&data=lte.${todayISO}`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const monthVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+
+                // Get previous month visits
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data=gte.${prevMonthStart}&data=lt.${nextDayAfterPrevMonth}`;
+                if (conta) url += `&conta_id=eq.${conta}`;
+                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                const prevMonthVisits = (await resp.json()).reduce((sum, row) => sum + (row.visitas || 0), 0);
+
+                // Calculate visit trends
+                const visitTrendHoje = yesterdayVisits > 0 ? ((todayVisits - yesterdayVisits) / yesterdayVisits) * 100 : 0;
+                const visitTrend7d = prev7dVisits > 0 ? ((last7dVisits - prev7dVisits) / prev7dVisits) * 100 : 0;
+                const visitTrend15d = prev15dVisits > 0 ? ((last15dVisits - prev15dVisits) / prev15dVisits) * 100 : 0;
+                const visitTrendMonth = prevMonthVisits > 0 ? ((monthVisits - prevMonthVisits) / prevMonthVisits) * 100 : 0;
+
+                const visitsHtml = [
+                    buildIndicatorCard('Hoje', todayVisits, visitTrendHoje, yesterdayVisits),
+                    buildIndicatorCard('Semana', last7dVisits, visitTrend7d, prev7dVisits),
+                    buildIndicatorCard('Quinzena', last15dVisits, visitTrend15d, prev15dVisits),
+                    buildIndicatorCard('Mês', monthVisits, visitTrendMonth, prevMonthVisits)
+                ].join('');
+
+                document.getElementById('indicadores-visitas-grid').innerHTML = visitsHtml;
+            } catch (error) {
+                console.error('Error rendering indicadores:', error);
+                document.getElementById('indicadores-vendas-grid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #f85149;">Erro ao carregar indicadores</div>';
+                document.getElementById('indicadores-visitas-grid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #f85149;">Erro ao carregar indicadores</div>';
+            }
         }
 
         // ========== RENDER ALERTA GRUPOS ==========
         async function renderAlertaGrupos(conta, dateRange) {
             try {
-                const filters = conta ? { conta_id: `eq.${conta}` } : {};
-                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=grupo,titulo,margem_valor,margem_pct,margem_sem_ads,tem_custo`;
+                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=grupo,titulo,sku_vendedor,margem_valor,margem_pct,margem_sem_ads,tem_custo,receita`;
 
                 // Add date range filter (mes is type date, needs YYYY-MM-01 format)
                 url += `&mes=gte.${dateRange.from.split('T')[0].substring(0, 7)}-01`;
@@ -1405,7 +1649,7 @@
                 const response = await fetch(url, {
                     headers: {
                         'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -1425,13 +1669,13 @@
                 const topP3 = p3.sort((a, b) => a.margem_valor - b.margem_valor).slice(0, 3);
 
                 const cards = [
-                    { title: 'P1 - Prejuízo Estrutural', count: p1.length, items: topP1, type: 'p1' },
-                    { title: 'P2 - Prejuízo por ADs', count: p2.length, items: topP2, type: 'p2' },
-                    { title: 'P3 - ADs sem Vendas', count: p3.length, items: topP3, type: 'p3' },
-                    { title: 'Sem Custo', count: semCusto.length, items: [], type: 'sem-custo' }
+                    { title: 'P1 - Prejuízo Estrutural', count: p1.length, items: topP1, type: 'p1', fullData: p1 },
+                    { title: 'P2 - Prejuízo por ADs', count: p2.length, items: topP2, type: 'p2', fullData: p2 },
+                    { title: 'P3 - ADs sem Vendas', count: p3.length, items: topP3, type: 'p3', fullData: p3 },
+                    { title: 'Sem Custo', count: semCusto.length, items: [], type: 'sem-custo', fullData: semCusto }
                 ];
 
-                const html = cards.map(card => {
+                const html = cards.map((card, idx) => {
                     const itemsHtml = card.items.map(item => {
                         const abbrevTitle = item.titulo.substring(0, 20) + (item.titulo.length > 20 ? '...' : '');
                         return `
@@ -1442,11 +1686,37 @@
                         `;
                     }).join('');
 
+                    const tableHtml = card.fullData.length > 0 ? `
+                        <table class="alert-expanded-table" style="display: none;" id="table-${card.type}">
+                            <thead>
+                                <tr>
+                                    <th>Título</th>
+                                    <th>SKU</th>
+                                    <th>Margem %</th>
+                                    <th>Margem R$</th>
+                                    <th>Receita</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${card.fullData.map(item => `
+                                    <tr>
+                                        <td>${item.titulo.substring(0, 40)}${item.titulo.length > 40 ? '...' : ''}</td>
+                                        <td>${item.sku_vendedor}</td>
+                                        <td>${fmtPct(item.margem_pct)}</td>
+                                        <td>${fmt(item.margem_valor)}</td>
+                                        <td>${fmt(item.receita)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '';
+
                     return `
-                        <div class="alert-grupo-card ${card.type}">
+                        <div class="alert-grupo-card ${card.type}" onclick="toggleAlertTable('${card.type}')">
                             <div class="alert-titulo">${card.title}</div>
                             <div class="alert-count">${card.count}</div>
                             ${card.items.length > 0 ? `<div class="alert-items">${itemsHtml}</div>` : ''}
+                            ${tableHtml}
                         </div>
                     `;
                 }).join('');
@@ -1455,6 +1725,14 @@
             } catch (error) {
                 console.error('Error rendering alert grupos:', error);
                 document.getElementById('alert-grupos-grid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #f85149;">Erro ao carregar alertas</div>';
+            }
+        }
+
+        // ========== TOGGLE ALERT TABLE ==========
+        function toggleAlertTable(type) {
+            const table = document.getElementById(`table-${type}`);
+            if (table) {
+                table.style.display = table.style.display === 'none' ? 'table' : 'none';
             }
         }
 
@@ -1476,7 +1754,7 @@
                 const response = await fetch(url, {
                     headers: {
                         'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -1599,7 +1877,7 @@
                 const response = await fetch(url, {
                     headers: {
                         'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -1714,7 +1992,7 @@
                                 max: 100,
                                 ticks: { color: '#8b949e' },
                                 grid: { display: false },
-                                title: { display: true, text: '% Acumulado', color: '#8b949e' }
+                                title: { display: true, text: 'Cumulative %', color: '#8b949e' }
                             },
                             x: {
                                 ticks: { color: '#8b949e' },
@@ -1730,52 +2008,59 @@
         }
 
         // ========== RENDER PROJECTIONS ==========
-        async function renderProjections() {
+        function renderProjections() {
             try {
-                const vendas = await sbQuery('vendas', 'status,data_criacao,preco_total,conta_id', {});
+                if (!currentData) return;
 
-                const projections = calculateProjections('30d', '', vendas);
+                const period = currentPeriod;
+                const daysElapsed = getDaysElapsed(period);
+                const remainingDays = getRemainingDaysInMonth();
+
+                // Use RPC data to compute projections
+                const dailyAvg = daysElapsed > 0 ? currentData.receita / daysElapsed : 0;
+                const acumulado = currentData.receita;
+                const projMonth = acumulado + (dailyAvg * remainingDays);
 
                 const html = `
                     <div class="projection-card">
                         <div class="projection-title">Projeção 7 dias</div>
-                        <div class="projection-value">${fmt(projections.proj7d)}</div>
+                        <div class="projection-value">${fmt(acumulado + (dailyAvg * 7))}</div>
                         <div class="projection-rows">
                             <div class="projection-row">
                                 <span class="projection-label">Acumulado</span>
-                                <span class="projection-val">${fmt(projections.acum7d)}</span>
+                                <span class="projection-val">${fmt(acumulado)}</span>
                             </div>
                             <div class="projection-row">
                                 <span class="projection-label">Média/dia</span>
-                                <span class="projection-val">${fmt(projections.media7d)}</span>
+                                <span class="projection-val">${fmt(dailyAvg)}</span>
                             </div>
                         </div>
                     </div>
                     <div class="projection-card">
                         <div class="projection-title">Projeção 15 dias</div>
-                        <div class="projection-value">${fmt(projections.proj15d)}</div>
+                        <div class="projection-value">${fmt(acumulado + (dailyAvg * 15))}</div>
                         <div class="projection-rows">
                             <div class="projection-row">
                                 <span class="projection-label">Acumulado</span>
-                                <span class="projection-val">${fmt(projections.acum15d)}</span>
+                                <span class="projection-val">${fmt(acumulado)}</span>
                             </div>
                             <div class="projection-row">
                                 <span class="projection-label">Média/dia</span>
-                                <span class="projection-val">${fmt(projections.media15d)}</span>
+                                <span class="projection-val">${fmt(dailyAvg)}</span>
                             </div>
                         </div>
                     </div>
                     <div class="projection-card">
                         <div class="projection-title">Projeção Mensal</div>
-                        <div class="projection-value">${fmt(projections.projMonth)}</div>
+                        <div class="projection-value">${fmt(projMonth)}</div>
                         <div class="projection-rows">
                             <div class="projection-row">
                                 <span class="projection-label">Acumulado</span>
-                                <span class="projection-val">${fmt(projections.acumMonth)}</span>
+                                <span class="projection-val">${fmt(acumulado)}</span>
                             </div>
                             <div class="projection-row">
                                 <span class="projection-label">Média/dia</span>
-                                <span class="projection-val">${fmt(projections.mediaMonth)}</span>
+                                <span class="projection-val">${fmt(dailyAvg)}</span>
                             </div>
                         </div>
                     </div>
@@ -1786,41 +2071,6 @@
                 console.error('Error rendering projections:', error);
                 document.getElementById('projections-grid').innerHTML = '<div class="error-message">Erro ao calcular projeções</div>';
             }
-        }
-
-        // ========== CALCULATE PROJECTIONS ==========
-        function calculateProjections(period, conta, vendas) {
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
-            const dayOfMonth = now.getDate();
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-            const monthVendas = vendas.filter(v => {
-                const vDate = new Date(v.data_criacao);
-                return vDate.getMonth() === currentMonth && vDate.getFullYear() === currentYear;
-            });
-
-            const monthTotal = monthVendas.reduce((sum, v) => sum + (v.preco_total || 0), 0);
-            const dailyAvg = monthTotal / dayOfMonth;
-
-            const acum7d = monthTotal;
-            const proj7d = acum7d + (dailyAvg * 7);
-            const media7d = dailyAvg;
-
-            const acum15d = monthTotal;
-            const proj15d = acum15d + (dailyAvg * (15 - dayOfMonth));
-            const media15d = dailyAvg;
-
-            const acumMonth = monthTotal;
-            const projMonth = monthTotal + (dailyAvg * (daysInMonth - dayOfMonth));
-            const mediaMonth = dailyAvg;
-
-            return {
-                acum7d, proj7d, media7d,
-                acum15d, proj15d, media15d,
-                acumMonth, projMonth, mediaMonth
-            };
         }
 
         // ========== RENDER HISTORY TABLE ==========
@@ -1840,8 +2090,8 @@
                         <td>${fmt(row.faturamento_bruto || 0)}</td>
                         <td>${fmt(row.cancelamentos || 0)}</td>
                         <td>${fmt(row.saldo_vendas || 0)}</td>
-                        <td>${fmtN(row.qtd_vendas || 0)}</td>
-                        <td>${fmtN(row.qtd_cancelamentos || 0)}</td>
+                        <td>${fmtNum(row.qtd_vendas || 0)}</td>
+                        <td>${fmtNum(row.qtd_cancelamentos || 0)}</td>
                         <td>${fmt(row.comissao_ml_total || 0)}</td>
                     </tr>
                 `).join('');
