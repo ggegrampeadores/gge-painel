@@ -1394,9 +1394,9 @@
                 const filters = conta ? { conta_id: `eq.${conta}` } : {};
                 let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=grupo,titulo,margem_valor,margem_pct,margem_sem_ads,tem_custo`;
 
-                // Add date range filter
-                url += `&mes=gte.${dateRange.from.split('T')[0].substring(0, 7)}`;
-                url += `&mes=lte.${dateRange.to.split('T')[0].substring(0, 7)}`;
+                // Add date range filter (mes is type date, needs YYYY-MM-01 format)
+                url += `&mes=gte.${dateRange.from.split('T')[0].substring(0, 7)}-01`;
+                url += `&mes=lte.${dateRange.to.split('T')[0].substring(0, 7)}-01`;
 
                 if (conta) {
                     url += `&conta_id=eq.${conta}`;
@@ -1468,7 +1468,7 @@
                 const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), 1);
                 const startMonth = oneYearAgo.toISOString().split('T')[0].substring(0, 7);
 
-                url += `&mes=gte.${startMonth}`;
+                url += `&mes=gte.${startMonth}-01`;
                 if (conta) {
                     url += `&conta_id=eq.${conta}`;
                 }
@@ -1732,7 +1732,7 @@
         // ========== RENDER PROJECTIONS ==========
         async function renderProjections() {
             try {
-                const vendas = await sbQuery('vendas', 'status,created_at,total_value,conta_id', {});
+                const vendas = await sbQuery('vendas', 'status,data_criacao,preco_total,conta_id', {});
 
                 const projections = calculateProjections('30d', '', vendas);
 
@@ -1797,11 +1797,11 @@
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
             const monthVendas = vendas.filter(v => {
-                const vDate = new Date(v.created_at);
+                const vDate = new Date(v.data_criacao);
                 return vDate.getMonth() === currentMonth && vDate.getFullYear() === currentYear;
             });
 
-            const monthTotal = monthVendas.reduce((sum, v) => sum + (v.total_value || 0), 0);
+            const monthTotal = monthVendas.reduce((sum, v) => sum + (v.preco_total || 0), 0);
             const dailyAvg = monthTotal / dayOfMonth;
 
             const acum7d = monthTotal;
