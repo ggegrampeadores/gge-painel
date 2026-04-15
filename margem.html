@@ -155,6 +155,27 @@
       { value: '1a', label: '1 ano' },
     ];
 
+    // Date range for RPC calls (same logic as Dashboard)
+    function getDateRangeISO(periodo) {
+      const today = new Date();
+      const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+      let from, to = new Date(today);
+      switch (periodo) {
+        case '7d': from = new Date(today); from.setDate(d - 7); break;
+        case '15d': from = new Date(today); from.setDate(d - 15); break;
+        case '30d': from = new Date(today); from.setDate(d - 30); break;
+        case 'mes_atual': from = new Date(y, m, 1); to = new Date(y, m + 1, 0); break;
+        case 'mes_passado': from = new Date(y, m - 1, 1); to = new Date(y, m, 0); break;
+        case '2m_atras': from = new Date(y, m - 2, 1); to = new Date(y, m - 1, 0); break;
+        case '3m_atras': from = new Date(y, m - 3, 1); to = new Date(y, m - 2, 0); break;
+        case '90d': from = new Date(today); from.setDate(d - 90); break;
+        case '180d': from = new Date(today); from.setDate(d - 180); break;
+        case '1a': from = new Date(today); from.setFullYear(y - 1); break;
+        default: from = new Date(today); from.setDate(d - 30);
+      }
+      return { from: from.toISOString(), to: to.toISOString() };
+    }
+
     function getMesesForPeriodo(periodo, allMeses) {
       if (!allMeses.length) return [];
       const sorted = [...allMeses].sort((a,b) => b.localeCompare(a));
@@ -602,6 +623,33 @@
         );
       };
 
+      const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+        if (percent < 0.03) return null;
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        return (
+          <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central"
+                fontSize={11} fontWeight="bold">
+            {(percent * 100).toFixed(1)}%
+          </text>
+        );
+      };
+
+      const PieTooltip = ({ active, payload }) => {
+        if (!active || !payload || !payload.length) return null;
+        const d = payload[0];
+        const pct = total > 0 ? (d.value / total * 100).toFixed(1) : '0.0';
+        return (
+          <div style={{ backgroundColor: '#1e2235', border: '1px solid #3a3f5c', borderRadius: 8,
+                        padding: '8px 12px', color: '#e2e8f0', fontSize: 13 }}>
+            <p style={{ margin: 0, fontWeight: 600, color: d.payload?.fill || '#fff' }}>{d.name}</p>
+            <p style={{ margin: '4px 0 0', color: '#cbd5e1' }}>R$ {fmt(d.value)} ({pct}%)</p>
+          </div>
+        );
+      };
+
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
           <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
@@ -609,11 +657,11 @@
             <PieChart>
               <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
                    outerRadius={85} innerRadius={45} paddingAngle={2}
-                   stroke="#1a1d2e" strokeWidth={2}>
+                   stroke="#1a1d2e" strokeWidth={2}
+                   label={renderLabel} labelLine={false}>
                 {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
-              <Tooltip formatter={v => `R$ ${fmt(v)}`}
-                       contentStyle={{ backgroundColor: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8, color: '#e2e8f0' }} />
+              <Tooltip content={<PieTooltip />} />
             </PieChart>
           </ResponsiveContainer>
           <CustomLegend />
@@ -1176,6 +1224,7 @@
       const [drillMlb, setDrillMlb] = useState(null);
       const [drillTitulo, setDrillTitulo] = useState('');
       const [visitasGrowth, setVisitasGrowth] = useState(null);
+      const [rpcTotals, setRpcTotals] = useState(null);
 
       // Fetch data
       useEffect(() => {
@@ -1203,6 +1252,41 @@
         }
         load();
       }, []);
+
+      // Fetch RPC totals for accurate period-based KPI cards
+      useEffect(() => {
+        async function loadRPC() {
+          try {
+            const range = getDateRangeISO(periodoSel);
+            // Find conta_id from conta_nome
+            let contaId = null;
+            if (contaSel) {
+              const CONTA_NAME_TO_ID = {
+                'GGE-GRAMPEADORES': 'e761652f-07fa-49d2-a6c7-1b738862ab08',
+                'GGESP': '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c',
+                'TOOWCOMERCIAL': '8284ee61-87f9-4162-9f1f-542587fbbf53'
+              };
+              contaId = CONTA_NAME_TO_ID[contaSel] || null;
+            }
+            const { data, error } = await supabase.rpc('rpc_dashboard_totais', {
+              p_from: range.from,
+              p_to: range.to,
+              p_conta_id: contaId,
+              p_status: null,
+              p_tipo_listagem: tipoSel || null,
+              p_em_catalogo: catSel ? (catSel === 'Catálogo') : null,
+              p_modo_logistica: modeSel || null,
+              p_fornecedor_id: null
+            });
+            if (error) throw error;
+            setRpcTotals(data);
+          } catch (e) {
+            console.error('RPC error:', e);
+            setRpcTotals(null);
+          }
+        }
+        loadRPC();
+      }, [periodoSel, contaSel, tipoSel, modeSel, catSel]);
 
       // Fetch visitas growth data when mode changes to crescimento_visitas
       useEffect(() => {
@@ -1451,39 +1535,48 @@
                   </div>
                 )}
 
-                {/* KPI Cards — MC1 = c/ DIFAL (final), MC2 = s/ DIFAL */}
-                <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-                  <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="💰" />
-                  <MetricCard label="Custo Produto" value={`R$ ${fmt(totals.custo)}`}
-                              sub={totals.receita > 0 ? `${fmtPct(totals.custo/totals.receita*100)} da receita` : ''}
-                              icon="📦" />
-                  <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`}
-                              sub={totals.receita > 0 ? `${fmtPct(totals.comissao/totals.receita*100)} da receita` : ''}
-                              icon="🏆" />
-                  <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`}
-                              sub={totals.receita > 0 ? `${fmtPct(totals.frete/totals.receita*100)} da receita` : ''}
-                              icon="🚚" />
-                  <MetricCard label="ADs" value={`R$ ${fmt(totals.ads)}`}
-                              color="text-gge-yellow"
-                              sub={totals.receita > 0 ? `${fmtPct(totals.ads/totals.receita*100)} da receita` : ''}
-                              icon="📢" />
-                  <MetricCard label="MC1 (c/ DIFAL)" value={`R$ ${fmt(totals.mc1)}`}
-                              color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc1_pct)} da receita`} icon="🏅" />
-                  <MetricCard label="DIFAL" value={`R$ ${fmt(totals.difal)}`}
-                              color="text-gge-orange"
-                              sub={totals.receita > 0 ? `${fmtPct(totals.difal/totals.receita*100)} da receita` : ''}
-                              icon="🍰" />
-                  <MetricCard label="MC2 (s/ DIFAL)" value={`R$ ${fmt(totals.mc2)}`}
-                              color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                              sub={`${fmtPct(totals.mc2_pct)} da receita`} icon="📊" />
-                  <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`}
-                              sub={`${fmtInt(totals.vendas)} vendas`}
-                              icon="🍕" />
-                  <MetricCard label="Vendas" value={fmtInt(totals.vendas)}
-                              sub={`${fmtInt(totals.prejuizo_count)} em prejuízo`}
-                              icon="🛒" />
-                </div>
+                {/* KPI Cards — uses RPC for accurate period data, fallback to view totals */}
+                {(() => {
+                  const r = rpcTotals || {};
+                  const hasRpc = !!rpcTotals;
+                  const rec = hasRpc ? (r.receita || 0) : totals.receita;
+                  const custo = hasRpc ? (r.custo_produto || 0) : totals.custo;
+                  const comissao = hasRpc ? (r.comissao_ml || 0) : totals.comissao;
+                  const frete = hasRpc ? (r.frete || 0) : totals.frete;
+                  const ads = hasRpc ? (r.ads || 0) : totals.ads;
+                  const mc1 = hasRpc ? (r.mc1_valor || 0) : totals.mc1;
+                  const mc1_pct = hasRpc ? (r.mc1_pct || 0) : totals.mc1_pct;
+                  const difal = hasRpc ? (r.difal_valor || 0) : totals.difal;
+                  const mc2 = hasRpc ? (r.mc2_valor || 0) : totals.mc2;
+                  const mc2_pct = hasRpc ? (r.mc2_pct || 0) : totals.mc2_pct;
+                  const ticket = hasRpc ? (r.ticket_medio || 0) : totals.ticket;
+                  const vendas = hasRpc ? (r.vendas_efetivas || 0) : totals.vendas;
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
+                      <MetricCard label="Receita" value={`R$ ${fmt(rec)}`} icon="💰" />
+                      <MetricCard label="Custo Produto" value={`R$ ${fmt(custo)}`}
+                                  sub={rec > 0 ? `${fmtPct(custo/rec*100)} da receita` : ''} icon="📦" />
+                      <MetricCard label="Comissão ML" value={`R$ ${fmt(comissao)}`}
+                                  sub={rec > 0 ? `${fmtPct(comissao/rec*100)} da receita` : ''} icon="🏆" />
+                      <MetricCard label="Frete" value={`R$ ${fmt(frete)}`}
+                                  sub={rec > 0 ? `${fmtPct(frete/rec*100)} da receita` : ''} icon="🚚" />
+                      <MetricCard label="ADs" value={`R$ ${fmt(ads)}`} color="text-gge-yellow"
+                                  sub={rec > 0 ? `${fmtPct(ads/rec*100)} da receita` : ''} icon="📢" />
+                      <MetricCard label="MC1 (c/ DIFAL)" value={`R$ ${fmt(mc1)}`}
+                                  color={mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                                  sub={`${fmtPct(mc1_pct)} da receita`} icon="🏅" />
+                      <MetricCard label="DIFAL" value={`R$ ${fmt(difal)}`} color="text-gge-orange"
+                                  sub={rec > 0 ? `${fmtPct(difal/rec*100)} da receita` : ''} icon="🍰" />
+                      <MetricCard label="MC2 (s/ DIFAL)" value={`R$ ${fmt(mc2)}`}
+                                  color={mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
+                                  sub={`${fmtPct(mc2_pct)} da receita`} icon="📊" />
+                      <MetricCard label="Ticket Médio" value={`R$ ${fmt(ticket)}`}
+                                  sub={`${fmtInt(vendas)} vendas`} icon="🍕" />
+                      <MetricCard label="Vendas" value={fmtInt(vendas)}
+                                  sub={`${fmtInt(totals.prejuizo_count)} em prejuízo`} icon="🛒" />
+                    </div>
+                  );
+                })()}
 
                 {/* Charts Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
