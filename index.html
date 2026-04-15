@@ -1,608 +1,1864 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Controle Total GGE — Dashboard</title>
-<style>
-  :root {
-    --bg: #0f1117;
-    --card: #1a1d27;
-    --card-hover: #222532;
-    --border: #2a2d3a;
-    --text: #e4e4e7;
-    --text-muted: #8b8fa3;
-    --accent: #6366f1;
-    --accent-light: #818cf8;
-    --green: #22c55e;
-    --green-bg: rgba(34,197,94,.12);
-    --yellow: #eab308;
-    --yellow-bg: rgba(234,179,8,.12);
-    --blue: #3b82f6;
-    --blue-bg: rgba(59,130,246,.12);
-    --orange: #f97316;
-    --orange-bg: rgba(249,115,22,.12);
-    --red: #ef4444;
-    --red-bg: rgba(239,68,68,.12);
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 0;
-  }
-  .header {
-    background: linear-gradient(135deg, #1a1d27 0%, #1e2235 100%);
-    border-bottom: 1px solid var(--border);
-    padding: 24px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .logo {
-    width: 44px; height: 44px;
-    background: linear-gradient(135deg, var(--accent), #a855f7);
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 18px; color: #fff;
-  }
-  .header h1 {
-    font-size: 22px; font-weight: 700;
-    background: linear-gradient(135deg, #e4e4e7, #a1a1aa);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .header h1 span { font-weight: 400; color: var(--text-muted); -webkit-text-fill-color: var(--text-muted); }
-  .filter-bar {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  }
-  .filter-bar label { font-size: 13px; color: var(--text-muted); }
-  .filter-bar select {
-    background: var(--bg); color: var(--text); border: 1px solid var(--border);
-    border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer;
-    outline: none; transition: border-color .2s;
-  }
-  .filter-bar select:hover { border-color: var(--accent); }
-  .container { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
-  .section-title {
-    font-size: 13px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 16px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-title::before {
-    content: ''; width: 4px; height: 16px; border-radius: 2px;
-    background: var(--accent);
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Total GGE - Dashboard</title>
+    <script src="auth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  /* Metric Cards Grid - 5 columns */
-  .metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
-    margin-bottom: 32px;
-  }
-  @media (max-width: 1100px) { .metrics-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 700px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #0f1117;
+            color: #c9d1d9;
+            overflow-x: hidden;
+        }
 
-  .metric-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 20px 22px;
-    transition: all .25s;
-    position: relative;
-  }
-  .metric-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
-  .metric-card .mc-icon {
-    width: 36px; height: 36px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; margin-bottom: 12px;
-  }
-  .mc-icon.green { background: var(--green-bg); color: var(--green); }
-  .mc-icon.red { background: var(--red-bg); color: var(--red); }
-  .mc-icon.yellow { background: var(--yellow-bg); color: var(--yellow); }
-  .mc-icon.blue { background: var(--blue-bg); color: var(--blue); }
-  .mc-icon.orange { background: var(--orange-bg); color: var(--orange); }
-  .mc-icon.accent { background: rgba(99,102,241,.12); color: var(--accent-light); }
-  .metric-card .mc-label {
-    font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500;
-  }
-  .metric-card .mc-value {
-    font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
-    margin-bottom: 4px;
-  }
-  .metric-card .mc-sub {
-    font-size: 12px; color: var(--text-muted);
-  }
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 250px;
+            background-color: #0a0e14;
+            border-right: 1px solid #2a2d3a;
+            padding: 20px 0;
+            transition: width 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
 
-  /* Projection Cards */
-  .proj-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 32px;
-  }
-  @media (max-width: 900px) { .proj-grid { grid-template-columns: 1fr; } }
-  .proj-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 22px 24px;
-    transition: all .25s;
-    position: relative;
-    overflow: hidden;
-  }
-  .proj-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
-  .proj-card .badge {
-    display: inline-block; font-size: 11px; font-weight: 600;
-    padding: 3px 10px; border-radius: 20px; margin-bottom: 12px;
-    text-transform: uppercase; letter-spacing: .5px;
-  }
-  .badge-30 { background: var(--blue-bg); color: var(--blue); }
-  .badge-15 { background: var(--yellow-bg); color: var(--yellow); }
-  .badge-7  { background: var(--orange-bg); color: var(--orange); }
-  .proj-card .label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-  .proj-card .value { font-size: 28px; font-weight: 700; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
-  .proj-card .sub { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-  .proj-card .sub .avg { color: var(--accent-light); font-weight: 600; }
-  .month-detail { font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.6; }
-  .month-detail strong { color: var(--text); font-weight: 600; }
+        .sidebar.collapsed {
+            width: 48px;
+        }
 
-  /* Panels */
-  .panels-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 32px;
-  }
-  @media (max-width: 700px) { .panels-grid { grid-template-columns: 1fr; } }
-  .panel-link {
-    display: flex; align-items: center; gap: 20px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 24px 28px;
-    text-decoration: none; color: var(--text);
-    transition: all .25s;
-    cursor: pointer;
-  }
-  .panel-link:hover {
-    border-color: var(--accent); transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0,0,0,.3);
-  }
-  .panel-icon {
-    width: 52px; height: 52px; border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 24px; flex-shrink: 0;
-  }
-  .panel-icon.margem { background: linear-gradient(135deg, rgba(34,197,94,.15), rgba(34,197,94,.05)); color: var(--green); }
-  .panel-icon.preco  { background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(99,102,241,.05)); color: var(--accent-light); }
-  .panel-link h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-  .panel-link p  { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
-  .panel-arrow {
-    margin-left: auto; font-size: 20px; color: var(--text-muted);
-    transition: transform .2s, color .2s;
-  }
-  .panel-link:hover .panel-arrow { transform: translateX(4px); color: var(--accent); }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            margin-bottom: 30px;
+            min-height: 40px;
+        }
 
-  /* History Table */
-  .hist-table-wrap {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-    margin-bottom: 32px;
-  }
-  .hist-table {
-    width: 100%; border-collapse: collapse; font-size: 13px;
-  }
-  .hist-table th {
-    background: rgba(99,102,241,.06);
-    padding: 12px 16px; text-align: left;
-    font-weight: 600; font-size: 11px;
-    text-transform: uppercase; letter-spacing: .5px;
-    color: var(--text-muted); border-bottom: 1px solid var(--border);
-  }
-  .hist-table td {
-    padding: 11px 16px; border-bottom: 1px solid rgba(42,45,58,.5);
-    font-variant-numeric: tabular-nums;
-  }
-  .hist-table tr:last-child td { border-bottom: none; }
-  .hist-table tr:hover td { background: rgba(99,102,241,.04); }
+        .sidebar.collapsed .sidebar-header {
+            justify-content: center;
+        }
 
-  .loading {
-    text-align: center; padding: 60px 20px;
-    color: var(--text-muted); font-size: 15px;
-  }
-  .spinner {
-    display: inline-block; width: 28px; height: 28px;
-    border: 3px solid var(--border); border-top-color: var(--accent);
-    border-radius: 50%; animation: spin .8s linear infinite;
-    margin-bottom: 12px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .footer {
-    text-align: center; padding: 20px;
-    font-size: 12px; color: var(--text-muted);
-    border-top: 1px solid var(--border);
-    margin-top: 16px;
-  }
-  .skeleton { background: var(--border); border-radius: 6px; animation: pulse 1.5s ease-in-out infinite; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
-</style>
-<script src="auth.js"></script>
+        .sidebar-logo {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-logo-text {
+            font-weight: 700;
+            font-size: 20px;
+            color: #58a6ff;
+        }
+
+        .sidebar-logo-sub {
+            font-size: 10px;
+            color: #8b949e;
+            line-height: 1;
+        }
+
+        .sidebar.collapsed .sidebar-logo-sub {
+            display: none;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: #8b949e;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .sidebar-toggle:hover {
+            color: #c9d1d9;
+        }
+
+        .sidebar.collapsed .sidebar-logo-text {
+            font-size: 16px;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            color: #8b949e;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        .nav-item:hover {
+            background-color: #161b22;
+            color: #c9d1d9;
+        }
+
+        .nav-item.active {
+            background-color: #58a6ff;
+            color: #0f1117;
+        }
+
+        .nav-item-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+        }
+
+        .sidebar.collapsed .nav-item-label {
+            display: none;
+        }
+
+        /* Main content */
+        .container {
+            margin-left: 250px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+            background-color: #0f1117;
+        }
+
+        .container.expanded {
+            margin-left: 48px;
+        }
+
+        /* Header */
+        .header {
+            background-color: #161b22;
+            border-bottom: 1px solid #2a2d3a;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-info {
+            text-align: right;
+            font-size: 14px;
+        }
+
+        /* Filters Bar */
+        .filters-bar {
+            background-color: #161b22;
+            border-bottom: 1px solid #2a2d3a;
+            padding: 16px 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-select {
+            background-color: #0d1117;
+            border: 1px solid #2a2d3a;
+            color: #c9d1d9;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .filter-select:hover,
+        .filter-select:focus {
+            border-color: #58a6ff;
+            outline: none;
+        }
+
+        /* Content area */
+        .content {
+            padding: 30px;
+        }
+
+        /* Section title */
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f0883e;
+            margin-top: 30px;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .section-title:first-of-type {
+            margin-top: 0;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1600px) {
+            .cards-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .cards-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Alert Grupos Grid */
+        .alert-grupos-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .alert-grupos-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .alert-grupos-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Alert Card */
+        .alert-grupo-card {
+            background-color: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-left: 4px solid #2a2d3a;
+            border-radius: 14px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .alert-grupo-card:hover {
+            border-color: #3a3d4a;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .alert-grupo-card.p1 {
+            border-left-color: #f85149;
+        }
+
+        .alert-grupo-card.p2 {
+            border-left-color: #f0883e;
+        }
+
+        .alert-grupo-card.p3 {
+            border-left-color: #d29922;
+        }
+
+        .alert-grupo-card.sem-custo {
+            border-left-color: #8b949e;
+        }
+
+        .alert-titulo {
+            font-size: 14px;
+            font-weight: 600;
+            color: #8b949e;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .alert-count {
+            font-size: 32px;
+            font-weight: 700;
+            color: #c9d1d9;
+            margin-bottom: 16px;
+        }
+
+        .alert-items {
+            font-size: 12px;
+            color: #8b949e;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #2a2d3a;
+        }
+
+        .alert-item:last-child {
+            border-bottom: none;
+        }
+
+        .alert-item-title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .alert-item-value {
+            font-weight: 600;
+            margin-left: 8px;
+            color: #c9d1d9;
+        }
+
+        /* Metric Card */
+        .metric-card {
+            background-color: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 14px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+
+        .metric-card:hover {
+            border-color: #3a3d4a;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #c9d1d9;
+            margin-bottom: 8px;
+        }
+
+        .metric-subtitle {
+            font-size: 12px;
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .metric-subtitle-main {
+            flex: 1;
+        }
+
+        .metric-trend {
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .metric-trend.positive {
+            color: #3fb950;
+        }
+
+        .metric-trend.negative {
+            color: #f85149;
+        }
+
+        .metric-trend.neutral {
+            color: #8b949e;
+        }
+
+        /* Percentage card styling */
+        .metric-card.pct .metric-value {
+            font-size: 36px;
+            color: #58a6ff;
+        }
+
+        .metric-card.pct-positive .metric-value {
+            color: #3fb950;
+        }
+
+        .metric-card.pct-negative .metric-value {
+            color: #f85149;
+        }
+
+        /* Alert card */
+        .metric-card.alert-card .metric-value {
+            font-size: 24px;
+            color: #f0883e;
+        }
+
+        .alert-content {
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+
+        /* Projections Grid */
+        .projections-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 30px 0;
+        }
+
+        @media (max-width: 1200px) {
+            .projections-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .projections-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .projection-card {
+            background-color: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .projection-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #8b949e;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+        }
+
+        .projection-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #c9d1d9;
+            margin-bottom: 12px;
+        }
+
+        .projection-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .projection-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 6px 0;
+            border-bottom: 1px solid #2a2d3a;
+        }
+
+        .projection-row:last-child {
+            border-bottom: none;
+        }
+
+        .projection-label {
+            color: #8b949e;
+        }
+
+        .projection-val {
+            color: #c9d1d9;
+            font-weight: 500;
+        }
+
+        /* Panels section */
+        .panels-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 30px 0;
+        }
+
+        @media (max-width: 1200px) {
+            .panels-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .panels-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel-link {
+            background-color: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 14px;
+            padding: 20px;
+            text-decoration: none;
+            color: #c9d1d9;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .panel-link:hover {
+            border-color: #58a6ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.1);
+        }
+
+        .panel-icon {
+            font-size: 32px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .panel-desc {
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        /* History table */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #1a1d27;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #2a2d3a;
+        }
+
+        .history-table thead {
+            background-color: #161b22;
+        }
+
+        .history-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            color: #8b949e;
+            text-transform: uppercase;
+            border-bottom: 1px solid #2a2d3a;
+        }
+
+        .history-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #2a2d3a;
+            font-size: 13px;
+        }
+
+        .history-table tbody tr:hover {
+            background-color: #161b22;
+        }
+
+        .history-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #2a2d3a 25%, #3a3d4a 50%, #2a2d3a 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 6px;
+            min-height: 20px;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        .card-skeleton {
+            background-color: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .card-skeleton .skeleton {
+            margin-bottom: 12px;
+        }
+
+        .card-skeleton .skeleton:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Error state */
+        .error-message {
+            background-color: rgba(248, 81, 73, 0.1);
+            border: 1px solid #f85149;
+            color: #f85149;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #8b949e;
+            font-size: 12px;
+            border-top: 1px solid #2a2d3a;
+            margin-top: 40px;
+        }
+
+        /* Utilities */
+        .text-green { color: #3fb950; }
+        .text-red { color: #f85149; }
+        .text-orange { color: #f0883e; }
+        .text-blue { color: #58a6ff; }
+        .text-purple { color: #d29922; }
+
+        .hidden { display: none; }
+    </style>
 </head>
 <body>
-<div class="header">
-  <div class="header-left">
-    <div class="logo">GGE</div>
-    <h1>Controle Total <span>— Dashboard</span></h1>
-  </div>
-  <div class="filter-bar">
-    <label>Período:</label>
-    <select id="periodFilter" onchange="applyFilter()">
-      <option value="7d">7 dias</option>
-      <option value="15d">15 dias</option>
-      <option value="30d" selected>30 dias</option>
-      <option value="mes_atual">Mês atual</option>
-      <option value="mes_passado">Mês passado</option>
-      <option value="90d">90 dias</option>
-      <option value="180d">180 dias</option>
-      <option value="1a">1 ano</option>
-    </select>
-    <label>Conta:</label>
-    <select id="contaFilter" onchange="applyFilter()">
-      <option value="all">Consolidado</option>
-    </select>
-  </div>
-</div>
-<div class="container" id="mainContent">
-  <div class="loading">
-    <div class="spinner"></div>
-    <div>Carregando dados...</div>
-  </div>
-</div>
-<div class="footer">Controle Total GGE &copy; 2026 — Dados via Supabase RPC</div>
-<script>
-const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <span class="sidebar-logo-text">GGE</span>
+                <span class="sidebar-logo-sub">Controle Total</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-item active" data-page="dashboard">
+                <span class="nav-item-icon">📊</span>
+                <span class="nav-item-label">Dashboard</span>
+            </a>
+            <a href="/margem" class="nav-item" data-page="margem">
+                <span class="nav-item-icon">📈</span>
+                <span class="nav-item-label">Margem</span>
+            </a>
+            <a href="/precificacao" class="nav-item" data-page="precificacao">
+                <span class="nav-item-icon">🏷️</span>
+                <span class="nav-item-label">Precificação</span>
+            </a>
+            <a href="/saude" class="nav-item" data-page="saude">
+                <span class="nav-item-icon">💪</span>
+                <span class="nav-item-label">Saúde</span>
+            </a>
+            <a href="/avaliacao" class="nav-item" data-page="avaliacao">
+                <span class="nav-item-icon">⭐</span>
+                <span class="nav-item-label">Avaliação</span>
+            </a>
+        </nav>
+    </div>
 
-const CONTAS_MAP = {
-  'e761652f-07fa-49d2-a6c7-1b738862ab08': 'GGE-GRAMPEADORES',
-  '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c': 'GGESP',
-  '8284ee61-87f9-4162-9f1f-542587fbbf53': 'TOOWCOMERCIAL'
-};
+    <!-- Main container -->
+    <div class="container" id="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Dashboard Controle Total GGE</h1>
+            <div class="header-right">
+                <div class="user-info">
+                    <div id="userName">Carregando...</div>
+                    <div style="font-size: 12px; color: #8b949e;">Admin</div>
+                </div>
+            </div>
+        </div>
 
-let contasList = [];
-let rawDailyData = [];
-let rawMonthlyData = [];
-let dashboardData = null;
+        <!-- Filters Bar -->
+        <div class="filters-bar">
+            <div class="filter-group">
+                <label class="filter-label">Período</label>
+                <select class="filter-select" id="filterPeriod" onchange="applyFilter()">
+                    <option value="7d">Últimos 7 dias</option>
+                    <option value="15d">Últimos 15 dias</option>
+                    <option value="30d" selected>Últimos 30 dias</option>
+                    <option value="mes_atual">Mês atual</option>
+                    <option value="mes_passado">Mês passado</option>
+                    <option value="90d">Últimos 90 dias</option>
+                    <option value="180d">Últimos 180 dias</option>
+                    <option value="1a">1 ano</option>
+                </select>
+            </div>
 
-function fmt(v) {
-  return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-}
-function fmtN(v) { return Number(v).toLocaleString('pt-BR'); }
-function fmtPct(v) { return Number(v).toFixed(1) + '%'; }
+            <div class="filter-group">
+                <label class="filter-label">Conta</label>
+                <select class="filter-select" id="filterConta" onchange="applyFilter()">
+                    <option value="">Consolidado</option>
+                </select>
+            </div>
 
-// === Date range helper (matches the RPC) ===
-function getDateRange(period) {
-  const now = new Date();
-  const today = now.toISOString().slice(0,10);
-  function pad(d) { return d.toISOString().slice(0,10); }
-  function sub(days) { const d = new Date(now); d.setDate(d.getDate() - days); return pad(d); }
-  switch(period) {
-    case '7d':  return { from: sub(7), to: today };
-    case '15d': return { from: sub(15), to: today };
-    case '30d': return { from: sub(30), to: today };
-    case 'mes_atual': {
-      const first = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { from: pad(first), to: today };
-    }
-    case 'mes_passado': {
-      const first = new Date(now.getFullYear(), now.getMonth()-1, 1);
-      const last = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { from: pad(first), to: pad(last) };
-    }
-    case '90d':  return { from: sub(90), to: today };
-    case '180d': return { from: sub(180), to: today };
-    case '1a':   return { from: sub(365), to: today };
-    default:     return { from: sub(30), to: today };
-  }
-}
+            <div class="filter-group">
+                <label class="filter-label">Status</label>
+                <select class="filter-select" id="filterStatus" onchange="applyFilter()">
+                    <option value="">Todos</option>
+                    <option value="active">Ativos</option>
+                    <option value="paused">Pausados</option>
+                    <option value="closed">Inativos</option>
+                </select>
+            </div>
 
-// === Supabase REST query ===
-async function sbQuery(endpoint, params) {
-  const url = new URL(SUPABASE_URL + '/rest/v1/' + endpoint);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
-  const r = await fetch(url, {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-  });
-  return r.json();
-}
+            <div class="filter-group">
+                <label class="filter-label">Listagem</label>
+                <select class="filter-select" id="filterListagem" onchange="applyFilter()">
+                    <option value="">Todos</option>
+                    <option value="gold_pro">Clássico</option>
+                    <option value="gold_special">Premium</option>
+                </select>
+            </div>
 
-// === Supabase RPC call ===
-async function sbRpc(fnName, body) {
-  const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fnName, {
-    method: 'POST',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
-    },
-    body: JSON.stringify(body)
-  });
-  return r.json();
-}
+            <div class="filter-group">
+                <label class="filter-label">Catálogo</label>
+                <select class="filter-select" id="filterCatalogo" onchange="applyFilter()">
+                    <option value="">Todos</option>
+                    <option value="true">Catálogo</option>
+                    <option value="false">Anúncio</option>
+                </select>
+            </div>
 
-// === Load contas for filter dropdown ===
-async function loadContas() {
-  const data = await sbQuery('contas', { select: 'id,nome', order: 'nome' });
-  contasList = data || [];
-  const sel = document.getElementById('contaFilter');
-  sel.innerHTML = '<option value="all">Consolidado</option>';
-  contasList.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.nome;
-    sel.appendChild(opt);
-  });
-}
+            <div class="filter-group">
+                <label class="filter-label">Logística</label>
+                <select class="filter-select" id="filterLogistica" onchange="applyFilter()">
+                    <option value="">Todos</option>
+                    <option value="fulfillment">Full</option>
+                    <option value="me2">Coleta</option>
+                </select>
+            </div>
 
-// === Load dashboard via RPC ===
-async function loadDashboard(period, contaId) {
-  const { from, to } = getDateRange(period);
-  const data = await sbRpc('rpc_dashboard_totais', {
-    p_from: from + 'T00:00:00+00:00',
-    p_to: to + 'T23:59:59+00:00',
-    p_conta_id: contaId && contaId !== 'all' ? contaId : null
-  });
-  return data;
-}
+            <div class="filter-group">
+                <label class="filter-label">Fornecedor</label>
+                <select class="filter-select" id="filterFornecedor" onchange="applyFilter()">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+        </div>
 
-// === Load projection data (daily vendas for last 31 days) ===
-async function loadProjectionData() {
-  const today = new Date();
-  const d31 = new Date(today); d31.setDate(d31.getDate() - 31);
-  const d31Str = d31.toISOString().slice(0,10);
-  const todayStr = today.toISOString().slice(0,10);
+        <!-- Content -->
+        <div class="content">
+            <!-- VENDAS Section -->
+            <div class="section-title">VENDAS</div>
+            <div class="cards-grid" id="vendas-cards">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+            </div>
 
-  const [dailyRaw, monthly] = await Promise.all([
-    sbQuery('vendas', {
-      select: 'conta_id,data_venda,preco_total,status',
-      'data_venda': 'gte.' + d31Str + 'T00:00:00',
-      'status': 'in.(paid,partially_refunded)',
-      limit: '50000'
-    }),
-    sbQuery('vw_saldo_vendas', {
-      select: '*', order: 'mes.desc', limit: '30'
-    })
-  ]);
+            <!-- CUSTOS Section -->
+            <div class="section-title">CUSTOS</div>
+            <div class="cards-grid" id="custos-cards">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+            </div>
 
-  const dailyMap = {};
-  dailyRaw.forEach(r => {
-    const conta = CONTAS_MAP[r.conta_id] || r.conta_id;
-    const dia = r.data_venda.slice(0,10);
-    if (dia >= todayStr) return;
-    const key = conta + '|' + dia;
-    if (!dailyMap[key]) dailyMap[key] = {conta, contaId: r.conta_id, dia, faturamento: 0, qtd: 0};
-    dailyMap[key].faturamento += Number(r.preco_total);
-    dailyMap[key].qtd += 1;
-  });
-  rawDailyData = Object.values(dailyMap).sort((a,b) => b.dia.localeCompare(a.dia));
-  rawMonthlyData = monthly || [];
-}
+            <!-- IMPOSTOS E MARGEM FINAL Section -->
+            <div class="section-title">IMPOSTOS E MARGEM FINAL</div>
+            <div class="cards-grid" id="impostos-cards">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+            </div>
 
-// === Projection helpers ===
-function filterDaily(data, conta) {
-  if (conta === 'all') return data;
-  // conta can be an ID or a name
-  return data.filter(d => d.conta === conta || d.contaId === conta);
-}
-function filterMonthly(data, conta) {
-  if (conta === 'all') {
-    const byMonth = {};
-    data.forEach(r => {
-      const m = r.mes;
-      if (!byMonth[m]) byMonth[m] = {
-        mes: m, conta_nome: 'Consolidado',
-        faturamento_bruto: 0, cancelamentos: 0, saldo_vendas: 0,
-        qtd_vendas: 0, qtd_cancelamentos: 0, comissao_ml_total: 0
-      };
-      byMonth[m].faturamento_bruto += Number(r.faturamento_bruto);
-      byMonth[m].cancelamentos += Number(r.cancelamentos);
-      byMonth[m].saldo_vendas += Number(r.saldo_vendas);
-      byMonth[m].qtd_vendas += Number(r.qtd_vendas);
-      byMonth[m].qtd_cancelamentos += Number(r.qtd_cancelamentos);
-      byMonth[m].comissao_ml_total += Number(r.comissao_ml_total);
-    });
-    return Object.values(byMonth).sort((a,b) => b.mes.localeCompare(a.mes));
-  }
-  // Find conta name from ID
-  const contaObj = contasList.find(c => c.id === conta);
-  const contaNome = contaObj ? contaObj.nome : conta;
-  return data.filter(r => r.conta_nome === contaNome || r.conta_nome === conta);
-}
-function calcProjections(daily, conta) {
-  const filtered = filterDaily(daily, conta);
-  const byDay = {};
-  filtered.forEach(d => {
-    if (!byDay[d.dia]) byDay[d.dia] = {dia: d.dia, faturamento: 0, qtd: 0};
-    byDay[d.dia].faturamento += d.faturamento;
-    byDay[d.dia].qtd += d.qtd;
-  });
-  const days = Object.values(byDay).sort((a,b) => b.dia.localeCompare(a.dia));
-  const calc = (n) => {
-    const slice = days.slice(0, n);
-    if (slice.length === 0) return {avg: 0, proj30: 0, n: 0, avgQtd: 0};
-    const total = slice.reduce((s,d) => s + d.faturamento, 0);
-    const totalQtd = slice.reduce((s,d) => s + d.qtd, 0);
-    return {avg: total/slice.length, avgQtd: totalQtd/slice.length, proj30: (total/slice.length)*30, n: slice.length, total};
-  };
-  return { d30: calc(30), d15: calc(15), d7: calc(7) };
-}
-function calcMonthProjections(daily, conta) {
-  const today = new Date();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-  const daysPassed = today.getDate() - 1;
-  const daysRemaining = daysInMonth - daysPassed;
-  const monthStr = today.toISOString().slice(0,7);
-  const filtered = filterDaily(daily, conta);
-  const mtdDays = {};
-  filtered.forEach(d => {
-    if (d.dia.startsWith(monthStr)) {
-      if (!mtdDays[d.dia]) mtdDays[d.dia] = 0;
-      mtdDays[d.dia] += d.faturamento;
-    }
-  });
-  const mtdTotal = Object.values(mtdDays).reduce((s,v) => s + v, 0);
-  const proj = calcProjections(daily, conta);
-  const calcMonth = (wd) => ({
-    mtd: mtdTotal, avgDay: wd.avg, daysRemaining, daysPassed, daysInMonth,
-    projected: mtdTotal + (wd.avg * daysRemaining), mtdDayCount: Object.keys(mtdDays).length
-  });
-  return { d30: calcMonth(proj.d30), d15: calcMonth(proj.d15), d7: calcMonth(proj.d7) };
-}
 
-// === Main load ===
-async function loadData() {
-  await Promise.all([
-    loadContas(),
-    loadProjectionData()
-  ]);
-  await applyFilter();
-}
+            <!-- ALERTAS DE GRUPOS Section -->
+            <div class="section-title">ALERTAS DE GRUPOS</div>
+            <div class="alert-grupos-grid" id="alert-grupos-grid">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+            </div>
 
-async function applyFilter() {
-  const period = document.getElementById('periodFilter').value;
-  const conta = document.getElementById('contaFilter').value;
+            <!-- EVOLUÇÃO MENSAL Chart -->
+            <div class="section-title">EVOLUÇÃO MENSAL</div>
+            <div class="metric-card" style="padding: 20px; height: 400px; display: flex; align-items: center; justify-content: center;">
+                <canvas id="evolucao-mensal-chart"></canvas>
+            </div>
 
-  // Show loading skeleton for metrics
-  document.getElementById('mainContent').innerHTML = buildSkeleton();
+            <!-- CURVA ABC Chart -->
+            <div class="section-title">CURVA ABC</div>
+            <div class="metric-card" style="padding: 20px; height: 400px; display: flex; align-items: center; justify-content: center;">
+                <canvas id="curva-abc-chart"></canvas>
+            </div>
 
-  // Load RPC data
-  dashboardData = await loadDashboard(period, conta);
+            <!-- Projections -->
+            <div class="section-title">PROJEÇÕES</div>
+            <div class="projections-grid" id="projections-grid">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+            </div>
 
-  // Build projections
-  const proj = calcProjections(rawDailyData, conta);
-  const mProj = calcMonthProjections(rawDailyData, conta);
-  const monthly = filterMonthly(rawMonthlyData, conta);
+            <!-- Panels -->
+            <div class="section-title">OUTROS PAINÉIS</div>
+            <div class="panels-grid">
+                <a href="/margem" class="panel-link">
+                    <div class="panel-icon">📈</div>
+                    <div class="panel-title">Análise de Margem</div>
+                    <div class="panel-desc">Detalhamento de custos por produto e categoria</div>
+                </a>
+                <a href="/precificacao" class="panel-link">
+                    <div class="panel-icon">🏷️</div>
+                    <div class="panel-title">Precificação Dinâmica</div>
+                    <div class="panel-desc">Otimize seus preços com base em margem e demanda</div>
+                </a>
+                <a href="/avaliacao" class="panel-link">
+                    <div class="panel-icon">⭐</div>
+                    <div class="panel-title">Saúde de Avaliações</div>
+                    <div class="panel-desc">Monitore e melhore suas notas no Mercado Livre</div>
+                </a>
+            </div>
 
-  document.getElementById('mainContent').innerHTML = buildFullDashboard(dashboardData, proj, mProj, monthly);
-}
+            <!-- History Table -->
+            <div class="section-title">HISTÓRICO MENSAL</div>
+            <table class="history-table" id="history-table">
+                <thead>
+                    <tr>
+                        <th>Mês</th>
+                        <th>Conta</th>
+                        <th>Faturamento Bruto</th>
+                        <th>Cancelamentos</th>
+                        <th>Saldo de Vendas</th>
+                        <th>Qtd. Vendas</th>
+                        <th>Qtd. Cancelamentos</th>
+                        <th>Comissão ML</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    <tr><td colspan="8" style="text-align: center; padding: 20px;">Carregando...</td></tr>
+                </tbody>
+            </table>
 
-function buildSkeleton() {
-  const card = '<div class="metric-card"><div class="skeleton" style="width:36px;height:36px;border-radius:10px;margin-bottom:12px"></div><div class="skeleton" style="width:80px;height:12px;margin-bottom:8px"></div><div class="skeleton" style="width:120px;height:24px"></div></div>';
-  const row5 = card.repeat(5);
-  return '<div class="section-title">Vendas</div><div class="metrics-grid">' + row5 + '</div>' +
-    '<div class="section-title">Custos</div><div class="metrics-grid">' + row5 + '</div>' +
-    '<div class="section-title">Impostos e Margem Final</div><div class="metrics-grid">' + row5 + '</div>';
-}
+            <!-- Error message placeholder -->
+            <div id="errorMessage" class="error-message hidden"></div>
 
-function metricCard(icon, iconClass, label, value, sub) {
-  return '<div class="metric-card">' +
-    '<div class="mc-icon ' + iconClass + '">' + icon + '</div>' +
-    '<div class="mc-label">' + label + '</div>' +
-    '<div class="mc-value">' + value + '</div>' +
-    (sub ? '<div class="mc-sub">' + sub + '</div>' : '') +
-    '</div>';
-}
+            <!-- Footer -->
+            <div class="footer">
+                Controle Total GGE © 2026 — Dados via Supabase RPC
+            </div>
+        </div>
+    </div>
 
-function buildFullDashboard(d, proj, mProj, monthly) {
-  if (!d) return '<div class="loading" style="color:var(--red)">Erro ao carregar dados</div>';
+    <script>
+        // ========== CONFIGURATION ==========
+        const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
 
-  let html = '';
+        const CONTAS_MAP = {
+            'e761652f-07fa-49d2-a6c7-1b738862ab08': 'GGE-GRAMPEADORES',
+            '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c': 'GGESP',
+            '8284ee61-87f9-4162-9f1f-542587fbbf53': 'TOOWCOMERCIAL'
+        };
 
-  // === SECTION 1: Vendas ===
-  html += '<div class="section-title">Vendas</div><div class="metrics-grid">';
-  html += metricCard('&#10004;', 'green', 'Vendas Efetivas', fmtN(d.vendas_efetivas), fmtN(d.unidades_vendidas) + ' unidades');
-  html += metricCard('&#10006;', d.vendas_canceladas > 0 ? 'red' : 'green', 'Cancelamentos', fmtN(d.vendas_canceladas), fmtPct(d.taxa_cancelamento_pct) + ' — ' + fmt(d.valor_cancelamentos));
-  html += metricCard('&#36;', 'yellow', 'Receita', fmt(d.receita), '');
-  html += metricCard('&#9776;', 'accent', 'Ticket Médio', fmt(d.ticket_medio), '');
-  html += metricCard('&#9888;', d.alerta_prejuizo > 0 ? 'red' : 'green', 'Alerta Prejuízo', fmtN(d.alerta_prejuizo),
-    fmtPct(d.vendas_efetivas > 0 ? (d.alerta_prejuizo / d.vendas_efetivas) * 100 : 0) + ' das vendas');
-  html += '</div>';
+        // ========== GLOBAL STATE ==========
+        let sidebarCollapsed = false;
+        let currentData = null;
+        let previousData = null;
+        let contas = [];
+        let fornecedores = [];
 
-  // === SECTION 2: Custos ===
-  html += '<div class="section-title">Custos</div><div class="metrics-grid">';
-  html += metricCard('&#128230;', 'accent', 'Custo Produto', fmt(d.custo_produto), fmtPct(d.custo_produto_pct) + ' da receita');
-  html += metricCard('&#37;', 'accent', 'Comissão ML', fmt(d.comissao_ml), fmtPct(d.comissao_ml_pct) + ' da receita');
-  html += metricCard('&#128666;', 'accent', 'Frete', fmt(d.frete), fmtPct(d.frete_pct) + ' da receita');
-  html += metricCard('&#128227;', 'orange', 'ADs', fmt(d.ads), fmtPct(d.ads_pct) + ' da receita');
-  html += metricCard('&#128200;', d.mc1_valor >= 0 ? 'green' : 'red', 'Margem (MC1)', fmt(d.mc1_valor), fmtPct(d.mc1_pct) + ' da receita');
-  html += '</div>';
+        // ========== SIDEBAR TOGGLE ==========
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            sidebarCollapsed = !sidebarCollapsed;
+            const sidebar = document.getElementById('sidebar');
+            const container = document.getElementById('container');
 
-  // === SECTION 3: Impostos e Margem Final ===
-  html += '<div class="section-title">Impostos e Margem Final</div><div class="metrics-grid">';
-  html += metricCard('&#128196;', 'red', 'Impostos', fmt(d.impostos_valor), fmtPct(d.impostos_pct) + ' da receita');
-  html += metricCard('&#9878;', 'red', 'DIFAL', fmt(d.difal_valor), fmtPct(d.difal_pct) + ' da receita');
-  html += metricCard('&#128178;', d.mc2_valor >= 0 ? 'green' : 'red', 'Margem (MC2)', fmt(d.mc2_valor), fmtPct(d.mc2_pct) + ' da receita');
-  html += metricCard('&#9888;', d.alerta_sem_custo > 0 ? 'orange' : 'green', 'Sem Custo', fmtN(d.alerta_sem_custo), 'vendas sem custo cadastrado');
-  html += metricCard('&#128722;', 'accent', 'Conta', d.conta_filtro || 'Consolidado', '');
-  html += '</div>';
+            if (sidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                container.classList.add('expanded');
+            } else {
+                sidebar.classList.remove('collapsed');
+                container.classList.remove('expanded');
+            }
+        });
 
-  // === SECTION 4: Projeção 30 Dias ===
-  const MN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const now = new Date();
-  const cm = MN[now.getMonth()], cy = now.getFullYear();
+        // ========== SUPABASE HELPERS ==========
+        async function sbRpc(name, params) {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            });
 
-  html += '<div class="section-title">Projeção 30 Dias</div><div class="proj-grid">';
-  html += projCard('Últimos 30 dias', proj.d30, '30', 30);
-  html += projCard('Últimos 15 dias', proj.d15, '15', 15);
-  html += projCard('Últimos 7 dias', proj.d7, '7', 7);
-  html += '</div>';
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || `RPC error: ${response.status}`);
+            }
 
-  // === SECTION 5: Projeção do Mês ===
-  html += '<div class="section-title">Projeção do Mês (' + cm + ' ' + cy + ')</div><div class="proj-grid">';
-  html += monthProjCard('Base: últimos 30 dias', mProj.d30, '30');
-  html += monthProjCard('Base: últimos 15 dias', mProj.d15, '15');
-  html += monthProjCard('Base: últimos 7 dias', mProj.d7, '7');
-  html += '</div>';
+            return await response.json();
+        }
 
-  // === SECTION 6: Painéis ===
-  html += '<div class="section-title">Painéis</div><div class="panels-grid">';
-  html += '<a class="panel-link" href="margem.html"><div class="panel-icon margem">&#128200;</div><div><h3>Painel I — Margem</h3><p>Análise de margem por anúncio, custos, frete, comissão e impostos por conta ML</p></div><div class="panel-arrow">&#8594;</div></a>';
-  html += '<a class="panel-link" href="precificacao.html"><div class="panel-icon preco">&#128176;</div><div><h3>Painel II — Precificação</h3><p>Precificação B2B e Marketplace com cálculo reverso de MC</p></div><div class="panel-arrow">&#8594;</div></a>';
-  html += '<a class="panel-link" href="avaliacao.html"><div class="panel-icon" style="background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(59,130,246,.05));color:var(--blue);">&#128202;</div><div><h3>Avaliação de Produtos</h3><p>Simulador de compra com upload Excel e cálculo por conta ML</p></div><div class="panel-arrow">&#8594;</div></a>';
-  html += '</div>';
+        async function sbQuery(table, select = '*', filters = {}) {
+            let url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}`;
 
-  // === SECTION 7: Histórico Mensal ===
-  if (monthly && monthly.length > 0) {
-    const hr = monthly.slice(0,6).map(m => {
-      const md = new Date(m.mes + 'T12:00:00');
-      const ml = MN[md.getMonth()] + '/' + md.getFullYear();
-      const cp = Number(m.saldo_vendas) > 0 ? (Number(m.comissao_ml_total)/Number(m.saldo_vendas)*100).toFixed(1) : '0.0';
-      const xp = (Number(m.faturamento_bruto) + Number(m.cancelamentos)) > 0
-        ? (Number(m.cancelamentos)/(Number(m.faturamento_bruto)+Number(m.cancelamentos))*100).toFixed(1) : '0.0';
-      return '<tr><td>' + ml + '</td><td>' + fmt(m.faturamento_bruto) + '</td><td>' + fmtN(m.qtd_vendas) + '</td><td>' + fmt(m.cancelamentos) + ' <span style="color:var(--text-muted)">(' + xp + '%)</span></td><td>' + fmt(m.comissao_ml_total) + ' <span style="color:var(--text-muted)">(' + cp + '%)</span></td><td>' + fmt(Number(m.saldo_vendas)/Number(m.qtd_vendas)) + '</td></tr>';
-    }).join('');
-    html += '<div class="section-title">Histórico Mensal</div><div class="hist-table-wrap"><table class="hist-table"><thead><tr><th>Mês</th><th>Faturamento Bruto</th><th>Vendas</th><th>Cancelamentos</th><th>Comissão ML</th><th>Ticket Médio</th></tr></thead><tbody>' + hr + '</tbody></table></div>';
-  }
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value !== null && value !== undefined && value !== '') {
+                    url += `&${key}=eq.${encodeURIComponent(value)}`;
+                }
+            });
 
-  return html;
-}
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-function projCard(label, data, badge, n) {
-  const bc = badge==='30'?'badge-30':badge==='15'?'badge-15':'badge-7';
-  return '<div class="proj-card"><div class="badge '+bc+'">'+n+' dias</div><div class="label">'+label+'</div><div class="value">'+fmt(data.proj30)+'</div><div class="sub">Média diária: <span class="avg">'+fmt(data.avg)+'</span></div><div class="sub" style="margin-top:4px">'+fmtN(Math.round(data.avgQtd))+' vendas/dia &middot; '+data.n+' dias amostrados</div></div>';
-}
+            if (!response.ok) {
+                throw new Error(`Query error: ${response.status}`);
+            }
 
-function monthProjCard(label, data, badge) {
-  const bc = badge==='30'?'badge-30':badge==='15'?'badge-15':'badge-7';
-  return '<div class="proj-card"><div class="badge '+bc+'">'+label.replace('Base: ú','Ú')+'</div><div class="label">'+label+'</div><div class="value">'+fmt(data.projected)+'</div><div class="month-detail"><strong>'+fmt(data.mtd)+'</strong> realizados em '+data.daysPassed+' dia'+(data.daysPassed!==1?'s':'')+'<br>+ <strong>'+fmt(data.avgDay)+'</strong>/dia &times; '+data.daysRemaining+' dias restantes<br>Mês: '+data.daysInMonth+' dias (faltam '+data.daysRemaining+')</div></div>';
-}
+            return await response.json();
+        }
 
-loadData().catch(err => {
-  document.getElementById('mainContent').innerHTML = '<div class="loading" style="color:var(--red)">Erro ao carregar dados: ' + err.message + '</div>';
-});
-</script>
+        // ========== DATE HELPERS ==========
+        function getDateRange(period) {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            const date = today.getDate();
+
+            let from, to = new Date(today);
+
+            switch (period) {
+                case '7d':
+                    from = new Date(today);
+                    from.setDate(date - 7);
+                    break;
+                case '15d':
+                    from = new Date(today);
+                    from.setDate(date - 15);
+                    break;
+                case '30d':
+                    from = new Date(today);
+                    from.setDate(date - 30);
+                    break;
+                case 'mes_atual':
+                    from = new Date(year, month, 1);
+                    to = new Date(year, month + 1, 0);
+                    break;
+                case 'mes_passado':
+                    from = new Date(year, month - 1, 1);
+                    to = new Date(year, month, 0);
+                    break;
+                case '90d':
+                    from = new Date(today);
+                    from.setDate(date - 90);
+                    break;
+                case '180d':
+                    from = new Date(today);
+                    from.setDate(date - 180);
+                    break;
+                case '1a':
+                    from = new Date(today);
+                    from.setFullYear(year - 1);
+                    break;
+                default:
+                    from = new Date(today);
+                    from.setDate(date - 30);
+            }
+
+            return {
+                from: from.toISOString(),
+                to: to.toISOString()
+            };
+        }
+
+        function getPreviousDateRange(period) {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            const date = today.getDate();
+
+            let from, to;
+
+            switch (period) {
+                case '7d':
+                    to = new Date(today);
+                    to.setDate(date - 7);
+                    from = new Date(today);
+                    from.setDate(date - 14);
+                    break;
+                case '15d':
+                    to = new Date(today);
+                    to.setDate(date - 15);
+                    from = new Date(today);
+                    from.setDate(date - 30);
+                    break;
+                case '30d':
+                    to = new Date(today);
+                    to.setDate(date - 30);
+                    from = new Date(today);
+                    from.setDate(date - 60);
+                    break;
+                case 'mes_atual':
+                    from = new Date(year, month - 1, 1);
+                    to = new Date(year, month, 0);
+                    break;
+                case 'mes_passado':
+                    from = new Date(year, month - 2, 1);
+                    to = new Date(year, month - 1, 0);
+                    break;
+                case '90d':
+                    to = new Date(today);
+                    to.setDate(date - 90);
+                    from = new Date(today);
+                    from.setDate(date - 180);
+                    break;
+                case '180d':
+                    to = new Date(today);
+                    to.setDate(date - 180);
+                    from = new Date(today);
+                    from.setDate(date - 360);
+                    break;
+                case '1a':
+                    from = new Date(today);
+                    from.setFullYear(year - 2);
+                    to = new Date(today);
+                    to.setFullYear(year - 1);
+                    break;
+                default:
+                    to = new Date(today);
+                    to.setDate(date - 30);
+                    from = new Date(today);
+                    from.setDate(date - 60);
+            }
+
+            return {
+                from: from.toISOString(),
+                to: to.toISOString()
+            };
+        }
+
+        // ========== FORMAT HELPERS ==========
+        function fmt(num) {
+            if (!num) return 'R$ 0,00';
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(num);
+        }
+
+        function fmtN(num) {
+            if (!num) return '0';
+            return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function fmtPct(num) {
+            if (!num) return '0,00%';
+            return num.toFixed(2).replace('.', ',') + '%';
+        }
+
+        function fmtPercent(num) {
+            if (num === null || num === undefined) return '0%';
+            return Math.round(num) + '%';
+        }
+
+        // ========== COMPARISON LOGIC ==========
+        function calculateTrend(current, previous, isCost = false) {
+            if (!previous || previous === 0) return { trend: '—', pct: 0, className: 'neutral' };
+
+            const delta = ((current - previous) / Math.abs(previous)) * 100;
+            const absDelta = Math.abs(delta);
+
+            if (absDelta < 1) {
+                return { trend: '—', pct: 0, className: 'neutral' };
+            }
+
+            let isPositive;
+            if (isCost) {
+                isPositive = delta < 0;
+            } else {
+                isPositive = delta > 0;
+            }
+
+            const arrow = delta < 0 ? '▼' : '▲';
+            const className = isPositive ? 'positive' : 'negative';
+
+            return {
+                trend: `${arrow} ${absDelta.toFixed(1)}%`,
+                pct: absDelta,
+                className: className
+            };
+        }
+
+        // ========== BUILD METRIC CARD ==========
+        function buildMetricCard(title, value, subtitle = '', trend = null, isPct = false, isAlert = false) {
+            const trendHtml = trend ? `<span class="metric-trend ${trend.className}">${trend.trend}</span>` : '';
+            let cardClass = isAlert ? 'alert-card' : 'pct';
+            
+            if (isPct) {
+                if (typeof value === 'string' && value.includes('%')) {
+                    const pctNum = parseFloat(value.replace('%', '').replace(',', '.'));
+                    cardClass = pctNum > 0 ? 'pct pct-positive' : (pctNum < 0 ? 'pct pct-negative' : 'pct');
+                }
+            }
+
+            return `
+                <div class="metric-card ${cardClass}">
+                    <div class="metric-value">${value}</div>
+                    <div class="metric-subtitle">
+                        <span class="metric-subtitle-main">${subtitle}</span>
+                        ${trendHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ========== LOAD INITIAL DATA ==========
+        async function loadInitialData() {
+            try {
+                const contasData = await sbQuery('contas', 'id,nome', {});
+                contas = contasData;
+
+                const contaSelect = document.getElementById('filterConta');
+                contas.forEach(conta => {
+                    const option = document.createElement('option');
+                    option.value = conta.id;
+                    option.textContent = conta.nome || CONTAS_MAP[conta.id] || conta.id;
+                    contaSelect.appendChild(option);
+                });
+
+                const fornecedoresData = await sbQuery('fornecedores', 'id,nome', {});
+                fornecedores = fornecedoresData;
+
+                const fornecedorSelect = document.getElementById('filterFornecedor');
+                fornecedores.forEach(forn => {
+                    const option = document.createElement('option');
+                    option.value = forn.id;
+                    option.textContent = forn.nome;
+                    fornecedorSelect.appendChild(option);
+                });
+
+                await applyFilter();
+            } catch (error) {
+                showError('Erro ao carregar dados iniciais: ' + error.message);
+            }
+        }
+
+        // ========== APPLY FILTER ==========
+        async function applyFilter() {
+            try {
+                const period = document.getElementById('filterPeriod').value;
+                const conta = document.getElementById('filterConta').value;
+                const status = document.getElementById('filterStatus').value;
+                const listagem = document.getElementById('filterListagem').value;
+                const catalogo = document.getElementById('filterCatalogo').value;
+                const logistica = document.getElementById('filterLogistica').value;
+                const fornecedor = document.getElementById('filterFornecedor').value;
+
+                const dateRange = getDateRange(period);
+                const prevDateRange = getPreviousDateRange(period);
+
+                const rpcParams = {
+                    p_from: dateRange.from,
+                    p_to: dateRange.to,
+                    p_conta_id: conta || null,
+                    p_status: status || null,
+                    p_tipo_listagem: listagem || null,
+                    p_em_catalogo: catalogo ? (catalogo === 'true') : null,
+                    p_modo_logistica: logistica || null,
+                    p_fornecedor_id: fornecedor || null
+                };
+
+                currentData = await sbRpc('rpc_dashboard_totais', rpcParams);
+
+                const prevRpcParams = {
+                    ...rpcParams,
+                    p_from: prevDateRange.from,
+                    p_to: prevDateRange.to
+                };
+
+                previousData = await sbRpc('rpc_dashboard_totais', prevRpcParams);
+
+                renderVendasCards();
+                renderCustosCards();
+                renderImpostosCards();
+                renderAlertaGrupos(conta, dateRange);
+                renderEvolucaoMensal(conta, dateRange);
+                renderCurvaABC(conta, dateRange);
+                renderProjections();
+                renderHistory();
+
+                document.getElementById('errorMessage').classList.add('hidden');
+            } catch (error) {
+                showError('Erro ao carregar dados: ' + error.message);
+            }
+        }
+
+        // ========== RENDER VENDAS CARDS ==========
+        function renderVendasCards() {
+            const data = currentData;
+            const prev = previousData;
+
+            const cards = [
+                {
+                    title: 'Vendas',
+                    value: fmtN(data.vendas_feitas),
+                    subtitle: `${fmtN(data.unidades_vendidas)} unidades`,
+                    trend: calculateTrend(data.vendas_feitas, prev.vendas_feitas)
+                },
+                {
+                    title: 'Cancelamentos',
+                    value: fmtN(data.vendas_canceladas),
+                    subtitle: `${fmtPct(data.taxa_cancelamento_pct)} — ${fmt(data.valor_cancelamentos)}`,
+                    trend: calculateTrend(data.vendas_canceladas, prev.vendas_canceladas, true)
+                },
+                {
+                    title: 'Vendas Efetivas',
+                    value: fmtN(data.vendas_efetivas),
+                    subtitle: `${fmtN(data.unidades_vendidas)} unidades`,
+                    trend: calculateTrend(data.vendas_efetivas, prev.vendas_efetivas)
+                },
+                {
+                    title: 'Receita',
+                    value: fmt(data.receita),
+                    subtitle: 'Vendas efetivas',
+                    trend: calculateTrend(data.receita, prev.receita)
+                },
+                {
+                    title: 'Ticket Médio',
+                    value: fmt(data.ticket_medio),
+                    subtitle: 'Por venda',
+                    trend: calculateTrend(data.ticket_medio, prev.ticket_medio)
+                }
+            ];
+
+            const html = cards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend)).join('');
+            document.getElementById('vendas-cards').innerHTML = html;
+        }
+
+        // ========== RENDER CUSTOS CARDS ==========
+        function renderCustosCards() {
+            const data = currentData;
+            const prev = previousData;
+
+            const cards = [
+                {
+                    title: 'Custo Produto',
+                    value: fmtPct(data.custo_produto_pct),
+                    subtitle: fmt(data.custo_produto),
+                    trend: calculateTrend(data.custo_produto_pct, prev.custo_produto_pct, true),
+                    isPct: true
+                },
+                {
+                    title: 'Comissão ML',
+                    value: fmtPct(data.comissao_ml_pct),
+                    subtitle: fmt(data.comissao_ml),
+                    trend: calculateTrend(data.comissao_ml_pct, prev.comissao_ml_pct, true),
+                    isPct: true
+                },
+                {
+                    title: 'Frete',
+                    value: fmtPct(data.frete_pct),
+                    subtitle: fmt(data.frete),
+                    trend: calculateTrend(data.frete_pct, prev.frete_pct, true),
+                    isPct: true
+                },
+                {
+                    title: 'ADs',
+                    value: fmtPct(data.ads_pct),
+                    subtitle: fmt(data.ads),
+                    trend: calculateTrend(data.ads_pct, prev.ads_pct, true),
+                    isPct: true
+                },
+                {
+                    title: 'MC1 - Margem Operacional',
+                    value: fmtPct(data.mc1_pct),
+                    subtitle: fmt(data.mc1_valor),
+                    trend: calculateTrend(data.mc1_pct, prev.mc1_pct),
+                    isPct: true
+                }
+            ];
+
+            const html = cards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend, card.isPct)).join('');
+            document.getElementById('custos-cards').innerHTML = html;
+        }
+
+        // ========== RENDER IMPOSTOS CARDS ==========
+        function renderImpostosCards() {
+            const data = currentData;
+            const prev = previousData;
+
+            const cards = [
+                {
+                    title: 'MC1',
+                    value: fmtPct(data.mc1_pct),
+                    subtitle: fmt(data.mc1_valor),
+                    trend: calculateTrend(data.mc1_pct, prev.mc1_pct),
+                    isPct: true
+                },
+                {
+                    title: 'Impostos',
+                    value: fmtPct(data.impostos_pct),
+                    subtitle: fmt(data.impostos_valor),
+                    trend: calculateTrend(data.impostos_pct, prev.impostos_pct, true),
+                    isPct: true
+                },
+                {
+                    title: 'DIFAL',
+                    value: fmtPct(data.difal_pct),
+                    subtitle: fmt(data.difal_valor),
+                    trend: calculateTrend(data.difal_pct, prev.difal_pct, true),
+                    isPct: true
+                },
+                {
+                    title: 'MC2 - Margem Final',
+                    value: fmtPct(data.mc2_pct),
+                    subtitle: fmt(data.mc2_valor),
+                    trend: calculateTrend(data.mc2_pct, prev.mc2_pct),
+                    isPct: true
+                },
+                {
+                    title: 'Alertas',
+                    value: `${data.alerta_prejuizo + data.alerta_sem_custo}`,
+                    subtitle: `${data.alerta_prejuizo} prejuízo, ${data.alerta_sem_custo} sem custo`,
+                    trend: null,
+                    isPct: false,
+                    isAlert: true
+                }
+            ];
+
+            const html = cards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend, card.isPct, card.isAlert)).join('');
+            document.getElementById('impostos-cards').innerHTML = html;
+        }
+
+        // ========== RENDER ALERTA GRUPOS ==========
+        async function renderAlertaGrupos(conta, dateRange) {
+            try {
+                const filters = conta ? { conta_id: `eq.${conta}` } : {};
+                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=grupo,titulo,margem_valor,margem_pct,margem_sem_ads,tem_custo`;
+
+                // Add date range filter
+                url += `&mes=gte.${dateRange.from.split('T')[0].substring(0, 7)}`;
+                url += `&mes=lte.${dateRange.to.split('T')[0].substring(0, 7)}`;
+
+                if (conta) {
+                    url += `&conta_id=eq.${conta}`;
+                }
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`Query error: ${response.status}`);
+                const data = await response.json();
+
+                // Categorize anúncios
+                const p1 = data.filter(a => a.grupo === 'P1' && a.margem_valor < 0);
+                const p2 = data.filter(a => a.grupo === 'P2' && a.margem_valor < 0 && a.margem_sem_ads > 0);
+                const p3 = data.filter(a => a.grupo === 'P3' && a.tem_custo === false);
+                const semCusto = data.filter(a => a.tem_custo === false);
+
+                // Sort by margem_valor and get top 3
+                const topP1 = p1.sort((a, b) => a.margem_valor - b.margem_valor).slice(0, 3);
+                const topP2 = p2.sort((a, b) => a.margem_valor - b.margem_valor).slice(0, 3);
+                const topP3 = p3.sort((a, b) => a.margem_valor - b.margem_valor).slice(0, 3);
+
+                const cards = [
+                    { title: 'P1 - Prejuízo Estrutural', count: p1.length, items: topP1, type: 'p1' },
+                    { title: 'P2 - Prejuízo por ADs', count: p2.length, items: topP2, type: 'p2' },
+                    { title: 'P3 - ADs sem Vendas', count: p3.length, items: topP3, type: 'p3' },
+                    { title: 'Sem Custo', count: semCusto.length, items: [], type: 'sem-custo' }
+                ];
+
+                const html = cards.map(card => {
+                    const itemsHtml = card.items.map(item => {
+                        const abbrevTitle = item.titulo.substring(0, 20) + (item.titulo.length > 20 ? '...' : '');
+                        return `
+                            <div class="alert-item">
+                                <span class="alert-item-title">${abbrevTitle}</span>
+                                <span class="alert-item-value">${fmtPct(item.margem_pct)}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="alert-grupo-card ${card.type}">
+                            <div class="alert-titulo">${card.title}</div>
+                            <div class="alert-count">${card.count}</div>
+                            ${card.items.length > 0 ? `<div class="alert-items">${itemsHtml}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                document.getElementById('alert-grupos-grid').innerHTML = html;
+            } catch (error) {
+                console.error('Error rendering alert grupos:', error);
+                document.getElementById('alert-grupos-grid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #f85149;">Erro ao carregar alertas</div>';
+            }
+        }
+
+        // ========== RENDER EVOLUÇÃO MENSAL ==========
+        async function renderEvolucaoMensal(conta, dateRange) {
+            try {
+                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=mes,receita,margem_valor&order=mes.asc`;
+
+                // Add date range filter for last 12 months
+                const today = new Date();
+                const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), 1);
+                const startMonth = oneYearAgo.toISOString().split('T')[0].substring(0, 7);
+
+                url += `&mes=gte.${startMonth}`;
+                if (conta) {
+                    url += `&conta_id=eq.${conta}`;
+                }
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`Query error: ${response.status}`);
+                const rawData = await response.json();
+
+                // Aggregate by mes
+                const aggregated = {};
+                rawData.forEach(row => {
+                    if (!aggregated[row.mes]) {
+                        aggregated[row.mes] = { receita: 0, margem_valor: 0 };
+                    }
+                    aggregated[row.mes].receita += row.receita || 0;
+                    aggregated[row.mes].margem_valor += row.margem_valor || 0;
+                });
+
+                const meses = Object.keys(aggregated).sort();
+                const receitas = meses.map(m => aggregated[m].receita);
+                const margens = meses.map(m => aggregated[m].margem_valor);
+
+                const ctx = document.getElementById('evolucao-mensal-chart').getContext('2d');
+
+                // Destroy existing chart if it exists
+                if (window.evolucaoChart) window.evolucaoChart.destroy();
+
+                window.evolucaoChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: meses,
+                        datasets: [
+                            {
+                                label: 'Receita',
+                                data: receitas,
+                                type: 'bar',
+                                backgroundColor: 'rgba(88, 166, 255, 0.7)',
+                                borderColor: '#58a6ff',
+                                borderWidth: 1,
+                                yAxisID: 'y',
+                                order: 2
+                            },
+                            {
+                                label: 'Margem',
+                                data: margens,
+                                type: 'line',
+                                borderColor: '#3fb950',
+                                backgroundColor: 'rgba(63, 185, 80, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                yAxisID: 'y1',
+                                order: 1,
+                                pointBackgroundColor: '#3fb950',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 1,
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#c9d1d9',
+                                    font: { size: 12 }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#c9d1d9',
+                                bodyColor: '#8b949e',
+                                borderColor: '#2a2d3a',
+                                borderWidth: 1
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                ticks: { color: '#8b949e' },
+                                grid: { color: 'rgba(42, 45, 58, 0.5)' },
+                                title: { display: true, text: 'Receita', color: '#8b949e' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                ticks: { color: '#8b949e' },
+                                grid: { display: false },
+                                title: { display: true, text: 'Margem', color: '#8b949e' }
+                            },
+                            x: {
+                                ticks: { color: '#8b949e' },
+                                grid: { color: 'rgba(42, 45, 58, 0.5)' }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error rendering evolução mensal:', error);
+                document.getElementById('evolucao-mensal-chart').parentElement.innerHTML = '<div style="text-align: center; color: #f85149;">Erro ao carregar evolução mensal</div>';
+            }
+        }
+
+        // ========== RENDER CURVA ABC ==========
+        async function renderCurvaABC(conta, dateRange) {
+            try {
+                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=sku_vendedor,receita`;
+
+                if (conta) {
+                    url += `&conta_id=eq.${conta}`;
+                }
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`Query error: ${response.status}`);
+                const rawData = await response.json();
+
+                // Aggregate by sku_vendedor
+                const skuMap = {};
+                rawData.forEach(row => {
+                    if (!skuMap[row.sku_vendedor]) {
+                        skuMap[row.sku_vendedor] = 0;
+                    }
+                    skuMap[row.sku_vendedor] += row.receita || 0;
+                });
+
+                // Sort and get top 20
+                const sorted = Object.entries(skuMap)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20);
+
+                const skus = sorted.map(([sku]) => sku);
+                const receitas = sorted.map(([, receita]) => receita);
+
+                // Calculate cumulative percentages
+                const totalReceita = receitas.reduce((a, b) => a + b, 0);
+                let cumulative = 0;
+                const cumulativePcts = receitas.map(r => {
+                    cumulative += r;
+                    return (cumulative / totalReceita) * 100;
+                });
+
+                const ctx = document.getElementById('curva-abc-chart').getContext('2d');
+
+                // Destroy existing chart if it exists
+                if (window.curvaAbcChart) window.curvaAbcChart.destroy();
+
+                window.curvaAbcChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: skus,
+                        datasets: [
+                            {
+                                label: 'Receita',
+                                data: receitas,
+                                backgroundColor: 'rgba(88, 166, 255, 0.7)',
+                                borderColor: '#58a6ff',
+                                borderWidth: 1,
+                                yAxisID: 'y',
+                                order: 2
+                            },
+                            {
+                                label: 'Cumulative %',
+                                data: cumulativePcts,
+                                type: 'line',
+                                borderColor: '#f0883e',
+                                backgroundColor: 'transparent',
+                                borderWidth: 2,
+                                yAxisID: 'y1',
+                                order: 1,
+                                pointBackgroundColor: '#f0883e',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 1,
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#c9d1d9',
+                                    font: { size: 12 }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#c9d1d9',
+                                bodyColor: '#8b949e',
+                                borderColor: '#2a2d3a',
+                                borderWidth: 1,
+                                callbacks: {
+                                    afterBody: function(context) {
+                                        if (context[0].datasetIndex === 1) {
+                                            return 'Limites: A (80%) | B (95%) | C (100%)';
+                                        }
+                                        return '';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                ticks: { color: '#8b949e' },
+                                grid: { color: 'rgba(42, 45, 58, 0.5)' },
+                                title: { display: true, text: 'Receita', color: '#8b949e' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                min: 0,
+                                max: 100,
+                                ticks: { color: '#8b949e' },
+                                grid: { display: false },
+                                title: { display: true, text: '% Acumulado', color: '#8b949e' }
+                            },
+                            x: {
+                                ticks: { color: '#8b949e' },
+                                grid: { color: 'rgba(42, 45, 58, 0.5)' }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error rendering curva ABC:', error);
+                document.getElementById('curva-abc-chart').parentElement.innerHTML = '<div style="text-align: center; color: #f85149;">Erro ao carregar curva ABC</div>';
+            }
+        }
+
+        // ========== RENDER PROJECTIONS ==========
+        async function renderProjections() {
+            try {
+                const vendas = await sbQuery('vendas', 'status,created_at,total_value,conta_id', {});
+
+                const projections = calculateProjections('30d', '', vendas);
+
+                const html = `
+                    <div class="projection-card">
+                        <div class="projection-title">Projeção 7 dias</div>
+                        <div class="projection-value">${fmt(projections.proj7d)}</div>
+                        <div class="projection-rows">
+                            <div class="projection-row">
+                                <span class="projection-label">Acumulado</span>
+                                <span class="projection-val">${fmt(projections.acum7d)}</span>
+                            </div>
+                            <div class="projection-row">
+                                <span class="projection-label">Média/dia</span>
+                                <span class="projection-val">${fmt(projections.media7d)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="projection-card">
+                        <div class="projection-title">Projeção 15 dias</div>
+                        <div class="projection-value">${fmt(projections.proj15d)}</div>
+                        <div class="projection-rows">
+                            <div class="projection-row">
+                                <span class="projection-label">Acumulado</span>
+                                <span class="projection-val">${fmt(projections.acum15d)}</span>
+                            </div>
+                            <div class="projection-row">
+                                <span class="projection-label">Média/dia</span>
+                                <span class="projection-val">${fmt(projections.media15d)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="projection-card">
+                        <div class="projection-title">Projeção Mensal</div>
+                        <div class="projection-value">${fmt(projections.projMonth)}</div>
+                        <div class="projection-rows">
+                            <div class="projection-row">
+                                <span class="projection-label">Acumulado</span>
+                                <span class="projection-val">${fmt(projections.acumMonth)}</span>
+                            </div>
+                            <div class="projection-row">
+                                <span class="projection-label">Média/dia</span>
+                                <span class="projection-val">${fmt(projections.mediaMonth)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('projections-grid').innerHTML = html;
+            } catch (error) {
+                console.error('Error rendering projections:', error);
+                document.getElementById('projections-grid').innerHTML = '<div class="error-message">Erro ao calcular projeções</div>';
+            }
+        }
+
+        // ========== CALCULATE PROJECTIONS ==========
+        function calculateProjections(period, conta, vendas) {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const dayOfMonth = now.getDate();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            const monthVendas = vendas.filter(v => {
+                const vDate = new Date(v.created_at);
+                return vDate.getMonth() === currentMonth && vDate.getFullYear() === currentYear;
+            });
+
+            const monthTotal = monthVendas.reduce((sum, v) => sum + (v.total_value || 0), 0);
+            const dailyAvg = monthTotal / dayOfMonth;
+
+            const acum7d = monthTotal;
+            const proj7d = acum7d + (dailyAvg * 7);
+            const media7d = dailyAvg;
+
+            const acum15d = monthTotal;
+            const proj15d = acum15d + (dailyAvg * (15 - dayOfMonth));
+            const media15d = dailyAvg;
+
+            const acumMonth = monthTotal;
+            const projMonth = monthTotal + (dailyAvg * (daysInMonth - dayOfMonth));
+            const mediaMonth = dailyAvg;
+
+            return {
+                acum7d, proj7d, media7d,
+                acum15d, proj15d, media15d,
+                acumMonth, projMonth, mediaMonth
+            };
+        }
+
+        // ========== RENDER HISTORY TABLE ==========
+        async function renderHistory() {
+            try {
+                const history = await sbQuery('vw_saldo_vendas', '*', {});
+
+                if (!history || history.length === 0) {
+                    document.getElementById('history-body').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Sem dados disponíveis</td></tr>';
+                    return;
+                }
+
+                const rows = history.map(row => `
+                    <tr>
+                        <td>${row.mes || '—'}</td>
+                        <td>${row.conta_nome || '—'}</td>
+                        <td>${fmt(row.faturamento_bruto || 0)}</td>
+                        <td>${fmt(row.cancelamentos || 0)}</td>
+                        <td>${fmt(row.saldo_vendas || 0)}</td>
+                        <td>${fmtN(row.qtd_vendas || 0)}</td>
+                        <td>${fmtN(row.qtd_cancelamentos || 0)}</td>
+                        <td>${fmt(row.comissao_ml_total || 0)}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('history-body').innerHTML = rows;
+            } catch (error) {
+                console.error('Error loading history:', error);
+                document.getElementById('history-body').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #f85149;">Erro ao carregar histórico</td></tr>';
+            }
+        }
+
+        // ========== ERROR HANDLER ==========
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+
+        // ========== INIT ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            loadInitialData();
+        });
+    </script>
 </body>
 </html>

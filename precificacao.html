@@ -3,894 +3,885 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel II — Precificação | Controle Total GGE</title>
+    <title>Precificação B2B — Venda Direta | Controle Total</title>
+    <script src="auth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root {
-            --bg: #0f1117;
-            --card: #1a1d27;
-            --border: #2a2d3a;
-            --text: #e4e4e7;
-            --text-secondary: #a1a1a6;
-            --accent: #6366f1;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --info: #3b82f6;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #0f1117;
+            color: #c9d1d9;
+            display: flex;
+            min-height: 100vh;
         }
 
-        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background-color: #1a1d27;
+            border-right: 1px solid #2a2d3a;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #f0883e;
+        }
+
+        .sidebar-logo span {
+            margin-left: 8px;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: 12px;
+        }
+
+        .sidebar-nav a {
+            display: block;
+            padding: 10px 12px;
+            color: #c9d1d9;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+
+        .sidebar-nav a:hover {
+            background-color: #2a2d3a;
+        }
+
+        .sidebar-nav a.active {
+            background-color: #f0883e;
+            color: #0f1117;
+            font-weight: 600;
+        }
+
+        .toggle-sidebar {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background-color: #1a1d27;
+            border: 1px solid #2a2d3a;
+            color: #c9d1d9;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        /* Main Content */
+        .main {
+            margin-left: 250px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main.full-width {
+            margin-left: 0;
+        }
 
         .header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border);
-        }
-        .header-left { display: flex; align-items: center; gap: 15px; }
-        .logo { font-size: 24px; font-weight: 700; color: var(--accent); }
-        .header-title { display: flex; flex-direction: column; gap: 5px; }
-        .header-title h1 { font-size: 28px; font-weight: 600; }
-        .header-title p { font-size: 12px; color: var(--text-secondary); }
-        .header-link {
-            color: var(--accent); text-decoration: none; font-size: 14px;
-            display: flex; align-items: center; gap: 5px;
-            padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px;
-            transition: all 0.2s;
-        }
-        .header-link:hover { background-color: var(--card); border-color: var(--accent); }
-
-        .settings-bar {
-            background-color: var(--card); border: 1px solid var(--border); border-radius: 8px;
-            padding: 15px; margin-bottom: 30px;
-            max-height: 50px; overflow: hidden; transition: max-height 0.3s ease;
-        }
-        .settings-bar.expanded { max-height: 500px; }
-        .settings-toggle {
-            background: none; border: none; color: var(--accent); cursor: pointer;
-            font-weight: 600; display: flex; align-items: center; gap: 8px; font-size: 14px;
-        }
-        .settings-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px; margin-top: 15px;
-        }
-        .setting-item { display: flex; flex-direction: column; gap: 5px; }
-        .setting-item label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
-        .setting-item input {
-            background-color: var(--bg); border: 1px solid var(--border);
-            color: var(--text); padding: 8px; border-radius: 4px; font-size: 14px;
-        }
-        .setting-item input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1); }
-
-        .tabs {
-            display: flex; gap: 10px; margin-bottom: 20px;
-            border-bottom: 1px solid var(--border); overflow-x: auto; padding-bottom: 15px;
-        }
-        .tab-button {
-            background: none; border: none; color: var(--text-secondary); cursor: pointer;
-            padding: 8px 16px; font-size: 14px; font-weight: 500;
-            position: relative; white-space: nowrap; transition: color 0.2s;
-        }
-        .tab-button:hover { color: var(--text); }
-        .tab-button.active { color: var(--accent); }
-        .tab-button.active::after {
-            content: ''; position: absolute; bottom: -15px; left: 0; right: 0;
-            height: 2px; background-color: var(--accent);
+            background-color: #1a1d27;
+            border-bottom: 1px solid #2a2d3a;
+            padding: 30px;
+            margin-bottom: 20px;
         }
 
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        .controls { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-        .search-box { flex: 1; min-width: 200px; }
-        .search-box input {
-            width: 100%; padding: 10px 15px;
-            background-color: var(--card); border: 1px solid var(--border);
-            color: var(--text); border-radius: 4px; font-size: 14px;
-        }
-        .search-box input:focus { outline: none; border-color: var(--accent); }
-        .hint {
-            font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;
-        }
-        .hint-key {
-            display: inline-block; padding: 2px 6px; background: var(--card);
-            border: 1px solid var(--border); border-radius: 3px; font-family: monospace; font-size: 11px;
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #f0883e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
+        .content {
+            padding: 0 30px 30px;
+            flex: 1;
+        }
+
+        /* Controls Bar */
+        .controls-bar {
+            display: grid;
+            grid-template-columns: 150px 1fr auto auto;
+            gap: 15px;
+            margin-bottom: 25px;
+            align-items: center;
+            background-color: #1a1d27;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #2a2d3a;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        select, input[type="text"], input[type="file"] {
+            padding: 8px 12px;
+            background-color: #0f1117;
+            border: 1px solid #2a2d3a;
+            color: #c9d1d9;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #f0883e;
+        }
+
+        .search-input {
+            width: 100%;
+        }
+
+        .button {
+            padding: 10px 16px;
+            background-color: #f0883e;
+            color: #0f1117;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .button:hover {
+            background-color: #ff9d4d;
+        }
+
+        .button.secondary {
+            background-color: #2a2d3a;
+            color: #c9d1d9;
+        }
+
+        .button.secondary:hover {
+            background-color: #3a3d4a;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #uploadLabel {
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        /* Table Styles */
         .table-wrapper {
             overflow-x: auto;
-            background-color: var(--card); border: 1px solid var(--border); border-radius: 8px;
+            border-radius: 8px;
+            border: 1px solid #2a2d3a;
         }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        thead { background-color: rgba(99, 102, 241, 0.1); border-bottom: 1px solid var(--border); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #0f1117;
+        }
+
+        thead {
+            background-color: #1a1d27;
+            border-bottom: 2px solid #2a2d3a;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
         th {
-            padding: 12px; text-align: left; font-weight: 600; color: var(--accent);
-            cursor: pointer; user-select: none; white-space: nowrap;
-        }
-        th:hover { background-color: rgba(99, 102, 241, 0.15); }
-        td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-
-        tbody tr.main-row { cursor: pointer; transition: background-color 0.15s; }
-        tbody tr.main-row:hover { background-color: rgba(99, 102, 241, 0.05); }
-        tbody tr.main-row.expanded { background-color: rgba(99, 102, 241, 0.08); }
-        tbody tr.no-cost { opacity: 0.6; background-color: rgba(99, 102, 241, 0.02); }
-
-        tbody tr.sim-row { background: rgba(99, 102, 241, 0.04); animation: slideDown 0.2s ease; }
-        tbody tr.sim-row:hover { background: rgba(99, 102, 241, 0.08); }
-        tbody tr.sim-row td { font-size: 12px; border-bottom: 1px solid rgba(42, 45, 58, 0.5); }
-        tbody tr.sim-row:last-of-type td { border-bottom: 1px solid var(--border); }
-        tbody tr.sim-row.faixa-jump td { background: rgba(245, 158, 11, 0.06); }
-        .qty-label { font-weight: 700; color: var(--accent); font-size: 13px; }
-        .qty-peso { font-size: 11px; color: var(--text-secondary); font-weight: 400; margin-left: 4px; }
-        .jump-icon { color: var(--warning); margin-right: 4px; }
-        .faixa-badge {
-            display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px;
-            background: var(--border); color: var(--text-secondary); font-weight: 600; margin-left: 6px;
-        }
-        .faixa-badge.fix { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
-        .faixa-badge.peso { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-
-        .badge {
-            display: inline-block; padding: 3px 8px; border-radius: 3px;
-            font-size: 11px; font-weight: 600;
-        }
-        .badge-no-cost { background-color: var(--border); color: var(--text-secondary); }
-        .badge-estimated { background-color: rgba(245, 158, 11, 0.2); color: #fcd34d; margin-left: 4px; }
-        .badge-zona {
-            background-color: rgba(245, 158, 11, 0.15); color: #fcd34d;
-            border: 1px solid rgba(245, 158, 11, 0.35); margin-left: 6px;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #8b949e;
+            letter-spacing: 0.5px;
         }
 
-        .mc-good { color: var(--success); font-weight: 600; }
-        .mc-warning { color: var(--warning); font-weight: 600; }
-        .mc-danger { color: var(--danger); font-weight: 600; }
-        .price-lower { color: var(--success); }
-        .price-higher { color: var(--danger); }
-
-        .mlb-link {
-            color: var(--text-secondary); font-size: 11px; text-decoration: none;
-            font-family: monospace; display: inline-flex; align-items: center; gap: 3px;
+        th.price {
+            text-align: right;
         }
-        .mlb-link:hover { color: var(--accent); text-decoration: underline; }
 
-        .chevron { display: inline-block; width: 12px; color: var(--text-secondary); transition: transform 0.2s; margin-right: 4px; }
-        .expanded .chevron { transform: rotate(90deg); color: var(--accent); }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #2a2d3a;
+            font-size: 14px;
+        }
+
+        /* Section Headers */
+        .section-header {
+            background-color: #1a1d27;
+            padding: 14px 12px;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: #f0883e;
+            letter-spacing: 0.5px;
+        }
+
+        /* Category Headers (Machines) */
+        .category-header {
+            background-color: #1a1d27;
+            padding: 14px 12px;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: #f0883e;
+            border-top: 2px solid #f0883e;
+            border-bottom: 1px solid #2a2d3a;
+            letter-spacing: 0.5px;
+        }
+
+        /* Subcategory Headers */
+        .subcategory-header {
+            background-color: #1e3a5f;
+            padding: 12px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #a8c5dd;
+            text-transform: uppercase;
+            border-left: 3px solid #4a9eff;
+        }
+
+        .subcategory-header.insumo {
+            background-color: #1e3f2e;
+            color: #a8d9a1;
+            border-left-color: #4aff6a;
+        }
+
+        /* Product Rows */
+        tbody tr {
+            transition: background-color 0.2s;
+        }
+
+        tbody tr:hover {
+            background-color: #1a1d27;
+        }
+
+        td.sku {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            color: #79c0ff;
+            font-weight: 500;
+        }
+
+        td.price {
+            text-align: right;
+            font-weight: 500;
+        }
+
+        td.price.no-cost {
+            color: #f85149;
+            font-weight: 600;
+        }
+
+        /* Separator Row */
+        .separator {
+            background-color: #0f1117;
+            height: 2px;
+            padding: 0 !important;
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: #6e7681;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 200px;
+            }
+
+            .main {
+                margin-left: 200px;
+            }
+
+            .controls-bar {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .toggle-sidebar {
+                display: block;
+            }
+
+            .sidebar {
+                width: 100%;
+                z-index: 999;
+            }
+
+            .main {
+                margin-left: 0;
+            }
+
+            .sidebar.collapsed {
+                transform: translateX(-100%);
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 0 15px 15px;
+            }
+
+            .controls-bar {
+                grid-template-columns: 1fr;
+            }
+
+            th, td {
+                padding: 8px;
+                font-size: 12px;
+            }
+
+            .table-wrapper {
+                font-size: 12px;
+            }
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            color: #6e7681;
+        }
 
         .spinner {
-            display: inline-block; width: 20px; height: 20px;
-            border: 3px solid var(--border); border-top-color: var(--accent);
-            border-radius: 50%; animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading {
-            display: flex; justify-content: center; align-items: center; gap: 15px;
-            padding: 40px; color: var(--text-secondary);
-        }
-        .error {
-            background-color: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger);
-            color: var(--danger); padding: 15px; border-radius: 8px; margin-bottom: 20px;
-        }
-        .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }
-        .empty-state h3 { color: var(--text); margin-bottom: 10px; }
-
-        @media (max-width: 1024px) {
-            table { font-size: 12px; }
-            th, td { padding: 10px 8px; }
-            .header { flex-direction: column; gap: 15px; align-items: flex-start; }
-            .settings-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-        }
-        @media (max-width: 768px) {
-            .container { padding: 10px; }
-            .header-title h1 { font-size: 20px; }
-            table { font-size: 11px; }
-            th, td { padding: 8px 5px; }
-            .settings-grid { grid-template-columns: repeat(2, 1fr); }
+            border: 3px solid #2a2d3a;
+            border-top: 3px solid #f0883e;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
         }
 
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-        /* B2B Layout styles — Redesigned */
-        .b2b-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-        .b2b-toolbar .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 13px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
-        .b2b-toolbar .btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.05); }
-        .b2b-toolbar .btn svg { width: 15px; height: 15px; }
-        .b2b-toolbar .btn-upload { border-color: var(--success); color: var(--success); }
-        .b2b-toolbar .btn-upload:hover { background: rgba(16,185,129,0.08); }
-        .b2b-toolbar .status-msg { font-size: 12px; color: var(--text-secondary); }
-        .b2b-toolbar .status-msg.ok { color: var(--success); }
-        .b2b-toolbar .status-msg.err { color: var(--danger); }
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 20px;
+            background-color: #238636;
+            color: #fff;
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
 
-        .b2b-titulo-row td {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%) !important;
-            color: #fff !important; font-size: 14px; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 1.2px; padding: 14px 16px !important; border: none !important;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        .toast.error {
+            background-color: #da3633;
         }
-        .b2b-cabecalho-row td {
-            font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
-            padding: 10px 12px !important; border-bottom: 2px solid transparent !important;
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
-        .b2b-cabecalho-row.maquina td {
-            background: rgba(99,102,241,0.07) !important; color: var(--accent) !important;
-            border-bottom-color: var(--accent) !important;
-        }
-        .b2b-cabecalho-row.maquina td:first-child { border-left: 3px solid var(--accent); }
-        .b2b-cabecalho-row.insumo td {
-            background: rgba(16,185,129,0.07) !important; color: var(--success) !important;
-            border-bottom-color: var(--success) !important;
-        }
-        .b2b-cabecalho-row.insumo td:first-child { border-left: 3px solid var(--success); }
-        .b2b-cabecalho-row td.b2b-margin-label { text-align: center; font-size: 11px; font-weight: 600; }
-        .b2b-product-row { transition: background 0.15s; }
-        .b2b-product-row:hover { background: rgba(99,102,241,0.04) !important; }
-        .b2b-product-row td { padding: 9px 12px !important; font-size: 13px; border-bottom: 1px solid rgba(42,45,58,0.5) !important; }
-        .b2b-product-row:nth-child(even of .b2b-product-row) td { background: rgba(255,255,255,0.012); }
-        .b2b-price-cell { font-weight: 500; font-variant-numeric: tabular-nums; }
-        .b2b-sob-consulta { color: var(--text-secondary); font-size: 11px; font-style: italic; text-align: center; }
-        .b2b-separador-row td { height: 18px; border: none !important; background: transparent !important; }    </style>
-<script src="auth.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="header-left">
-                <div class="logo">GGE</div>
-                <div class="header-title">
-                    <h1>Controle Total — Precificação</h1>
-                    <p>Painel II: Reverse-engineered pricing por margem alvo · clique em uma linha para simular múltiplas unidades</p>
-                </div>
-            </div>
-            <a href="index.html" class="header-link">← Dashboard</a>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <span>GGE</span>
         </div>
+        <nav>
+            <ul class="sidebar-nav">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/margem">Margem</a></li>
+                <li><a href="/precificacao" class="active">Precificação</a></li>
+                <li><a href="/saude">Saúde</a></li>
+                <li><a href="/avaliacao">Avaliação</a></li>
+            </ul>
+        </nav>
+    </aside>
 
-        <div class="settings-bar" id="settingsBar">
-            <button class="settings-toggle" id="settingsToggle">⚙️ Configurações de Taxa</button>
-            <div class="settings-grid" id="settingsGrid" style="display: none;">
-                <div class="setting-item">
-                    <label>Comissão Clássico (%)</label>
-                    <input type="number" id="comissaoClassico" value="12" step="0.1" min="0" max="100">
-                </div>
-                <div class="setting-item">
-                    <label>Comissão Premium (%)</label>
-                    <input type="number" id="comissaoPremium" value="17" step="0.1" min="0" max="100">
-                </div>
-                <div class="setting-item">
-                    <label>PIS/COFINS Líquido (%)</label>
-                    <input type="number" id="pisCofins" value="6.64" step="0.1" min="0" max="100">
-                </div>
-                <div class="setting-item">
-                    <label>ICMS Coleta RJ (%)</label>
-                    <input type="number" id="icmsRj" value="5.40" step="0.1" min="0" max="100">
-                </div>
-                <div class="setting-item">
-                    <label>DIFAL Médio (%)</label>
-                    <input type="number" id="difal" value="7.15" step="0.1" min="0" max="100">
-                </div>
-                <div class="setting-item">
-                    <label>ADs (%)</label>
-                    <input type="number" id="ads" value="3.80" step="0.1" min="0" max="100">
-                </div>
-                <div class="setting-item">
-                    <label>Simples (%)</label>
-                    <input type="number" id="simples" value="8.65" step="0.1" min="0" max="100">
-                </div>
-                <div class="setting-item">
-                    <label>ICMS SP (%)</label>
-                    <input type="number" id="icmsSp" value="18.68" step="0.1" min="0" max="100">
-                </div>
-                <div class="setting-item">
-                    <label>Peso padrão (kg)</label>
-                    <input type="number" id="pesoDefault" value="1.0" step="0.1" min="0.05" max="100">
-                </div>
-            </div>
-        </div>
+    <button class="toggle-sidebar" id="toggleSidebar">☰</button>
 
-        <div class="tabs" id="tabs"></div>
-        <div class="controls">
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Buscar por SKU, MLB ou título...">
+    <!-- Main Content -->
+    <main class="main" id="main">
+        <!-- Header -->
+        <header class="header">
+            <h1>Precificação B2B — Venda Direta</h1>
+        </header>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Controls Bar -->
+            <div class="controls-bar">
+                <div class="control-group">
+                    <label>Empresa</label>
+                    <select id="empresaSelect">
+                        <option value="GGE">GGE</option>
+                        <option value="TOOW">TOOW</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Filtrar SKU ou Descrição</label>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Digite para filtrar...">
+                </div>
+                <button class="button" id="downloadBtn">Baixar Excel</button>
+                <div style="position: relative;">
+                    <button class="button secondary" id="uploadBtn">Carregar Excel</button>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" />
+                </div>
             </div>
-            <div class="hint"><span class="hint-key">clique</span> na linha para ver precificação em 2, 4, 6, 10 e 15 unidades</div>
+
+            <!-- Table -->
+            <div class="table-wrapper">
+                <div id="loadingState" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>Carregando dados...</span>
+                </div>
+                <table id="pricingTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th style="width: 200px;">Produto</th>
+                            <th style="width: 120px;">SKU</th>
+                            <th style="width: 80px;">Tipo</th>
+                            <th style="width: 100px;">Unid. / Grampo</th>
+                            <th style="width: 80px;" class="price">Custo CIF</th>
+                            <th style="width: 100px;" class="price">50% Margem</th>
+                            <th style="width: 100px;" class="price">45% Margem</th>
+                            <th style="width: 100px;" class="price">40% Margem</th>
+                            <th style="width: 100px;" class="price">35% Margem</th>
+                            <th style="width: 100px;" class="price">30% Margem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div id="tabsContent"></div>
-    </div>
+    </main>
 
     <script>
+        // Configuration
         const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJjo2_RQckjsY9kc';
 
-        const CONTAS = {
-            'e761652f-07fa-49d2-a6c7-1b738862ab08': { nome: 'GGE-GRAMPEADORES', regime: 'lucro_real', uf: 'RJ' },
-            '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c': { nome: 'GGESP', regime: 'lucro_real', uf: 'SP' },
-            '8284ee61-87f9-4162-9f1f-542587fbbf53': { nome: 'TOOWCOMERCIAL', regime: 'simples', uf: 'SP' }
-        };
-
-        const QUANTIDADES_SIMULACAO = [2, 4, 6, 10, 15];
-        const MARGEM_ALVOS = [0.10, 0.15, 0.20, 0.25];
-        const MARGEM_B2B_MAQ = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
-        const MARGEM_B2B_INS = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
-        const ICMS_IMPORTADO = 0.04;
-        const ICMS_NACIONAL = 0.12;
-        const PIS_COFINS_B2B = 0.0925;
-        const PESO_KEY = 'precif_pesos_v1';
-
-        let state = {
-            anuncios: [],
-            custos: {},
-            freteTable: [],
-            skusB2b: [],
-            b2bLayout: [],
-            pesos: loadPesos(),
-            expandedMlb: null,
-            rates: {
-                comissaoClassico: 12, comissaoPremium: 17, pisCofins: 6.64,
-                icmsRj: 5.40, difal: 7.15, ads: 3.80, simples: 8.65, icmsSp: 18.68,
-                pesoDefault: 1.0
+        // Hierarchical structure
+        const HIERARCHY = {
+            'ALICATES': {
+                'GRAMPEADORES ALICATE': {
+                    type: 'machine',
+                    skus: ['GDBTTP6', 'GDBTTB8', 'GDBTTP3']
+                },
+                'GRAMPOS PARA ALICATE': {
+                    type: 'insumo',
+                    skus: ['PACK501910', 'PACK211506', 'PACK211508', 'CXSP350K']
+                }
             },
-            searchTerm: '',
-            tabs: []
+            'EMBALAGENS - LINHA BOX': {
+                'MÁQUINAS BOX': {
+                    type: 'machine',
+                    skus: ['GDOR618', 'GDORBOXADB', 'GDORBOXHB', 'GDORBOXHB1']
+                },
+                'GRAMPOS BOX': {
+                    type: 'insumo',
+                    skus: ['GR3515CX5', 'GR3515CX10', 'GR3515CX20', 'GR3518CX5', 'GR3518CX10', 'GR3518CX20']
+                }
+            },
+            'GRAMPOS INDUSTRIAIS - LEVES': {
+                'GRAMPEADOR 80/W': {
+                    type: 'machine',
+                    skus: ['GDORPACARBRAS', 'GDORPACARTG', 'GDOR603', 'GDORDNZPS8016', 'GRMTX574209']
+                },
+                'GRAMPOS 80/W': {
+                    type: 'insumo',
+                    skus: ['UNGR8006', 'GR8006AFX10K', 'GR8006PACK', 'UNGR8008', 'GR8008AFX10K', 'GR8008PACK', 'UNGR8010', 'GR8010AFX10K', 'GR8010PACK', 'UNGR8013', 'GR8013AFX10K', 'GR8013PACK', 'UNGR8016', 'GR8016AFX7K']
+                },
+                'GRAMPO PCN': {
+                    type: 'insumo',
+                    skus: ['UNGRPCN08', 'UNGRPCN10', 'UNGRPCN13', 'UNGRPCN16', 'UNGRPCN19']
+                }
+            },
+            'GRAMPOS INDUSTRIAIS - MÉDIOS': {
+                'GRAMPEADOR 90 e 92': {
+                    type: 'machine',
+                    skus: ['GDOR609', 'GDOR621', 'GDORPACAR9230CTR', 'GDORPACAR9240', 'GDORPACAR9240RO']
+                },
+                'GRAMPOS 90': {
+                    type: 'insumo',
+                    skus: ['UNGR9015', 'UNGR9019', 'UNGR9025', 'UNGR9030', 'UNGR9035', 'UNGR9038']
+                }
+            },
+            'GRAMPOS INDUSTRIAIS - PESADOS': {
+                'GRAMPEADOR 14': {
+                    type: 'machine',
+                    skus: ['GDOR614', 'GDORPACAR1450', 'GDORPACAR1450C', 'GDORAFX851']
+                },
+                'GRAMPOS 14': {
+                    type: 'insumo',
+                    skus: ['GR1425', 'GR1430', 'GR1435', 'GR1438', 'GR1445', 'GR1450']
+                }
+            },
+            'PINOS': {
+                'GRAMPEADOR 14': {
+                    type: 'machine',
+                    skus: ['PNDORAFXF50', 'PNDORBATULT', 'PNMTX', 'PNDOR650', 'GDOR621']
+                },
+                'PINOS F': {
+                    type: 'insumo',
+                    skus: ['PNF10CX5', 'PNF15CX5', 'PNF20CX5', 'PNF25CX5', 'PNF30CX5', 'PNF35CX5', 'PNF40CX5', 'PNF45CX5', 'PNF50CX5']
+                }
+            },
+            'MICRO PINOS - PINO 0.64': {
+                'PREGADORES': {
+                    type: 'machine',
+                    skus: ['GDORAFXMP']
+                },
+                'MICROPINO 0.64': {
+                    type: 'insumo',
+                    skus: ['MICROPA12GGE', 'MICROPA15GGE', 'MICROPA25GGE']
+                }
+            },
+            'PREGOS EM ROLO': {
+                'PREGADORES': {
+                    type: 'machine',
+                    skus: ['PRDOR699']
+                }
+            }
         };
 
-        function loadPesos() {
-            try { return JSON.parse(localStorage.getItem(PESO_KEY) || '{}'); }
-            catch (_) { return {}; }
-        }
-        function savePesos() {
-            try { localStorage.setItem(PESO_KEY, JSON.stringify(state.pesos)); } catch (_) {}
-        }
+        // State
+        let skuData = {};
+        let filteredData = null;
+        let currentEmpresa = 'GGE';
 
-        async function init() {
+        // DOM Elements
+        const empresaSelect = document.getElementById('empresaSelect');
+        const searchInput = document.getElementById('searchInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const loadingState = document.getElementById('loadingState');
+        const pricingTable = document.getElementById('pricingTable');
+        const tableBody = document.getElementById('tableBody');
+        const toggleSidebar = document.getElementById('toggleSidebar');
+        const sidebar = document.getElementById('sidebar');
+        const main = document.getElementById('main');
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSkuData();
             setupEventListeners();
-            await loadData();
-            render();
-        }
+        });
 
         function setupEventListeners() {
-            document.getElementById('settingsToggle').addEventListener('click', toggleSettings);
-            ['comissaoClassico', 'comissaoPremium', 'pisCofins', 'icmsRj', 'difal', 'ads', 'simples', 'icmsSp', 'pesoDefault'].forEach(id => {
-                document.getElementById(id).addEventListener('change', (e) => {
-                    state.rates[id] = parseFloat(e.target.value);
-                    renderTables();
-                });
+            empresaSelect.addEventListener('change', (e) => {
+                currentEmpresa = e.target.value;
+                renderTable();
             });
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                state.searchTerm = e.target.value.toLowerCase();
-                renderTables();
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                renderTable(query);
             });
+
+            downloadBtn.addEventListener('click', downloadExcel);
+            uploadBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileUpload);
+            toggleSidebar.addEventListener('click', toggleSidebarVisibility);
         }
 
-        function toggleSettings() {
-            const bar = document.getElementById('settingsBar');
-            const grid = document.getElementById('settingsGrid');
-            bar.classList.toggle('expanded');
-            grid.style.display = bar.classList.contains('expanded') ? 'grid' : 'none';
+        function toggleSidebarVisibility() {
+            sidebar.classList.toggle('collapsed');
+            main.classList.toggle('full-width');
         }
 
-        async function loadData() {
+        async function loadSkuData() {
+            loadingState.style.display = 'flex';
+            pricingTable.style.display = 'none';
+
             try {
-                const [anuncios, custos, frete, skusB2b, b2bLayout] = await Promise.all([
-                    fetchSupabase('anuncios', 'select=mlb_id,titulo,preco_atual,sku_vendedor,tipo_listagem,modo_logistica,conta_id,categoria_id,permalink&status=eq.active'),
-                    fetchSupabase('skus_custo_historico', 'select=sku,custo_cif_rj,custo_cif_sp,data_vigencia&order=data_vigencia.desc'),
-                    fetchSupabase('tabela_frete_ml', 'select=modo,peso_max_kg,preco_min,preco_max,frete&modo=eq.coleta'),
-                    fetchSupabase('skus_custo', 'select=sku,descricao,origem,custo_cif_rj,custo_cif_sp,is_combo&or=(custo_cif_sp.gt.0,custo_cif_rj.gt.0)'),
-                    fetchSupabase('b2b_layout', 'select=ordem,tipo,sku,texto&order=ordem.asc')
-                ]);
-                state.anuncios = anuncios || [];
-                state.skusB2b = (skusB2b || []).map(s => ({
-                    sku: s.sku,
-                    descricao: s.descricao || '',
-                    origem: s.origem || '',
-                    cifSp: Number(s.custo_cif_sp || 0),
-                    cifRj: Number(s.custo_cif_rj || 0)
-                }));
-                state.freteTable = (frete || []).map(r => ({
-                    modo: r.modo,
-                    peso_max_kg: Number(r.peso_max_kg),
-                    preco_min: Number(r.preco_min),
-                    preco_max: Number(r.preco_max),
-                    frete: Number(r.frete)
-                })).sort((a, b) => a.peso_max_kg - b.peso_max_kg || a.preco_min - b.preco_min);
-                if (custos) {
-                    const custosMap = {};
-                    custos.forEach(c => { if (!custosMap[c.sku]) custosMap[c.sku] = c; });
-                    state.custos = custosMap;
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/skus_custo?select=sku,descricao,custo_cif_rj,custo_cif_sp,unidade,is_combo`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
                 }
-                state.b2bLayout = (b2bLayout || []).sort((a, b) => a.ordem - b.ordem);
+
+                const data = await response.json();
+                skuData = {};
+                data.forEach(item => {
+                    skuData[item.sku] = {
+                        descricao: item.descricao || '',
+                        custo_cif_rj: item.custo_cif_rj || 0,
+                        custo_cif_sp: item.custo_cif_sp || 0,
+                        unidade: item.unidade || '',
+                        is_combo: item.is_combo || false
+                    };
+                });
+
+                renderTable();
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
-                showError('Erro ao conectar com Supabase: ' + error.message);
+                showToast(`Erro ao carregar dados: ${error.message}`, 'error');
+                loadingState.style.display = 'none';
             }
         }
 
-        async function fetchSupabase(table, params) {
-            const url = SUPABASE_URL + '/rest/v1/' + table + '?' + params;
-            const response = await fetch(url, {
-                headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-            });
-            if (!response.ok) throw new Error('Supabase error: ' + response.statusText);
-            return response.json();
+        function renderTable(searchQuery = '') {
+            loadingState.style.display = 'none';
+            pricingTable.style.display = 'table';
+            tableBody.innerHTML = '';
+
+            const margins = currentEmpresa === 'GGE'
+                ? [50, 45, 40, 35, 30]
+                : [50, 45, 40, 35, 30];
+
+            for (const [category, subcategories] of Object.entries(HIERARCHY)) {
+                let categoryHasVisibleRows = false;
+                let categoryHTML = '';
+
+                // Add category header
+                categoryHTML += `<tr><td colspan="10" class="category-header">${category}</td></tr>`;
+
+                for (const [subcategory, config] of Object.entries(subcategories)) {
+                    let subcategoryHasVisibleRows = false;
+                    let subcategoryHTML = '';
+
+                    // Add subcategory header
+                    const headerClass = config.type === 'machine' ? '' : 'insumo';
+                    subcategoryHTML += `<tr><td colspan="10" class="subcategory-header ${headerClass}">${subcategory}</td></tr>`;
+
+                    // Process SKUs
+                    for (const sku of config.skus) {
+                        const item = skuData[sku];
+                        if (!item) continue;
+
+                        // Apply search filter
+                        if (searchQuery) {
+                            const matchesSku = sku.toLowerCase().includes(searchQuery);
+                            const matchesDesc = item.descricao.toLowerCase().includes(searchQuery);
+                            if (!matchesSku && !matchesDesc) continue;
+                        }
+
+                        subcategoryHasVisibleRows = true;
+                        categoryHasVisibleRows = true;
+
+                        const custo = currentEmpresa === 'GGE' ? item.custo_cif_rj : item.custo_cif_sp;
+                        const row = createProductRow(sku, item, custo, margins);
+                        subcategoryHTML += row;
+                    }
+
+                    if (subcategoryHasVisibleRows) {
+                        categoryHTML += subcategoryHTML;
+                    }
+                }
+
+                if (categoryHasVisibleRows) {
+                    tableBody.innerHTML += categoryHTML;
+                }
+            }
+
+            if (!tableBody.innerHTML) {
+                tableBody.innerHTML = `<tr><td colspan="10" class="empty-state">Nenhum produto encontrado</td></tr>`;
+            }
         }
 
-        function render() { renderTabs(); renderTables(); }
+        function createProductRow(sku, item, custo, margins) {
+            const costText = custo > 0 ? `R$ ${formatPrice(custo)}` : '<span style="color: #f85149; font-weight: 600;">SEM CUSTO</span>';
+            const costClass = custo > 0 ? '' : 'no-cost';
 
-        function renderTabs() {
-            const tabs = [
-                { id: 'toow', label: 'TOOW Convencional', conta: '8284ee61-87f9-4162-9f1f-542587fbbf53' },
-                { id: 'ggerj-coleta', label: 'GGERJ Coleta Convencional', conta: 'e761652f-07fa-49d2-a6c7-1b738862ab08' },
-                { id: 'ggerj-sem-imposto', label: 'GGERJ Coleta Sem Imposto', conta: 'e761652f-07fa-49d2-a6c7-1b738862ab08' },
-                { id: 'ggerj-full', label: 'GGERJ Full', conta: 'e761652f-07fa-49d2-a6c7-1b738862ab08' },
-                { id: 'ggesp', label: 'GGESP Convencional', conta: '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c' },
-                { id: 'b2b', label: 'VENDA DIRETA B2B', conta: null }
-            ];
-            document.getElementById('tabs').innerHTML = tabs.map((tab, idx) =>
-                '<button class="tab-button ' + (idx === 0 ? 'active' : '') + '" data-tab="' + tab.id + '">' + tab.label + '</button>'
-            ).join('');
-            tabs.forEach(tab => {
-                document.querySelector('[data-tab="' + tab.id + '"]').addEventListener('click', () => switchTab(tab.id, tabs));
-            });
-            document.getElementById('tabsContent').innerHTML = tabs.map((tab, idx) =>
-                '<div class="tab-content ' + (idx === 0 ? 'active' : '') + '" id="tab-' + tab.id + '"></div>'
-            ).join('');
-            state.tabs = tabs;
-        }
-
-        function switchTab(tabId, tabs) {
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.querySelector('[data-tab="' + tabId + '"]').classList.add('active');
-            document.getElementById('tab-' + tabId).classList.add('active');
-            state.expandedMlb = null;
-            renderTableForTab(tabId);
-        }
-
-        function renderTables() { state.tabs.forEach(tab => renderTableForTab(tab.id)); }
-
-        function filterAnunciosForTab(tabId) {
-            switch (tabId) {
-                case 'toow':
-                    return state.anuncios.filter(a => a.conta_id === '8284ee61-87f9-4162-9f1f-542587fbbf53');
-                case 'ggerj-coleta':
-                    return state.anuncios.filter(a => a.conta_id === 'e761652f-07fa-49d2-a6c7-1b738862ab08' && a.modo_logistica === 'coleta');
-                case 'ggerj-sem-imposto':
-                    return state.anuncios.filter(a => a.conta_id === 'e761652f-07fa-49d2-a6c7-1b738862ab08' && a.modo_logistica === 'coleta');
-                case 'ggerj-full':
-                    return state.anuncios.filter(a => a.conta_id === 'e761652f-07fa-49d2-a6c7-1b738862ab08' && ((a.modo_logistica || '').includes('fulfillment') || (a.modo_logistica || '').includes('full')));
-                case 'ggesp':
-                    return state.anuncios.filter(a => a.conta_id === '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c');
-            }
-            return [];
-        }
-
-        function renderTableForTab(tabId) {
-            const container = document.getElementById('tab-' + tabId);
-            if (tabId === 'b2b') {
-                renderB2bTab(container);
-                return;
-            }
-            let filtered = filterAnunciosForTab(tabId);
-            if (state.searchTerm) {
-                filtered = filtered.filter(a =>
-                    (a.sku_vendedor || '').toLowerCase().includes(state.searchTerm) ||
-                    (a.mlb_id || '').toLowerCase().includes(state.searchTerm) ||
-                    (a.titulo || '').toLowerCase().includes(state.searchTerm)
-                );
-            }
-            if (filtered.length === 0) {
-                container.innerHTML = '<div class="empty-state"><h3>Nenhum anúncio encontrado</h3><p>Tente ajustar os filtros de busca</p></div>';
-                return;
-            }
-            const rows = filtered
-                .sort((a, b) => (a.sku_vendedor || '').localeCompare(b.sku_vendedor || ''))
-                .map(anuncio => buildRow(anuncio, tabId));
-
-            const header = '<thead><tr>' +
-                '<th style="width:26px"></th>' +
-                '<th>SKU / MLB</th>' +
-                '<th>Título</th>' +
-                '<th>Preço Atual</th>' +
-                '<th>Custo CIF</th>' +
-                '<th>Frete Est.</th>' +
-                '<th>MC Atual</th>' +
-                '<th>MC 10%</th><th>MC 15%</th><th>MC 20%</th><th>MC 25%</th>' +
-                '</tr></thead>';
-
-            const body = '<tbody>' + rows.map(r => renderMainRow(r, tabId)).join('') + '</tbody>';
-            container.innerHTML = '<div class="table-wrapper"><table>' + header + body + '</table></div>';
-
-            container.querySelectorAll('tr.main-row').forEach(tr => {
-                tr.addEventListener('click', (ev) => {
-                    if (ev.target.tagName === 'A') return;
-                    const mlb = tr.getAttribute('data-mlb');
-                    state.expandedMlb = state.expandedMlb === mlb ? null : mlb;
-                    renderTableForTab(tabId);
+            let pricesCells = '';
+            if (custo > 0) {
+                margins.forEach(margin => {
+                    const price = custo / (1 - margin / 100);
+                    pricesCells += `<td class="price">R$ ${formatPrice(price)}</td>`;
                 });
-            });
-
-        }
-
-        function buildRow(anuncio, tabId) {
-            const custo = state.custos[anuncio.sku_vendedor] || {};
-            const cif = Number(custo.custo_cif_rj || custo.custo_cif_sp || 0);
-            const hasCusto = cif > 0;
-            const pesoUnit = state.pesos[anuncio.mlb_id] || state.rates.pesoDefault;
-            let comissaoPct = state.rates.comissaoClassico / 100;
-            if (anuncio.tipo_listagem === 'gold_special') comissaoPct = state.rates.comissaoPremium / 100;
-            const deductions = getDeductions(tabId, comissaoPct);
-            const frete = lookupFrete(pesoUnit, Number(anuncio.preco_atual));
-            const mcAtual = calculateMC(Number(anuncio.preco_atual), cif, frete, deductions);
-            const prices = {
-                mc10: calcPrice(cif, pesoUnit, deductions, 0.10, 1),
-                mc15: calcPrice(cif, pesoUnit, deductions, 0.15, 1),
-                mc20: calcPrice(cif, pesoUnit, deductions, 0.20, 1),
-                mc25: calcPrice(cif, pesoUnit, deductions, 0.25, 1)
-            };
-            return {
-                mlb_id: anuncio.mlb_id,
-                sku: anuncio.sku_vendedor || '—',
-                titulo: anuncio.titulo || '',
-                tituloCurto: (anuncio.titulo || '').substring(0, 40),
-                precoAtual: Number(anuncio.preco_atual),
-                permalink: anuncio.permalink,
-                cif, frete, mcAtual, prices, hasCusto,
-                deductions,
-                pesoUnit
-            };
-        }
-
-        function renderMainRow(row, tabId) {
-            const mcClass = row.mcAtual > 0.15 ? 'mc-good' : row.mcAtual > 0.03 ? 'mc-warning' : 'mc-danger';
-            const isExpanded = state.expandedMlb === row.mlb_id;
-            const trClass = 'main-row' + (isExpanded ? ' expanded' : '') + (row.hasCusto ? '' : ' no-cost');
-            const zonaCritica = row.precoAtual >= 74 && row.precoAtual <= 79 ? '<span class="badge badge-zona">⚠ zona R$ 79</span>' : '';
-            const mlbLink = row.permalink
-                ? '<a href="' + row.permalink + '" target="_blank" class="mlb-link" onclick="event.stopPropagation()">' + row.mlb_id + ' ↗</a>'
-                : '<span class="mlb-link">' + row.mlb_id + '</span>';
-
-            let html = '<tr class="' + trClass + '" data-mlb="' + row.mlb_id + '">' +
-                '<td><span class="chevron">▶</span></td>' +
-                '<td><strong>' + row.sku + '</strong><br>' + mlbLink + '</td>' +
-                '<td>' + escapeHtml(row.tituloCurto) + zonaCritica + '</td>' +
-                '<td>' + formatCurrency(row.precoAtual) + '</td>' +
-                '<td>' + (row.hasCusto ? formatCurrency(row.cif) : '<span class="badge badge-no-cost">SEM CUSTO</span>') + '</td>' +
-                '<td>' + formatCurrency(row.frete) + '<span class="badge badge-estimated">EST.</span></td>' +
-                '<td class="' + mcClass + '">' + formatPercent(row.mcAtual) + '</td>' +
-                '<td class="' + (row.prices.mc10 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(row.prices.mc10) + '</td>' +
-                '<td class="' + (row.prices.mc15 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(row.prices.mc15) + '</td>' +
-                '<td class="' + (row.prices.mc20 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(row.prices.mc20) + '</td>' +
-                '<td class="' + (row.prices.mc25 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(row.prices.mc25) + '</td>' +
-                '</tr>';
-
-            if (isExpanded) html += renderExpansionRow(row, tabId);
-            return html;
-        }
-
-        function renderExpansionRow(row, tabId) {
-            if (!row.hasCusto) {
-                return '<tr class="sim-row"><td colspan="11" style="text-align:center;color:var(--text-secondary);padding:14px;">' +
-                    'Simulação indisponível — sem custo CIF cadastrado</td></tr>';
+            } else {
+                pricesCells = `<td colspan="5" class="price no-cost">SEM CUSTO</td>`;
             }
-            const pesoUnit = row.pesoUnit;
-            // Faixa de referência: 1 unidade (já no main row)
-            const faixa1 = calcPrice(row.cif, pesoUnit, row.deductions, 0.20, 1) < 79 ? 'fix' : 'peso';
 
-            return QUANTIDADES_SIMULACAO.map(qty => {
-                const pesoTotal = pesoUnit * qty;
-                const precoRefTotal = row.precoAtual * qty;
-                const custoTotal = row.cif * qty;
-                const freteRef = lookupFrete(pesoTotal, precoRefTotal);
-                const mcRef = calculateMC(precoRefTotal, custoTotal, freteRef, row.deductions);
-
-                // Preços-alvo por margem (preço UNITÁRIO)
-                const p10 = calcPrice(row.cif, pesoUnit, row.deductions, 0.10, qty) / qty;
-                const p15 = calcPrice(row.cif, pesoUnit, row.deductions, 0.15, qty) / qty;
-                const p20 = calcPrice(row.cif, pesoUnit, row.deductions, 0.20, qty) / qty;
-                const p25 = calcPrice(row.cif, pesoUnit, row.deductions, 0.25, qty) / qty;
-
-                // Detectar salto de faixa comparado com 1 unidade
-                const faixaAtual = (p20 * qty) < 79 ? 'fix' : 'peso';
-                const isFaixaJump = faixaAtual !== faixa1;
-                const jumpIcon = isFaixaJump ? '<span class="jump-icon">⚠</span>' : '';
-                const faixaBadge = '<span class="faixa-badge ' + faixaAtual + '">' + (faixaAtual === 'fix' ? 'fixa' : 'peso') + '</span>';
-
-                const mcClass = mcRef > 0.15 ? 'mc-good' : mcRef > 0.03 ? 'mc-warning' : 'mc-danger';
-
-                return '<tr class="sim-row' + (isFaixaJump ? ' faixa-jump' : '') + '">' +
-                    '<td></td>' +
-                    '<td><span class="qty-label">' + jumpIcon + qty + 'x</span><span class="qty-peso">' + pesoTotal.toFixed(2) + ' kg</span></td>' +
-                    '<td style="font-size:11px;color:var(--text-secondary)">' + escapeHtml(row.tituloCurto) + '</td>' +
-                    '<td>' + formatCurrency(precoRefTotal) + '</td>' +
-                    '<td>' + formatCurrency(custoTotal) + '</td>' +
-                    '<td>' + formatCurrency(freteRef) + faixaBadge + '</td>' +
-                    '<td class="' + mcClass + '">' + formatPercent(mcRef) + '</td>' +
-                    '<td class="' + (p10 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(p10) + '</td>' +
-                    '<td class="' + (p15 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(p15) + '</td>' +
-                    '<td class="' + (p20 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(p20) + '</td>' +
-                    '<td class="' + (p25 < row.precoAtual ? 'price-lower' : 'price-higher') + '">' + formatCurrency(p25) + '</td>' +
-                    '</tr>';
-            }).join('');
+            return `
+                <tr>
+                    <td>${item.descricao}</td>
+                    <td class="sku">${sku}</td>
+                    <td>${item.is_combo ? 'COMBO' : ''}</td>
+                    <td>${item.unidade}</td>
+                    <td class="price ${costClass}">${costText}</td>
+                    ${pricesCells}
+                </tr>
+            `;
         }
 
-        // ====================== B2B VENDA DIRETA — REDESIGNED ======================
-        function renderB2bTab(container) {
-            const skuMap = {};
-            state.skusB2b.forEach(s => { skuMap[s.sku] = s; });
-            const hasLayout = state.b2bLayout.length > 0;
+        function formatPrice(value) {
+            return (Math.round(value * 100) / 100).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
 
-            const toolbar = '<div class="b2b-toolbar">' +
-                '<button class="btn" onclick="downloadB2bLayout()" title="Baixar planilha de layout para editar no Excel">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
-                'Baixar Layout</button>' +
-                '<label class="btn btn-upload" title="Enviar planilha de layout editada">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
-                'Enviar Layout <input type="file" accept=".xlsx,.xls" style="display:none" onchange="uploadB2bLayout(this)"></label>' +
-                '<span id="b2bStatus" class="status-msg">' +
-                (hasLayout ? state.b2bLayout.length + ' linhas no layout' : 'Sem layout \u2014 mostrando todos') +
-                '</span></div>';
+        function downloadExcel() {
+            try {
+                const workbook = XLSX.utils.book_new();
+                const sheetData = [];
 
-            const subtitle = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.7;">' +
-                'Venda interestadual B2B \u00b7 contribuinte \u00b7 sem DIFAL \u00b7 frete CIF cliente \u00b7 ' +
-                '<span style="color:var(--accent);font-weight:600;">\u2699 M\u00e1quinas</span> 25\u201350% \u00b7 ' +
-                '<span style="color:var(--success);font-weight:600;">\u26a1 Insumos</span> 25\u201350%</div>';
+                // Header
+                sheetData.push(['SKU', 'Descrição', 'Custo CIF', 'Preço 50%', 'Preço 45%', 'Preço 40%', 'Preço 35%', 'Preço 30%']);
 
-            const NCOLS = 10;
-            let bodyHtml = '';
-            let currentMargins = MARGEM_B2B_MAQ;
+                // Data
+                const margins = [50, 45, 40, 35, 30];
+                for (const [category, subcategories] of Object.entries(HIERARCHY)) {
+                    for (const [subcategory, config] of Object.entries(subcategories)) {
+                        for (const sku of config.skus) {
+                            const item = skuData[sku];
+                            if (!item) continue;
 
-            if (hasLayout) {
-                for (const item of state.b2bLayout) {
-                    if (item.tipo === 'titulo') {
-                        bodyHtml += '<tr class="b2b-titulo-row"><td colspan="' + NCOLS + '">' + escapeHtml(item.texto || '') + '</td></tr>';
-                    } else if (item.tipo === 'cabecalho_maquina') {
-                        currentMargins = MARGEM_B2B_MAQ;
-                        bodyHtml += renderB2bSectionHeader(item.texto || 'M\u00c1QUINAS', 'maquina', currentMargins);
-                    } else if (item.tipo === 'cabecalho_insumo') {
-                        currentMargins = MARGEM_B2B_INS;
-                        bodyHtml += renderB2bSectionHeader(item.texto || 'INSUMOS', 'insumo', currentMargins);
-                    } else if (item.tipo === 'separador') {
-                        bodyHtml += '<tr class="b2b-separador-row"><td colspan="' + NCOLS + '"></td></tr>';
-                    } else if (item.tipo === 'produto' && item.sku) {
-                        const sku = skuMap[item.sku];
-                        if (sku) {
-                            if (!state.searchTerm || sku.sku.toLowerCase().includes(state.searchTerm) || sku.descricao.toLowerCase().includes(state.searchTerm)) {
-                                bodyHtml += renderB2bRow(sku, currentMargins);
-                            }
-                        } else {
-                            bodyHtml += '<tr class="b2b-product-row"><td colspan="' + NCOLS + '" style="color:var(--danger);font-size:12px;padding:8px 12px;">' +
-                                '\u26a0 SKU <strong>' + escapeHtml(item.sku) + '</strong> n\u00e3o encontrado em skus_custo</td></tr>';
+                            const custo = currentEmpresa === 'GGE' ? item.custo_cif_rj : item.custo_cif_sp;
+                            const prices = margins.map(m => custo > 0 ? custo / (1 - m / 100) : 0);
+
+                            sheetData.push([
+                                sku,
+                                item.descricao,
+                                custo,
+                                ...prices
+                            ]);
                         }
                     }
                 }
-            } else {
-                let skus = state.skusB2b.slice().sort((a, b) => a.sku.localeCompare(b.sku));
-                if (state.searchTerm) {
-                    skus = skus.filter(s => s.sku.toLowerCase().includes(state.searchTerm) || s.descricao.toLowerCase().includes(state.searchTerm));
-                }
-                bodyHtml += renderB2bSectionHeader('TODOS OS PRODUTOS', 'maquina', MARGEM_B2B_MAQ);
-                bodyHtml += skus.map(s => renderB2bRow(s, MARGEM_B2B_MAQ)).join('');
+
+                const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+                worksheet['!cols'] = [
+                    { wch: 15 },
+                    { wch: 35 },
+                    { wch: 12 },
+                    { wch: 12 },
+                    { wch: 12 },
+                    { wch: 12 },
+                    { wch: 12 },
+                    { wch: 12 }
+                ];
+
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Precificação');
+                XLSX.writeFile(workbook, `precificacao_${currentEmpresa}_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+                showToast('Excel baixado com sucesso!');
+            } catch (error) {
+                console.error('Erro ao baixar Excel:', error);
+                showToast(`Erro ao baixar Excel: ${error.message}`, 'error');
             }
-
-            if (!bodyHtml) {
-                container.innerHTML = toolbar + subtitle + '<div class="empty-state"><h3>Nenhum SKU encontrado</h3></div>';
-                return;
-            }
-
-            const thead = '<thead><tr>' +
-                '<th style="width:24%">Produto</th><th style="width:11%">SKU</th>' +
-                '<th style="width:5%">Origem</th><th style="width:4%">ICMS</th>' +
-                '<th style="width:9.3%;text-align:center;">Pre\u00e7o \u2460</th><th style="width:9.3%;text-align:center;">Pre\u00e7o \u2461</th>' +
-                '<th style="width:9.3%;text-align:center;">Pre\u00e7o \u2462</th><th style="width:9.3%;text-align:center;">Pre\u00e7o \u2463</th>' +
-                '<th style="width:9.3%;text-align:center;">Pre\u00e7o \u2464</th><th style="width:9.3%;text-align:center;">Pre\u00e7o \u2465</th>' +
-                '</tr></thead>';
-
-            container.innerHTML = toolbar + subtitle +
-                '<div class="table-wrapper"><table>' + thead + '<tbody>' + bodyHtml + '</tbody></table></div>';
         }
 
-        function renderB2bSectionHeader(texto, tipo, margins) {
-            const icon = tipo === 'maquina' ? '\u2699' : '\u26a1';
-            return '<tr class="b2b-cabecalho-row ' + tipo + '">' +
-                '<td colspan="4">' + icon + ' ' + escapeHtml(texto) + '</td>' +
-                margins.map(m => '<td class="b2b-margin-label" style="text-align:center;">' + (m * 100).toFixed(0) + '% MRG</td>').join('') +
-                '</tr>';
-        }
-
-        function renderB2bRow(sku, margins) {
-            const cif = sku.cifSp > 0 ? sku.cifSp : sku.cifRj;
-            const isImport = (sku.origem || '').toLowerCase().includes('import');
-            const icmsPct = isImport ? ICMS_IMPORTADO : ICMS_NACIONAL;
-            const hasCusto = cif > 0;
-
-            const origemBadge = isImport
-                ? '<span class="badge" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25);font-size:10px;">IMP</span>'
-                : '<span class="badge" style="background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.25);font-size:10px;">NAC</span>';
-
-            const prices = margins.map(m => {
-                if (!hasCusto) return null;
-                const denom = 1 - icmsPct - PIS_COFINS_B2B - m;
-                return denom > 0 ? cif / denom : 0;
-            });
-
-            return '<tr class="b2b-product-row">' +
-                '<td>' + escapeHtml((sku.descricao || '').substring(0, 60)) + '</td>' +
-                '<td style="font-family:monospace;font-size:11px;color:var(--text-secondary);">' + escapeHtml(sku.sku) + '</td>' +
-                '<td style="text-align:center;">' + origemBadge + '</td>' +
-                                '<td style="font-weight:600;text-align:center;color:' + (isImport ? '#60a5fa' : '#fbbf24') + ';">' + (icmsPct * 100).toFixed(0) + '%</td>' +
-                prices.map(p => {
-                    if (p === null) return '<td class="b2b-sob-consulta" style="text-align:center;">\u2014</td>';
-                    return '<td class="b2b-price-cell" style="text-align:center;">' + formatCurrency(p) + '</td>';
-                }).join('') +
-                '</tr>';
-        }
-
-        // ==================== B2B LAYOUT DOWNLOAD ====================
-        function downloadB2bLayout() {
-            const rows = [['TIPO', 'SKU', 'TEXTO']];
-            if (state.b2bLayout.length > 0) {
-                state.b2bLayout.forEach(item => {
-                    rows.push([item.tipo, item.sku || '', item.texto || '']);
-                });
-            } else {
-                rows.push(['titulo', '', 'TABELA DE PRE\u00c7OS B2B']);
-                rows.push(['cabecalho_maquina', '', 'M\u00c1QUINAS']);
-                state.skusB2b.filter(s => {
-                    const k = s.sku.toLowerCase();
-                    return !k.includes('gr') && !k.includes('pack') && !k.includes('prego') && !k.includes('cx') && !k.includes('un');
-                }).sort((a, b) => a.sku.localeCompare(b.sku))
-                  .forEach(s => rows.push(['produto', s.sku, '']));
-                rows.push(['cabecalho_insumo', '', 'INSUMOS']);
-                state.skusB2b.filter(s => {
-                    const k = s.sku.toLowerCase();
-                    return k.includes('gr') || k.includes('pack') || k.includes('prego') || k.includes('cx') || k.includes('un');
-                }).sort((a, b) => a.sku.localeCompare(b.sku))
-                  .forEach(s => rows.push(['produto', s.sku, '']));
-            }
-            const ws = XLSX.utils.aoa_to_sheet(rows);
-            ws['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 45 }];
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Layout B2B');
-            XLSX.writeFile(wb, 'layout_b2b.xlsx');
-        }
-
-        // ==================== B2B LAYOUT UPLOAD ====================
-        async function uploadB2bLayout(input) {
-            const file = input.files[0];
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
             if (!file) return;
-            const statusEl = document.getElementById('b2bStatus');
-            statusEl.className = 'status-msg';
-            statusEl.textContent = 'Processando...';
 
-            try {
-                const data = await file.arrayBuffer();
-                const wb = XLSX.read(data, { type: 'array' });
-                const ws = wb.Sheets[wb.SheetNames[0]];
-                const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const workbook = XLSX.read(e.target.result, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const data = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
-                const layoutRows = [];
-                let ordem = 0;
-                for (let i = 1; i < rows.length; i++) {
-                    const [tipo, sku, texto] = rows[i];
-                    if (!tipo) continue;
-                    const tipoNorm = String(tipo).trim().toLowerCase();
-                    if (!['titulo', 'cabecalho_maquina', 'cabecalho_insumo', 'produto', 'separador'].includes(tipoNorm)) continue;
-                    ordem++;
-                    layoutRows.push({
-                        ordem,
-                        tipo: tipoNorm,
-                        sku: tipoNorm === 'produto' ? String(sku || '').trim() : null,
-                        texto: tipoNorm !== 'produto' ? String(texto || '').trim() : null
+                    // Update costs in memory
+                    let updateCount = 0;
+                    data.forEach(row => {
+                        const sku = row.SKU || row.sku;
+                        const costCif = parseFloat(row['Custo CIF'] || row['custo_cif'] || 0);
+
+                        if (sku && skuData[sku]) {
+                            skuData[sku].custo_cif_rj = costCif;
+                            skuData[sku].custo_cif_sp = costCif;
+                            updateCount++;
+                        }
                     });
+
+                    renderTable();
+                    showToast(`${updateCount} produtos atualizados com sucesso!`);
+                } catch (error) {
+                    console.error('Erro ao processar arquivo:', error);
+                    showToast(`Erro ao processar arquivo: ${error.message}`, 'error');
                 }
-
-                if (layoutRows.length === 0) {
-                    statusEl.className = 'status-msg err';
-                    statusEl.textContent = 'Planilha vazia ou sem linhas v\u00e1lidas';
-                    input.value = '';
-                    return;
-                }
-
-                await fetch(SUPABASE_URL + '/rest/v1/b2b_layout?id=not.is.null', {
-                    method: 'DELETE',
-                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
-                });
-
-                const resp = await fetch(SUPABASE_URL + '/rest/v1/b2b_layout', {
-                    method: 'POST',
-                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-                    body: JSON.stringify(layoutRows)
-                });
-
-                if (!resp.ok) throw new Error('Erro ao salvar: ' + await resp.text());
-
-                state.b2bLayout = layoutRows.sort((a, b) => a.ordem - b.ordem);
-                statusEl.className = 'status-msg ok';
-                statusEl.textContent = layoutRows.length + ' linhas salvas com sucesso!';
-                renderTableForTab('b2b');
-            } catch (err) {
-                console.error('Erro upload layout:', err);
-                statusEl.className = 'status-msg err';
-                statusEl.textContent = 'Erro: ' + err.message;
-            }
-            input.value = '';
-        }
-        // ====================== FIM B2B ======================
-
-        function getDeductions(tabId, comissaoPct) {
-            const d = { comissao: comissaoPct };
-            switch (tabId) {
-                case 'toow': d.simples = state.rates.simples / 100; d.ads = state.rates.ads / 100; break;
-                case 'ggerj-coleta': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsRj / 100; d.difal = state.rates.difal / 100; d.ads = state.rates.ads / 100; break;
-                case 'ggerj-sem-imposto': d.ads = state.rates.ads / 100; break;
-                case 'ggerj-full': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsSp / 100; d.ads = state.rates.ads / 100; break;
-                case 'ggesp': d.pisCofins = state.rates.pisCofins / 100; d.icms = state.rates.icmsSp / 100; d.difal = state.rates.difal / 100; d.ads = state.rates.ads / 100; break;
-            }
-            return d;
+            };
+            reader.readAsArrayBuffer(file);
+            fileInput.value = '';
         }
 
-        function lookupFrete(pesoKg, preco) {
-            if (preco < 12.50) return 0.50;
-            if (preco < 29.00) return 6.25;
-            if (preco < 50.00) return 6.50;
-            if (preco < 79.00) return 6.75;
-            // busca a menor faixa de peso que comporta o peso total, na faixa de preço correspondente
-            const row = state.freteTable.find(r => r.peso_max_kg >= pesoKg && preco >= r.preco_min && preco <= r.preco_max);
-            if (row) return row.frete;
-            // fallback: se peso excede o máximo da tabela, usa a maior faixa disponível para o preço
-            const byPrice = state.freteTable.filter(r => preco >= r.preco_min && preco <= r.preco_max);
-            if (byPrice.length) return byPrice[byPrice.length - 1].frete;
-            return 22;
-        }
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
 
-        function calculateMC(price, cif, frete, deductions) {
-            if (price <= 0) return 0;
-            const deductionsPct = Object.values(deductions).reduce((a, b) => a + b, 0);
-            return Math.max(0, 1 - deductionsPct - frete / price - cif / price);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
-
-        /**
-         * Calcula o preço total da ordem (qty unidades) que entrega a margem-alvo.
-         * Retorna preço TOTAL, não unitário — divida por qty pra preço unitário.
-         */
-        function calcPrice(cif, pesoUnit, deductions, targetMC, qty) {
-            if (!qty || qty < 1) qty = 1;
-            const custoTotal = cif * qty;
-            const pesoTotal = pesoUnit * qty;
-            const deductionsPct = Object.values(deductions).reduce((a, b) => a + b, 0);
-            const denominador = 1 - deductionsPct - targetMC;
-            if (denominador <= 0) return 0;
-            let priceTotal = custoTotal / denominador;
-            for (let i = 0; i < 6; i++) {
-                const frete = lookupFrete(pesoTotal, priceTotal);
-                const novo = (custoTotal + frete) / denominador;
-                if (Math.abs(novo - priceTotal) < 0.01) { priceTotal = novo; break; }
-                priceTotal = novo;
-            }
-            return priceTotal;
-        }
-
-        function formatCurrency(value) {
-            if (!isFinite(value) || value === null || value === undefined) return '—';
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-        }
-        function formatPercent(value) { return (value * 100).toFixed(1) + '%'; }
-        function escapeHtml(s) {
-            return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        }
-
-        function showError(message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error';
-            errorDiv.textContent = message;
-            document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.settings-bar'));
-        }
-
-        init();
     </script>
 </body>
 </html>
