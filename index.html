@@ -416,6 +416,22 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
+        .metric-card.card-unidade {
+            background-color: #1a1f2a;
+        }
+
+        .metric-card.card-valor {
+            background-color: #1a1d24;
+        }
+
+        .metric-card.card-custo {
+            background-color: #1d1a1a;
+        }
+
+        .metric-card.card-margem {
+            background-color: #1a1d1a;
+        }
+
         .metric-value {
             font-size: 20px;
             font-weight: 700;
@@ -816,19 +832,14 @@
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
 
-            <!-- CUSTOS Section -->
-            <div class="section-title">CUSTOS</div>
-            <div class="cards-grid" id="custos-cards">
+            <!-- CUSTOS + MARGENS — 8 cards em linha única -->
+            <div class="section-title">CUSTOS / MARGENS</div>
+            <div class="cards-grid" style="grid-template-columns: repeat(8, 1fr); gap: 10px;" id="custos-margens-row">
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-            </div>
-
-            <!-- MARGENS Section -->
-            <div class="section-title">MARGENS</div>
-            <div class="cards-grid" style="grid-template-columns: repeat(3, 1fr);" id="margens-cards">
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
@@ -1173,9 +1184,10 @@
         }
 
         // ========== BUILD METRIC CARD ==========
-        function buildMetricCard(title, value, subtitle = '', trend = null, isPct = false) {
+        function buildMetricCard(title, value, subtitle = '', trend = null, isPct = false, extraClass = '') {
             const trendHtml = trend ? `<span class="metric-trend ${trend.className}">${trend.trend}</span>` : '';
             let cardClass = isPct ? 'pct' : '';
+            if (extraClass) cardClass += ' ' + extraClass;
 
             return `
                 <div class="metric-card ${cardClass}">
@@ -1340,117 +1352,39 @@
                 trend: calculateTrend(data.ticket_medio, prev.ticket_medio)
             };
 
-            const allCards = [...unidadesCards, ...valoresCards, ticketCard];
-            const allHtml = allCards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend)).join('');
-            document.getElementById('vendas-row').innerHTML = allHtml;
+            const unidadesHtml = unidadesCards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend, false, 'card-unidade')).join('');
+            const valoresHtml = valoresCards.map(card => buildMetricCard(card.title, card.value, card.subtitle, card.trend, false, 'card-valor')).join('');
+            const ticketHtml = buildMetricCard(ticketCard.title, ticketCard.value, ticketCard.subtitle, ticketCard.trend, false, 'card-valor');
+            document.getElementById('vendas-row').innerHTML = unidadesHtml + valoresHtml + ticketHtml;
         }
 
-        // ========== RENDER CUSTOS CARDS ==========
+        // ========== RENDER CUSTOS + MARGENS (8 cards, 1 linha) ==========
         function renderCustosCards() {
             const data = currentData;
             const prev = previousData;
 
-            const cards = [
-                {
-                    title: 'Custo Produto',
-                    value: fmtPct(data.custo_produto_pct),
-                    subtitle: fmt(data.custo_produto),
-                    trend: calculateTrend(data.custo_produto_pct, prev.custo_produto_pct, true),
-                    isPct: true
-                },
-                {
-                    title: 'Comissão ML',
-                    value: fmtPct(data.comissao_ml_pct),
-                    subtitle: fmt(data.comissao_ml),
-                    trend: calculateTrend(data.comissao_ml_pct, prev.comissao_ml_pct, true),
-                    isPct: true
-                },
-                {
-                    title: 'Frete',
-                    value: fmtPct(data.frete_pct),
-                    subtitle: fmt(data.frete),
-                    trend: calculateTrend(data.frete_pct, prev.frete_pct, true),
-                    isPct: true
-                },
-                {
-                    title: 'ADs',
-                    value: fmtPct(data.ads_pct),
-                    subtitle: fmt(data.ads),
-                    trend: calculateTrend(data.ads_pct, prev.ads_pct, true),
-                    isPct: true
-                },
-                {
-                    title: 'MC1',
-                    value: fmtPct(data.mc1_pct),
-                    subtitle: fmt(data.mc1_valor),
-                    trend: calculateTrend(data.mc1_pct, prev.mc1_pct),
-                    isPct: true
-                }
-            ];
+            // 5 cards de CUSTOS
+            const custosHtml = [
+                buildMetricCard('Custo Produto', fmtPct(data.custo_produto_pct), fmt(data.custo_produto), calculateTrend(data.custo_produto_pct, prev.custo_produto_pct, true), true, 'card-custo'),
+                buildMetricCard('Comissão ML', fmtPct(data.comissao_ml_pct), fmt(data.comissao_ml), calculateTrend(data.comissao_ml_pct, prev.comissao_ml_pct, true), true, 'card-custo'),
+                buildMetricCard('Frete', fmtPct(data.frete_pct), fmt(data.frete), calculateTrend(data.frete_pct, prev.frete_pct, true), true, 'card-custo'),
+                buildMetricCard('ADs', fmtPct(data.ads_pct), fmt(data.ads), calculateTrend(data.ads_pct, prev.ads_pct, true), true, 'card-custo'),
+                buildMetricCard('MC1', fmtPct(data.mc1_pct), fmt(data.mc1_valor), calculateTrend(data.mc1_pct, prev.mc1_pct), true, 'card-custo')
+            ].join('');
 
-            const html = cards.map(card => {
-                const trendHtml = card.trend ? `<span class="metric-trend ${card.trend.className}">${card.trend.trend}</span>` : '';
-                return `
-                    <div class="metric-card pct">
-                        <div class="metric-value">${card.value}</div>
-                        <div class="metric-subtitle">
-                            <span class="metric-subtitle-main">${card.title}</span>
-                        </div>
-                        <div style="font-size: 11px; color: #8b949e; margin-top: 4px;">${card.subtitle}</div>
-                        ${trendHtml}
-                    </div>
-                `;
-            }).join('');
+            // 3 cards de MARGENS
+            const difVal = (data.difal_valor || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const margensHtml = [
+                buildMetricCard('MC1 — c/ DIFAL', fmtPct(data.mc1_pct), fmt(data.mc1_valor), calculateTrend(data.mc1_pct, prev.mc1_pct), true, 'card-margem'),
+                buildMetricCard('DIFAL (R$)', difVal, fmtPct(data.difal_pct), calculateTrend(data.difal_valor, prev.difal_valor), false, 'card-margem'),
+                buildMetricCard('MC2 — Caixa', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem')
+            ].join('');
 
-            document.getElementById('custos-cards').innerHTML = html;
+            document.getElementById('custos-margens-row').innerHTML = custosHtml + margensHtml;
         }
 
-        // ========== RENDER MARGENS CARDS ==========
-        function renderMargensCards() {
-            const data = currentData;
-            const prev = previousData;
-
-            const cards = [
-                {
-                    title: 'MC1 — Margem com DIFAL',
-                    value: fmtPct(data.mc1_pct),
-                    subtitle: fmt(data.mc1_valor),
-                    trend: calculateTrend(data.mc1_pct, prev.mc1_pct),
-                    isPct: true
-                },
-                {
-                    title: 'DIFAL (R$)',
-                    value: data.difal_valor.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
-                    subtitle: fmtPct(data.difal_pct),
-                    trend: calculateTrend(data.difal_valor, prev.difal_valor),
-                    isPct: false
-                },
-                {
-                    title: 'MC2 — Entrada de Caixa',
-                    value: fmtPct(data.mc2_pct),
-                    subtitle: fmt(data.mc2_valor),
-                    trend: calculateTrend(data.mc2_pct, prev.mc2_pct),
-                    isPct: true
-                }
-            ];
-
-            const html = cards.map(card => {
-                const cardClass = card.isPct ? 'pct' : '';
-                const trendHtml = card.trend ? `<span class="metric-trend ${card.trend.className}">${card.trend.trend}</span>` : '';
-                return `
-                    <div class="metric-card ${cardClass}">
-                        <div class="metric-value">${card.value}</div>
-                        <div class="metric-subtitle">
-                            <span class="metric-subtitle-main">${card.title}</span>
-                        </div>
-                        <div style="font-size: 11px; color: #8b949e; margin-top: 4px;">${card.subtitle}</div>
-                        ${trendHtml}
-                    </div>
-                `;
-            }).join('');
-
-            document.getElementById('margens-cards').innerHTML = html;
-        }
+        // renderMargensCards agora é parte de renderCustosCards
+        function renderMargensCards() { /* merged into renderCustosCards */ }
 
         // ========== RENDER INDICADORES ==========
         async function renderIndicadores(conta, dateRange) {
