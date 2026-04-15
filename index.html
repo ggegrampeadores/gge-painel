@@ -1306,13 +1306,15 @@
             const data = currentData;
             const prev = previousData;
 
-            // UNIDADES cards
+            // UNIDADES cards — Pedidos = efetivas + canceladas (total bruto)
+            const totalPedidos = (data.vendas_efetivas || 0) + (data.vendas_canceladas || 0);
+            const prevTotalPedidos = (prev.vendas_efetivas || 0) + (prev.vendas_canceladas || 0);
             const unidadesCards = [
                 {
                     title: 'Pedidos',
-                    value: fmtNum(data.vendas_feitas),
+                    value: fmtNum(totalPedidos),
                     subtitle: 'unidades pedidas',
-                    trend: calculateTrend(data.vendas_feitas, prev.vendas_feitas)
+                    trend: calculateTrend(totalPedidos, prevTotalPedidos)
                 },
                 {
                     title: 'Canceladas',
