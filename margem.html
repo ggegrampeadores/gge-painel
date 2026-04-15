@@ -473,21 +473,25 @@
                                     {anunciosData[g.grupo]?.map((item, idx) => (
                                       <tr key={idx} className={`border-t border-gge-border/20 ${idx % 2 === 0 ? '' : 'bg-white/[0.01]'}`}>
                                         <td className="px-3 py-2 text-gge-text truncate max-w-xs" title={item.titulo}>{item.titulo}</td>
-                                        <td className="px-3 py-2 text-gge-accent font-mono flex items-center gap-1">
-                                          <span>{item.mlb_id}</span>
-                                          <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.mlb_id, 'mlb'); }}
-                                                  className="opacity-50 hover:opacity-100 transition-opacity" title="Copiar MLB">
-                                            📋
-                                          </button>
-                                        </td>
-                                        <td className="px-3 py-2 text-gge-text flex items-center gap-1">
-                                          <span className="truncate">{item.sku_vendedor || '—'}</span>
-                                          {item.sku_vendedor && (
-                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.sku_vendedor, 'sku'); }}
-                                                    className="opacity-50 hover:opacity-100 transition-opacity shrink-0" title="Copiar SKU">
+                                        <td className="px-3 py-2 text-gge-accent font-mono whitespace-nowrap">
+                                          <div className="inline-flex items-center gap-1">
+                                            <span>{item.mlb_id}</span>
+                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.mlb_id, 'mlb'); }}
+                                                    className="opacity-50 hover:opacity-100 transition-opacity" title="Copiar MLB">
                                               📋
                                             </button>
-                                          )}
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2 text-gge-text whitespace-nowrap">
+                                          <div className="inline-flex items-center gap-1">
+                                            <span className="truncate max-w-[150px]">{item.sku_vendedor || '—'}</span>
+                                            {item.sku_vendedor && (
+                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.sku_vendedor, 'sku'); }}
+                                                      className="opacity-50 hover:opacity-100 transition-opacity shrink-0" title="Copiar SKU">
+                                                📋
+                                              </button>
+                                            )}
+                                          </div>
                                         </td>
                                         <td className={`text-right px-3 py-2 ${Number(item.margem_pct) >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
                                           {fmtPct(item.margem_pct)}
