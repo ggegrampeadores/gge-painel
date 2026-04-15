@@ -23,6 +23,7 @@
     --orange: #f97316;
     --orange-bg: rgba(249,115,22,.12);
     --red: #ef4444;
+    --red-bg: rgba(239,68,68,.12);
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
@@ -61,7 +62,7 @@
   }
   .header h1 span { font-weight: 400; color: var(--text-muted); -webkit-text-fill-color: var(--text-muted); }
   .filter-bar {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   }
   .filter-bar label { font-size: 13px; color: var(--text-muted); }
   .filter-bar select {
@@ -80,6 +81,49 @@
     content: ''; width: 4px; height: 16px; border-radius: 2px;
     background: var(--accent);
   }
+
+  /* Metric Cards Grid - 5 columns */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 1100px) { .metrics-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 700px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .metric-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    transition: all .25s;
+    position: relative;
+  }
+  .metric-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .metric-card .mc-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 12px;
+  }
+  .mc-icon.green { background: var(--green-bg); color: var(--green); }
+  .mc-icon.red { background: var(--red-bg); color: var(--red); }
+  .mc-icon.yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .mc-icon.blue { background: var(--blue-bg); color: var(--blue); }
+  .mc-icon.orange { background: var(--orange-bg); color: var(--orange); }
+  .mc-icon.accent { background: rgba(99,102,241,.12); color: var(--accent-light); }
+  .metric-card .mc-label {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500;
+  }
+  .metric-card .mc-value {
+    font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+    margin-bottom: 4px;
+  }
+  .metric-card .mc-sub {
+    font-size: 12px; color: var(--text-muted);
+  }
+
+  /* Projection Cards */
   .proj-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -105,42 +149,14 @@
   .badge-30 { background: var(--blue-bg); color: var(--blue); }
   .badge-15 { background: var(--yellow-bg); color: var(--yellow); }
   .badge-7  { background: var(--orange-bg); color: var(--orange); }
-  .proj-card .label {
-    font-size: 12px; color: var(--text-muted); margin-bottom: 4px;
-  }
-  .proj-card .value {
-    font-size: 28px; font-weight: 700; margin-bottom: 6px;
-    font-variant-numeric: tabular-nums;
-  }
-  .proj-card .sub {
-    font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;
-  }
-  .proj-card .sub .avg {
-    color: var(--accent-light); font-weight: 600;
-  }
-  .month-detail {
-    font-size: 12px; color: var(--text-muted); margin-top: 8px;
-    line-height: 1.6;
-  }
+  .proj-card .label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+  .proj-card .value { font-size: 28px; font-weight: 700; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .proj-card .sub { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .proj-card .sub .avg { color: var(--accent-light); font-weight: 600; }
+  .month-detail { font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.6; }
   .month-detail strong { color: var(--text); font-weight: 600; }
-  .summary-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 32px;
-  }
-  @media (max-width: 900px) { .summary-row { grid-template-columns: repeat(3, 1fr); } }
-  .summary-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 18px 22px;
-  }
-  .summary-card .label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-  .summary-card .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .summary-card .change { font-size: 12px; margin-top: 4px; }
-  .change.up { color: var(--green); }
-  .change.down { color: var(--red); }
+
+  /* Panels */
   .panels-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -176,6 +192,8 @@
     transition: transform .2s, color .2s;
   }
   .panel-link:hover .panel-arrow { transform: translateX(4px); color: var(--accent); }
+
+  /* History Table */
   .hist-table-wrap {
     background: var(--card);
     border: 1px solid var(--border);
@@ -199,6 +217,7 @@
   }
   .hist-table tr:last-child td { border-bottom: none; }
   .hist-table tr:hover td { background: rgba(99,102,241,.04); }
+
   .loading {
     text-align: center; padding: 60px 20px;
     color: var(--text-muted); font-size: 15px;
@@ -216,6 +235,8 @@
     border-top: 1px solid var(--border);
     margin-top: 16px;
   }
+  .skeleton { background: var(--border); border-radius: 6px; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 </style>
 <script src="auth.js"></script>
 </head>
@@ -226,12 +247,20 @@
     <h1>Controle Total <span>— Dashboard</span></h1>
   </div>
   <div class="filter-bar">
+    <label>Período:</label>
+    <select id="periodFilter" onchange="applyFilter()">
+      <option value="7d">7 dias</option>
+      <option value="15d">15 dias</option>
+      <option value="30d" selected>30 dias</option>
+      <option value="mes_atual">Mês atual</option>
+      <option value="mes_passado">Mês passado</option>
+      <option value="90d">90 dias</option>
+      <option value="180d">180 dias</option>
+      <option value="1a">1 ano</option>
+    </select>
     <label>Conta:</label>
     <select id="contaFilter" onchange="applyFilter()">
       <option value="all">Consolidado</option>
-      <option value="GGE-GRAMPEADORES">GGE-GRAMPEADORES</option>
-      <option value="GGESP">GGESP</option>
-      <option value="TOOWCOMERCIAL">TOOWCOMERCIAL</option>
     </select>
   </div>
 </div>
@@ -241,22 +270,55 @@
     <div>Carregando dados...</div>
   </div>
 </div>
-<div class="footer">Controle Total GGE &copy; 2026 — Atualizado em tempo real via Supabase</div>
+<div class="footer">Controle Total GGE &copy; 2026 — Dados via Supabase RPC</div>
 <script>
 const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+
 const CONTAS_MAP = {
   'e761652f-07fa-49d2-a6c7-1b738862ab08': 'GGE-GRAMPEADORES',
   '304d2ad4-a3e7-449b-9073-1b7d54cbfa0c': 'GGESP',
   '8284ee61-87f9-4162-9f1f-542587fbbf53': 'TOOWCOMERCIAL'
 };
+
+let contasList = [];
 let rawDailyData = [];
 let rawMonthlyData = [];
+let dashboardData = null;
+
 function fmt(v) {
   return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function fmtN(v) { return Number(v).toLocaleString('pt-BR'); }
 function fmtPct(v) { return Number(v).toFixed(1) + '%'; }
+
+// === Date range helper (matches the RPC) ===
+function getDateRange(period) {
+  const now = new Date();
+  const today = now.toISOString().slice(0,10);
+  function pad(d) { return d.toISOString().slice(0,10); }
+  function sub(days) { const d = new Date(now); d.setDate(d.getDate() - days); return pad(d); }
+  switch(period) {
+    case '7d':  return { from: sub(7), to: today };
+    case '15d': return { from: sub(15), to: today };
+    case '30d': return { from: sub(30), to: today };
+    case 'mes_atual': {
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { from: pad(first), to: today };
+    }
+    case 'mes_passado': {
+      const first = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { from: pad(first), to: pad(last) };
+    }
+    case '90d':  return { from: sub(90), to: today };
+    case '180d': return { from: sub(180), to: today };
+    case '1a':   return { from: sub(365), to: today };
+    default:     return { from: sub(30), to: today };
+  }
+}
+
+// === Supabase REST query ===
 async function sbQuery(endpoint, params) {
   const url = new URL(SUPABASE_URL + '/rest/v1/' + endpoint);
   Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
@@ -265,11 +327,54 @@ async function sbQuery(endpoint, params) {
   });
   return r.json();
 }
-async function loadData() {
+
+// === Supabase RPC call ===
+async function sbRpc(fnName, body) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fnName, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// === Load contas for filter dropdown ===
+async function loadContas() {
+  const data = await sbQuery('contas', { select: 'id,nome', order: 'nome' });
+  contasList = data || [];
+  const sel = document.getElementById('contaFilter');
+  sel.innerHTML = '<option value="all">Consolidado</option>';
+  contasList.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.nome;
+    sel.appendChild(opt);
+  });
+}
+
+// === Load dashboard via RPC ===
+async function loadDashboard(period, contaId) {
+  const { from, to } = getDateRange(period);
+  const data = await sbRpc('rpc_dashboard_totais', {
+    p_from: from + 'T00:00:00+00:00',
+    p_to: to + 'T23:59:59+00:00',
+    p_conta_id: contaId && contaId !== 'all' ? contaId : null
+  });
+  return data;
+}
+
+// === Load projection data (daily vendas for last 31 days) ===
+async function loadProjectionData() {
   const today = new Date();
-  const todayStr = today.toISOString().slice(0,10);
   const d31 = new Date(today); d31.setDate(d31.getDate() - 31);
   const d31Str = d31.toISOString().slice(0,10);
+  const todayStr = today.toISOString().slice(0,10);
+
   const [dailyRaw, monthly] = await Promise.all([
     sbQuery('vendas', {
       select: 'conta_id,data_venda,preco_total,status',
@@ -281,23 +386,26 @@ async function loadData() {
       select: '*', order: 'mes.desc', limit: '30'
     })
   ]);
+
   const dailyMap = {};
   dailyRaw.forEach(r => {
     const conta = CONTAS_MAP[r.conta_id] || r.conta_id;
     const dia = r.data_venda.slice(0,10);
     if (dia >= todayStr) return;
     const key = conta + '|' + dia;
-    if (!dailyMap[key]) dailyMap[key] = {conta, dia, faturamento: 0, qtd: 0};
+    if (!dailyMap[key]) dailyMap[key] = {conta, contaId: r.conta_id, dia, faturamento: 0, qtd: 0};
     dailyMap[key].faturamento += Number(r.preco_total);
     dailyMap[key].qtd += 1;
   });
   rawDailyData = Object.values(dailyMap).sort((a,b) => b.dia.localeCompare(a.dia));
-  rawMonthlyData = monthly;
-  applyFilter();
+  rawMonthlyData = monthly || [];
 }
+
+// === Projection helpers ===
 function filterDaily(data, conta) {
   if (conta === 'all') return data;
-  return data.filter(d => d.conta === conta);
+  // conta can be an ID or a name
+  return data.filter(d => d.conta === conta || d.contaId === conta);
 }
 function filterMonthly(data, conta) {
   if (conta === 'all') {
@@ -318,7 +426,10 @@ function filterMonthly(data, conta) {
     });
     return Object.values(byMonth).sort((a,b) => b.mes.localeCompare(a.mes));
   }
-  return data.filter(r => r.conta_nome === conta);
+  // Find conta name from ID
+  const contaObj = contasList.find(c => c.id === conta);
+  const contaNome = contaObj ? contaObj.nome : conta;
+  return data.filter(r => r.conta_nome === contaNome || r.conta_nome === conta);
 }
 function calcProjections(daily, conta) {
   const filtered = filterDaily(daily, conta);
@@ -360,57 +471,137 @@ function calcMonthProjections(daily, conta) {
   });
   return { d30: calcMonth(proj.d30), d15: calcMonth(proj.d15), d7: calcMonth(proj.d7) };
 }
-function applyFilter() {
+
+// === Main load ===
+async function loadData() {
+  await Promise.all([
+    loadContas(),
+    loadProjectionData()
+  ]);
+  await applyFilter();
+}
+
+async function applyFilter() {
+  const period = document.getElementById('periodFilter').value;
   const conta = document.getElementById('contaFilter').value;
+
+  // Show loading skeleton for metrics
+  document.getElementById('mainContent').innerHTML = buildSkeleton();
+
+  // Load RPC data
+  dashboardData = await loadDashboard(period, conta);
+
+  // Build projections
   const proj = calcProjections(rawDailyData, conta);
   const mProj = calcMonthProjections(rawDailyData, conta);
   const monthly = filterMonthly(rawMonthlyData, conta);
-  const now = new Date();
-  const curMonthStr = now.toISOString().slice(0,7) + '-01';
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
-  const lastMonthStr = lastMonthDate.toISOString().slice(0,10);
-  const curMonth = monthly.find(m => m.mes === curMonthStr);
-  const lastMonth = monthly.find(m => m.mes === lastMonthStr);
-  document.getElementById('mainContent').innerHTML = buildDashboard(proj, mProj, monthly, curMonth, lastMonth);
+
+  document.getElementById('mainContent').innerHTML = buildFullDashboard(dashboardData, proj, mProj, monthly);
 }
-function buildDashboard(proj, mProj, monthly, curMonth, lastMonth) {
-  const now = new Date();
+
+function buildSkeleton() {
+  const card = '<div class="metric-card"><div class="skeleton" style="width:36px;height:36px;border-radius:10px;margin-bottom:12px"></div><div class="skeleton" style="width:80px;height:12px;margin-bottom:8px"></div><div class="skeleton" style="width:120px;height:24px"></div></div>';
+  const row5 = card.repeat(5);
+  return '<div class="section-title">Vendas</div><div class="metrics-grid">' + row5 + '</div>' +
+    '<div class="section-title">Custos</div><div class="metrics-grid">' + row5 + '</div>' +
+    '<div class="section-title">Impostos e Margem Final</div><div class="metrics-grid">' + row5 + '</div>';
+}
+
+function metricCard(icon, iconClass, label, value, sub) {
+  return '<div class="metric-card">' +
+    '<div class="mc-icon ' + iconClass + '">' + icon + '</div>' +
+    '<div class="mc-label">' + label + '</div>' +
+    '<div class="mc-value">' + value + '</div>' +
+    (sub ? '<div class="mc-sub">' + sub + '</div>' : '') +
+    '</div>';
+}
+
+function buildFullDashboard(d, proj, mProj, monthly) {
+  if (!d) return '<div class="loading" style="color:var(--red)">Erro ao carregar dados</div>';
+
+  let html = '';
+
+  // === SECTION 1: Vendas ===
+  html += '<div class="section-title">Vendas</div><div class="metrics-grid">';
+  html += metricCard('&#10004;', 'green', 'Vendas Efetivas', fmtN(d.vendas_efetivas), fmtN(d.unidades_vendidas) + ' unidades');
+  html += metricCard('&#10006;', d.vendas_canceladas > 0 ? 'red' : 'green', 'Cancelamentos', fmtN(d.vendas_canceladas), fmtPct(d.taxa_cancelamento_pct) + ' — ' + fmt(d.valor_cancelamentos));
+  html += metricCard('&#36;', 'yellow', 'Receita', fmt(d.receita), '');
+  html += metricCard('&#9776;', 'accent', 'Ticket Médio', fmt(d.ticket_medio), '');
+  html += metricCard('&#9888;', d.alerta_prejuizo > 0 ? 'red' : 'green', 'Alerta Prejuízo', fmtN(d.alerta_prejuizo),
+    fmtPct(d.vendas_efetivas > 0 ? (d.alerta_prejuizo / d.vendas_efetivas) * 100 : 0) + ' das vendas');
+  html += '</div>';
+
+  // === SECTION 2: Custos ===
+  html += '<div class="section-title">Custos</div><div class="metrics-grid">';
+  html += metricCard('&#128230;', 'accent', 'Custo Produto', fmt(d.custo_produto), fmtPct(d.custo_produto_pct) + ' da receita');
+  html += metricCard('&#37;', 'accent', 'Comissão ML', fmt(d.comissao_ml), fmtPct(d.comissao_ml_pct) + ' da receita');
+  html += metricCard('&#128666;', 'accent', 'Frete', fmt(d.frete), fmtPct(d.frete_pct) + ' da receita');
+  html += metricCard('&#128227;', 'orange', 'ADs', fmt(d.ads), fmtPct(d.ads_pct) + ' da receita');
+  html += metricCard('&#128200;', d.mc1_valor >= 0 ? 'green' : 'red', 'Margem (MC1)', fmt(d.mc1_valor), fmtPct(d.mc1_pct) + ' da receita');
+  html += '</div>';
+
+  // === SECTION 3: Impostos e Margem Final ===
+  html += '<div class="section-title">Impostos e Margem Final</div><div class="metrics-grid">';
+  html += metricCard('&#128196;', 'red', 'Impostos', fmt(d.impostos_valor), fmtPct(d.impostos_pct) + ' da receita');
+  html += metricCard('&#9878;', 'red', 'DIFAL', fmt(d.difal_valor), fmtPct(d.difal_pct) + ' da receita');
+  html += metricCard('&#128178;', d.mc2_valor >= 0 ? 'green' : 'red', 'Margem (MC2)', fmt(d.mc2_valor), fmtPct(d.mc2_pct) + ' da receita');
+  html += metricCard('&#9888;', d.alerta_sem_custo > 0 ? 'orange' : 'green', 'Sem Custo', fmtN(d.alerta_sem_custo), 'vendas sem custo cadastrado');
+  html += metricCard('&#128722;', 'accent', 'Conta', d.conta_filtro || 'Consolidado', '');
+  html += '</div>';
+
+  // === SECTION 4: Projeção 30 Dias ===
   const MN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const now = new Date();
   const cm = MN[now.getMonth()], cy = now.getFullYear();
-  let ch = '';
-  if (lastMonth && curMonth) {
-    const p = ((Number(curMonth.faturamento_bruto)/Number(lastMonth.faturamento_bruto))-1)*100;
-    ch = '<div class="change '+(p>=0?'up':'down')+'">'+(p>=0?'&#9650;':'&#9660;')+' '+Math.abs(p).toFixed(1)+'% vs mês anterior</div>';
+
+  html += '<div class="section-title">Projeção 30 Dias</div><div class="proj-grid">';
+  html += projCard('Últimos 30 dias', proj.d30, '30', 30);
+  html += projCard('Últimos 15 dias', proj.d15, '15', 15);
+  html += projCard('Últimos 7 dias', proj.d7, '7', 7);
+  html += '</div>';
+
+  // === SECTION 5: Projeção do Mês ===
+  html += '<div class="section-title">Projeção do Mês (' + cm + ' ' + cy + ')</div><div class="proj-grid">';
+  html += monthProjCard('Base: últimos 30 dias', mProj.d30, '30');
+  html += monthProjCard('Base: últimos 15 dias', mProj.d15, '15');
+  html += monthProjCard('Base: últimos 7 dias', mProj.d7, '7');
+  html += '</div>';
+
+  // === SECTION 6: Painéis ===
+  html += '<div class="section-title">Painéis</div><div class="panels-grid">';
+  html += '<a class="panel-link" href="margem.html"><div class="panel-icon margem">&#128200;</div><div><h3>Painel I — Margem</h3><p>Análise de margem por anúncio, custos, frete, comissão e impostos por conta ML</p></div><div class="panel-arrow">&#8594;</div></a>';
+  html += '<a class="panel-link" href="precificacao.html"><div class="panel-icon preco">&#128176;</div><div><h3>Painel II — Precificação</h3><p>Precificação B2B e Marketplace com cálculo reverso de MC</p></div><div class="panel-arrow">&#8594;</div></a>';
+  html += '<a class="panel-link" href="avaliacao.html"><div class="panel-icon" style="background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(59,130,246,.05));color:var(--blue);">&#128202;</div><div><h3>Avaliação de Produtos</h3><p>Simulador de compra com upload Excel e cálculo por conta ML</p></div><div class="panel-arrow">&#8594;</div></a>';
+  html += '</div>';
+
+  // === SECTION 7: Histórico Mensal ===
+  if (monthly && monthly.length > 0) {
+    const hr = monthly.slice(0,6).map(m => {
+      const md = new Date(m.mes + 'T12:00:00');
+      const ml = MN[md.getMonth()] + '/' + md.getFullYear();
+      const cp = Number(m.saldo_vendas) > 0 ? (Number(m.comissao_ml_total)/Number(m.saldo_vendas)*100).toFixed(1) : '0.0';
+      const xp = (Number(m.faturamento_bruto) + Number(m.cancelamentos)) > 0
+        ? (Number(m.cancelamentos)/(Number(m.faturamento_bruto)+Number(m.cancelamentos))*100).toFixed(1) : '0.0';
+      return '<tr><td>' + ml + '</td><td>' + fmt(m.faturamento_bruto) + '</td><td>' + fmtN(m.qtd_vendas) + '</td><td>' + fmt(m.cancelamentos) + ' <span style="color:var(--text-muted)">(' + xp + '%)</span></td><td>' + fmt(m.comissao_ml_total) + ' <span style="color:var(--text-muted)">(' + cp + '%)</span></td><td>' + fmt(Number(m.saldo_vendas)/Number(m.qtd_vendas)) + '</td></tr>';
+    }).join('');
+    html += '<div class="section-title">Histórico Mensal</div><div class="hist-table-wrap"><table class="hist-table"><thead><tr><th>Mês</th><th>Faturamento Bruto</th><th>Vendas</th><th>Cancelamentos</th><th>Comissão ML</th><th>Ticket Médio</th></tr></thead><tbody>' + hr + '</tbody></table></div>';
   }
-  let sc = '';
-  if (curMonth) {
-    sc = '<div class="summary-row"><div class="summary-card"><div class="label">Faturamento Bruto ('+cm+')</div><div class="value">'+fmt(curMonth.faturamento_bruto)+'</div>'+ch+'</div><div class="summary-card"><div class="label">Vendas Realizadas</div><div class="value">'+fmtN(curMonth.qtd_vendas)+'</div></div><div class="summary-card"><div class="label">Cancelamentos</div><div class="value">'+fmt(curMonth.cancelamentos)+'</div><div class="change" style="color:var(--text-muted)">'+fmtPct(Number(curMonth.cancelamentos)/(Number(curMonth.faturamento_bruto)+Number(curMonth.cancelamentos))*100)+' do bruto+canc</div></div><div class="summary-card"><div class="label">Comissão ML</div><div class="value">'+fmt(curMonth.comissao_ml_total)+'</div><div class="change" style="color:var(--text-muted)">'+fmtPct(Number(curMonth.comissao_ml_total)/Number(curMonth.saldo_vendas)*100)+' do saldo</div></div></div>';
-  } else {
-    sc = '<div class="summary-row"><div class="summary-card"><div class="label">Faturamento ('+cm+')</div><div class="value" style="color:var(--text-muted)">Sem dados ainda</div></div><div class="summary-card"><div class="label">Vendas</div><div class="value">—</div></div><div class="summary-card"><div class="label">Cancelamentos</div><div class="value">—</div></div><div class="summary-card"><div class="label">Comissão ML</div><div class="value">—</div></div></div>';
-  }
-  const p30 = '<div class="section-title">Projeção 30 Dias</div><div class="proj-grid">'+projCard('Últimos 30 dias',proj.d30,'30',30)+projCard('Últimos 15 dias',proj.d15,'15',15)+projCard('Últimos 7 dias',proj.d7,'7',7)+'</div>';
-  const mp = '<div class="section-title">Projeção do Mês ('+cm+' '+cy+')</div><div class="proj-grid">'+monthProjCard('Base: últimos 30 dias',mProj.d30,'30')+monthProjCard('Base: últimos 15 dias',mProj.d15,'15')+monthProjCard('Base: últimos 7 dias',mProj.d7,'7')+'</div>';
-  const pl = '<div class="section-title">Painéis</div><div class="panels-grid"><a class="panel-link" href="margem.html"><div class="panel-icon margem">&#128200;</div><div><h3>Painel I — Margem</h3><p>Análise de margem por anúncio, custos, frete, comissão e impostos por conta ML</p></div><div class="panel-arrow">&#8594;</div></a><a class="panel-link" href="precificacao.html"><div class="panel-icon preco">&#128176;</div><div><h3>Painel II — Precificação</h3><p>Precificação B2B e Marketplace com cálculo reverso de MC</p></div><div class="panel-arrow">&#8594;</div></a><a class="panel-link" href="avaliacao.html"><div class="panel-icon" style="background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(59,130,246,.05));color:var(--blue);">&#128202;</div><div><h3>Avaliação de Produtos</h3><p>Simulador de compra com upload Excel e cálculo por conta ML</p></div><div class="panel-arrow">&#8594;</div></a></div>';
-  const hr = monthly.slice(0,6).map(m => {
-    const md = new Date(m.mes+'T12:00:00');
-    const ml = MN[md.getMonth()]+'/'+md.getFullYear();
-    const cp = Number(m.saldo_vendas)>0?(Number(m.comissao_ml_total)/Number(m.saldo_vendas)*100).toFixed(1):'0.0';
-    const xp = (Number(m.cancelamentos)/(Number(m.faturamento_bruto)+Number(m.cancelamentos))*100).toFixed(1);
-    return '<tr><td>'+ml+'</td><td>'+fmt(m.faturamento_bruto)+'</td><td>'+fmtN(m.qtd_vendas)+'</td><td>'+fmt(m.cancelamentos)+' <span style="color:var(--text-muted)">('+xp+'%)</span></td><td>'+fmt(m.comissao_ml_total)+' <span style="color:var(--text-muted)">('+cp+'%)</span></td><td>'+fmt(Number(m.saldo_vendas)/Number(m.qtd_vendas))+'</td></tr>';
-  }).join('');
-  const ht = '<div class="section-title">Histórico Mensal</div><div class="hist-table-wrap"><table class="hist-table"><thead><tr><th>Mês</th><th>Faturamento Bruto</th><th>Vendas</th><th>Cancelamentos</th><th>Comissão ML</th><th>Ticket Médio</th></tr></thead><tbody>'+hr+'</tbody></table></div>';
-  return sc+p30+mp+pl+ht;
+
+  return html;
 }
+
 function projCard(label, data, badge, n) {
   const bc = badge==='30'?'badge-30':badge==='15'?'badge-15':'badge-7';
   return '<div class="proj-card"><div class="badge '+bc+'">'+n+' dias</div><div class="label">'+label+'</div><div class="value">'+fmt(data.proj30)+'</div><div class="sub">Média diária: <span class="avg">'+fmt(data.avg)+'</span></div><div class="sub" style="margin-top:4px">'+fmtN(Math.round(data.avgQtd))+' vendas/dia &middot; '+data.n+' dias amostrados</div></div>';
 }
+
 function monthProjCard(label, data, badge) {
   const bc = badge==='30'?'badge-30':badge==='15'?'badge-15':'badge-7';
   return '<div class="proj-card"><div class="badge '+bc+'">'+label.replace('Base: ú','Ú')+'</div><div class="label">'+label+'</div><div class="value">'+fmt(data.projected)+'</div><div class="month-detail"><strong>'+fmt(data.mtd)+'</strong> realizados em '+data.daysPassed+' dia'+(data.daysPassed!==1?'s':'')+'<br>+ <strong>'+fmt(data.avgDay)+'</strong>/dia &times; '+data.daysRemaining+' dias restantes<br>Mês: '+data.daysInMonth+' dias (faltam '+data.daysRemaining+')</div></div>';
 }
+
 loadData().catch(err => {
-  document.getElementById('mainContent').innerHTML = '<div class="loading" style="color:var(--red)">Erro ao carregar dados: '+err.message+'</div>';
+  document.getElementById('mainContent').innerHTML = '<div class="loading" style="color:var(--red)">Erro ao carregar dados: ' + err.message + '</div>';
 });
 </script>
 </body>
