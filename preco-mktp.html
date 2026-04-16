@@ -109,8 +109,8 @@
     // ── Comissao por categoria ──
     function getComissaoPct(comissoes, categoriaMl, tipoListagem) {
       const match = comissoes.find(c => c.categoria_nome === categoriaMl);
-      if (match) return tipoListagem === 'gold_special' ? match.premium_pct : match.classico_pct;
-      return tipoListagem === 'gold_special' ? 17 : 12;
+      if (match) return tipoListagem === 'gold_pro' ? match.premium_pct : match.classico_pct;
+      return tipoListagem === 'gold_pro' ? 17 : 12;
     }
 
     // ── Calculo reverso: preco para atingir margem ──
@@ -225,7 +225,7 @@
       }, [anuncios]);
 
       const origemConfig = useMemo(() => ORIGENS.find(o => o.key === origemAtiva), [origemAtiva]);
-      const defaultComissao = tipoListagem === 'gold_special' ? 17 : 12;
+      const defaultComissao = tipoListagem === 'gold_pro' ? 17 : 12;
 
       // ── SKUs filtrados ──
       const skusFiltrados = useMemo(() => {
@@ -278,8 +278,8 @@
               </button>
               <select value={tipoListagem} onChange={e => setTipoListagem(e.target.value)}
                 className="bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-gge-accent">
-                <option value="gold_pro">Clássico (~12%)</option>
-                <option value="gold_special">Premium (~17%)</option>
+                <option value="gold_special">Clássico (~12%)</option>
+                <option value="gold_pro">Premium (~17%)</option>
               </select>
             </div>
           </div>
@@ -418,7 +418,7 @@
                               : null;
 
                             const isAnuncioExp = expandedAnuncio === anuncio.mlb_id;
-                            const tipoLabel = anuncio.tipo_listagem === 'gold_special' ? 'Premium' : 'Clássico';
+                            const tipoLabel = anuncio.tipo_listagem === 'gold_pro' ? 'Premium' : 'Clássico';
 
                             const sugAnuncio = MARGENS_ALVO.map(m =>
                               temCusto && temPeso
@@ -442,7 +442,7 @@
                                         {anuncio.mlb_id} ↗
                                       </a>
                                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
-                                        anuncio.tipo_listagem === 'gold_special' ? 'bg-gge-yellow/15 text-gge-yellow' : 'bg-white/10 text-gge-muted'
+                                        anuncio.tipo_listagem === 'gold_pro' ? 'bg-gge-yellow/15 text-gge-yellow' : 'bg-white/10 text-gge-muted'
                                       }`}>{tipoLabel}</span>
                                       <span className="text-[9px] text-gge-muted">{anuncio.conta_nome}</span>
                                     </div>
@@ -538,7 +538,7 @@
 
           {/* Notas */}
           <div className="space-y-1 text-[11px] text-gge-muted">
-            <p>* Preços sugeridos arredondados para cima. Comissão: {tipoListagem === 'gold_special' ? 'Premium' : 'Clássico'} (default {defaultComissao}%, ajustado por categoria quando disponível).</p>
+            <p>* Preços sugeridos arredondados para cima. Comissão: {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'} (default {defaultComissao}%, ajustado por categoria quando disponível).</p>
             <p>* Frete calculado pela tabela ML ({origemConfig.modeFrete}) × peso do produto. Atacado: frete consolidado pelo peso total.</p>
             {semImpostos && <p className="text-gge-cyan">* Modo "Sem impostos": preço calculado sem PIS/COFINS/DAS — o ML acrescenta imposto ao comprador com base em geolocalização e CPF/CNPJ.</p>}
           </div>
