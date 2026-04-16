@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle Total GGE - Dashboard</title>
     <script src="auth.js" defer></script>
+    <script src="sidebar.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         * {
@@ -20,102 +21,7 @@
             overflow-x: hidden;
         }
 
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            width: 48px;
-            background-color: #0a0e14;
-            border-right: 1px solid #2a2d3a;
-            padding: 20px 0;
-            transition: width 0.3s ease;
-            z-index: 1000;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        .sidebar:hover {
-            width: 250px;
-        }
-
-        .sidebar-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 12px;
-            margin-bottom: 30px;
-            min-height: 40px;
-        }
-
-        .sidebar:hover .sidebar-header {
-            justify-content: flex-start;
-        }
-
-        .sidebar-logo {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .sidebar-logo-text {
-            font-weight: 700;
-            font-size: 20px;
-            color: #58a6ff;
-        }
-
-        .sidebar-logo-sub {
-            font-size: 10px;
-            color: #8b949e;
-            line-height: 1;
-        }
-
-        .sidebar:not(:hover) .sidebar-logo-sub {
-            display: none;
-        }
-
-        .sidebar-nav {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 0 8px;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
-            border-radius: 6px;
-            color: #f0c040;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        .nav-item:hover {
-            background-color: #161b22;
-        }
-
-        .nav-item.active {
-            background-color: #58a6ff;
-            color: #0f1117;
-        }
-
-        .nav-item-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 20px;
-        }
-
-        .sidebar:not(:hover) .nav-item-label {
-            display: none;
-        }
+        /* Sidebar styles injected by sidebar.js */
 
         /* Main content */
         .container {
@@ -728,36 +634,7 @@
 </head>
 <body>
     <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-logo">
-                <span class="sidebar-logo-text">GGE</span>
-                <span class="sidebar-logo-sub">Controle Total</span>
-            </div>
-        </div>
-        <nav class="sidebar-nav">
-            <a href="/" class="nav-item active" data-page="dashboard">
-                <span class="nav-item-icon">📊</span>
-                <span class="nav-item-label">Dashboard</span>
-            </a>
-            <a href="/margem" class="nav-item" data-page="margem">
-                <span class="nav-item-icon">📈</span>
-                <span class="nav-item-label">Margem</span>
-            </a>
-            <a href="/precificacao" class="nav-item" data-page="precificacao">
-                <span class="nav-item-icon">🏷️</span>
-                <span class="nav-item-label">Tabela VD</span>
-            </a>
-            <a href="/saude" class="nav-item" data-page="saude">
-                <span class="nav-item-icon">💪</span>
-                <span class="nav-item-label">Saúde</span>
-            </a>
-            <a href="/avaliacao" class="nav-item" data-page="avaliacao">
-                <span class="nav-item-icon">⭐</span>
-                <span class="nav-item-label">Avaliação</span>
-            </a>
-        </nav>
-    </div>
+    <!-- Sidebar (injetado por sidebar.js) -->
 
     <!-- Main container -->
     <div class="container" id="container">
@@ -1368,25 +1245,25 @@
         }
 
         // ========== RENDER CUSTOS + MARGENS (8 cards, 1 linha) ==========
+        // ========== RENDER CUSTOS + MARGENS (8 cards, 1 linha) ==========
         function renderCustosCards() {
             const data = currentData;
             const prev = previousData;
 
-            // 5 cards de CUSTOS
+            // 5 cards de CUSTOS (Custo Produto, Comissão, Frete, ADs, Impostos)
             const custosHtml = [
                 buildMetricCard('Custo Produto', fmtPct(data.custo_produto_pct), fmt(data.custo_produto), calculateTrend(data.custo_produto_pct, prev.custo_produto_pct, true), true, 'card-custo'),
                 buildMetricCard('Comissão ML', fmtPct(data.comissao_ml_pct), fmt(data.comissao_ml), calculateTrend(data.comissao_ml_pct, prev.comissao_ml_pct, true), true, 'card-custo'),
                 buildMetricCard('Frete', fmtPct(data.frete_pct), fmt(data.frete), calculateTrend(data.frete_pct, prev.frete_pct, true), true, 'card-custo'),
                 buildMetricCard('ADs', fmtPct(data.ads_pct), fmt(data.ads), calculateTrend(data.ads_pct, prev.ads_pct, true), true, 'card-custo'),
-                buildMetricCard('MC1', fmtPct(data.mc1_pct), fmt(data.mc1_valor), calculateTrend(data.mc1_pct, prev.mc1_pct), true, 'card-custo')
+                buildMetricCard('Impostos', fmtPct(data.impostos_pct), fmt(data.impostos_valor), calculateTrend(data.impostos_pct, prev.impostos_pct, true), true, 'card-custo')
             ].join('');
 
-            // 3 cards de MARGENS
-            const difVal = (data.difal_valor || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            // 3 cards de MARGENS (MC2, DIFAL, MC1)
             const margensHtml = [
-                buildMetricCard('MC1 — c/ DIFAL', fmtPct(data.mc1_pct), fmt(data.mc1_valor), calculateTrend(data.mc1_pct, prev.mc1_pct), true, 'card-margem'),
-                buildMetricCard('DIFAL (R$)', difVal, fmtPct(data.difal_pct), calculateTrend(data.difal_valor, prev.difal_valor), false, 'card-margem'),
-                buildMetricCard('MC2 — Caixa', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem')
+                buildMetricCard('MC2', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem'),
+                buildMetricCard('DIFAL', fmt(data.difal_valor), fmtPct(data.difal_pct), calculateTrend(data.difal_valor, prev.difal_valor), false, 'card-margem'),
+                buildMetricCard('MC1', fmtPct(data.mc1_pct), fmt(data.mc1_valor), calculateTrend(data.mc1_pct, prev.mc1_pct), true, 'card-margem')
             ].join('');
 
             document.getElementById('custos-margens-row').innerHTML = custosHtml + margensHtml;
