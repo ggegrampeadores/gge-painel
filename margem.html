@@ -59,46 +59,15 @@
     ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
     .filter-active select { border-color: #6366f1 !important; color: #fff !important; font-weight: 600; }
 
-    /* Sidebar */
-    .sidebar {
-      position: fixed; left: 0; top: 0; height: 100vh; width: 48px;
-      background-color: #0a0e14; border-right: 1px solid #2a2d3a;
-      padding: 20px 0; transition: width 0.3s ease; z-index: 1000;
-      overflow-y: auto; overflow-x: hidden;
-    }
-    .sidebar:hover { width: 250px; }
-    .sidebar-header { display: flex; align-items: center; padding: 0 12px; margin-bottom: 30px; min-height: 40px; }
-    .sidebar-logo { display: flex; flex-direction: column; gap: 4px; }
-    .sidebar-logo-text { font-weight: 700; font-size: 20px; color: #58a6ff; }
-    .sidebar-logo-sub { font-size: 10px; color: #8b949e; line-height: 1; }
-    .sidebar:not(:hover) .sidebar-logo-sub { display: none; }
-    .sidebar-nav { display: flex; flex-direction: column; gap: 8px; padding: 0 8px; }
-    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #f0c040; text-decoration: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; font-size: 14px; font-weight: bold; }
-    .nav-item:hover { background-color: #161b22; }
-    .nav-item.active { background-color: #58a6ff; color: #0f1117; }
-    .nav-item-icon { display: flex; align-items: center; justify-content: center; min-width: 20px; }
-    .sidebar:not(:hover) .nav-item-label { display: none; }
+    /* Sidebar styles injected by sidebar.js */
     .main-with-sidebar { margin-left: 48px; min-height: 100vh; }
   </style>
 <script src="auth.js" defer></script>
+    <script src="sidebar.js" defer></script>
 </head>
 <body>
   <!-- Sidebar -->
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-logo">
-        <span class="sidebar-logo-text">GGE</span>
-        <span class="sidebar-logo-sub">Controle Total</span>
-      </div>
-    </div>
-    <nav class="sidebar-nav">
-      <a href="/" class="nav-item"><span class="nav-item-icon">📊</span><span class="nav-item-label">Dashboard</span></a>
-      <a href="/margem" class="nav-item active"><span class="nav-item-icon">📈</span><span class="nav-item-label">Margem</span></a>
-      <a href="/precificacao" class="nav-item"><span class="nav-item-icon">🏷️</span><span class="nav-item-label">Tabela VD</span></a>
-      <a href="/saude" class="nav-item"><span class="nav-item-icon">💪</span><span class="nav-item-label">Saúde</span></a>
-      <a href="/avaliacao" class="nav-item"><span class="nav-item-icon">⭐</span><span class="nav-item-label">Avaliação</span></a>
-    </nav>
-  </div>
+  <!-- Sidebar (injetado por sidebar.js) -->
 
   <!-- Main content with sidebar offset -->
   <div class="main-with-sidebar">
