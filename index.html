@@ -1250,6 +1250,12 @@
             const data = currentData;
             const prev = previousData;
 
+            // MC1 correto = MC2 + DIFAL (margem antes do DIFAL)
+            const mc1_valor_real = (data.mc2_valor || 0) + (data.difal_valor || 0);
+            const mc1_pct_real = (data.mc2_pct || 0) + (data.difal_pct || 0);
+            const prev_mc1_valor_real = (prev.mc2_valor || 0) + (prev.difal_valor || 0);
+            const prev_mc1_pct_real = (prev.mc2_pct || 0) + (prev.difal_pct || 0);
+
             // 5 cards de CUSTOS (Custo Produto, Comissão, Frete, ADs, Impostos)
             const custosHtml = [
                 buildMetricCard('Custo Produto', fmtPct(data.custo_produto_pct), fmt(data.custo_produto), calculateTrend(data.custo_produto_pct, prev.custo_produto_pct, true), true, 'card-custo'),
@@ -1259,11 +1265,11 @@
                 buildMetricCard('Impostos', fmtPct(data.impostos_pct), fmt(data.impostos_valor), calculateTrend(data.impostos_pct, prev.impostos_pct, true), true, 'card-custo')
             ].join('');
 
-            // 3 cards de MARGENS (MC2, DIFAL, MC1)
+            // 3 cards de MARGENS: MC2 (final), DIFAL, MC1 (= MC2 + DIFAL)
             const margensHtml = [
                 buildMetricCard('MC2', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem'),
                 buildMetricCard('DIFAL', fmt(data.difal_valor), fmtPct(data.difal_pct), calculateTrend(data.difal_valor, prev.difal_valor), false, 'card-margem'),
-                buildMetricCard('MC1', fmtPct(data.mc1_pct), fmt(data.mc1_valor), calculateTrend(data.mc1_pct, prev.mc1_pct), true, 'card-margem')
+                buildMetricCard('MC1', fmtPct(mc1_pct_real), fmt(mc1_valor_real), calculateTrend(mc1_pct_real, prev_mc1_pct_real), true, 'card-margem')
             ].join('');
 
             document.getElementById('custos-margens-row').innerHTML = custosHtml + margensHtml;
