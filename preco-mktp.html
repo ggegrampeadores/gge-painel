@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preço MKTP — Controle Total GGE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'gge-bg': '#0f1117',
+            'gge-card': '#1a1d2e',
+            'gge-border': '#2a2d3e',
+            'gge-text': '#e2e8f0',
+            'gge-muted': '#94a3b8',
+            'gge-accent': '#6366f1',
+            'gge-green': '#22c55e',
+            'gge-red': '#ef4444',
+            'gge-yellow': '#eab308',
+            'gge-orange': '#f97316',
+            'gge-cyan': '#22d3ee',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .pulse-load { animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1a1d2e; }
+    ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed; left: 0; top: 0; height: 100vh; width: 48px;
+      background-color: #0a0e14; border-right: 1px solid #2a2d3a;
+      padding: 20px 0; transition: width 0.3s ease; z-index: 1000;
+      overflow-y: auto; overflow-x: hidden;
+    }
+    .sidebar:hover { width: 250px; }
+    .sidebar-header { display: flex; align-items: center; padding: 0 12px; margin-bottom: 30px; min-height: 40px; }
+    .sidebar-logo { display: flex; flex-direction: column; gap: 4px; }
+    .sidebar-logo-text { font-weight: 700; font-size: 20px; color: #58a6ff; }
+    .sidebar-logo-sub { font-size: 10px; color: #8b949e; line-height: 1; }
+    .sidebar:not(:hover) .sidebar-logo-sub { display: none; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 8px; padding: 0 8px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 6px; color: #f0c040; text-decoration: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; font-size: 14px; font-weight: bold; }
+    .nav-item:hover { background-color: #161b22; }
+    .nav-item.active { background-color: #58a6ff; color: #0f1117; }
+    .nav-item-icon { display: flex; align-items: center; justify-content: center; min-width: 20px; }
+    .sidebar:not(:hover) .nav-item-label { display: none; }
+    .main-with-sidebar { margin-left: 48px; min-height: 100vh; }
+
+    /* Expandable rows */
+    .expandable-row { cursor: pointer; }
+    .expandable-row:hover { background: rgba(99, 102, 241, 0.08); }
+    .atacado-row { background: rgba(99, 102, 241, 0.04); }
+    .atacado-row:hover { background: rgba(99, 102, 241, 0.08); }
+  </style>
+  <script src="auth.js" defer></script>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <span class="sidebar-logo-text">GGE</span>
+        <span class="sidebar-logo-sub">Controle Total</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/" class="nav-item"><span class="nav-item-icon">📊</span><span class="nav-item-label">Dashboard</span></a>
+      <a href="/margem" class="nav-item"><span class="nav-item-icon">📈</span><span class="nav-item-label">Margem</span></a>
+      <a href="/precificacao" class="nav-item"><span class="nav-item-icon">🏷️</span><span class="nav-item-label">Precificação</span></a>
+      <a href="/preco-mktp" class="nav-item active"><span class="nav-item-icon">💲</span><span class="nav-item-label">Preço MKTP</span></a>
+      <a href="/saude" class="nav-item"><span class="nav-item-icon">💪</span><span class="nav-item-label">Saúde</span></a>
+      <a href="/avaliacao" class="nav-item"><span class="nav-item-icon">⭐</span><span class="nav-item-label">Avaliação</span></a>
+    </nav>
+  </div>
+
+  <!-- Main content -->
+  <div class="main-with-sidebar">
+    <div id="root"></div>
+  </div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback, Fragment } = React;
+
+    // ── Supabase Client ──
+    const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // ── Formatters ──
+    const brl = (v) => v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pct = (v) => v == null ? '—' : Number(v).toFixed(1) + '%';
+    const fmtNum = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR');
+
+    // ── Origens de venda ──
+    const ORIGENS = [
+      { key: 'toow', label: 'Toow', custoField: 'custo_cif_sp', modeFrete: 'coleta', regime: 'simples', desc: 'Toow Comercial · Simples Nacional (DAS 8,65%) · Coleta SP' },
+      { key: 'gge_coleta', label: 'GGE Coleta', custoField: 'custo_cif_rj', modeFrete: 'coleta', regime: 'lucro_real', desc: 'GGE Grampeadores · Lucro Real (PIS+COFINS 9,25%) · Coleta RJ' },
+      { key: 'gge_full', label: 'GGE Full', custoField: 'custo_cif_sp', modeFrete: 'fulfillment', regime: 'lucro_real', desc: 'GGE Grampeadores · Lucro Real · Fulfillment SP' },
+      { key: 'gge_sp', label: 'GGE SP', custoField: 'custo_cif_sp', modeFrete: 'coleta', regime: 'lucro_real', desc: 'GGE Filial SP · Lucro Real · Coleta SP' },
+    ];
+
+    const MARGENS_ALVO = [0, 5, 10, 15, 20, 25, 30];
+    const QTDS_ATACADO = [2, 4, 6, 10, 15];
+
+    // ── Frete lookup ──
+    function lookupFrete(faixas, modo, pesoKg, preco) {
+      if (preco < 12.5) return 0;
+      if (preco < 29) return 6.25;
+      if (preco < 50) return 6.50;
+      if (preco < 79) return 6.75;
+
+      const faixa = faixas.find(f =>
+        f.modo === modo && pesoKg <= f.peso_max_kg && preco >= f.preco_min && preco <= f.preco_max
+      );
+      if (faixa) return faixa.frete;
+
+      // Fallback: maior faixa de preco para aquele peso
+      const fallbacks = faixas
+        .filter(f => f.modo === modo && pesoKg <= f.peso_max_kg)
+        .sort((a, b) => b.preco_max - a.preco_max);
+      return fallbacks[0]?.frete ?? 20;
+    }
+
+    // ── Comissao por categoria ──
+    function getComissaoPct(comissoes, categoriaMl, tipoListagem) {
+      const match = comissoes.find(c => c.categoria_nome === categoriaMl);
+      if (match) return tipoListagem === 'gold_special' ? match.premium_pct : match.classico_pct;
+      return tipoListagem === 'gold_special' ? 17 : 12;
+    }
+
+    // ── Calculo reverso: preco para atingir margem ──
+    function calcPrecoParaMargem(custo, peso, qtd, margemPct, comissaoPct, faixas, modeFrete, regime, semImpostos) {
+      if (custo <= 0) return null;
+      const custoTotal = custo * qtd;
+      const pesoTotal = peso * qtd;
+      const margem = margemPct / 100;
+
+      let impostoPct = 0;
+      if (!semImpostos) {
+        impostoPct = regime === 'simples' ? 0.0865 : 0.0925;
+      }
+
+      const fatorFixo = 1 - margem - (comissaoPct / 100) - impostoPct;
+      if (fatorFixo <= 0) return null;
+
+      let preco = custoTotal / fatorFixo;
+      for (let i = 0; i < 10; i++) {
+        const frete = lookupFrete(faixas, modeFrete, pesoTotal, preco);
+        const novoPreco = (custoTotal + frete) / fatorFixo;
+        if (Math.abs(novoPreco - preco) < 0.01) { preco = novoPreco; break; }
+        preco = novoPreco;
+      }
+
+      const freteReal = lookupFrete(faixas, modeFrete, pesoTotal, preco);
+      return {
+        preco: Math.ceil(preco * 100) / 100,
+        frete: freteReal,
+        comissao: preco * (comissaoPct / 100),
+        imposto: preco * impostoPct,
+      };
+    }
+
+    // ── Margem atual de um anuncio ──
+    function calcMargemAtual(preco, custo, peso, comissaoPct, faixas, modeFrete, regime) {
+      const frete = lookupFrete(faixas, modeFrete, peso, preco);
+      const comissao = preco * (comissaoPct / 100);
+      const imposto = regime === 'simples' ? preco * 0.0865 : preco * 0.0925;
+      const margem = preco - custo - frete - comissao - imposto;
+      return { margem, margemPct: preco > 0 ? (margem / preco) * 100 : 0, frete, comissao, imposto };
+    }
+
+    // ══════════════════════════════════════════
+    // ── COMPONENTE PRINCIPAL ──
+    // ══════════════════════════════════════════
+    function PrecoMktpApp() {
+      const [search, setSearch] = useState('');
+      const [origemAtiva, setOrigemAtiva] = useState('gge_coleta');
+      const [semImpostos, setSemImpostos] = useState(false);
+      const [tipoListagem, setTipoListagem] = useState('gold_pro');
+      const [expandedSku, setExpandedSku] = useState(null);
+      const [expandedAnuncio, setExpandedAnuncio] = useState(null);
+
+      const [skus, setSkus] = useState([]);
+      const [anuncios, setAnuncios] = useState([]);
+      const [comissoes, setComissoes] = useState([]);
+      const [faixasFrete, setFaixasFrete] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      // ── Carregar dados ──
+      useEffect(() => {
+        async function loadAll() {
+          const [skuRes, anuncRes, comRes, freteRes] = await Promise.all([
+            sb.from('skus_custo').select('sku, descricao, peso, custo_cif_rj, custo_cif_sp, is_combo, unidade'),
+            sb.from('anuncios').select('mlb_id, titulo, sku_vendedor, tipo_listagem, preco_atual, preco_promocional, estoque_declarado, categoria_ml, comissao_efetiva_pct, permalink, status, contas!inner(nome, empresa)').in('status', ['active', 'paused']),
+            sb.from('comissoes_ml').select('categoria_nome, classico_pct, premium_pct').eq('ativo', true),
+            sb.from('tabela_frete_ml').select('modo, peso_max_kg, preco_min, preco_max, frete'),
+          ]);
+
+          setSkus((skuRes.data || []).map(r => ({
+            sku: r.sku, descricao: r.descricao || '', peso: Number(r.peso || 0),
+            custo_cif_rj: Number(r.custo_cif_rj || 0), custo_cif_sp: Number(r.custo_cif_sp || 0),
+            is_combo: r.is_combo || false, unidade: r.unidade || '',
+          })));
+
+          setAnuncios((anuncRes.data || []).map(r => ({
+            mlb_id: r.mlb_id, titulo: r.titulo || '', sku_vendedor: r.sku_vendedor || '',
+            tipo_listagem: r.tipo_listagem || '', preco_atual: Number(r.preco_atual || 0),
+            preco_promocional: r.preco_promocional ? Number(r.preco_promocional) : null,
+            estoque_declarado: Number(r.estoque_declarado || 0), categoria_ml: r.categoria_ml || '',
+            comissao_efetiva_pct: r.comissao_efetiva_pct ? Number(r.comissao_efetiva_pct) : null,
+            permalink: r.permalink || '', status: r.status,
+            conta_nome: r.contas?.nome || '', empresa: r.contas?.empresa || '',
+          })));
+
+          setComissoes((comRes.data || []).map(r => ({
+            categoria_nome: r.categoria_nome || '',
+            classico_pct: Number(r.classico_pct || 12),
+            premium_pct: Number(r.premium_pct || 17),
+          })));
+
+          setFaixasFrete((freteRes.data || []).map(r => ({
+            modo: r.modo, peso_max_kg: Number(r.peso_max_kg),
+            preco_min: Number(r.preco_min), preco_max: Number(r.preco_max), frete: Number(r.frete),
+          })));
+
+          setLoading(false);
+        }
+        loadAll();
+      }, []);
+
+      // ── Mapa de anuncios por SKU ──
+      const anunciosPorSku = useMemo(() => {
+        const map = {};
+        for (const a of anuncios) {
+          if (!a.sku_vendedor) continue;
+          if (!map[a.sku_vendedor]) map[a.sku_vendedor] = [];
+          map[a.sku_vendedor].push(a);
+        }
+        return map;
+      }, [anuncios]);
+
+      const origemConfig = useMemo(() => ORIGENS.find(o => o.key === origemAtiva), [origemAtiva]);
+      const defaultComissao = tipoListagem === 'gold_special' ? 17 : 12;
+
+      // ── SKUs filtrados ──
+      const skusFiltrados = useMemo(() => {
+        let result = skus;
+        if (search) {
+          const q = search.toLowerCase();
+          result = result.filter(s => s.sku.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q));
+        }
+        return result;
+      }, [skus, search]);
+
+      // ── Stats ──
+      const stats = useMemo(() => {
+        const total = skusFiltrados.length;
+        const comCusto = skusFiltrados.filter(s => s[origemConfig.custoField] > 0).length;
+        const comPeso = skusFiltrados.filter(s => s.peso > 0).length;
+        const comAnuncios = skusFiltrados.filter(s => (anunciosPorSku[s.sku] || []).length > 0).length;
+        return { total, comCusto, comPeso, comAnuncios };
+      }, [skusFiltrados, origemConfig, anunciosPorSku]);
+
+      // ═══ RENDER ═══
+      return (
+        <div className="p-6 max-w-[1700px] mx-auto space-y-5 fade-in">
+          {/* Header */}
+          <div>
+            <h1 className="text-2xl font-bold text-white">Preço MKTP</h1>
+            <p className="text-sm text-gge-muted">Precificação para Marketplaces — sugestão de preço por margem desejada</p>
+          </div>
+
+          {/* Abas de Origem + controles */}
+          <div className="flex flex-wrap items-center gap-2">
+            {ORIGENS.map(o => (
+              <button key={o.key} onClick={() => setOrigemAtiva(o.key)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                  origemAtiva === o.key
+                    ? 'bg-gge-accent/20 border-gge-accent text-white'
+                    : 'bg-gge-card border-gge-border text-gge-muted hover:text-white hover:border-gge-muted'
+                }`}
+                title={o.desc}>
+                {o.label}
+              </button>
+            ))}
+            <div className="ml-auto flex items-center gap-3">
+              <button onClick={() => setSemImpostos(!semImpostos)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                  semImpostos ? 'bg-gge-cyan/20 border-gge-cyan text-gge-cyan' : 'bg-gge-card border-gge-border text-gge-muted hover:text-white'
+                }`}
+                title="ML cobra imposto do comprador separadamente">
+                ℹ️ Sem impostos
+              </button>
+              <select value={tipoListagem} onChange={e => setTipoListagem(e.target.value)}
+                className="bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-gge-accent">
+                <option value="gold_pro">Clássico (~12%)</option>
+                <option value="gold_special">Premium (~17%)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Info bar */}
+          <div className="bg-gge-card border border-gge-border rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-2 text-xs text-gge-muted">
+            <span className="text-gge-accent font-semibold">{origemConfig.label}</span>
+            <span>·</span><span>{origemConfig.desc}</span>
+            {semImpostos && <><span>·</span><span className="text-gge-cyan font-medium">Impostos excluídos</span></>}
+          </div>
+
+          {/* Stats */}
+          {!loading && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'SKUs encontrados', value: fmtNum(stats.total), color: 'text-white' },
+                { label: 'Com custo', value: fmtNum(stats.comCusto), color: stats.comCusto === stats.total ? 'text-gge-green' : 'text-gge-yellow', sub: stats.total > 0 ? pct(stats.comCusto / stats.total * 100) : '0%' },
+                { label: 'Com peso', value: fmtNum(stats.comPeso), color: stats.comPeso === stats.total ? 'text-gge-green' : 'text-gge-yellow', sub: stats.total > 0 ? pct(stats.comPeso / stats.total * 100) : '0%' },
+                { label: 'Com anúncios ML', value: fmtNum(stats.comAnuncios), color: 'text-white', sub: 'SKUs anunciados' },
+              ].map((c, i) => (
+                <div key={i} className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <p className="text-[11px] text-gge-muted uppercase tracking-wider mb-1">{c.label}</p>
+                  <p className={`text-xl font-bold ${c.color}`}>{c.value}</p>
+                  {c.sub && <p className="text-[11px] text-gge-muted">{c.sub}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Search */}
+          <div className="relative max-w-lg">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gge-muted">🔍</span>
+            <input type="text" placeholder="Buscar SKU ou descrição do produto..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full bg-gge-card border border-gge-border rounded-lg pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-gge-muted focus:outline-none focus:border-gge-accent transition-colors" />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gge-muted hover:text-white text-lg">×</button>
+            )}
+          </div>
+
+          {/* Tabela principal */}
+          <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-gge-border text-[11px] text-gge-muted uppercase tracking-wider">
+                    <th className="text-left px-3 py-3 w-8"></th>
+                    <th className="text-left px-3 py-3">SKU</th>
+                    <th className="text-left px-3 py-3 hidden lg:table-cell">Descrição</th>
+                    <th className="text-right px-3 py-3">Peso</th>
+                    <th className="text-right px-3 py-3">Custo CIF</th>
+                    <th className="text-right px-3 py-3">ML Atual</th>
+                    <th className="text-right px-3 py-3">Margem Atual</th>
+                    {MARGENS_ALVO.map(m => (
+                      <th key={m} className="text-right px-2 py-3 text-gge-accent">{m}%</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <tr key={i} className="border-b border-gge-border/50">
+                        {Array.from({ length: 14 }).map((_, j) => (
+                          <td key={j} className="px-3 py-3"><div className="h-4 bg-white/5 rounded pulse-load" /></td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : skusFiltrados.length === 0 ? (
+                    <tr><td colSpan={14} className="text-center py-12 text-gge-muted">Nenhum SKU encontrado.</td></tr>
+                  ) : (
+                    skusFiltrados.map(sku => {
+                      const custo = sku[origemConfig.custoField];
+                      const temCusto = custo > 0;
+                      const temPeso = sku.peso > 0;
+                      const isExpanded = expandedSku === sku.sku;
+                      const anunciosDoSku = anunciosPorSku[sku.sku] || [];
+                      const qtdAnuncios = anunciosDoSku.length;
+
+                      const precoMlAtual = qtdAnuncios > 0
+                        ? anunciosDoSku.reduce((s, a) => s + (a.preco_promocional || a.preco_atual), 0) / qtdAnuncios
+                        : 0;
+
+                      const margemAtual = temCusto && precoMlAtual > 0 && temPeso
+                        ? calcMargemAtual(precoMlAtual, custo, sku.peso, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
+                        : null;
+
+                      const sugestoes = MARGENS_ALVO.map(m =>
+                        temCusto && temPeso
+                          ? calcPrecoParaMargem(custo, sku.peso, 1, m, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
+                          : null
+                      );
+
+                      return (
+                        <Fragment key={sku.sku}>
+                          {/* Linha do SKU */}
+                          <tr className={`border-b border-gge-border/30 expandable-row transition-colors ${isExpanded ? 'bg-gge-accent/5' : ''}`}
+                            onClick={() => { setExpandedSku(isExpanded ? null : sku.sku); setExpandedAnuncio(null); }}>
+                            <td className="px-3 py-2.5 text-gge-muted">
+                              {qtdAnuncios > 0 ? (isExpanded ? '▼' : '▶') : <span className="opacity-30">·</span>}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-mono text-xs font-medium">{sku.sku}</span>
+                                {sku.is_combo && <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-medium">KIT</span>}
+                                {qtdAnuncios > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-gge-accent/15 text-gge-accent font-medium">{qtdAnuncios} {qtdAnuncios === 1 ? 'anúncio' : 'anúncios'}</span>}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[250px] truncate hidden lg:table-cell" title={sku.descricao}>{sku.descricao}</td>
+                            <td className="px-3 py-2.5 text-right text-gge-muted tabular-nums text-xs">
+                              {temPeso ? `${sku.peso} kg` : <span className="text-gge-yellow">—</span>}
+                            </td>
+                            <td className={`px-3 py-2.5 text-right tabular-nums text-xs ${temCusto ? 'text-white' : 'text-gge-yellow'}`}>
+                              {temCusto ? brl(custo) : 'sem custo'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-xs text-gge-muted">
+                              {precoMlAtual > 0 ? brl(precoMlAtual) : '—'}
+                            </td>
+                            <td className={`px-3 py-2.5 text-right tabular-nums text-xs font-semibold ${
+                              !margemAtual ? 'text-gge-muted' : margemAtual.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'
+                            }`}>
+                              {margemAtual ? pct(margemAtual.margemPct) : '—'}
+                            </td>
+                            {sugestoes.map((s, i) => (
+                              <td key={i} className={`px-2 py-2.5 text-right tabular-nums text-xs ${!s ? 'text-gge-muted' : 'text-white font-medium'}`}>
+                                {s ? brl(s.preco) : '—'}
+                              </td>
+                            ))}
+                          </tr>
+
+                          {/* Anúncios expandidos */}
+                          {isExpanded && anunciosDoSku.map(anuncio => {
+                            const precoAnuncio = anuncio.preco_promocional || anuncio.preco_atual;
+                            const comPctAnuncio = anuncio.comissao_efetiva_pct || getComissaoPct(comissoes, anuncio.categoria_ml, anuncio.tipo_listagem);
+                            const margemAnuncio = temCusto && temPeso
+                              ? calcMargemAtual(precoAnuncio, custo, sku.peso, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
+                              : null;
+
+                            const isAnuncioExp = expandedAnuncio === anuncio.mlb_id;
+                            const tipoLabel = anuncio.tipo_listagem === 'gold_special' ? 'Premium' : 'Clássico';
+
+                            const sugAnuncio = MARGENS_ALVO.map(m =>
+                              temCusto && temPeso
+                                ? calcPrecoParaMargem(custo, sku.peso, 1, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
+                                : null
+                            );
+
+                            return (
+                              <Fragment key={anuncio.mlb_id}>
+                                <tr className="border-b border-gge-border/20 bg-white/[0.015] expandable-row"
+                                  onClick={e => { e.stopPropagation(); setExpandedAnuncio(isAnuncioExp ? null : anuncio.mlb_id); }}>
+                                  <td className="px-3 py-2 pl-7 text-gge-muted text-xs">
+                                    {isAnuncioExp ? '▼' : '▶'}
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-2 h-2 rounded-full ${anuncio.status === 'active' ? 'bg-gge-green' : 'bg-gge-muted'}`}></span>
+                                      <a href={anuncio.permalink} target="_blank" rel="noopener"
+                                        onClick={e => e.stopPropagation()}
+                                        className="text-[11px] text-blue-400 hover:text-blue-300 font-mono">
+                                        {anuncio.mlb_id} ↗
+                                      </a>
+                                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                                        anuncio.tipo_listagem === 'gold_special' ? 'bg-gge-yellow/15 text-gge-yellow' : 'bg-white/10 text-gge-muted'
+                                      }`}>{tipoLabel}</span>
+                                      <span className="text-[9px] text-gge-muted">{anuncio.conta_nome}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2 text-gge-muted text-[11px] max-w-[250px] truncate hidden lg:table-cell" title={anuncio.titulo}>{anuncio.titulo}</td>
+                                  <td className="px-3 py-2 text-right text-gge-muted tabular-nums text-[11px]">{temPeso ? `${sku.peso} kg` : '—'}</td>
+                                  <td className="px-3 py-2 text-right tabular-nums text-[11px] text-gge-muted">{temCusto ? brl(custo) : '—'}</td>
+                                  <td className="px-3 py-2 text-right tabular-nums text-[11px] text-white font-medium">
+                                    {anuncio.preco_promocional ? (
+                                      <span><span className="text-gge-yellow">{brl(anuncio.preco_promocional)}</span><br/><span className="text-[9px] text-gge-muted line-through">{brl(anuncio.preco_atual)}</span></span>
+                                    ) : brl(anuncio.preco_atual)}
+                                  </td>
+                                  <td className={`px-3 py-2 text-right tabular-nums text-[11px] font-semibold ${
+                                    !margemAnuncio ? 'text-gge-muted' : margemAnuncio.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'
+                                  }`}>
+                                    {margemAnuncio ? (
+                                      <span>{pct(margemAnuncio.margemPct)}<br/><span className="text-[9px] text-gge-muted font-normal">{brl(margemAnuncio.margem)}</span></span>
+                                    ) : '—'}
+                                  </td>
+                                  {sugAnuncio.map((s, i) => (
+                                    <td key={i} className={`px-2 py-2 text-right tabular-nums text-[11px] ${!s ? 'text-gge-muted' : 'text-white'}`}>
+                                      {s ? brl(s.preco) : '—'}
+                                    </td>
+                                  ))}
+                                </tr>
+
+                                {/* Atacado */}
+                                {isAnuncioExp && temCusto && temPeso && (
+                                  <tr className="border-b border-gge-border/20 atacado-row">
+                                    <td colSpan={14} className="px-7 py-3">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-gge-accent font-semibold text-[11px] uppercase tracking-wider">📦 Atacado — Frete consolidado por quantidade</span>
+                                      </div>
+                                      <div className="overflow-x-auto">
+                                        <table className="w-full text-[11px]">
+                                          <thead>
+                                            <tr className="text-gge-muted uppercase tracking-wider">
+                                              <th className="text-left py-1.5 pr-4">Qtd</th>
+                                              <th className="text-right py-1.5 px-2">Peso total</th>
+                                              <th className="text-right py-1.5 px-2">Custo total</th>
+                                              {MARGENS_ALVO.map(m => <th key={m} className="text-right py-1.5 px-2 text-gge-accent">{m}%</th>)}
+                                              {MARGENS_ALVO.map(m => <th key={`u${m}`} className="text-right py-1.5 px-2 text-gge-muted/50">{m}% unit.</th>)}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {QTDS_ATACADO.map(qtd => {
+                                              const sugAtacado = MARGENS_ALVO.map(m =>
+                                                calcPrecoParaMargem(custo, sku.peso, qtd, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
+                                              );
+                                              return (
+                                                <tr key={qtd} className="border-t border-gge-border/10">
+                                                  <td className="py-1.5 pr-4 text-white font-medium">{qtd} unid.</td>
+                                                  <td className="text-right py-1.5 px-2 text-gge-muted tabular-nums">{(sku.peso * qtd).toFixed(2)} kg</td>
+                                                  <td className="text-right py-1.5 px-2 text-gge-muted tabular-nums">{brl(custo * qtd)}</td>
+                                                  {sugAtacado.map((s, i) => (
+                                                    <td key={i} className={`text-right py-1.5 px-2 tabular-nums ${s ? 'text-white font-medium' : 'text-gge-muted'}`}>
+                                                      {s ? brl(s.preco) : '—'}
+                                                    </td>
+                                                  ))}
+                                                  {sugAtacado.map((s, i) => (
+                                                    <td key={`u${i}`} className="text-right py-1.5 px-2 tabular-nums text-gge-muted">
+                                                      {s ? brl(s.preco / qtd) : '—'}
+                                                    </td>
+                                                  ))}
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </Fragment>
+                            );
+                          })}
+
+                          {isExpanded && anunciosDoSku.length === 0 && (
+                            <tr className="border-b border-gge-border/20 bg-white/[0.01]">
+                              <td colSpan={14} className="px-7 py-3 text-xs text-gge-muted italic">
+                                Nenhum anúncio ativo encontrado para este SKU no Mercado Livre.
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Notas */}
+          <div className="space-y-1 text-[11px] text-gge-muted">
+            <p>* Preços sugeridos arredondados para cima. Comissão: {tipoListagem === 'gold_special' ? 'Premium' : 'Clássico'} (default {defaultComissao}%, ajustado por categoria quando disponível).</p>
+            <p>* Frete calculado pela tabela ML ({origemConfig.modeFrete}) × peso do produto. Atacado: frete consolidado pelo peso total.</p>
+            {semImpostos && <p className="text-gge-cyan">* Modo "Sem impostos": preço calculado sem PIS/COFINS/DAS — o ML acrescenta imposto ao comprador com base em geolocalização e CPF/CNPJ.</p>}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Render ──
+    ReactDOM.createRoot(document.getElementById('root')).render(<PrecoMktpApp />);
+  </script>
+</body>
+</html>
