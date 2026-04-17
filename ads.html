@@ -63,11 +63,11 @@
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
     // ÂÂ Helpers ÂÂ
-    const fmt = (v) => v == null ? '\u2014' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtInt = (v) => v == null ? '\u2014' : Number(v).toLocaleString('pt-BR');
-    const fmtPct = (v) => v == null ? '\u2014' : Number(v).toFixed(1) + '%';
-    const fmtPct2 = (v) => v == null ? '\u2014' : Number(v).toFixed(2) + '%';
-    const fmtR$ = (v) => v == null ? '\u2014' : 'R$ ' + fmt(v);
+    const fmt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtInt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR');
+    const fmtPct = (v) => v == null ? '—' : Number(v).toFixed(1) + '%';
+    const fmtPct2 = (v) => v == null ? '—' : Number(v).toFixed(2) + '%';
+    const fmtR$ = (v) => v == null ? '—' : 'R$ ' + fmt(v);
 
     const COLORS = {
       bg: '#0f1117', card: '#1a1d2e', border: '#2a2d3e', text: '#e2e8f0',
@@ -86,8 +86,8 @@
       { value: '7d', label: '7 dias' },
       { value: '15d', label: '15 dias' },
       { value: '30d', label: '30 dias' },
-      { value: 'mes_atual', label: 'M\u00eas atual' },
-      { value: 'mes_passado', label: 'M\u00eas passado' },
+      { value: 'mes_atual', label: 'Mês atual' },
+      { value: 'mes_passado', label: 'Mês passado' },
       { value: '90d', label: '90 dias' },
     ];
 
@@ -138,21 +138,21 @@
 
     // ÂÂ Variation Badge ÂÂ
     function VarBadge({ current, previous }) {
-      if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">\u2014</span>;
+      if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">—</span>;
       const pct = ((current - previous) / Math.abs(previous)) * 100;
       const isUp = pct >= 0;
       const color = isUp ? 'text-gge-green' : 'text-gge-red';
-      const arrow = isUp ? '\u25B2' : '\u25BC';
+      const arrow = isUp ? '▲' : '▼';
       return <span className={`text-xs font-medium ${color}`}>{arrow} {Math.abs(pct).toFixed(1)}%</span>;
     }
 
     // ÂÂ Variation Badge for inverted metrics (lower is better, like ACOS/CPC) ÂÂ
     function VarBadgeInv({ current, previous }) {
-      if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">\u2014</span>;
+      if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">—</span>;
       const pct = ((current - previous) / Math.abs(previous)) * 100;
       const isUp = pct >= 0;
       const color = isUp ? 'text-gge-red' : 'text-gge-green';
-      const arrow = isUp ? '\u25B2' : '\u25BC';
+      const arrow = isUp ? '▲' : '▼';
       return <span className={`text-xs font-medium ${color}`}>{arrow} {Math.abs(pct).toFixed(1)}%</span>;
     }
 
@@ -351,7 +351,7 @@
         filteredAds.forEach(r => {
           const cid = r.campaign_id ? String(r.campaign_id) : 'sem_campanha';
           if (!byCamp[cid]) byCamp[cid] = {
-            campaign_id: cid, strategy: r.strategy || '\u2014',
+            campaign_id: cid, strategy: r.strategy || '—',
             gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0, mlbs: new Set(),
             advertiser_id: r.advertiser_id
           };
@@ -372,9 +372,9 @@
             // find conta via any mlb in this campaign
             for (const mlb of c.mlbs) {
               const an = anuncioMap[mlb];
-              if (an && an.conta_id) return contaMap[an.conta_id] || '\u2014';
+              if (an && an.conta_id) return contaMap[an.conta_id] || '—';
             }
-            return '\u2014';
+            return '—';
           })(),
         }));
       }, [filteredAds, anuncioMap, contaMap]);
@@ -422,7 +422,7 @@
           return {
             ...ad,
             titulo: an.titulo || ad.mlb_id,
-            sku: an.sku_vendedor || '\u2014',
+            sku: an.sku_vendedor || '—',
             acos, ctr, conv, mc2_total, mc2_pct, veredicto
           };
         });
@@ -448,8 +448,8 @@
       }
 
       function SortArrow({ config, col }) {
-        if (config.key !== col) return <span className="text-gge-border ml-1">\u2195</span>;
-        return <span className="text-gge-accent ml-1">{config.dir === 'asc' ? '\u25B2' : '\u25BC'}</span>;
+        if (config.key !== col) return <span className="text-gge-border ml-1">↕</span>;
+        return <span className="text-gge-accent ml-1">{config.dir === 'asc' ? '▲' : '▼'}</span>;
       }
 
       // ÂÂ ACOS color ÂÂ
@@ -480,13 +480,13 @@
           {/* Header */}
           <div className="mb-6">
             <h1 className="text-xl md:text-2xl font-bold text-gge-text">ADs &mdash; Publicidade Mercado Livre</h1>
-            <p className="text-sm text-gge-muted mt-1">An\u00e1lise de campanhas, gastos e performance de an\u00fancios patrocinados</p>
+            <p className="text-sm text-gge-muted mt-1">Análise de campanhas, gastos e performance de anúncios patrocinados</p>
           </div>
 
           {/* ÂÂ FILTERS BAR ÂÂ */}
           <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6 flex flex-wrap gap-4 items-end">
             <div>
-              <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Per\u00edodo</label>
+              <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Período</label>
               <select value={periodo} onChange={e => setPeriodo(e.target.value)}
                 className="bg-gge-bg border border-gge-border rounded-md px-3 py-2 text-sm text-gge-text focus:border-gge-accent outline-none">
                 {PERIODO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -544,7 +544,7 @@
               {/* ROAS */}
               <div className="bg-gge-card border border-gge-border rounded-lg p-4">
                 <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">ROAS</div>
-                <div className="text-lg md:text-xl font-bold text-gge-accent">{kpis.roas != null ? kpis.roas.toFixed(2) + 'x' : '\u2014'}</div>
+                <div className="text-lg md:text-xl font-bold text-gge-accent">{kpis.roas != null ? kpis.roas.toFixed(2) + 'x' : '—'}</div>
                 <VarBadge current={kpis.roas} previous={prevKpis.roas} />
               </div>
               {/* Vendas ADs */}
@@ -553,15 +553,15 @@
                 <div className="text-lg md:text-xl font-bold text-gge-text">{fmtInt(kpis.vendas)}</div>
                 <VarBadge current={kpis.vendas} previous={prevKpis.vendas} />
               </div>
-              {/* CPC M\u00e9dio */}
+              {/* CPC Médio */}
               <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">CPC M\u00e9dio</div>
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">CPC Médio</div>
                 <div className="text-lg md:text-xl font-bold text-gge-text">{fmtR$(kpis.cpc)}</div>
                 <VarBadgeInv current={kpis.cpc} previous={prevKpis.cpc} />
               </div>
-              {/* CTR M\u00e9dio */}
+              {/* CTR Médio */}
               <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">CTR M\u00e9dio</div>
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">CTR Médio</div>
                 <div className="text-lg md:text-xl font-bold text-gge-text">{fmtPct2(kpis.ctr)}</div>
                 <VarBadge current={kpis.ctr} previous={prevKpis.ctr} />
               </div>
@@ -574,8 +574,8 @@
             </div>
           )}
 
-          {/* ÂÂ BLOCK 2: VISITA\u00c7\u00c3O ÂÂ */}
-          <SectionTitle color={COLORS.orange}>Visita\u00e7\u00e3o</SectionTitle>
+          {/* ÂÂ BLOCK 2: VISITAÇÃO ÂÂ */}
+          <SectionTitle color={COLORS.orange}>Visitação</SectionTitle>
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
@@ -584,9 +584,9 @@
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                {/* Impress\u00f5es */}
+                {/* Impressões */}
                 <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Impress\u00f5es Totais</div>
+                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Impressões Totais</div>
                   <div className="text-xl font-bold text-gge-text">{fmtInt(kpis.impressoes)}</div>
                   <VarBadge current={kpis.impressoes} previous={prevKpis.impressoes} />
                 </div>
@@ -598,28 +598,28 @@
                 </div>
                 {/* Funil */}
                 <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-2">Funil de Convers\u00e3o</div>
+                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-2">Funil de Conversão</div>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-gge-text font-semibold">{fmtInt(kpis.impressoes)}</span>
-                    <span className="text-gge-muted">\u2192</span>
+                    <span className="text-gge-muted">→</span>
                     <span className="text-gge-cyan font-semibold">{fmtInt(kpis.cliques)}</span>
                     <span className="text-xs text-gge-yellow">({fmtPct2(kpis.ctr)} CTR)</span>
-                    <span className="text-gge-muted">\u2192</span>
+                    <span className="text-gge-muted">→</span>
                     <span className="text-gge-green font-semibold">{fmtInt(kpis.vendas)}</span>
-                    <span className="text-xs text-gge-green">({kpis.cliques > 0 ? fmtPct2((kpis.vendas / kpis.cliques) * 100) : '\u2014'} Conv)</span>
+                    <span className="text-xs text-gge-green">({kpis.cliques > 0 ? fmtPct2((kpis.vendas / kpis.cliques) * 100) : '—'} Conv)</span>
                   </div>
                   <div className="mt-2 flex gap-1 h-2 rounded overflow-hidden">
-                    <div className="bg-gge-accent rounded" style={{ width: '100%' }} title="Impress\u00f5es"></div>
+                    <div className="bg-gge-accent rounded" style={{ width: '100%' }} title="Impressões"></div>
                     <div className="bg-gge-cyan rounded" style={{ width: kpis.impressoes > 0 ? Math.max((kpis.cliques / kpis.impressoes) * 100, 2) + '%' : '0%' }} title="Cliques"></div>
                     <div className="bg-gge-green rounded" style={{ width: kpis.impressoes > 0 ? Math.max((kpis.vendas / kpis.impressoes) * 100, 1) + '%' : '0%' }} title="Vendas"></div>
                   </div>
                 </div>
               </div>
 
-              {/* Visita\u00e7\u00e3o Chart */}
+              {/* Visitação Chart */}
               {dailyData.length > 0 && (
                 <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
-                  <h3 className="text-sm font-semibold text-gge-text mb-4">Impress\u00f5es, Cliques & CTR por dia</h3>
+                  <h3 className="text-sm font-semibold text-gge-text mb-4">Impressões, Cliques & CTR por dia</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <ComposedChart data={dailyData}>
                       <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
@@ -629,7 +629,7 @@
                       <Tooltip content={<ChartTooltip formatters={{
                         impressoes: fmtInt, cliques: fmtInt, ctr: v => fmtPct2(v)
                       }} />} />
-                      <Bar yAxisId="left" dataKey="impressoes" name="Impress\u00f5es" fill={COLORS.accent} opacity={0.3} radius={[2,2,0,0]} />
+                      <Bar yAxisId="left" dataKey="impressoes" name="Impressões" fill={COLORS.accent} opacity={0.3} radius={[2,2,0,0]} />
                       <Line yAxisId="left" dataKey="cliques" name="Cliques" stroke={COLORS.cyan} strokeWidth={2} dot={false} />
                       <Line yAxisId="right" dataKey="ctr" name="CTR %" stroke={COLORS.yellow} strokeWidth={2} dot={false} strokeDasharray="4 2" />
                     </ComposedChart>
@@ -639,8 +639,8 @@
             </>
           )}
 
-          {/* ÂÂ BLOCK 3: EVOLU\u00c7\u00c3O FINANCEIRA ÂÂ */}
-          <SectionTitle color={COLORS.green}>Evolu\u00e7\u00e3o Financeira</SectionTitle>
+          {/* ÂÂ BLOCK 3: EVOLUÇÃO FINANCEIRA ÂÂ */}
+          <SectionTitle color={COLORS.green}>Evolução Financeira</SectionTitle>
 
           {!loading && dailyData.length > 0 && (
             <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
@@ -680,8 +680,8 @@
                       {[
                         { key: 'campaign_id', label: 'Campanha' },
                         { key: 'conta', label: 'Conta' },
-                        { key: 'strategy', label: 'Estrat\u00e9gia' },
-                        { key: 'anuncios', label: 'An\u00fancios' },
+                        { key: 'strategy', label: 'Estratégia' },
+                        { key: 'anuncios', label: 'Anúncios' },
                         { key: 'gasto', label: 'Gasto' },
                         { key: 'cliques', label: 'Cliques' },
                         { key: 'vendas', label: 'Vendas' },
@@ -720,20 +720,20 @@
               </div>
               {selectedCampaign && (
                 <div className="px-3 py-2 bg-gge-accent/5 border-t border-gge-border text-xs text-gge-muted">
-                  Campanha <span className="text-gge-accent font-mono">{selectedCampaign}</span> selecionada &mdash; tabela de an\u00fancios filtrada abaixo.
+                  Campanha <span className="text-gge-accent font-mono">{selectedCampaign}</span> selecionada &mdash; tabela de anúncios filtrada abaixo.
                   <button onClick={() => setSelectedCampaign(null)} className="ml-2 text-gge-accent hover:text-white">[limpar]</button>
                 </div>
               )}
             </div>
           )}
 
-          {/* ÂÂ BLOCK 5: AN\u00daNcios ÂÂ */}
-          <SectionTitle color={COLORS.accent}>An\u00fancios</SectionTitle>
+          {/* ÂÂ BLOCK 5: ANÚNcios ÂÂ */}
+          <SectionTitle color={COLORS.accent}>Anúncios</SectionTitle>
 
           {loading ? (
             <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
               <div className="h-48 flex items-center justify-center">
-                <div className="text-gge-muted text-sm pulse-load">Carregando an\u00fancios...</div>
+                <div className="text-gge-muted text-sm pulse-load">Carregando anúncios...</div>
               </div>
             </div>
           ) : (
@@ -743,10 +743,10 @@
                   <thead>
                     <tr className="text-gge-muted text-xs uppercase tracking-wider bg-gge-bg">
                       {[
-                        { key: 'titulo', label: 'T\u00edtulo' },
+                        { key: 'titulo', label: 'Título' },
                         { key: 'sku', label: 'SKU' },
                         { key: 'gasto', label: 'Gasto ADs' },
-                        { key: 'impressoes', label: 'Impress\u00f5es' },
+                        { key: 'impressoes', label: 'Impressões' },
                         { key: 'cliques', label: 'Cliques' },
                         { key: 'ctr', label: 'CTR' },
                         { key: 'vendas', label: 'Vendas ADs' },
@@ -766,7 +766,7 @@
                   </thead>
                   <tbody>
                     {sortedAds.length === 0 ? (
-                      <tr><td colSpan={13} className="text-center text-gge-muted py-8">Nenhum an\u00fancio encontrado</td></tr>
+                      <tr><td colSpan={13} className="text-center text-gge-muted py-8">Nenhum anúncio encontrado</td></tr>
                     ) : sortedAds.map((ad, i) => (
                       <tr key={ad.mlb_id} className={`border-t border-gge-border/50 ${i % 2 === 0 ? 'bg-gge-card' : 'bg-gge-bg/30'} hover:bg-gge-accent/5 transition-colors`}>
                         <td className="px-2 py-2 text-xs max-w-[200px] truncate" title={ad.titulo}>{ad.titulo}</td>
@@ -792,24 +792,24 @@
                 </table>
               </div>
               <div className="px-3 py-2 bg-gge-bg/50 border-t border-gge-border text-xs text-gge-muted">
-                {sortedAds.length} an\u00fancio(s) &mdash; {selectedCampaign ? `filtrado por campanha ${selectedCampaign}` : 'todos'}
+                {sortedAds.length} anúncio(s) &mdash; {selectedCampaign ? `filtrado por campanha ${selectedCampaign}` : 'todos'}
               </div>
             </div>
           )}
 
           {/* ÂÂ FOOTER ÂÂ */}
           <div className="bg-gge-card border border-gge-border rounded-lg p-4 mt-6 mb-8">
-            <h3 className="text-xs font-bold text-gge-muted uppercase tracking-wider mb-3">F\u00f3rmulas & Defini\u00e7\u00f5es</h3>
+            <h3 className="text-xs font-bold text-gge-muted uppercase tracking-wider mb-3">Fórmulas & Definições</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 text-xs text-gge-muted">
               <p><strong className="text-gge-text">ACOS</strong> = Gasto / Receita ADs &times; 100</p>
               <p><strong className="text-gge-text">ROAS</strong> = Receita ADs / Gasto</p>
-              <p><strong className="text-gge-text">TACOS</strong> = Gasto / (Receita ADs + Receita Org\u00e2nica) &times; 100</p>
+              <p><strong className="text-gge-text">TACOS</strong> = Gasto / (Receita ADs + Receita Orgânica) &times; 100</p>
               <p><strong className="text-gge-text">CPC</strong> = Gasto / Cliques</p>
-              <p><strong className="text-gge-text">CTR</strong> = Cliques / Impress\u00f5es &times; 100</p>
+              <p><strong className="text-gge-text">CTR</strong> = Cliques / Impressões &times; 100</p>
               <p><strong className="text-gge-text">Conv%</strong> = Vendas ADs / Cliques &times; 100</p>
-              <p><strong className="text-gge-text">MC2</strong> = Margem Can\u00f4nica (receita - custos - ads - comiss\u00e3o - frete)</p>
-              <p><strong className="text-gge-text">Veredicto</strong> = <span className="text-gge-green">Verde</span> MC2{'>'}0 e ACOS{'<'}10% | <span className="text-gge-yellow">Amarelo</span> neutro | <span className="text-gge-red">Vermelho</span> MC2{'<'}0 ou sem convers\u00e3o</p>
-              <p><strong className="text-gge-text">Varia\u00e7\u00e3o</strong> = compara per\u00edodo atual vs per\u00edodo anterior equivalente</p>
+              <p><strong className="text-gge-text">MC2</strong> = Margem Canônica (receita - custos - ads - comissão - frete)</p>
+              <p><strong className="text-gge-text">Veredicto</strong> = <span className="text-gge-green">Verde</span> MC2{'>'}0 e ACOS{'<'}10% | <span className="text-gge-yellow">Amarelo</span> neutro | <span className="text-gge-red">Vermelho</span> MC2{'<'}0 ou sem conversão</p>
+              <p><strong className="text-gge-text">Variação</strong> = compara período atual vs período anterior equivalente</p>
             </div>
           </div>
         </div>
