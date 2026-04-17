@@ -57,12 +57,12 @@
     const { useState, useEffect, useMemo, useCallback, useRef } = React;
     const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ComposedChart, Area, Legend } = Recharts;
 
-    // ââ Supabase Client ââ
+    // ÂÂ Supabase Client ÂÂ
     const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // ââ Helpers ââ
+    // ÂÂ Helpers ÂÂ
     const fmt = (v) => v == null ? '\u2014' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtInt = (v) => v == null ? '\u2014' : Number(v).toLocaleString('pt-BR');
     const fmtPct = (v) => v == null ? '\u2014' : Number(v).toFixed(1) + '%';
@@ -75,7 +75,7 @@
       yellow: '#eab308', orange: '#f97316', cyan: '#22d3ee'
     };
 
-    // ââ Period helpers ââ
+    // ÂÂ Period helpers ÂÂ
     const today = () => {
       const d = new Date(); d.setHours(0,0,0,0); return d;
     };
@@ -115,7 +115,7 @@
       return { start: fmtDate(start), end: fmtDate(end), prevStart: fmtDate(prevStart), prevEnd: fmtDate(prevEnd) };
     }
 
-    // ââ Section Title Component ââ
+    // ÂÂ Section Title Component ÂÂ
     function SectionTitle({ color, children }) {
       return (
         <div className="flex items-center gap-3 mb-4 mt-8">
@@ -125,7 +125,7 @@
       );
     }
 
-    // ââ Skeleton Card ââ
+    // ÂÂ Skeleton Card ÂÂ
     function SkeletonCard() {
       return (
         <div className="bg-gge-card border border-gge-border rounded-lg p-4">
@@ -136,7 +136,7 @@
       );
     }
 
-    // ââ Variation Badge ââ
+    // ÂÂ Variation Badge ÂÂ
     function VarBadge({ current, previous }) {
       if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">\u2014</span>;
       const pct = ((current - previous) / Math.abs(previous)) * 100;
@@ -146,7 +146,7 @@
       return <span className={`text-xs font-medium ${color}`}>{arrow} {Math.abs(pct).toFixed(1)}%</span>;
     }
 
-    // ââ Variation Badge for inverted metrics (lower is better, like ACOS/CPC) ââ
+    // ÂÂ Variation Badge for inverted metrics (lower is better, like ACOS/CPC) ÂÂ
     function VarBadgeInv({ current, previous }) {
       if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">\u2014</span>;
       const pct = ((current - previous) / Math.abs(previous)) * 100;
@@ -156,7 +156,7 @@
       return <span className={`text-xs font-medium ${color}`}>{arrow} {Math.abs(pct).toFixed(1)}%</span>;
     }
 
-    // ââ Custom Tooltip ââ
+    // ÂÂ Custom Tooltip ÂÂ
     function ChartTooltip({ active, payload, label, formatters }) {
       if (!active || !payload || !payload.length) return null;
       return (
@@ -171,7 +171,7 @@
       );
     }
 
-    // ââ Main App ââ
+    // ÂÂ Main App ÂÂ
     function AdsPage() {
       const [periodo, setPeriodo] = useState('30d');
       const [conta, setConta] = useState('all');
@@ -191,7 +191,7 @@
       const [sortConfig, setSortConfig] = useState({ key: 'gasto', dir: 'desc' });
       const [adSortConfig, setAdSortConfig] = useState({ key: 'gasto_ads', dir: 'desc' });
 
-      // ââ Data loading ââ
+      // ÂÂ Data loading ÂÂ
       useEffect(() => {
         loadData();
       }, [periodo]);
@@ -230,21 +230,21 @@
         }
       }
 
-      // ââ Derived: conta map ââ
+      // ÂÂ Derived: conta map ÂÂ
       const contaMap = useMemo(() => {
         const m = {};
         contas.forEach(c => { m[c.id] = c.nome; });
         return m;
       }, [contas]);
 
-      // ââ Derived: anuncio map ââ
+      // ÂÂ Derived: anuncio map ÂÂ
       const anuncioMap = useMemo(() => {
         const m = {};
         anuncios.forEach(a => { m[a.mlb_id] = a; });
         return m;
       }, [anuncios]);
 
-      // ââ Derived: margem map (grouped by mlb_id) ââ
+      // ÂÂ Derived: margem map (grouped by mlb_id) ÂÂ
       const margemMap = useMemo(() => {
         const m = {};
         margemData.forEach(row => {
@@ -260,7 +260,7 @@
         return m;
       }, [margemData]);
 
-      // ââ Filtered data by conta ââ
+      // ÂÂ Filtered data by conta ÂÂ
       const filteredAds = useMemo(() => {
         if (conta === 'all') return adsData;
         return adsData.filter(row => {
@@ -279,7 +279,7 @@
         });
       }, [prevAdsData, conta, anuncioMap, contaMap]);
 
-      // ââ Filtered by campanha ââ
+      // ÂÂ Filtered by campanha ÂÂ
       const finalAds = useMemo(() => {
         if (campanha === 'all') return filteredAds;
         return filteredAds.filter(r => String(r.campaign_id) === campanha);
@@ -290,21 +290,21 @@
         return filteredPrevAds.filter(r => String(r.campaign_id) === campanha);
       }, [filteredPrevAds, campanha]);
 
-      // ââ Campaign list for filter ââ
+      // ÂÂ Campaign list for filter ÂÂ
       const campaignList = useMemo(() => {
         const set = new Set();
         filteredAds.forEach(r => { if (r.campaign_id) set.add(String(r.campaign_id)); });
         return Array.from(set).sort();
       }, [filteredAds]);
 
-      // ââ Conta list for filter ââ
+      // ÂÂ Conta list for filter ÂÂ
       const contaNames = useMemo(() => {
         const names = new Set();
         contas.forEach(c => names.add(c.nome));
         return Array.from(names).sort();
       }, [contas]);
 
-      // ââ KPI calculations ââ
+      // ÂÂ KPI calculations ÂÂ
       function calcKPIs(data) {
         const gasto = data.reduce((s, r) => s + Number(r.gasto_ads || 0), 0);
         const receita = data.reduce((s, r) => s + Number(r.receita_ads || 0), 0);
@@ -323,7 +323,7 @@
       const kpis = useMemo(() => calcKPIs(finalAds), [finalAds]);
       const prevKpis = useMemo(() => calcKPIs(finalPrevAds), [finalPrevAds]);
 
-      // ââ Daily aggregation for charts ââ
+      // ÂÂ Daily aggregation for charts ÂÂ
       const dailyData = useMemo(() => {
         const byDate = {};
         finalAds.forEach(r => {
@@ -345,7 +345,7 @@
           }));
       }, [finalAds]);
 
-      // ââ Campaign aggregation ââ
+      // ÂÂ Campaign aggregation ÂÂ
       const campaignData = useMemo(() => {
         const byCamp = {};
         filteredAds.forEach(r => {
@@ -379,7 +379,7 @@
         }));
       }, [filteredAds, anuncioMap, contaMap]);
 
-      // ââ Sort campaigns ââ
+      // ÂÂ Sort campaigns ÂÂ
       const sortedCampaigns = useMemo(() => {
         const arr = [...campaignData];
         arr.sort((a, b) => {
@@ -390,7 +390,7 @@
         return arr;
       }, [campaignData, sortConfig]);
 
-      // ââ Ad-level aggregation ââ
+      // ÂÂ Ad-level aggregation ÂÂ
       const adData = useMemo(() => {
         const targetAds = selectedCampaign
           ? filteredAds.filter(r => String(r.campaign_id) === selectedCampaign)
@@ -428,7 +428,7 @@
         });
       }, [finalAds, filteredAds, selectedCampaign, anuncioMap, margemMap]);
 
-      // ââ Sort ads ââ
+      // ÂÂ Sort ads ÂÂ
       const sortedAds = useMemo(() => {
         const arr = [...adData];
         arr.sort((a, b) => {
@@ -439,7 +439,7 @@
         return arr;
       }, [adData, adSortConfig]);
 
-      // ââ Sort handler ââ
+      // ÂÂ Sort handler ÂÂ
       function handleSort(config, setConfig, key) {
         setConfig(prev => ({
           key,
@@ -452,7 +452,7 @@
         return <span className="text-gge-accent ml-1">{config.dir === 'asc' ? '\u25B2' : '\u25BC'}</span>;
       }
 
-      // ââ ACOS color ââ
+      // ÂÂ ACOS color ÂÂ
       function acosColor(v) {
         if (v == null) return COLORS.muted;
         if (v < 5) return COLORS.green;
@@ -460,7 +460,7 @@
         return COLORS.red;
       }
 
-      // ââ Render ââ
+      // ÂÂ Render ÂÂ
       if (error) {
         return (
           <div className="p-6 max-w-7xl mx-auto">
@@ -483,7 +483,7 @@
             <p className="text-sm text-gge-muted mt-1">An\u00e1lise de campanhas, gastos e performance de an\u00fancios patrocinados</p>
           </div>
 
-          {/* ââ FILTERS BAR ââ */}
+          {/* ÂÂ FILTERS BAR ÂÂ */}
           <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6 flex flex-wrap gap-4 items-end">
             <div>
               <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Per\u00edodo</label>
@@ -516,7 +516,7 @@
             )}
           </div>
 
-          {/* ââ BLOCK 1: KPI CARDS ââ */}
+          {/* ÂÂ BLOCK 1: KPI CARDS ÂÂ */}
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
@@ -574,7 +574,7 @@
             </div>
           )}
 
-          {/* ââ BLOCK 2: VISITA\u00c7\u00c3O ââ */}
+          {/* ÂÂ BLOCK 2: VISITA\u00c7\u00c3O ÂÂ */}
           <SectionTitle color={COLORS.orange}>Visita\u00e7\u00e3o</SectionTitle>
 
           {loading ? (
@@ -639,7 +639,7 @@
             </>
           )}
 
-          {/* ââ BLOCK 3: EVOLU\u00c7\u00c3O FINANCEIRA ââ */}
+          {/* ÂÂ BLOCK 3: EVOLU\u00c7\u00c3O FINANCEIRA ÂÂ */}
           <SectionTitle color={COLORS.green}>Evolu\u00e7\u00e3o Financeira</SectionTitle>
 
           {!loading && dailyData.length > 0 && (
@@ -662,7 +662,7 @@
             </div>
           )}
 
-          {/* ââ BLOCK 4: CAMPANHAS ââ */}
+          {/* ÂÂ BLOCK 4: CAMPANHAS ÂÂ */}
           <SectionTitle color={COLORS.cyan}>Campanhas</SectionTitle>
 
           {loading ? (
@@ -727,7 +727,7 @@
             </div>
           )}
 
-          {/* ââ BLOCK 5: AN\u00daNcios ââ */}
+          {/* ÂÂ BLOCK 5: AN\u00daNcios ÂÂ */}
           <SectionTitle color={COLORS.accent}>An\u00fancios</SectionTitle>
 
           {loading ? (
@@ -797,7 +797,7 @@
             </div>
           )}
 
-          {/* ââ FOOTER ââ */}
+          {/* ÂÂ FOOTER ÂÂ */}
           <div className="bg-gge-card border border-gge-border rounded-lg p-4 mt-6 mb-8">
             <h3 className="text-xs font-bold text-gge-muted uppercase tracking-wider mb-3">F\u00f3rmulas & Defini\u00e7\u00f5es</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 text-xs text-gge-muted">
