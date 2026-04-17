@@ -129,7 +129,7 @@
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
       const [vendasData, setVendasData] = useState([]);
-      const[claimsData, setClaimsData] = useState([]);
+      const [claimsData, setClaimsData] = useState([]);
       const [freteData, setFreteData] = useState([]);
       const [freteLoading, setFreteLoading] = useState(false);
 
@@ -275,7 +275,7 @@
           if (cl) {
             map[mlb].claims_afetou = cl.afetou;
             map[mlb].claims_nao_afetou = cl.nao_afetou;
-                    map[mlb].devolucoes = cl.devolucoes;
+            map[mlb].devolucoes = cl.devolucoes;
           } else {
             map[mlb].claims_afetou = 0;
             map[mlb].claims_nao_afetou = 0;
@@ -479,7 +479,7 @@
                   <KpiCard title="Cancelamentos" value={fmtN(totals.cancelamentos)} icon="❌" color="text-gge-red" sub={`${fmtP(totals.taxa_cancel)} taxa`} />
                   <KpiCard title="Reemb. Parciais" value={fmtN(totals.reembolsos)} icon="↩️" color="text-gge-orange" />
                   <KpiCard title="Claims (Afetou)" value={fmtN(totals.claims_afetou)} icon="⚠️" color={totals.claims_afetou > 0 ? 'text-gge-red' : 'text-gge-muted'} sub={totals.claims_afetou === 0 ? 'Tabela claims vazia' : ''} />
-                    <KpiCard title="Claims (S/ Efeito)" value={fmtN(totals.claims_nao_afetou)} icon="📋" color="text-gge-yellow" />
+                  <KpiCard title="Claims (S/ Efeito)" value={fmtN(totals.claims_nao_afetou)} icon="📋" color="text-gge-yellow" />
                   <KpiCard title="Devoluções" value={fmtN(totals.devolucoes)} icon="🔄" color="text-gge-orange" />
                   <KpiCard title="FB Positivo" value={fmtN(totals.fb_pos)} icon="👍" color="text-gge-green" sub={totals.fb_pos + totals.fb_neg + totals.fb_neu > 0 ? `${fmtP(totals.fb_pos / (totals.fb_pos + totals.fb_neg + totals.fb_neu) * 100)} dos feedbacks` : 'Sem negativo/neutro coletado'} />
                   <KpiCard title="FB Negativo" value={fmtN(totals.fb_neg)} icon="👎" color={totals.fb_neg > 0 ? 'text-gge-red' : 'text-gge-green'} sub={totals.fb_neg === 0 ? 'Nenhum coletado' : ''} />
@@ -595,7 +595,7 @@
                     {/* Frete KPIs */}
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       <KpiCard title="Envios em Desacordo" value={fmtN(freteTotals.total)} icon="📊" color="text-white" />
-                      <KpiCard title="ML Cobrou Mais" value={fmtN(freteTotals.ml_mais)} icon="📈" color="text-gge-red" sub={fmtR(freteTotals.impacto_mais)} />
+                      <KpiCard title="ML Cobrou Mais" value={fmtN(freteTotals.ml_mais)} icon="🍈" color="text-gge-red" sub={fmtR(freteTotals.impacto_mais)} />
                       <KpiCard title="ML Cobrou Menos" value={fmtN(freteTotals.ml_menos)} icon="📉" color="text-gge-green" sub={fmtR(freteTotals.impacto_menos)} />
                       <KpiCard title="Impacto Total" value={fmtR(freteTotals.impacto)} icon="💰" color={freteTotals.impacto < 0 ? 'text-gge-red' : 'text-gge-green'} sub="Previsto − Real ML" />
                       <KpiCard title="Média por Envio" value={fmtR(freteTotals.total > 0 ? freteTotals.impacto / freteTotals.total : 0)} icon="📐" color="text-gge-orange" />
