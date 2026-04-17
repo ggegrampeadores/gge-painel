@@ -1,0 +1,1421 @@
+<\!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Total GGE â ReputaÃ§Ã£o</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'gge-bg': '#0f1117',
+            'gge-card': '#1a1d2e',
+            'gge-border': '#2a2d3e',
+            'gge-text': '#e2e8f0',
+            'gge-muted': '#94a3b8',
+            'gge-accent': '#6366f1',
+            'gge-green': '#22c55e',
+            'gge-red': '#ef4444',
+            'gge-yellow': '#eab308',
+            'gge-orange': '#f97316',
+            'gge-cyan': '#22d3ee',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .filter-active select { border-color: #6366f1 \!important; color: #fff \!important; font-weight: 600; }
+    .row-hover:hover { background: rgba(99, 102, 241, 0.08); }
+    .tab-active { border-bottom: 2px solid #6366f1; color: #fff; }
+    .tab-inactive { border-bottom: 2px solid transparent; color: #94a3b8; }
+    .tab-inactive:hover { color: #e2e8f0; }
+    .sortable { cursor: pointer; user-select: none; }
+    .sortable:hover { color: #6366f1; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie, Legend } = Recharts;
+
+    const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2OTI5MDEsImV4cCI6MjA1NjI2ODkwMX0.tFMh0mCpVMtOGMgBSLNaR5xOyOMGv5bq-w3TaFMgkig';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ââ Helpers ââ
+    const fmtN = (n) => n == null ? 'â' : Number(n).toLocaleString('pt-BR');
+    const fmtP = (n) => n == null ? 'â' : Number(n).toFixed(1) + '%';
+    const fmtR = (n) => n == null ? 'â' : 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : 'â';
+
+    const TIPO_LABELS = { 'gold_special': 'ClÃ¡ssico', 'gold_pro': 'Premium', 'Desconhecido': 'Desconhecido' };
+    const labelTipo = (t) => TIPO_LABELS[t] || t;
+
+    // ââ Period config (same as margem) ââ
+    const PERIODO_OPTIONS = [
+      { value: '30d', label: '30 dias' },
+      { value: '60d', label: '60 dias' },
+      { value: '90d', label: '90 dias' },
+      { value: '180d', label: '180 dias' },
+      { value: '1a', label: '1 ano' },
+      { value: 'all', label: 'Todo perÃ­odo' },
+    ];
+
+    function getDateRange(periodo) {
+      const now = new Date();
+      const to = now.toISOString();
+      let from;
+      switch (periodo) {
+        case '30d': from = new Date(now - 30 * 86400000); break;
+        case '60d': from = new Date(now - 60 * 86400000); break;
+        case '90d': from = new Date(now - 90 * 86400000); break;
+        case '180d': from = new Date(now - 180 * 86400000); break;
+        case '1a': from = new Date(now - 365 * 86400000); break;
+        case 'all': from = new Date('2020-01-01'); break;
+        default: from = new Date(now - 60 * 86400000);
+      }
+      return { from: from.toISOString(), to };
+    }
+
+    // ââ Filter select ââ
+    function FilterSelect({ label, value, onChange, options, allLabel, labelFn, isActive }) {
+      return (
+        <div className={`flex flex-col gap-1 ${isActive ? 'filter-active' : ''}`}>
+          <label className="text-xs text-gge-muted font-medium">{label}</label>
+          <select value={value} onChange={e => onChange(e.target.value)}
+                  className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
+            <option value="">{allLabel || 'Todos'}</option>
+            {options.map(o => <option key={o} value={o}>{labelFn ? labelFn(o) : o}</option>)}
+          </select>
+        </div>
+      );
+    }
+
+    // ââ Skeleton ââ
+    function Skeleton({ className }) {
+      return <div className={`bg-gge-card border border-gge-border rounded-xl animate-pulse ${className || 'h-24'}`} />;
+    }
+
+    // ââ KPI Card ââ
+    function KpiCard({ title, value, sub, color, icon }) {
+      return (
+        <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">{icon}</span>
+            <span className="text-xs text-gge-muted font-medium">{title}</span>
+          </div>
+          <div className={`text-2xl font-bold ${color || 'text-white'}`}>{value}</div>
+          {sub && <div className="text-xs text-gge-muted mt-1">{sub}</div>}
+        </div>
+      );
+    }
+
+    // ââ Main App ââ
+    function App() {
+      const [tab, setTab] = useState('reputacao');
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [vendasData, setVendasData] = useState([]);
+      const [claimsData, setClaimsData] = useState([]);
+      const [freteData, setFreteData] = useState([]);
+      const [freteLoading, setFreteLoading] = useState(false);
+
+      // Filters
+      const [periodoSel, setPeriodoSel] = useState('60d');
+      const [contaSel, setContaSel] = useState('');
+      const [tipoSel, setTipoSel] = useState('');
+      const [modeSel, setModeSel] = useState('');
+      const [kitSel, setKitSel] = useState('');
+      const [catSel, setCatSel] = useState('');
+      const [fornSel, setFornSel] = useState('');
+      const [pontoSel, setPontoSel] = useState('');
+      const [idadeSel, setIdadeSel] = useState('');
+
+      // Sorting
+      const [sortCol, setSortCol] = useState('cancelamentos');
+      const [sortDir, setSortDir] = useState('desc');
+      const [freteSortCol, setFreteSortCol] = useState('diferenca');
+      const [freteSortDir, setFreteSortDir] = useState('asc');
+
+      // Load data
+      useEffect(() => {
+        async function load() {
+          setLoading(true);
+          setError(null);
+          try {
+            const range = getDateRange(periodoSel);
+            const [vendasRes, claimsRes] = await Promise.all([
+              supabase.from('vw_reputacao_vendas')
+                .select('*')
+                .gte('data_venda', range.from)
+                .lte('data_venda', range.to),
+              supabase.from('claims')
+                .select('*')
+                .gte('data_abertura', range.from)
+                .lte('data_abertura', range.to)
+            ]);
+            if (vendasRes.error) throw vendasRes.error;
+            setVendasData(vendasRes.data || []);
+            setClaimsData(claimsRes.data || []);
+          } catch (e) {
+            setError(e.message || 'Erro ao carregar dados');
+          }
+          setLoading(false);
+        }
+        load();
+      }, [periodoSel]);
+
+      // Load frete data when tab switches
+      useEffect(() => {
+        if (tab \!== 'frete' || freteData.length > 0) return;
+        async function loadFrete() {
+          setFreteLoading(true);
+          try {
+            const range = getDateRange(periodoSel);
+            const res = await supabase.from('vw_frete_desacordo')
+              .select('*')
+              .gte('data_venda', range.from)
+              .lte('data_venda', range.to);
+            if (res.error) throw res.error;
+            setFreteData(res.data || []);
+          } catch (e) {
+            console.error('Erro frete:', e);
+          }
+          setFreteLoading(false);
+        }
+        loadFrete();
+      }, [tab, periodoSel]);
+
+      // Reset frete data when period changes
+      useEffect(() => { setFreteData([]); }, [periodoSel]);
+
+      // Filter options
+      const filterOpts = useMemo(() => {
+        const unique = (arr, key) => [...new Set(arr.map(d => d[key]).filter(Boolean))].sort();
+        return {
+          contas: unique(vendasData, 'conta_nome'),
+          tipos: unique(vendasData, 'tipo_listagem'),
+          modos: unique(vendasData, 'modo_logistica'),
+          kits: unique(vendasData, 'kit_produto'),
+          cats: unique(vendasData, 'catalogo_anuncio'),
+          forns: unique(vendasData, 'fornecedor'),
+          pontos: unique(vendasData, 'ponto_saida'),
+          idades: unique(vendasData, 'idade_anuncio'),
+        };
+      }, [vendasData]);
+
+      // Apply filters
+      const applyFilter = useCallback((d) => {
+        if (contaSel && d.conta_nome \!== contaSel) return false;
+        if (tipoSel && d.tipo_listagem \!== tipoSel) return false;
+        if (modeSel && d.modo_logistica \!== modeSel) return false;
+        if (kitSel && d.kit_produto \!== kitSel) return false;
+        if (catSel && d.catalogo_anuncio \!== catSel) return false;
+        if (fornSel && d.fornecedor \!== fornSel) return false;
+        if (pontoSel && d.ponto_saida \!== pontoSel) return false;
+        if (idadeSel && d.idade_anuncio \!== idadeSel) return false;
+        return true;
+      }, [contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
+
+      const filteredVendas = useMemo(() => vendasData.filter(applyFilter), [vendasData, applyFilter]);
+      const filteredFrete = useMemo(() => freteData.filter(applyFilter), [freteData, applyFilter]);
+
+      // Claims grouped by mlb_id
+      const claimsByMlb = useMemo(() => {
+        const map = {};
+        claimsData.forEach(cl => {
+          if (\!map[cl.mlb_id]) map[cl.mlb_id] = { afetou: 0, nao_afetou: 0, devolucoes: 0, total: 0 };
+          map[cl.mlb_id].total++;
+          if (cl.afeta_reputacao) map[cl.mlb_id].afetou++;
+          else map[cl.mlb_id].nao_afetou++;
+          if (cl.tem_devolucao) map[cl.mlb_id].devolucoes++;
+        });
+        return map;
+      }, [claimsData]);
+
+      // Aggregate reputaÃ§Ã£o per anÃºncio
+      const repData = useMemo(() => {
+        const map = {};
+        filteredVendas.forEach(v => {
+          const key = v.mlb_id;
+          if (\!map[key]) map[key] = {
+            mlb_id: key, titulo: v.titulo || 'â', conta_nome: v.conta_nome, sku_vendedor: v.sku_vendedor,
+            tipo_listagem: v.tipo_listagem, ponto_saida: v.ponto_saida,
+            total: 0, cancelamentos: 0, reembolsos: 0,
+            fb_pos: 0, fb_neg: 0, fb_neu: 0, fb_total: 0,
+            receita: 0
+          };
+          const m = map[key];
+          if (v.status === 'cancelled') m.cancelamentos++;
+          else {
+            m.total++;
+            m.receita += Number(v.preco_total) || 0;
+          }
+          if (v.status === 'partially_refunded') m.reembolsos++;
+          if (v.feedback_rating === 'positive') { m.fb_pos++; m.fb_total++; }
+          if (v.feedback_rating === 'negative') { m.fb_neg++; m.fb_total++; }
+          if (v.feedback_rating === 'neutral') { m.fb_neu++; m.fb_total++; }
+        });
+        // Merge claims
+        Object.keys(map).forEach(mlb => {
+          const cl = claimsByMlb[mlb];
+          if (cl) {
+            map[mlb].claims_afetou = cl.afetou;
+            map[mlb].claims_nao_afetou = cl.nao_afetou;
+            map[mlb].devolucoes = cl.devolucoes;
+          } else {
+            map[mlb].claims_afetou = 0;
+            map[mlb].claims_nao_afetou = 0;
+            map[mlb].devolucoes = 0;
+          }
+          const m = map[mlb];
+          m.total_ordens = m.total + m.cancelamentos;
+          m.taxa_cancel = m.total_ordens > 0 ? (m.cancelamentos / m.total_ordens * 100) : 0;
+          // Score: higher = worse reputation
+          m.score = m.cancelamentos * 2 + m.claims_afetou * 10 + m.claims_nao_afetou * 3 + m.devolucoes * 5 + m.fb_neg * 4 + m.reembolsos * 1;
+        });
+        return Object.values(map);
+      }, [filteredVendas, claimsByMlb]);
+
+      // Sort reputaÃ§Ã£o
+      const sortedRep = useMemo(() => {
+        return [...repData].sort((a, b) => {
+          const va = a[sortCol] ?? 0, vb = b[sortCol] ?? 0;
+          return sortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+      }, [repData, sortCol, sortDir]);
+
+      // Totals for KPIs
+      const totals = useMemo(() => {
+        const t = { vendas: 0, cancelamentos: 0, reembolsos: 0, claims_afetou: 0, claims_nao_afetou: 0,
+                    devolucoes: 0, fb_pos: 0, fb_neg: 0, fb_neu: 0, receita_cancel: 0 };
+        filteredVendas.forEach(v => {
+          if (v.status === 'cancelled') { t.cancelamentos++; t.receita_cancel += Number(v.preco_total) || 0; }
+          else t.vendas++;
+          if (v.status === 'partially_refunded') t.reembolsos++;
+          if (v.feedback_rating === 'positive') t.fb_pos++;
+          if (v.feedback_rating === 'negative') t.fb_neg++;
+          if (v.feedback_rating === 'neutral') t.fb_neu++;
+        });
+        claimsData.forEach(cl => {
+          if (cl.afeta_reputacao) t.claims_afetou++;
+          else t.claims_nao_afetou++;
+          if (cl.tem_devolucao) t.devolucoes++;
+        });
+        t.total_ordens = t.vendas + t.cancelamentos;
+        t.taxa_cancel = t.total_ordens > 0 ? (t.cancelamentos / t.total_ordens * 100) : 0;
+        return t;
+      }, [filteredVendas, claimsData]);
+
+      // Frete aggregates
+      const freteTotals = useMemo(() => {
+        const t = { total: filteredFrete.length, impacto: 0, ml_mais: 0, ml_menos: 0, impacto_mais: 0, impacto_menos: 0 };
+        filteredFrete.forEach(f => {
+          const d = Number(f.diferenca) || 0;
+          t.impacto += d;
+          if (d < 0) { t.ml_mais++; t.impacto_mais += d; }
+          else { t.ml_menos++; t.impacto_menos += d; }
+        });
+        return t;
+      }, [filteredFrete]);
+
+      // Sort frete
+      const sortedFrete = useMemo(() => {
+        return [...filteredFrete].sort((a, b) => {
+          let va = a[freteSortCol], vb = b[freteSortCol];
+          if (['diferenca','diferenca_pct','frete_real_ml','frete_previsto','preco_total'].includes(freteSortCol)) {
+            va = Number(va) || 0; vb = Number(vb) || 0;
+          }
+          return freteSortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+      }, [filteredFrete, freteSortCol, freteSortDir]);
+
+      // Frete grouped by anÃºncio for chart
+      const freteByAnuncio = useMemo(() => {
+        const map = {};
+        filteredFrete.forEach(f => {
+          if (\!map[f.mlb_id]) map[f.mlb_id] = { mlb_id: f.mlb_id, titulo: f.titulo || 'â', total: 0, impacto: 0, count: 0 };
+          map[f.mlb_id].count++;
+          map[f.mlb_id].impacto += Number(f.diferenca) || 0;
+        });
+        return Object.values(map).sort((a, b) => a.impacto - b.impacto).slice(0, 15);
+      }, [filteredFrete]);
+
+      // Cancelamentos evolution by week
+      const cancelEvo = useMemo(() => {
+        const map = {};
+        filteredVendas.forEach(v => {
+          const d = new Date(v.data_venda);
+          const week = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+          const key = week.toISOString().slice(0, 10);
+          if (\!map[key]) map[key] = { semana: key, vendas: 0, cancelamentos: 0, claims: 0 };
+          if (v.status === 'cancelled') map[key].cancelamentos++;
+          else map[key].vendas++;
+        });
+        claimsData.forEach(cl => {
+          const d = new Date(cl.data_abertura);
+          const week = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+          const key = week.toISOString().slice(0, 10);
+          if (\!map[key]) map[key] = { semana: key, vendas: 0, cancelamentos: 0, claims: 0 };
+          map[key].claims++;
+        });
+        return Object.values(map).sort((a, b) => a.semana.localeCompare(b.semana));
+      }, [filteredVendas, claimsData]);
+
+      // Top canceladores for pie
+      const topCancel = useMemo(() => {
+        return [...repData].filter(d => d.cancelamentos > 0).sort((a, b) => b.cancelamentos - a.cancelamentos).slice(0, 8);
+      }, [repData]);
+
+      function handleSort(col) {
+        if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortCol(col); setSortDir('desc'); }
+      }
+      function handleFreteSort(col) {
+        if (freteSortCol === col) setFreteSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setFreteSortCol(col); setFreteSortDir('asc'); }
+      }
+      const sortIcon = (col, active, dir) => col === active ? (dir === 'asc' ? ' â²' : ' â¼') : '';
+
+      const clearFilters = () => { setPeriodoSel('60d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); };
+
+      const periodoLabel = PERIODO_OPTIONS.find(p => p.value === periodoSel)?.label || '';
+
+      const COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#6366f1','#a855f7','#ec4899'];
+
+      return (
+        <div className="min-h-screen">
+          {/* Header */}
+          <header className="bg-gge-card/80 backdrop-blur border-b border-gge-border sticky top-0 z-50">
+            <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gge-accent rounded-xl flex items-center justify-center text-white font-bold text-lg">G</div>
+                <div>
+                  <h1 className="text-lg font-bold text-white tracking-tight">Controle Total GGE</h1>
+                  <p className="text-xs text-gge-muted">ReputaÃ§Ã£o e Claims</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                {periodoLabel && <span className="text-sm text-gge-muted">Dados: <span className="text-white font-medium">{periodoLabel}</span></span>}
+                <a href="index.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-green/15 border border-gge-green/30 rounded-lg text-gge-green hover:bg-gge-green/25 transition-all text-sm font-medium">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Dashboard
+                </a>
+                <a href="margem.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-accent/15 border border-gge-accent/30 rounded-lg text-gge-accent hover:bg-gge-accent/25 transition-all text-sm font-medium">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                  Margem
+                </a>
+                <div className="w-2 h-2 rounded-full bg-gge-green animate-pulse" title="Conectado ao Supabase"></div>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+            {/* Tabs */}
+            <div className="flex gap-6 border-b border-gge-border">
+              <button onClick={() => setTab('reputacao')} className={`pb-3 px-1 text-sm font-semibold transition-colors ${tab === 'reputacao' ? 'tab-active' : 'tab-inactive'}`}>
+                ReputaÃ§Ã£o por AnÃºncio
+              </button>
+              <button onClick={() => setTab('frete')} className={`pb-3 px-1 text-sm font-semibold transition-colors ${tab === 'frete' ? 'tab-active' : 'tab-inactive'}`}>
+                Fretes em Desacordo
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-sm font-semibold text-white">Filtros</span>
+                <span className="text-xs text-gge-muted">
+                  ({tab === 'reputacao' ? `${fmtN(sortedRep.length)} anÃºncios` : `${fmtN(filteredFrete.length)} envios`})
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
+                <FilterSelect label="PerÃ­odo" value={periodoSel} onChange={setPeriodoSel}
+                              options={PERIODO_OPTIONS.map(p => p.value)} allLabel="Todo perÃ­odo"
+                              labelFn={v => PERIODO_OPTIONS.find(p => p.value === v)?.label || v}
+                              isActive={periodoSel \!== '60d'} />
+                <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={filterOpts.contas} isActive={\!\!contaSel} />
+                <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} isActive={\!\!tipoSel} />
+                <FilterSelect label="LogÃ­stica" value={modeSel} onChange={setModeSel} options={filterOpts.modos} isActive={\!\!modeSel} />
+                <FilterSelect label="Tipo" value={kitSel} onChange={setKitSel} options={filterOpts.kits} isActive={\!\!kitSel} />
+                <FilterSelect label="CatÃ¡logo" value={catSel} onChange={setCatSel} options={filterOpts.cats} isActive={\!\!catSel} />
+                <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} isActive={\!\!fornSel} />
+                <FilterSelect label="Pto SaÃ­da" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} isActive={\!\!pontoSel} />
+                <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} isActive={\!\!idadeSel} />
+                <div className="flex items-end">
+                  <button onClick={clearFilters} className="w-full px-3 py-2 text-sm text-gge-muted border border-gge-border rounded-lg hover:bg-white/5 transition-colors">Limpar</button>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-gge-red/10 border border-gge-red/30 rounded-xl p-4 text-gge-red text-sm">
+                Erro ao carregar: {error}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                {[...Array(8)].map((_, i) => <Skeleton key={i} />)}
+              </div>
+            ) : tab === 'reputacao' ? (
+              <>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                  <KpiCard title="Vendas Efetivas" value={fmtN(totals.vendas)} icon="ð¦" color="text-white" sub={`${fmtN(totals.total_ordens)} ordens totais`} />
+                  <KpiCard title="Cancelamentos" value={fmtN(totals.cancelamentos)} icon="â" color="text-gge-red" sub={`${fmtP(totals.taxa_cancel)} taxa`} />
+                  <KpiCard title="Reemb. Parciais" value={fmtN(totals.reembolsos)} icon="â©ï¸" color="text-gge-orange" />
+                  <KpiCard title="Claims (Afetou)" value={fmtN(totals.claims_afetou)} icon="â ï¸" color={totals.claims_afetou > 0 ? 'text-gge-red' : 'text-gge-muted'} sub={totals.claims_afetou === 0 ? 'Tabela claims vazia' : ''} />
+                  <KpiCard title="Claims (S/ Efeito)" value={fmtN(totals.claims_nao_afetou)} icon="ð" color="text-gge-yellow" />
+                  <KpiCard title="DevoluÃ§Ãµes" value={fmtN(totals.devolucoes)} icon="ð" color="text-gge-orange" />
+                  <KpiCard title="FB Positivo" value={fmtN(totals.fb_pos)} icon="ð" color="text-gge-green" sub={totals.fb_pos + totals.fb_neg + totals.fb_neu > 0 ? `${fmtP(totals.fb_pos / (totals.fb_pos + totals.fb_neg + totals.fb_neu) * 100)} dos feedbacks` : 'Sem negativo/neutro coletado'} />
+                  <KpiCard title="FB Negativo" value={fmtN(totals.fb_neg)} icon="ð" color={totals.fb_neg > 0 ? 'text-gge-red' : 'text-gge-green'} sub={totals.fb_neg === 0 ? 'Nenhum coletado' : ''} />
+                </div>
+
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Cancel evolution chart */}
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+                    <h3 className="text-sm font-semibold text-white mb-4">EvoluÃ§Ã£o Semanal â Cancelamentos vs Vendas</h3>
+                    <div style={{ height: 280 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={cancelEvo} barGap={0}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+                          <XAxis dataKey="semana" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => v.slice(5)} />
+                          <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                          <Tooltip contentStyle={{ background: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8 }}
+                                   labelFormatter={v => `Semana de ${fmtDate(v)}`} />
+                          <Bar dataKey="vendas" name="Vendas" fill="#22c55e" radius={[2,2,0,0]} />
+                          <Bar dataKey="cancelamentos" name="Cancelamentos" fill="#ef4444" radius={[2,2,0,0]} />
+                          {claimsData.length > 0 && <Bar dataKey="claims" name="Claims" fill="#eab308" radius={[2,2,0,0]} />}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Top canceladores */}
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+                    <h3 className="text-sm font-semibold text-white mb-4">Top AnÃºncios com Mais Cancelamentos</h3>
+                    {topCancel.length === 0 ? (
+                      <p className="text-gge-muted text-sm">Nenhum cancelamento no perÃ­odo.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                        {topCancel.map((d, i) => (
+                          <div key={d.mlb_id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-white/5">
+                            <span className="text-xs font-bold text-gge-muted w-5">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-white truncate">{d.titulo}</div>
+                              <div className="text-xs text-gge-muted">{d.mlb_id} Â· {d.conta_nome}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-bold text-gge-red">{d.cancelamentos}</div>
+                              <div className="text-xs text-gge-muted">{fmtP(d.taxa_cancel)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ReputaÃ§Ã£o Table */}
+                <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
+                  <div className="p-5 border-b border-gge-border">
+                    <h3 className="text-sm font-semibold text-white">ReputaÃ§Ã£o por AnÃºncio</h3>
+                    <p className="text-xs text-gge-muted mt-1">Clique nas colunas para ordenar. Score = peso ponderado de problemas.</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gge-border text-xs text-gge-muted">
+                          <th className="text-left py-3 px-4 font-medium">AnÃºncio</th>
+                          <th className="text-left py-3 px-2 font-medium">Conta</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('total_ordens')}>Ordens{sortIcon('total_ordens', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('cancelamentos')}>Cancel.{sortIcon('cancelamentos', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('taxa_cancel')}>% Cancel{sortIcon('taxa_cancel', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('reembolsos')}>Reemb.{sortIcon('reembolsos', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('claims_afetou')}>Claims â ï¸{sortIcon('claims_afetou', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('devolucoes')}>Devol.{sortIcon('devolucoes', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('fb_pos')}>FB+{sortIcon('fb_pos', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('fb_neg')}>FB-{sortIcon('fb_neg', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('score')}>Score{sortIcon('score', sortCol, sortDir)}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedRep.slice(0, 200).map((d, i) => (
+                          <tr key={d.mlb_id} className={`border-b border-gge-border/50 row-hover ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
+                            <td className="py-2.5 px-4 max-w-[300px]">
+                              <div className="text-sm text-white truncate">{d.titulo}</div>
+                              <div className="text-xs text-gge-muted">{d.mlb_id}{d.sku_vendedor ? ` Â· ${d.sku_vendedor}` : ''}</div>
+                            </td>
+                            <td className="py-2.5 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
+                            <td className="py-2.5 px-2 text-right text-white">{fmtN(d.total_ordens)}</td>
+                            <td className={`py-2.5 px-2 text-right font-medium ${d.cancelamentos > 0 ? 'text-gge-red' : 'text-gge-muted'}`}>{d.cancelamentos}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.taxa_cancel > 10 ? 'text-gge-red font-bold' : d.taxa_cancel > 5 ? 'text-gge-orange' : 'text-gge-muted'}`}>{fmtP(d.taxa_cancel)}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.reembolsos > 0 ? 'text-gge-orange' : 'text-gge-muted'}`}>{d.reembolsos}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.claims_afetou > 0 ? 'text-gge-red font-bold' : 'text-gge-muted'}`}>{d.claims_afetou}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.devolucoes > 0 ? 'text-gge-orange' : 'text-gge-muted'}`}>{d.devolucoes}</td>
+                            <td className="py-2.5 px-2 text-right text-gge-green">{d.fb_pos || 'â'}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.fb_neg > 0 ? 'text-gge-red font-bold' : 'text-gge-muted'}`}>{d.fb_neg || 'â'}</td>
+                            <td className={`py-2.5 px-2 text-right font-bold ${d.score > 20 ? 'text-gge-red' : d.score > 5 ? 'text-gge-orange' : d.score > 0 ? 'text-gge-yellow' : 'text-gge-green'}`}>
+                              {d.score}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {sortedRep.length > 200 && (
+                      <div className="text-center py-3 text-xs text-gge-muted">Mostrando 200 de {fmtN(sortedRep.length)} anÃºncios</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* ââ Tab: Fretes em Desacordo ââ */
+              <>
+                {freteLoading ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} />)}
+                  </div>
+                ) : (
+                  <>
+                    {/* Frete KPIs */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      <KpiCard title="Envios em Desacordo" value={fmtN(freteTotals.total)} icon="ð" color="text-white" />
+                      <KpiCard title="ML Cobrou Mais" value={fmtN(freteTotals.ml_mais)} icon="ð" color="text-gge-red" sub={fmtR(freteTotals.impacto_mais)} />
+                      <KpiCard title="ML Cobrou Menos" value={fmtN(freteTotals.ml_menos)} icon="ð" color="text-gge-green" sub={fmtR(freteTotals.impacto_menos)} />
+                      <KpiCard title="Impacto Total" value={fmtR(freteTotals.impacto)} icon="ð°" color={freteTotals.impacto < 0 ? 'text-gge-red' : 'text-gge-green'} sub="Previsto â Real ML" />
+                      <KpiCard title="MÃ©dia por Envio" value={fmtR(freteTotals.total > 0 ? freteTotals.impacto / freteTotals.total : 0)} icon="ð" color="text-gge-orange" />
+                      <KpiCard title="TolerÃ¢ncia" value="> R$ 1,00" icon="âï¸" color="text-gge-muted" sub="DiferenÃ§as â¤ R$1 ignoradas" />
+                    </div>
+
+                    {/* Frete chart */}
+                    {freteByAnuncio.length > 0 && (
+                      <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+                        <h3 className="text-sm font-semibold text-white mb-4">Top 15 AnÃºncios â Maior Impacto de Frete</h3>
+                        <div style={{ height: 350 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={freteByAnuncio} layout="vertical" margin={{ left: 200 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+                              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => `R$ ${v.toFixed(0)}`} />
+                              <YAxis type="category" dataKey="titulo" tick={{ fill: '#94a3b8', fontSize: 10 }} width={190} tickFormatter={v => v.length > 30 ? v.slice(0, 30) + 'â¦' : v} />
+                              <Tooltip contentStyle={{ background: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8 }}
+                                       formatter={(v) => [fmtR(v), 'Impacto']} />
+                              <Bar dataKey="impacto" name="Impacto">
+                                {freteByAnuncio.map((d, i) => (
+                                  <Cell key={i} fill={d.impacto < 0 ? '#ef4444' : '#22c55e'} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Frete Table */}
+                    <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
+                      <div className="p-5 border-b border-gge-border">
+                        <h3 className="text-sm font-semibold text-white">Detalhamento â Fretes em Desacordo</h3>
+                        <p className="text-xs text-gge-muted mt-1">ComparaÃ§Ã£o entre frete previsto (tabela GGE) e frete real cobrado pelo ML. Vermelho = ML cobrou mais.</p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gge-border text-xs text-gge-muted">
+                              <th className="text-left py-3 px-4 font-medium">AnÃºncio</th>
+                              <th className="text-left py-3 px-2 font-medium">Conta</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('data_venda')}>Data{sortIcon('data_venda', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('preco_total')}>Venda{sortIcon('preco_total', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_previsto')}>Previsto{sortIcon('frete_previsto', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_real_ml')}>Real ML{sortIcon('frete_real_ml', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('diferenca')}>DiferenÃ§a{sortIcon('diferenca', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('diferenca_pct')}>%{sortIcon('diferenca_pct', freteSortCol, freteSortDir)}</th>
+                              <th className="text-left py-3 px-2 font-medium">Origem</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sortedFrete.slice(0, 300).map((d, i) => {
+                              const diff = Number(d.diferenca) || 0;
+                              return (
+                                <tr key={d.ordem_id} className={`border-b border-gge-border/50 row-hover ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
+                                  <td className="py-2 px-4 max-w-[250px]">
+                                    <div className="text-sm text-white truncate">{d.titulo || 'â'}</div>
+                                    <div className="text-xs text-gge-muted">{d.mlb_id}</div>
+                                  </td>
+                                  <td className="py-2 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
+                                  <td className="py-2 px-2 text-right text-xs text-gge-muted">{fmtDate(d.data_venda)}</td>
+                                  <td className="py-2 px-2 text-right text-white">{fmtR(d.preco_total)}</td>
+                                  <td className="py-2 px-2 text-right text-gge-cyan">{fmtR(d.frete_previsto)}</td>
+                                  <td className="py-2 px-2 text-right text-gge-yellow">{fmtR(d.frete_real_ml)}</td>
+                                  <td className={`py-2 px-2 text-right font-bold ${diff < -5 ? 'text-gge-red' : diff > 5 ? 'text-gge-green' : 'text-gge-muted'}`}>{fmtR(diff)}</td>
+                                  <td className={`py-2 px-2 text-right text-xs ${diff < -10 ? 'text-gge-red' : 'text-gge-muted'}`}>{fmtP(Number(d.diferenca_pct))}</td>
+                                  <td className="py-2 px-2 text-xs text-gge-muted">{d.frete_origem}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {sortedFrete.length > 300 && (
+                          <div className="text-center py-3 text-xs text-gge-muted">Mostrando 300 de {fmtN(sortedFrete.length)} envios</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Info banner about claims */}
+            {tab === 'reputacao' && claimsData.length === 0 && (
+              <div className="bg-gge-yellow/5 border border-gge-yellow/20 rounded-xl p-4 fade-in">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">ð¡</span>
+                  <div>
+                    <p className="text-sm text-gge-yellow font-medium">Tabela de Claims vazia</p>
+                    <p className="text-xs text-gge-muted mt-1">
+                      A coleta de claims e devoluÃ§Ãµes do Mercado Livre ainda nÃ£o estÃ¡ populando dados. 
+                      Quando implementada, as colunas de Claims e DevoluÃ§Ãµes serÃ£o preenchidas automaticamente.
+                      Enquanto isso, os dados de cancelamentos e feedbacks das vendas estÃ£o funcionando normalmente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* Footer */}
+          <footer className="max-w-[1600px] mx-auto px-6 py-4 text-center text-xs text-gge-muted border-t border-gge-border mt-8">
+            Controle Total GGE Â· ReputaÃ§Ã£o e Claims Â· Dados via Supabase
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
+<\!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Total GGE â ReputaÃ§Ã£o</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'gge-bg': '#0f1117',
+            'gge-card': '#1a1d2e',
+            'gge-border': '#2a2d3e',
+            'gge-text': '#e2e8f0',
+            'gge-muted': '#94a3b8',
+            'gge-accent': '#6366f1',
+            'gge-green': '#22c55e',
+            'gge-red': '#ef4444',
+            'gge-yellow': '#eab308',
+            'gge-orange': '#f97316',
+            'gge-cyan': '#22d3ee',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .filter-active select { border-color: #6366f1 \!important; color: #fff \!important; font-weight: 600; }
+    .row-hover:hover { background: rgba(99, 102, 241, 0.08); }
+    .tab-active { border-bottom: 2px solid #6366f1; color: #fff; }
+    .tab-inactive { border-bottom: 2px solid transparent; color: #94a3b8; }
+    .tab-inactive:hover { color: #e2e8f0; }
+    .sortable { cursor: pointer; user-select: none; }
+    .sortable:hover { color: #6366f1; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie, Legend } = Recharts;
+
+    const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2OTI5MDEsImV4cCI6MjA1NjI2ODkwMX0.tFMh0mCpVMtOGMgBSLNaR5xOyOMGv5bq-w3TaFMgkig';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ââ Helpers ââ
+    const fmtN = (n) => n == null ? 'â' : Number(n).toLocaleString('pt-BR');
+    const fmtP = (n) => n == null ? 'â' : Number(n).toFixed(1) + '%';
+    const fmtR = (n) => n == null ? 'â' : 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : 'â';
+
+    const TIPO_LABELS = { 'gold_special': 'ClÃ¡ssico', 'gold_pro': 'Premium', 'Desconhecido': 'Desconhecido' };
+    const labelTipo = (t) => TIPO_LABELS[t] || t;
+
+    // ââ Period config (same as margem) ââ
+    const PERIODO_OPTIONS = [
+      { value: '30d', label: '30 dias' },
+      { value: '60d', label: '60 dias' },
+      { value: '90d', label: '90 dias' },
+      { value: '180d', label: '180 dias' },
+      { value: '1a', label: '1 ano' },
+      { value: 'all', label: 'Todo perÃ­odo' },
+    ];
+
+    function getDateRange(periodo) {
+      const now = new Date();
+      const to = now.toISOString();
+      let from;
+      switch (periodo) {
+        case '30d': from = new Date(now - 30 * 86400000); break;
+        case '60d': from = new Date(now - 60 * 86400000); break;
+        case '90d': from = new Date(now - 90 * 86400000); break;
+        case '180d': from = new Date(now - 180 * 86400000); break;
+        case '1a': from = new Date(now - 365 * 86400000); break;
+        case 'all': from = new Date('2020-01-01'); break;
+        default: from = new Date(now - 60 * 86400000);
+      }
+      return { from: from.toISOString(), to };
+    }
+
+    // ââ Filter select ââ
+    function FilterSelect({ label, value, onChange, options, allLabel, labelFn, isActive }) {
+      return (
+        <div className={`flex flex-col gap-1 ${isActive ? 'filter-active' : ''}`}>
+          <label className="text-xs text-gge-muted font-medium">{label}</label>
+          <select value={value} onChange={e => onChange(e.target.value)}
+                  className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
+            <option value="">{allLabel || 'Todos'}</option>
+            {options.map(o => <option key={o} value={o}>{labelFn ? labelFn(o) : o}</option>)}
+          </select>
+        </div>
+      );
+    }
+
+    // ââ Skeleton ââ
+    function Skeleton({ className }) {
+      return <div className={`bg-gge-card border border-gge-border rounded-xl animate-pulse ${className || 'h-24'}`} />;
+    }
+
+    // ââ KPI Card ââ
+    function KpiCard({ title, value, sub, color, icon }) {
+      return (
+        <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">{icon}</span>
+            <span className="text-xs text-gge-muted font-medium">{title}</span>
+          </div>
+          <div className={`text-2xl font-bold ${color || 'text-white'}`}>{value}</div>
+          {sub && <div className="text-xs text-gge-muted mt-1">{sub}</div>}
+        </div>
+      );
+    }
+
+    // ââ Main App ââ
+    function App() {
+      const [tab, setTab] = useState('reputacao');
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [vendasData, setVendasData] = useState([]);
+      const [claimsData, setClaimsData] = useState([]);
+      const [freteData, setFreteData] = useState([]);
+      const [freteLoading, setFreteLoading] = useState(false);
+
+      // Filters
+      const [periodoSel, setPeriodoSel] = useState('60d');
+      const [contaSel, setContaSel] = useState('');
+      const [tipoSel, setTipoSel] = useState('');
+      const [modeSel, setModeSel] = useState('');
+      const [kitSel, setKitSel] = useState('');
+      const [catSel, setCatSel] = useState('');
+      const [fornSel, setFornSel] = useState('');
+      const [pontoSel, setPontoSel] = useState('');
+      const [idadeSel, setIdadeSel] = useState('');
+
+      // Sorting
+      const [sortCol, setSortCol] = useState('cancelamentos');
+      const [sortDir, setSortDir] = useState('desc');
+      const [freteSortCol, setFreteSortCol] = useState('diferenca');
+      const [freteSortDir, setFreteSortDir] = useState('asc');
+
+      // Load data
+      useEffect(() => {
+        async function load() {
+          setLoading(true);
+          setError(null);
+          try {
+            const range = getDateRange(periodoSel);
+            const [vendasRes, claimsRes] = await Promise.all([
+              supabase.from('vw_reputacao_vendas')
+                .select('*')
+                .gte('data_venda', range.from)
+                .lte('data_venda', range.to),
+              supabase.from('claims')
+                .select('*')
+                .gte('data_abertura', range.from)
+                .lte('data_abertura', range.to)
+            ]);
+            if (vendasRes.error) throw vendasRes.error;
+            setVendasData(vendasRes.data || []);
+            setClaimsData(claimsRes.data || []);
+          } catch (e) {
+            setError(e.message || 'Erro ao carregar dados');
+          }
+          setLoading(false);
+        }
+        load();
+      }, [periodoSel]);
+
+      // Load frete data when tab switches
+      useEffect(() => {
+        if (tab \!== 'frete' || freteData.length > 0) return;
+        async function loadFrete() {
+          setFreteLoading(true);
+          try {
+            const range = getDateRange(periodoSel);
+            const res = await supabase.from('vw_frete_desacordo')
+              .select('*')
+              .gte('data_venda', range.from)
+              .lte('data_venda', range.to);
+            if (res.error) throw res.error;
+            setFreteData(res.data || []);
+          } catch (e) {
+            console.error('Erro frete:', e);
+          }
+          setFreteLoading(false);
+        }
+        loadFrete();
+      }, [tab, periodoSel]);
+
+      // Reset frete data when period changes
+      useEffect(() => { setFreteData([]); }, [periodoSel]);
+
+      // Filter options
+      const filterOpts = useMemo(() => {
+        const unique = (arr, key) => [...new Set(arr.map(d => d[key]).filter(Boolean))].sort();
+        return {
+          contas: unique(vendasData, 'conta_nome'),
+          tipos: unique(vendasData, 'tipo_listagem'),
+          modos: unique(vendasData, 'modo_logistica'),
+          kits: unique(vendasData, 'kit_produto'),
+          cats: unique(vendasData, 'catalogo_anuncio'),
+          forns: unique(vendasData, 'fornecedor'),
+          pontos: unique(vendasData, 'ponto_saida'),
+          idades: unique(vendasData, 'idade_anuncio'),
+        };
+      }, [vendasData]);
+
+      // Apply filters
+      const applyFilter = useCallback((d) => {
+        if (contaSel && d.conta_nome \!== contaSel) return false;
+        if (tipoSel && d.tipo_listagem \!== tipoSel) return false;
+        if (modeSel && d.modo_logistica \!== modeSel) return false;
+        if (kitSel && d.kit_produto \!== kitSel) return false;
+        if (catSel && d.catalogo_anuncio \!== catSel) return false;
+        if (fornSel && d.fornecedor \!== fornSel) return false;
+        if (pontoSel && d.ponto_saida \!== pontoSel) return false;
+        if (idadeSel && d.idade_anuncio \!== idadeSel) return false;
+        return true;
+      }, [contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
+
+      const filteredVendas = useMemo(() => vendasData.filter(applyFilter), [vendasData, applyFilter]);
+      const filteredFrete = useMemo(() => freteData.filter(applyFilter), [freteData, applyFilter]);
+
+      // Claims grouped by mlb_id
+      const claimsByMlb = useMemo(() => {
+        const map = {};
+        claimsData.forEach(cl => {
+          if (\!map[cl.mlb_id]) map[cl.mlb_id] = { afetou: 0, nao_afetou: 0, devolucoes: 0, total: 0 };
+          map[cl.mlb_id].total++;
+          if (cl.afeta_reputacao) map[cl.mlb_id].afetou++;
+          else map[cl.mlb_id].nao_afetou++;
+          if (cl.tem_devolucao) map[cl.mlb_id].devolucoes++;
+        });
+        return map;
+      }, [claimsData]);
+
+      // Aggregate reputaÃ§Ã£o per anÃºncio
+      const repData = useMemo(() => {
+        const map = {};
+        filteredVendas.forEach(v => {
+          const key = v.mlb_id;
+          if (\!map[key]) map[key] = {
+            mlb_id: key, titulo: v.titulo || 'â', conta_nome: v.conta_nome, sku_vendedor: v.sku_vendedor,
+            tipo_listagem: v.tipo_listagem, ponto_saida: v.ponto_saida,
+            total: 0, cancelamentos: 0, reembolsos: 0,
+            fb_pos: 0, fb_neg: 0, fb_neu: 0, fb_total: 0,
+            receita: 0
+          };
+          const m = map[key];
+          if (v.status === 'cancelled') m.cancelamentos++;
+          else {
+            m.total++;
+            m.receita += Number(v.preco_total) || 0;
+          }
+          if (v.status === 'partially_refunded') m.reembolsos++;
+          if (v.feedback_rating === 'positive') { m.fb_pos++; m.fb_total++; }
+          if (v.feedback_rating === 'negative') { m.fb_neg++; m.fb_total++; }
+          if (v.feedback_rating === 'neutral') { m.fb_neu++; m.fb_total++; }
+        });
+        // Merge claims
+        Object.keys(map).forEach(mlb => {
+          const cl = claimsByMlb[mlb];
+          if (cl) {
+            map[mlb].claims_afetou = cl.afetou;
+            map[mlb].claims_nao_afetou = cl.nao_afetou;
+            map[mlb].devolucoes = cl.devolucoes;
+          } else {
+            map[mlb].claims_afetou = 0;
+            map[mlb].claims_nao_afetou = 0;
+            map[mlb].devolucoes = 0;
+          }
+          const m = map[mlb];
+          m.total_ordens = m.total + m.cancelamentos;
+          m.taxa_cancel = m.total_ordens > 0 ? (m.cancelamentos / m.total_ordens * 100) : 0;
+          // Score: higher = worse reputation
+          m.score = m.cancelamentos * 2 + m.claims_afetou * 10 + m.claims_nao_afetou * 3 + m.devolucoes * 5 + m.fb_neg * 4 + m.reembolsos * 1;
+        });
+        return Object.values(map);
+      }, [filteredVendas, claimsByMlb]);
+
+      // Sort reputaÃ§Ã£o
+      const sortedRep = useMemo(() => {
+        return [...repData].sort((a, b) => {
+          const va = a[sortCol] ?? 0, vb = b[sortCol] ?? 0;
+          return sortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+      }, [repData, sortCol, sortDir]);
+
+      // Totals for KPIs
+      const totals = useMemo(() => {
+        const t = { vendas: 0, cancelamentos: 0, reembolsos: 0, claims_afetou: 0, claims_nao_afetou: 0,
+                    devolucoes: 0, fb_pos: 0, fb_neg: 0, fb_neu: 0, receita_cancel: 0 };
+        filteredVendas.forEach(v => {
+          if (v.status === 'cancelled') { t.cancelamentos++; t.receita_cancel += Number(v.preco_total) || 0; }
+          else t.vendas++;
+          if (v.status === 'partially_refunded') t.reembolsos++;
+          if (v.feedback_rating === 'positive') t.fb_pos++;
+          if (v.feedback_rating === 'negative') t.fb_neg++;
+          if (v.feedback_rating === 'neutral') t.fb_neu++;
+        });
+        claimsData.forEach(cl => {
+          if (cl.afeta_reputacao) t.claims_afetou++;
+          else t.claims_nao_afetou++;
+          if (cl.tem_devolucao) t.devolucoes++;
+        });
+        t.total_ordens = t.vendas + t.cancelamentos;
+        t.taxa_cancel = t.total_ordens > 0 ? (t.cancelamentos / t.total_ordens * 100) : 0;
+        return t;
+      }, [filteredVendas, claimsData]);
+
+      // Frete aggregates
+      const freteTotals = useMemo(() => {
+        const t = { total: filteredFrete.length, impacto: 0, ml_mais: 0, ml_menos: 0, impacto_mais: 0, impacto_menos: 0 };
+        filteredFrete.forEach(f => {
+          const d = Number(f.diferenca) || 0;
+          t.impacto += d;
+          if (d < 0) { t.ml_mais++; t.impacto_mais += d; }
+          else { t.ml_menos++; t.impacto_menos += d; }
+        });
+        return t;
+      }, [filteredFrete]);
+
+      // Sort frete
+      const sortedFrete = useMemo(() => {
+        return [...filteredFrete].sort((a, b) => {
+          let va = a[freteSortCol], vb = b[freteSortCol];
+          if (['diferenca','diferenca_pct','frete_real_ml','frete_previsto','preco_total'].includes(freteSortCol)) {
+            va = Number(va) || 0; vb = Number(vb) || 0;
+          }
+          return freteSortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+      }, [filteredFrete, freteSortCol, freteSortDir]);
+
+      // Frete grouped by anÃºncio for chart
+      const freteByAnuncio = useMemo(() => {
+        const map = {};
+        filteredFrete.forEach(f => {
+          if (\!map[f.mlb_id]) map[f.mlb_id] = { mlb_id: f.mlb_id, titulo: f.titulo || 'â', total: 0, impacto: 0, count: 0 };
+          map[f.mlb_id].count++;
+          map[f.mlb_id].impacto += Number(f.diferenca) || 0;
+        });
+        return Object.values(map).sort((a, b) => a.impacto - b.impacto).slice(0, 15);
+      }, [filteredFrete]);
+
+      // Cancelamentos evolution by week
+      const cancelEvo = useMemo(() => {
+        const map = {};
+        filteredVendas.forEach(v => {
+          const d = new Date(v.data_venda);
+          const week = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+          const key = week.toISOString().slice(0, 10);
+          if (\!map[key]) map[key] = { semana: key, vendas: 0, cancelamentos: 0, claims: 0 };
+          if (v.status === 'cancelled') map[key].cancelamentos++;
+          else map[key].vendas++;
+        });
+        claimsData.forEach(cl => {
+          const d = new Date(cl.data_abertura);
+          const week = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+          const key = week.toISOString().slice(0, 10);
+          if (\!map[key]) map[key] = { semana: key, vendas: 0, cancelamentos: 0, claims: 0 };
+          map[key].claims++;
+        });
+        return Object.values(map).sort((a, b) => a.semana.localeCompare(b.semana));
+      }, [filteredVendas, claimsData]);
+
+      // Top canceladores for pie
+      const topCancel = useMemo(() => {
+        return [...repData].filter(d => d.cancelamentos > 0).sort((a, b) => b.cancelamentos - a.cancelamentos).slice(0, 8);
+      }, [repData]);
+
+      function handleSort(col) {
+        if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortCol(col); setSortDir('desc'); }
+      }
+      function handleFreteSort(col) {
+        if (freteSortCol === col) setFreteSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setFreteSortCol(col); setFreteSortDir('asc'); }
+      }
+      const sortIcon = (col, active, dir) => col === active ? (dir === 'asc' ? ' â²' : ' â¼') : '';
+
+      const clearFilters = () => { setPeriodoSel('60d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); };
+
+      const periodoLabel = PERIODO_OPTIONS.find(p => p.value === periodoSel)?.label || '';
+
+      const COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#6366f1','#a855f7','#ec4899'];
+
+      return (
+        <div className="min-h-screen">
+          {/* Header */}
+          <header className="bg-gge-card/80 backdrop-blur border-b border-gge-border sticky top-0 z-50">
+            <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gge-accent rounded-xl flex items-center justify-center text-white font-bold text-lg">G</div>
+                <div>
+                  <h1 className="text-lg font-bold text-white tracking-tight">Controle Total GGE</h1>
+                  <p className="text-xs text-gge-muted">ReputaÃ§Ã£o e Claims</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                {periodoLabel && <span className="text-sm text-gge-muted">Dados: <span className="text-white font-medium">{periodoLabel}</span></span>}
+                <a href="index.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-green/15 border border-gge-green/30 rounded-lg text-gge-green hover:bg-gge-green/25 transition-all text-sm font-medium">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Dashboard
+                </a>
+                <a href="margem.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-accent/15 border border-gge-accent/30 rounded-lg text-gge-accent hover:bg-gge-accent/25 transition-all text-sm font-medium">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                  Margem
+                </a>
+                <div className="w-2 h-2 rounded-full bg-gge-green animate-pulse" title="Conectado ao Supabase"></div>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+            {/* Tabs */}
+            <div className="flex gap-6 border-b border-gge-border">
+              <button onClick={() => setTab('reputacao')} className={`pb-3 px-1 text-sm font-semibold transition-colors ${tab === 'reputacao' ? 'tab-active' : 'tab-inactive'}`}>
+                ReputaÃ§Ã£o por AnÃºncio
+              </button>
+              <button onClick={() => setTab('frete')} className={`pb-3 px-1 text-sm font-semibold transition-colors ${tab === 'frete' ? 'tab-active' : 'tab-inactive'}`}>
+                Fretes em Desacordo
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-sm font-semibold text-white">Filtros</span>
+                <span className="text-xs text-gge-muted">
+                  ({tab === 'reputacao' ? `${fmtN(sortedRep.length)} anÃºncios` : `${fmtN(filteredFrete.length)} envios`})
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
+                <FilterSelect label="PerÃ­odo" value={periodoSel} onChange={setPeriodoSel}
+                              options={PERIODO_OPTIONS.map(p => p.value)} allLabel="Todo perÃ­odo"
+                              labelFn={v => PERIODO_OPTIONS.find(p => p.value === v)?.label || v}
+                              isActive={periodoSel \!== '60d'} />
+                <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={filterOpts.contas} isActive={\!\!contaSel} />
+                <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} isActive={\!\!tipoSel} />
+                <FilterSelect label="LogÃ­stica" value={modeSel} onChange={setModeSel} options={filterOpts.modos} isActive={\!\!modeSel} />
+                <FilterSelect label="Tipo" value={kitSel} onChange={setKitSel} options={filterOpts.kits} isActive={\!\!kitSel} />
+                <FilterSelect label="CatÃ¡logo" value={catSel} onChange={setCatSel} options={filterOpts.cats} isActive={\!\!catSel} />
+                <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} isActive={\!\!fornSel} />
+                <FilterSelect label="Pto SaÃ­da" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} isActive={\!\!pontoSel} />
+                <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} isActive={\!\!idadeSel} />
+                <div className="flex items-end">
+                  <button onClick={clearFilters} className="w-full px-3 py-2 text-sm text-gge-muted border border-gge-border rounded-lg hover:bg-white/5 transition-colors">Limpar</button>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-gge-red/10 border border-gge-red/30 rounded-xl p-4 text-gge-red text-sm">
+                Erro ao carregar: {error}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                {[...Array(8)].map((_, i) => <Skeleton key={i} />)}
+              </div>
+            ) : tab === 'reputacao' ? (
+              <>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                  <KpiCard title="Vendas Efetivas" value={fmtN(totals.vendas)} icon="ð¦" color="text-white" sub={`${fmtN(totals.total_ordens)} ordens totais`} />
+                  <KpiCard title="Cancelamentos" value={fmtN(totals.cancelamentos)} icon="â" color="text-gge-red" sub={`${fmtP(totals.taxa_cancel)} taxa`} />
+                  <KpiCard title="Reemb. Parciais" value={fmtN(totals.reembolsos)} icon="â©ï¸" color="text-gge-orange" />
+                  <KpiCard title="Claims (Afetou)" value={fmtN(totals.claims_afetou)} icon="â ï¸" color={totals.claims_afetou > 0 ? 'text-gge-red' : 'text-gge-muted'} sub={totals.claims_afetou === 0 ? 'Tabela claims vazia' : ''} />
+                  <KpiCard title="Claims (S/ Efeito)" value={fmtN(totals.claims_nao_afetou)} icon="ð" color="text-gge-yellow" />
+                  <KpiCard title="DevoluÃ§Ãµes" value={fmtN(totals.devolucoes)} icon="ð" color="text-gge-orange" />
+                  <KpiCard title="FB Positivo" value={fmtN(totals.fb_pos)} icon="ð" color="text-gge-green" sub={totals.fb_pos + totals.fb_neg + totals.fb_neu > 0 ? `${fmtP(totals.fb_pos / (totals.fb_pos + totals.fb_neg + totals.fb_neu) * 100)} dos feedbacks` : 'Sem negativo/neutro coletado'} />
+                  <KpiCard title="FB Negativo" value={fmtN(totals.fb_neg)} icon="ð" color={totals.fb_neg > 0 ? 'text-gge-red' : 'text-gge-green'} sub={totals.fb_neg === 0 ? 'Nenhum coletado' : ''} />
+                </div>
+
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Cancel evolution chart */}
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+                    <h3 className="text-sm font-semibold text-white mb-4">EvoluÃ§Ã£o Semanal â Cancelamentos vs Vendas</h3>
+                    <div style={{ height: 280 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={cancelEvo} barGap={0}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+                          <XAxis dataKey="semana" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => v.slice(5)} />
+                          <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                          <Tooltip contentStyle={{ background: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8 }}
+                                   labelFormatter={v => `Semana de ${fmtDate(v)}`} />
+                          <Bar dataKey="vendas" name="Vendas" fill="#22c55e" radius={[2,2,0,0]} />
+                          <Bar dataKey="cancelamentos" name="Cancelamentos" fill="#ef4444" radius={[2,2,0,0]} />
+                          {claimsData.length > 0 && <Bar dataKey="claims" name="Claims" fill="#eab308" radius={[2,2,0,0]} />}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Top canceladores */}
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+                    <h3 className="text-sm font-semibold text-white mb-4">Top AnÃºncios com Mais Cancelamentos</h3>
+                    {topCancel.length === 0 ? (
+                      <p className="text-gge-muted text-sm">Nenhum cancelamento no perÃ­odo.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                        {topCancel.map((d, i) => (
+                          <div key={d.mlb_id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-white/5">
+                            <span className="text-xs font-bold text-gge-muted w-5">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-white truncate">{d.titulo}</div>
+                              <div className="text-xs text-gge-muted">{d.mlb_id} Â· {d.conta_nome}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-bold text-gge-red">{d.cancelamentos}</div>
+                              <div className="text-xs text-gge-muted">{fmtP(d.taxa_cancel)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ReputaÃ§Ã£o Table */}
+                <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
+                  <div className="p-5 border-b border-gge-border">
+                    <h3 className="text-sm font-semibold text-white">ReputaÃ§Ã£o por AnÃºncio</h3>
+                    <p className="text-xs text-gge-muted mt-1">Clique nas colunas para ordenar. Score = peso ponderado de problemas.</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gge-border text-xs text-gge-muted">
+                          <th className="text-left py-3 px-4 font-medium">AnÃºncio</th>
+                          <th className="text-left py-3 px-2 font-medium">Conta</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('total_ordens')}>Ordens{sortIcon('total_ordens', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('cancelamentos')}>Cancel.{sortIcon('cancelamentos', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('taxa_cancel')}>% Cancel{sortIcon('taxa_cancel', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('reembolsos')}>Reemb.{sortIcon('reembolsos', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('claims_afetou')}>Claims â ï¸{sortIcon('claims_afetou', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('devolucoes')}>Devol.{sortIcon('devolucoes', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('fb_pos')}>FB+{sortIcon('fb_pos', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('fb_neg')}>FB-{sortIcon('fb_neg', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('score')}>Score{sortIcon('score', sortCol, sortDir)}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedRep.slice(0, 200).map((d, i) => (
+                          <tr key={d.mlb_id} className={`border-b border-gge-border/50 row-hover ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
+                            <td className="py-2.5 px-4 max-w-[300px]">
+                              <div className="text-sm text-white truncate">{d.titulo}</div>
+                              <div className="text-xs text-gge-muted">{d.mlb_id}{d.sku_vendedor ? ` Â· ${d.sku_vendedor}` : ''}</div>
+                            </td>
+                            <td className="py-2.5 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
+                            <td className="py-2.5 px-2 text-right text-white">{fmtN(d.total_ordens)}</td>
+                            <td className={`py-2.5 px-2 text-right font-medium ${d.cancelamentos > 0 ? 'text-gge-red' : 'text-gge-muted'}`}>{d.cancelamentos}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.taxa_cancel > 10 ? 'text-gge-red font-bold' : d.taxa_cancel > 5 ? 'text-gge-orange' : 'text-gge-muted'}`}>{fmtP(d.taxa_cancel)}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.reembolsos > 0 ? 'text-gge-orange' : 'text-gge-muted'}`}>{d.reembolsos}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.claims_afetou > 0 ? 'text-gge-red font-bold' : 'text-gge-muted'}`}>{d.claims_afetou}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.devolucoes > 0 ? 'text-gge-orange' : 'text-gge-muted'}`}>{d.devolucoes}</td>
+                            <td className="py-2.5 px-2 text-right text-gge-green">{d.fb_pos || 'â'}</td>
+                            <td className={`py-2.5 px-2 text-right ${d.fb_neg > 0 ? 'text-gge-red font-bold' : 'text-gge-muted'}`}>{d.fb_neg || 'â'}</td>
+                            <td className={`py-2.5 px-2 text-right font-bold ${d.score > 20 ? 'text-gge-red' : d.score > 5 ? 'text-gge-orange' : d.score > 0 ? 'text-gge-yellow' : 'text-gge-green'}`}>
+                              {d.score}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {sortedRep.length > 200 && (
+                      <div className="text-center py-3 text-xs text-gge-muted">Mostrando 200 de {fmtN(sortedRep.length)} anÃºncios</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* ââ Tab: Fretes em Desacordo ââ */
+              <>
+                {freteLoading ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} />)}
+                  </div>
+                ) : (
+                  <>
+                    {/* Frete KPIs */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      <KpiCard title="Envios em Desacordo" value={fmtN(freteTotals.total)} icon="ð" color="text-white" />
+                      <KpiCard title="ML Cobrou Mais" value={fmtN(freteTotals.ml_mais)} icon="ð" color="text-gge-red" sub={fmtR(freteTotals.impacto_mais)} />
+                      <KpiCard title="ML Cobrou Menos" value={fmtN(freteTotals.ml_menos)} icon="ð" color="text-gge-green" sub={fmtR(freteTotals.impacto_menos)} />
+                      <KpiCard title="Impacto Total" value={fmtR(freteTotals.impacto)} icon="ð°" color={freteTotals.impacto < 0 ? 'text-gge-red' : 'text-gge-green'} sub="Previsto â Real ML" />
+                      <KpiCard title="MÃ©dia por Envio" value={fmtR(freteTotals.total > 0 ? freteTotals.impacto / freteTotals.total : 0)} icon="ð" color="text-gge-orange" />
+                      <KpiCard title="TolerÃ¢ncia" value="> R$ 1,00" icon="âï¸" color="text-gge-muted" sub="DiferenÃ§as â¤ R$1 ignoradas" />
+                    </div>
+
+                    {/* Frete chart */}
+                    {freteByAnuncio.length > 0 && (
+                      <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+                        <h3 className="text-sm font-semibold text-white mb-4">Top 15 AnÃºncios â Maior Impacto de Frete</h3>
+                        <div style={{ height: 350 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={freteByAnuncio} layout="vertical" margin={{ left: 200 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+                              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => `R$ ${v.toFixed(0)}`} />
+                              <YAxis type="category" dataKey="titulo" tick={{ fill: '#94a3b8', fontSize: 10 }} width={190} tickFormatter={v => v.length > 30 ? v.slice(0, 30) + 'â¦' : v} />
+                              <Tooltip contentStyle={{ background: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8 }}
+                                       formatter={(v) => [fmtR(v), 'Impacto']} />
+                              <Bar dataKey="impacto" name="Impacto">
+                                {freteByAnuncio.map((d, i) => (
+                                  <Cell key={i} fill={d.impacto < 0 ? '#ef4444' : '#22c55e'} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Frete Table */}
+                    <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
+                      <div className="p-5 border-b border-gge-border">
+                        <h3 className="text-sm font-semibold text-white">Detalhamento â Fretes em Desacordo</h3>
+                        <p className="text-xs text-gge-muted mt-1">ComparaÃ§Ã£o entre frete previsto (tabela GGE) e frete real cobrado pelo ML. Vermelho = ML cobrou mais.</p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gge-border text-xs text-gge-muted">
+                              <th className="text-left py-3 px-4 font-medium">AnÃºncio</th>
+                              <th className="text-left py-3 px-2 font-medium">Conta</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('data_venda')}>Data{sortIcon('data_venda', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('preco_total')}>Venda{sortIcon('preco_total', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_previsto')}>Previsto{sortIcon('frete_previsto', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_real_ml')}>Real ML{sortIcon('frete_real_ml', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('diferenca')}>DiferenÃ§a{sortIcon('diferenca', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('diferenca_pct')}>%{sortIcon('diferenca_pct', freteSortCol, freteSortDir)}</th>
+                              <th className="text-left py-3 px-2 font-medium">Origem</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sortedFrete.slice(0, 300).map((d, i) => {
+                              const diff = Number(d.diferenca) || 0;
+                              return (
+                                <tr key={d.ordem_id} className={`border-b border-gge-border/50 row-hover ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
+                                  <td className="py-2 px-4 max-w-[250px]">
+                                    <div className="text-sm text-white truncate">{d.titulo || 'â'}</div>
+                                    <div className="text-xs text-gge-muted">{d.mlb_id}</div>
+                                  </td>
+                                  <td className="py-2 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
+                                  <td className="py-2 px-2 text-right text-xs text-gge-muted">{fmtDate(d.data_venda)}</td>
+                                  <td className="py-2 px-2 text-right text-white">{fmtR(d.preco_total)}</td>
+                                  <td className="py-2 px-2 text-right text-gge-cyan">{fmtR(d.frete_previsto)}</td>
+                                  <td className="py-2 px-2 text-right text-gge-yellow">{fmtR(d.frete_real_ml)}</td>
+                                  <td className={`py-2 px-2 text-right font-bold ${diff < -5 ? 'text-gge-red' : diff > 5 ? 'text-gge-green' : 'text-gge-muted'}`}>{fmtR(diff)}</td>
+                                  <td className={`py-2 px-2 text-right text-xs ${diff < -10 ? 'text-gge-red' : 'text-gge-muted'}`}>{fmtP(Number(d.diferenca_pct))}</td>
+                                  <td className="py-2 px-2 text-xs text-gge-muted">{d.frete_origem}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {sortedFrete.length > 300 && (
+                          <div className="text-center py-3 text-xs text-gge-muted">Mostrando 300 de {fmtN(sortedFrete.length)} envios</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Info banner about claims */}
+            {tab === 'reputacao' && claimsData.length === 0 && (
+              <div className="bg-gge-yellow/5 border border-gge-yellow/20 rounded-xl p-4 fade-in">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">ð¡</span>
+                  <div>
+                    <p className="text-sm text-gge-yellow font-medium">Tabela de Claims vazia</p>
+                    <p className="text-xs text-gge-muted mt-1">
+                      A coleta de claims e devoluÃ§Ãµes do Mercado Livre ainda nÃ£o estÃ¡ populando dados. 
+                      Quando implementada, as colunas de Claims e DevoluÃ§Ãµes serÃ£o preenchidas automaticamente.
+                      Enquanto isso, os dados de cancelamentos e feedbacks das vendas estÃ£o funcionando normalmente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* Footer */}
+          <footer className="max-w-[1600px] mx-auto px-6 py-4 text-center text-xs text-gge-muted border-t border-gge-border mt-8">
+            Controle Total GGE Â· ReputaÃ§Ã£o e Claims Â· Dados via Supabase
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
+
