@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Total GGE - ADs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'gge-bg': '#0f1117',
+            'gge-card': '#1a1d2e',
+            'gge-border': '#2a2d3e',
+            'gge-text': '#e2e8f0',
+            'gge-muted': '#94a3b8',
+            'gge-accent': '#6366f1',
+            'gge-green': '#22c55e',
+            'gge-red': '#ef4444',
+            'gge-yellow': '#eab308',
+            'gge-orange': '#f97316',
+            'gge-cyan': '#22d3ee',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .pulse-load { animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1a1d2e; }
+    ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
+    .row-clickable { cursor: pointer; }
+    .row-clickable:hover { background: rgba(99, 102, 241, 0.1) !important; }
+  </style>
+  <script src="auth.js" defer></script>
+  <script src="sidebar.js" defer></script>
+</head>
+<body>
+  <div class="main-with-sidebar">
+    <div id="root"></div>
+  </div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
+    const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ComposedChart, Area, Legend } = Recharts;
+
+    // ââ Supabase Client ââ
+    const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // ââ Helpers ââ
+    const fmt = (v) => v == null ? '\u2014' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtInt = (v) => v == null ? '\u2014' : Number(v).toLocaleString('pt-BR');
+    const fmtPct = (v) => v == null ? '\u2014' : Number(v).toFixed(1) + '%';
+    const fmtPct2 = (v) => v == null ? '\u2014' : Number(v).toFixed(2) + '%';
+    const fmtR$ = (v) => v == null ? '\u2014' : 'R$ ' + fmt(v);
+
+    const COLORS = {
+      bg: '#0f1117', card: '#1a1d2e', border: '#2a2d3e', text: '#e2e8f0',
+      muted: '#94a3b8', accent: '#6366f1', green: '#22c55e', red: '#ef4444',
+      yellow: '#eab308', orange: '#f97316', cyan: '#22d3ee'
+    };
+
+    // ââ Period helpers ââ
+    const today = () => {
+      const d = new Date(); d.setHours(0,0,0,0); return d;
+    };
+    const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+    const fmtDate = (d) => d.toISOString().slice(0, 10);
+
+    const PERIODO_OPTIONS = [
+      { value: '7d', label: '7 dias' },
+      { value: '15d', label: '15 dias' },
+      { value: '30d', label: '30 dias' },
+      { value: 'mes_atual', label: 'M\u00eas atual' },
+      { value: 'mes_passado', label: 'M\u00eas passado' },
+      { value: '90d', label: '90 dias' },
+    ];
+
+    function getDateRange(periodo) {
+      const t = today();
+      let start, end, prevStart, prevEnd;
+      if (periodo === 'mes_atual') {
+        start = new Date(t.getFullYear(), t.getMonth(), 1);
+        end = addDays(t, -1);
+        const pm = new Date(t.getFullYear(), t.getMonth() - 1, 1);
+        prevStart = pm;
+        prevEnd = new Date(t.getFullYear(), t.getMonth(), 0);
+      } else if (periodo === 'mes_passado') {
+        start = new Date(t.getFullYear(), t.getMonth() - 1, 1);
+        end = new Date(t.getFullYear(), t.getMonth(), 0);
+        prevStart = new Date(t.getFullYear(), t.getMonth() - 2, 1);
+        prevEnd = new Date(t.getFullYear(), t.getMonth() - 1, 0);
+      } else {
+        const days = parseInt(periodo);
+        end = addDays(t, -1);
+        start = addDays(end, -(days - 1));
+        prevEnd = addDays(start, -1);
+        prevStart = addDays(prevEnd, -(days - 1));
+      }
+      return { start: fmtDate(start), end: fmtDate(end), prevStart: fmtDate(prevStart), prevEnd: fmtDate(prevEnd) };
+    }
+
+    // ââ Section Title Component ââ
+    function SectionTitle({ color, children }) {
+      return (
+        <div className="flex items-center gap-3 mb-4 mt-8">
+          <div className="w-1 h-6 rounded-full" style={{ background: color }}></div>
+          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color }}>{children}</h2>
+        </div>
+      );
+    }
+
+    // ââ Skeleton Card ââ
+    function SkeletonCard() {
+      return (
+        <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+          <div className="h-3 w-20 bg-gge-border rounded pulse-load mb-3"></div>
+          <div className="h-7 w-28 bg-gge-border rounded pulse-load mb-2"></div>
+          <div className="h-3 w-16 bg-gge-border rounded pulse-load"></div>
+        </div>
+      );
+    }
+
+    // ââ Variation Badge ââ
+    function VarBadge({ current, previous }) {
+      if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">\u2014</span>;
+      const pct = ((current - previous) / Math.abs(previous)) * 100;
+      const isUp = pct >= 0;
+      const color = isUp ? 'text-gge-green' : 'text-gge-red';
+      const arrow = isUp ? '\u25B2' : '\u25BC';
+      return <span className={`text-xs font-medium ${color}`}>{arrow} {Math.abs(pct).toFixed(1)}%</span>;
+    }
+
+    // ââ Variation Badge for inverted metrics (lower is better, like ACOS/CPC) ââ
+    function VarBadgeInv({ current, previous }) {
+      if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">\u2014</span>;
+      const pct = ((current - previous) / Math.abs(previous)) * 100;
+      const isUp = pct >= 0;
+      const color = isUp ? 'text-gge-red' : 'text-gge-green';
+      const arrow = isUp ? '\u25B2' : '\u25BC';
+      return <span className={`text-xs font-medium ${color}`}>{arrow} {Math.abs(pct).toFixed(1)}%</span>;
+    }
+
+    // ââ Custom Tooltip ââ
+    function ChartTooltip({ active, payload, label, formatters }) {
+      if (!active || !payload || !payload.length) return null;
+      return (
+        <div className="bg-gge-card border border-gge-border rounded-lg p-3 shadow-xl">
+          <p className="text-xs text-gge-muted mb-1">{label}</p>
+          {payload.map((p, i) => (
+            <p key={i} className="text-xs font-medium" style={{ color: p.color }}>
+              {p.name}: {formatters && formatters[p.dataKey] ? formatters[p.dataKey](p.value) : fmt(p.value)}
+            </p>
+          ))}
+        </div>
+      );
+    }
+
+    // ââ Main App ââ
+    function AdsPage() {
+      const [periodo, setPeriodo] = useState('30d');
+      const [conta, setConta] = useState('all');
+      const [campanha, setCampanha] = useState('all');
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      // Raw data
+      const [adsData, setAdsData] = useState([]);
+      const [prevAdsData, setPrevAdsData] = useState([]);
+      const [anuncios, setAnuncios] = useState([]);
+      const [contas, setContas] = useState([]);
+      const [margemData, setMargemData] = useState([]);
+
+      // UI state
+      const [selectedCampaign, setSelectedCampaign] = useState(null);
+      const [sortConfig, setSortConfig] = useState({ key: 'gasto', dir: 'desc' });
+      const [adSortConfig, setAdSortConfig] = useState({ key: 'gasto_ads', dir: 'desc' });
+
+      // ââ Data loading ââ
+      useEffect(() => {
+        loadData();
+      }, [periodo]);
+
+      async function loadData() {
+        setLoading(true);
+        setError(null);
+        try {
+          const range = getDateRange(periodo);
+
+          // Fetch all in parallel
+          const [adsRes, prevAdsRes, anunciosRes, contasRes, margemRes] = await Promise.all([
+            supabase.from('ads_diario').select('*').gte('data_referencia', range.start).lte('data_referencia', range.end),
+            supabase.from('ads_diario').select('*').gte('data_referencia', range.prevStart).lte('data_referencia', range.prevEnd),
+            supabase.from('anuncios').select('mlb_id, conta_id, titulo, sku_vendedor, status, tipo_listagem, preco_atual'),
+            supabase.from('contas').select('id, nome'),
+            supabase.from('vw_margem_canonica').select('mlb_id, margem_valor, margem_pct, receita, custo_ads_rateado').gte('data_venda', range.start).lte('data_venda', range.end),
+          ]);
+
+          if (adsRes.error) throw adsRes.error;
+          if (prevAdsRes.error) throw prevAdsRes.error;
+          if (anunciosRes.error) throw anunciosRes.error;
+          if (contasRes.error) throw contasRes.error;
+          // margemData may fail silently if view not ready
+
+          setAdsData(adsRes.data || []);
+          setPrevAdsData(prevAdsRes.data || []);
+          setAnuncios(anunciosRes.data || []);
+          setContas(contasRes.data || []);
+          setMargemData(margemRes.data || []);
+        } catch (err) {
+          console.error('Erro ao carregar dados:', err);
+          setError(err.message || 'Erro ao carregar dados');
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      // ââ Derived: conta map ââ
+      const contaMap = useMemo(() => {
+        const m = {};
+        contas.forEach(c => { m[c.id] = c.nome; });
+        return m;
+      }, [contas]);
+
+      // ââ Derived: anuncio map ââ
+      const anuncioMap = useMemo(() => {
+        const m = {};
+        anuncios.forEach(a => { m[a.mlb_id] = a; });
+        return m;
+      }, [anuncios]);
+
+      // ââ Derived: margem map (grouped by mlb_id) ââ
+      const margemMap = useMemo(() => {
+        const m = {};
+        margemData.forEach(row => {
+          if (!m[row.mlb_id]) m[row.mlb_id] = { margem_valor: 0, receita: 0, count: 0 };
+          m[row.mlb_id].margem_valor += Number(row.margem_valor || 0);
+          m[row.mlb_id].receita += Number(row.receita || 0);
+          m[row.mlb_id].count++;
+        });
+        // compute pct
+        Object.keys(m).forEach(k => {
+          m[k].margem_pct = m[k].receita > 0 ? (m[k].margem_valor / m[k].receita) * 100 : 0;
+        });
+        return m;
+      }, [margemData]);
+
+      // ââ Filtered data by conta ââ
+      const filteredAds = useMemo(() => {
+        if (conta === 'all') return adsData;
+        return adsData.filter(row => {
+          const an = anuncioMap[row.mlb_id];
+          if (!an) return false;
+          return contaMap[an.conta_id] === conta;
+        });
+      }, [adsData, conta, anuncioMap, contaMap]);
+
+      const filteredPrevAds = useMemo(() => {
+        if (conta === 'all') return prevAdsData;
+        return prevAdsData.filter(row => {
+          const an = anuncioMap[row.mlb_id];
+          if (!an) return false;
+          return contaMap[an.conta_id] === conta;
+        });
+      }, [prevAdsData, conta, anuncioMap, contaMap]);
+
+      // ââ Filtered by campanha ââ
+      const finalAds = useMemo(() => {
+        if (campanha === 'all') return filteredAds;
+        return filteredAds.filter(r => String(r.campaign_id) === campanha);
+      }, [filteredAds, campanha]);
+
+      const finalPrevAds = useMemo(() => {
+        if (campanha === 'all') return filteredPrevAds;
+        return filteredPrevAds.filter(r => String(r.campaign_id) === campanha);
+      }, [filteredPrevAds, campanha]);
+
+      // ââ Campaign list for filter ââ
+      const campaignList = useMemo(() => {
+        const set = new Set();
+        filteredAds.forEach(r => { if (r.campaign_id) set.add(String(r.campaign_id)); });
+        return Array.from(set).sort();
+      }, [filteredAds]);
+
+      // ââ Conta list for filter ââ
+      const contaNames = useMemo(() => {
+        const names = new Set();
+        contas.forEach(c => names.add(c.nome));
+        return Array.from(names).sort();
+      }, [contas]);
+
+      // ââ KPI calculations ââ
+      function calcKPIs(data) {
+        const gasto = data.reduce((s, r) => s + Number(r.gasto_ads || 0), 0);
+        const receita = data.reduce((s, r) => s + Number(r.receita_ads || 0), 0);
+        const receitaOrg = data.reduce((s, r) => s + Number(r.receita_organica || 0), 0);
+        const vendas = data.reduce((s, r) => s + Number(r.vendas_diretas_ads || 0), 0);
+        const cliques = data.reduce((s, r) => s + Number(r.cliques_ads || 0), 0);
+        const impressoes = data.reduce((s, r) => s + Number(r.impressoes_ads || 0), 0);
+        const acos = receita > 0 ? (gasto / receita) * 100 : null;
+        const roas = gasto > 0 ? receita / gasto : null;
+        const cpc = cliques > 0 ? gasto / cliques : null;
+        const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : null;
+        const tacos = (receita + receitaOrg) > 0 ? (gasto / (receita + receitaOrg)) * 100 : null;
+        return { gasto, receita, receitaOrg, vendas, cliques, impressoes, acos, roas, cpc, ctr, tacos };
+      }
+
+      const kpis = useMemo(() => calcKPIs(finalAds), [finalAds]);
+      const prevKpis = useMemo(() => calcKPIs(finalPrevAds), [finalPrevAds]);
+
+      // ââ Daily aggregation for charts ââ
+      const dailyData = useMemo(() => {
+        const byDate = {};
+        finalAds.forEach(r => {
+          const d = r.data_referencia;
+          if (!byDate[d]) byDate[d] = { date: d, gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0 };
+          byDate[d].gasto += Number(r.gasto_ads || 0);
+          byDate[d].receita += Number(r.receita_ads || 0);
+          byDate[d].cliques += Number(r.cliques_ads || 0);
+          byDate[d].impressoes += Number(r.impressoes_ads || 0);
+          byDate[d].vendas += Number(r.vendas_diretas_ads || 0);
+        });
+        return Object.values(byDate)
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .map(d => ({
+            ...d,
+            dateLabel: new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            ctr: d.impressoes > 0 ? (d.cliques / d.impressoes) * 100 : 0,
+            acos: d.receita > 0 ? (d.gasto / d.receita) * 100 : 0,
+          }));
+      }, [finalAds]);
+
+      // ââ Campaign aggregation ââ
+      const campaignData = useMemo(() => {
+        const byCamp = {};
+        filteredAds.forEach(r => {
+          const cid = r.campaign_id ? String(r.campaign_id) : 'sem_campanha';
+          if (!byCamp[cid]) byCamp[cid] = {
+            campaign_id: cid, strategy: r.strategy || '\u2014',
+            gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0, mlbs: new Set(),
+            advertiser_id: r.advertiser_id
+          };
+          byCamp[cid].gasto += Number(r.gasto_ads || 0);
+          byCamp[cid].receita += Number(r.receita_ads || 0);
+          byCamp[cid].cliques += Number(r.cliques_ads || 0);
+          byCamp[cid].impressoes += Number(r.impressoes_ads || 0);
+          byCamp[cid].vendas += Number(r.vendas_diretas_ads || 0);
+          if (r.mlb_id) byCamp[cid].mlbs.add(r.mlb_id);
+          if (r.strategy) byCamp[cid].strategy = r.strategy;
+        });
+        return Object.values(byCamp).map(c => ({
+          ...c,
+          anuncios: c.mlbs.size,
+          acos: c.receita > 0 ? (c.gasto / c.receita) * 100 : null,
+          cpc: c.cliques > 0 ? c.gasto / c.cliques : null,
+          conta: (() => {
+            // find conta via any mlb in this campaign
+            for (const mlb of c.mlbs) {
+              const an = anuncioMap[mlb];
+              if (an && an.conta_id) return contaMap[an.conta_id] || '\u2014';
+            }
+            return '\u2014';
+          })(),
+        }));
+      }, [filteredAds, anuncioMap, contaMap]);
+
+      // ââ Sort campaigns ââ
+      const sortedCampaigns = useMemo(() => {
+        const arr = [...campaignData];
+        arr.sort((a, b) => {
+          const av = a[sortConfig.key] ?? 0;
+          const bv = b[sortConfig.key] ?? 0;
+          return sortConfig.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+        });
+        return arr;
+      }, [campaignData, sortConfig]);
+
+      // ââ Ad-level aggregation ââ
+      const adData = useMemo(() => {
+        const targetAds = selectedCampaign
+          ? filteredAds.filter(r => String(r.campaign_id) === selectedCampaign)
+          : finalAds;
+
+        const byMlb = {};
+        targetAds.forEach(r => {
+          if (!byMlb[r.mlb_id]) byMlb[r.mlb_id] = { mlb_id: r.mlb_id, gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0 };
+          byMlb[r.mlb_id].gasto += Number(r.gasto_ads || 0);
+          byMlb[r.mlb_id].receita += Number(r.receita_ads || 0);
+          byMlb[r.mlb_id].cliques += Number(r.cliques_ads || 0);
+          byMlb[r.mlb_id].impressoes += Number(r.impressoes_ads || 0);
+          byMlb[r.mlb_id].vendas += Number(r.vendas_diretas_ads || 0);
+        });
+        return Object.values(byMlb).map(ad => {
+          const an = anuncioMap[ad.mlb_id] || {};
+          const mg = margemMap[ad.mlb_id] || {};
+          const acos = ad.receita > 0 ? (ad.gasto / ad.receita) * 100 : null;
+          const ctr = ad.impressoes > 0 ? (ad.cliques / ad.impressoes) * 100 : null;
+          const conv = ad.cliques > 0 ? (ad.vendas / ad.cliques) * 100 : null;
+          const mc2_total = mg.margem_valor || 0;
+          const mc2_pct = mg.margem_pct || 0;
+
+          let veredicto = 'yellow';
+          if (mc2_total > 0 && acos != null && acos < 10) veredicto = 'green';
+          else if (mc2_total < 0) veredicto = 'red';
+          else if (ad.cliques > 20 && ad.vendas === 0) veredicto = 'red';
+
+          return {
+            ...ad,
+            titulo: an.titulo || ad.mlb_id,
+            sku: an.sku_vendedor || '\u2014',
+            acos, ctr, conv, mc2_total, mc2_pct, veredicto
+          };
+        });
+      }, [finalAds, filteredAds, selectedCampaign, anuncioMap, margemMap]);
+
+      // ââ Sort ads ââ
+      const sortedAds = useMemo(() => {
+        const arr = [...adData];
+        arr.sort((a, b) => {
+          const av = a[adSortConfig.key] ?? -Infinity;
+          const bv = b[adSortConfig.key] ?? -Infinity;
+          return adSortConfig.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+        });
+        return arr;
+      }, [adData, adSortConfig]);
+
+      // ââ Sort handler ââ
+      function handleSort(config, setConfig, key) {
+        setConfig(prev => ({
+          key,
+          dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc'
+        }));
+      }
+
+      function SortArrow({ config, col }) {
+        if (config.key !== col) return <span className="text-gge-border ml-1">\u2195</span>;
+        return <span className="text-gge-accent ml-1">{config.dir === 'asc' ? '\u25B2' : '\u25BC'}</span>;
+      }
+
+      // ââ ACOS color ââ
+      function acosColor(v) {
+        if (v == null) return COLORS.muted;
+        if (v < 5) return COLORS.green;
+        if (v <= 10) return COLORS.yellow;
+        return COLORS.red;
+      }
+
+      // ââ Render ââ
+      if (error) {
+        return (
+          <div className="p-6 max-w-7xl mx-auto">
+            <div className="bg-red-900/30 border border-red-700 rounded-lg p-6 text-center">
+              <p className="text-gge-red font-semibold mb-2">Erro ao carregar dados</p>
+              <p className="text-gge-muted text-sm">{error}</p>
+              <button onClick={loadData} className="mt-4 px-4 py-2 bg-gge-accent text-white rounded-lg text-sm hover:opacity-90">
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="p-4 md:p-6 max-w-[1400px] mx-auto fade-in">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-xl md:text-2xl font-bold text-gge-text">ADs &mdash; Publicidade Mercado Livre</h1>
+            <p className="text-sm text-gge-muted mt-1">An\u00e1lise de campanhas, gastos e performance de an\u00fancios patrocinados</p>
+          </div>
+
+          {/* ââ FILTERS BAR ââ */}
+          <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6 flex flex-wrap gap-4 items-end">
+            <div>
+              <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Per\u00edodo</label>
+              <select value={periodo} onChange={e => setPeriodo(e.target.value)}
+                className="bg-gge-bg border border-gge-border rounded-md px-3 py-2 text-sm text-gge-text focus:border-gge-accent outline-none">
+                {PERIODO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Conta</label>
+              <select value={conta} onChange={e => { setConta(e.target.value); setCampanha('all'); setSelectedCampaign(null); }}
+                className="bg-gge-bg border border-gge-border rounded-md px-3 py-2 text-sm text-gge-text focus:border-gge-accent outline-none">
+                <option value="all">Consolidado</option>
+                {contaNames.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Campanha</label>
+              <select value={campanha} onChange={e => { setCampanha(e.target.value); setSelectedCampaign(null); }}
+                className="bg-gge-bg border border-gge-border rounded-md px-3 py-2 text-sm text-gge-text focus:border-gge-accent outline-none min-w-[160px]">
+                <option value="all">Todas</option>
+                {campaignList.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            {(conta !== 'all' || campanha !== 'all') && (
+              <button onClick={() => { setConta('all'); setCampanha('all'); setSelectedCampaign(null); }}
+                className="text-xs text-gge-accent hover:text-white transition-colors px-3 py-2">
+                Limpar filtros
+              </button>
+            )}
+          </div>
+
+          {/* ââ BLOCK 1: KPI CARDS ââ */}
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {/* Gasto Total */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Gasto Total</div>
+                <div className="text-lg md:text-xl font-bold text-gge-text">{fmtR$(kpis.gasto)}</div>
+                <VarBadgeInv current={kpis.gasto} previous={prevKpis.gasto} />
+              </div>
+              {/* Receita ADs */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Receita ADs</div>
+                <div className="text-lg md:text-xl font-bold text-gge-green">{fmtR$(kpis.receita)}</div>
+                <VarBadge current={kpis.receita} previous={prevKpis.receita} />
+              </div>
+              {/* ACOS */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">ACOS</div>
+                <div className="text-lg md:text-xl font-bold" style={{ color: acosColor(kpis.acos) }}>{fmtPct(kpis.acos)}</div>
+                <VarBadgeInv current={kpis.acos} previous={prevKpis.acos} />
+              </div>
+              {/* ROAS */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">ROAS</div>
+                <div className="text-lg md:text-xl font-bold text-gge-accent">{kpis.roas != null ? kpis.roas.toFixed(2) + 'x' : '\u2014'}</div>
+                <VarBadge current={kpis.roas} previous={prevKpis.roas} />
+              </div>
+              {/* Vendas ADs */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Vendas ADs</div>
+                <div className="text-lg md:text-xl font-bold text-gge-text">{fmtInt(kpis.vendas)}</div>
+                <VarBadge current={kpis.vendas} previous={prevKpis.vendas} />
+              </div>
+              {/* CPC M\u00e9dio */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">CPC M\u00e9dio</div>
+                <div className="text-lg md:text-xl font-bold text-gge-text">{fmtR$(kpis.cpc)}</div>
+                <VarBadgeInv current={kpis.cpc} previous={prevKpis.cpc} />
+              </div>
+              {/* CTR M\u00e9dio */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">CTR M\u00e9dio</div>
+                <div className="text-lg md:text-xl font-bold text-gge-text">{fmtPct2(kpis.ctr)}</div>
+                <VarBadge current={kpis.ctr} previous={prevKpis.ctr} />
+              </div>
+              {/* TACOS */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">TACOS</div>
+                <div className="text-lg md:text-xl font-bold text-gge-orange">{fmtPct(kpis.tacos)}</div>
+                <VarBadgeInv current={kpis.tacos} previous={prevKpis.tacos} />
+              </div>
+            </div>
+          )}
+
+          {/* ââ BLOCK 2: VISITA\u00c7\u00c3O ââ */}
+          <SectionTitle color={COLORS.orange}>Visita\u00e7\u00e3o</SectionTitle>
+
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+              {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                {/* Impress\u00f5es */}
+                <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Impress\u00f5es Totais</div>
+                  <div className="text-xl font-bold text-gge-text">{fmtInt(kpis.impressoes)}</div>
+                  <VarBadge current={kpis.impressoes} previous={prevKpis.impressoes} />
+                </div>
+                {/* Cliques */}
+                <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Cliques Totais</div>
+                  <div className="text-xl font-bold text-gge-cyan">{fmtInt(kpis.cliques)}</div>
+                  <VarBadge current={kpis.cliques} previous={prevKpis.cliques} />
+                </div>
+                {/* Funil */}
+                <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-2">Funil de Convers\u00e3o</div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gge-text font-semibold">{fmtInt(kpis.impressoes)}</span>
+                    <span className="text-gge-muted">\u2192</span>
+                    <span className="text-gge-cyan font-semibold">{fmtInt(kpis.cliques)}</span>
+                    <span className="text-xs text-gge-yellow">({fmtPct2(kpis.ctr)} CTR)</span>
+                    <span className="text-gge-muted">\u2192</span>
+                    <span className="text-gge-green font-semibold">{fmtInt(kpis.vendas)}</span>
+                    <span className="text-xs text-gge-green">({kpis.cliques > 0 ? fmtPct2((kpis.vendas / kpis.cliques) * 100) : '\u2014'} Conv)</span>
+                  </div>
+                  <div className="mt-2 flex gap-1 h-2 rounded overflow-hidden">
+                    <div className="bg-gge-accent rounded" style={{ width: '100%' }} title="Impress\u00f5es"></div>
+                    <div className="bg-gge-cyan rounded" style={{ width: kpis.impressoes > 0 ? Math.max((kpis.cliques / kpis.impressoes) * 100, 2) + '%' : '0%' }} title="Cliques"></div>
+                    <div className="bg-gge-green rounded" style={{ width: kpis.impressoes > 0 ? Math.max((kpis.vendas / kpis.impressoes) * 100, 1) + '%' : '0%' }} title="Vendas"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Visita\u00e7\u00e3o Chart */}
+              {dailyData.length > 0 && (
+                <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
+                  <h3 className="text-sm font-semibold text-gge-text mb-4">Impress\u00f5es, Cliques & CTR por dia</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <ComposedChart data={dailyData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                      <XAxis dataKey="dateLabel" tick={{ fill: COLORS.muted, fontSize: 11 }} />
+                      <YAxis yAxisId="left" tick={{ fill: COLORS.muted, fontSize: 11 }} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fill: COLORS.yellow, fontSize: 11 }} unit="%" />
+                      <Tooltip content={<ChartTooltip formatters={{
+                        impressoes: fmtInt, cliques: fmtInt, ctr: v => fmtPct2(v)
+                      }} />} />
+                      <Bar yAxisId="left" dataKey="impressoes" name="Impress\u00f5es" fill={COLORS.accent} opacity={0.3} radius={[2,2,0,0]} />
+                      <Line yAxisId="left" dataKey="cliques" name="Cliques" stroke={COLORS.cyan} strokeWidth={2} dot={false} />
+                      <Line yAxisId="right" dataKey="ctr" name="CTR %" stroke={COLORS.yellow} strokeWidth={2} dot={false} strokeDasharray="4 2" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ââ BLOCK 3: EVOLU\u00c7\u00c3O FINANCEIRA ââ */}
+          <SectionTitle color={COLORS.green}>Evolu\u00e7\u00e3o Financeira</SectionTitle>
+
+          {!loading && dailyData.length > 0 && (
+            <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-semibold text-gge-text mb-4">Gasto, Receita & ACOS por dia</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={dailyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                  <XAxis dataKey="dateLabel" tick={{ fill: COLORS.muted, fontSize: 11 }} />
+                  <YAxis yAxisId="left" tick={{ fill: COLORS.muted, fontSize: 11 }} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fill: COLORS.yellow, fontSize: 11 }} unit="%" />
+                  <Tooltip content={<ChartTooltip formatters={{
+                    gasto: fmtR$, receita: fmtR$, acos: v => fmtPct(v)
+                  }} />} />
+                  <Bar yAxisId="left" dataKey="gasto" name="Gasto" fill={COLORS.red} opacity={0.7} radius={[2,2,0,0]} />
+                  <Line yAxisId="left" dataKey="receita" name="Receita ADs" stroke={COLORS.green} strokeWidth={2} dot={false} />
+                  <Line yAxisId="right" dataKey="acos" name="ACOS %" stroke={COLORS.yellow} strokeWidth={2} dot={false} strokeDasharray="4 2" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* ââ BLOCK 4: CAMPANHAS ââ */}
+          <SectionTitle color={COLORS.cyan}>Campanhas</SectionTitle>
+
+          {loading ? (
+            <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
+              <div className="h-48 flex items-center justify-center">
+                <div className="text-gge-muted text-sm pulse-load">Carregando campanhas...</div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gge-card border border-gge-border rounded-lg overflow-hidden mb-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-gge-muted text-xs uppercase tracking-wider bg-gge-bg">
+                      {[
+                        { key: 'campaign_id', label: 'Campanha' },
+                        { key: 'conta', label: 'Conta' },
+                        { key: 'strategy', label: 'Estrat\u00e9gia' },
+                        { key: 'anuncios', label: 'An\u00fancios' },
+                        { key: 'gasto', label: 'Gasto' },
+                        { key: 'cliques', label: 'Cliques' },
+                        { key: 'vendas', label: 'Vendas' },
+                        { key: 'receita', label: 'Receita' },
+                        { key: 'acos', label: 'ACOS' },
+                        { key: 'cpc', label: 'CPC' },
+                      ].map(col => (
+                        <th key={col.key} className="px-3 py-3 text-left cursor-pointer hover:text-gge-text transition-colors whitespace-nowrap"
+                          onClick={() => handleSort(sortConfig, setSortConfig, col.key)}>
+                          {col.label}<SortArrow config={sortConfig} col={col.key} />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedCampaigns.length === 0 ? (
+                      <tr><td colSpan={10} className="text-center text-gge-muted py-8">Nenhuma campanha encontrada</td></tr>
+                    ) : sortedCampaigns.map((c, i) => (
+                      <tr key={c.campaign_id}
+                        className={`row-clickable border-t border-gge-border/50 ${selectedCampaign === c.campaign_id ? 'bg-gge-accent/10' : (i % 2 === 0 ? 'bg-gge-card' : 'bg-gge-bg/30')}`}
+                        onClick={() => setSelectedCampaign(prev => prev === c.campaign_id ? null : c.campaign_id)}>
+                        <td className="px-3 py-2.5 font-mono text-xs text-gge-accent">{c.campaign_id}</td>
+                        <td className="px-3 py-2.5 text-xs">{c.conta}</td>
+                        <td className="px-3 py-2.5 text-xs capitalize">{c.strategy}</td>
+                        <td className="px-3 py-2.5 text-xs text-center">{c.anuncios}</td>
+                        <td className="px-3 py-2.5 text-xs font-medium text-gge-red">{fmtR$(c.gasto)}</td>
+                        <td className="px-3 py-2.5 text-xs">{fmtInt(c.cliques)}</td>
+                        <td className="px-3 py-2.5 text-xs">{fmtInt(c.vendas)}</td>
+                        <td className="px-3 py-2.5 text-xs font-medium text-gge-green">{fmtR$(c.receita)}</td>
+                        <td className="px-3 py-2.5 text-xs font-medium" style={{ color: acosColor(c.acos) }}>{fmtPct(c.acos)}</td>
+                        <td className="px-3 py-2.5 text-xs">{fmtR$(c.cpc)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {selectedCampaign && (
+                <div className="px-3 py-2 bg-gge-accent/5 border-t border-gge-border text-xs text-gge-muted">
+                  Campanha <span className="text-gge-accent font-mono">{selectedCampaign}</span> selecionada &mdash; tabela de an\u00fancios filtrada abaixo.
+                  <button onClick={() => setSelectedCampaign(null)} className="ml-2 text-gge-accent hover:text-white">[limpar]</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ââ BLOCK 5: AN\u00daNcios ââ */}
+          <SectionTitle color={COLORS.accent}>An\u00fancios</SectionTitle>
+
+          {loading ? (
+            <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
+              <div className="h-48 flex items-center justify-center">
+                <div className="text-gge-muted text-sm pulse-load">Carregando an\u00fancios...</div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gge-card border border-gge-border rounded-lg overflow-hidden mb-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-gge-muted text-xs uppercase tracking-wider bg-gge-bg">
+                      {[
+                        { key: 'titulo', label: 'T\u00edtulo' },
+                        { key: 'sku', label: 'SKU' },
+                        { key: 'gasto', label: 'Gasto ADs' },
+                        { key: 'impressoes', label: 'Impress\u00f5es' },
+                        { key: 'cliques', label: 'Cliques' },
+                        { key: 'ctr', label: 'CTR' },
+                        { key: 'vendas', label: 'Vendas ADs' },
+                        { key: 'receita', label: 'Receita ADs' },
+                        { key: 'acos', label: 'ACOS' },
+                        { key: 'conv', label: 'Conv%' },
+                        { key: 'mc2_pct', label: 'MC2%' },
+                        { key: 'mc2_total', label: 'MC2 Total' },
+                        { key: 'veredicto', label: '' },
+                      ].map(col => (
+                        <th key={col.key} className="px-2 py-3 text-left cursor-pointer hover:text-gge-text transition-colors whitespace-nowrap"
+                          onClick={() => handleSort(adSortConfig, setAdSortConfig, col.key)}>
+                          {col.label}<SortArrow config={adSortConfig} col={col.key} />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedAds.length === 0 ? (
+                      <tr><td colSpan={13} className="text-center text-gge-muted py-8">Nenhum an\u00fancio encontrado</td></tr>
+                    ) : sortedAds.map((ad, i) => (
+                      <tr key={ad.mlb_id} className={`border-t border-gge-border/50 ${i % 2 === 0 ? 'bg-gge-card' : 'bg-gge-bg/30'} hover:bg-gge-accent/5 transition-colors`}>
+                        <td className="px-2 py-2 text-xs max-w-[200px] truncate" title={ad.titulo}>{ad.titulo}</td>
+                        <td className="px-2 py-2 text-xs font-mono text-gge-muted">{ad.sku}</td>
+                        <td className="px-2 py-2 text-xs font-medium text-gge-red">{fmtR$(ad.gasto)}</td>
+                        <td className="px-2 py-2 text-xs">{fmtInt(ad.impressoes)}</td>
+                        <td className="px-2 py-2 text-xs">{fmtInt(ad.cliques)}</td>
+                        <td className="px-2 py-2 text-xs">{fmtPct2(ad.ctr)}</td>
+                        <td className="px-2 py-2 text-xs text-center">{fmtInt(ad.vendas)}</td>
+                        <td className="px-2 py-2 text-xs font-medium text-gge-green">{fmtR$(ad.receita)}</td>
+                        <td className="px-2 py-2 text-xs font-medium" style={{ color: acosColor(ad.acos) }}>{fmtPct(ad.acos)}</td>
+                        <td className="px-2 py-2 text-xs">{fmtPct2(ad.conv)}</td>
+                        <td className="px-2 py-2 text-xs" style={{ color: ad.mc2_pct >= 0 ? COLORS.green : COLORS.red }}>{fmtPct(ad.mc2_pct)}</td>
+                        <td className="px-2 py-2 text-xs font-medium" style={{ color: ad.mc2_total >= 0 ? COLORS.green : COLORS.red }}>{fmtR$(ad.mc2_total)}</td>
+                        <td className="px-2 py-2 text-center">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{
+                            background: ad.veredicto === 'green' ? COLORS.green : ad.veredicto === 'red' ? COLORS.red : COLORS.yellow
+                          }}></span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-3 py-2 bg-gge-bg/50 border-t border-gge-border text-xs text-gge-muted">
+                {sortedAds.length} an\u00fancio(s) &mdash; {selectedCampaign ? `filtrado por campanha ${selectedCampaign}` : 'todos'}
+              </div>
+            </div>
+          )}
+
+          {/* ââ FOOTER ââ */}
+          <div className="bg-gge-card border border-gge-border rounded-lg p-4 mt-6 mb-8">
+            <h3 className="text-xs font-bold text-gge-muted uppercase tracking-wider mb-3">F\u00f3rmulas & Defini\u00e7\u00f5es</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 text-xs text-gge-muted">
+              <p><strong className="text-gge-text">ACOS</strong> = Gasto / Receita ADs &times; 100</p>
+              <p><strong className="text-gge-text">ROAS</strong> = Receita ADs / Gasto</p>
+              <p><strong className="text-gge-text">TACOS</strong> = Gasto / (Receita ADs + Receita Org\u00e2nica) &times; 100</p>
+              <p><strong className="text-gge-text">CPC</strong> = Gasto / Cliques</p>
+              <p><strong className="text-gge-text">CTR</strong> = Cliques / Impress\u00f5es &times; 100</p>
+              <p><strong className="text-gge-text">Conv%</strong> = Vendas ADs / Cliques &times; 100</p>
+              <p><strong className="text-gge-text">MC2</strong> = Margem Can\u00f4nica (receita - custos - ads - comiss\u00e3o - frete)</p>
+              <p><strong className="text-gge-text">Veredicto</strong> = <span className="text-gge-green">Verde</span> MC2{'>'}0 e ACOS{'<'}10% | <span className="text-gge-yellow">Amarelo</span> neutro | <span className="text-gge-red">Vermelho</span> MC2{'<'}0 ou sem convers\u00e3o</p>
+              <p><strong className="text-gge-text">Varia\u00e7\u00e3o</strong> = compara per\u00edodo atual vs per\u00edodo anterior equivalente</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<AdsPage />);
+  </script>
+</body>
+</html>
