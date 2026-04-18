@@ -280,6 +280,10 @@
           const q = search.toLowerCase();
           result = result.filter(s => s.sku.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q));
         }
+        // Filtrar por status: quando não é 'all', mostrar apenas SKUs que têm anúncios no status selecionado
+        if (statusFilter !== 'all') {
+          result = result.filter(s => (anunciosPorSku[s.sku] || []).length > 0);
+        }
         // Agrupar por família
         const grupos = {};
         for (const s of result) {
@@ -295,7 +299,7 @@
           sorted.push(...grupos[key].sort((a, b) => a.sku.localeCompare(b.sku)));
         }
         return sorted;
-      }, [skus, search]);
+      }, [skus, search, statusFilter, anunciosPorSku]);
 
       // ── Stats (excluir headers de grupo) ──
       const skusSomente = useMemo(() => skusFiltrados.filter(s => !s._grupo), [skusFiltrados]);
