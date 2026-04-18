@@ -132,44 +132,82 @@
     }
 
     // ── Cálculo reverso: preço para atingir margem ──
+    // GGE (Lucro Real): comissão sobre (preço-frete), PIS/COFINS 9,25% débito com crédito sobre frete+comissão, ICMS médio 4,4%, DIFAL 7,7%
+    // Toow (Simples): comissão sobre (preço-frete), DAS 8,65%, sem ICMS/DIFAL/PIS-COFINS
     function calcPrecoParaMargem(custo, peso, qtd, margemPct, comissaoPct, faixas, modeFrete, regime, semImpostos) {
       if (custo <= 0) return null;
       const custoTotal = custo * qtd;
       const pesoTotal = peso * qtd;
       const margem = margemPct / 100;
+      const comPct = comissaoPct / 100;
 
-      let impostoPct = 0;
-      if (!semImpostos) {
-        impostoPct = regime === 'simples' ? 0.0865 : 0.0925;
-      }
-
-      const fatorFixo = 1 - margem - (comissaoPct / 100) - impostoPct;
-      if (fatorFixo <= 0) return null;
-
-      let preco = custoTotal / fatorFixo;
-      for (let i = 0; i < 10; i++) {
+      // Iterativo: preço depende do frete, frete depende do preço
+      let preco = custoTotal / 0.5; // chute inicial
+      for (let i = 0; i < 20; i++) {
         const frete = lookupFrete(faixas, modeFrete, pesoTotal, preco);
-        const novoPreco = (custoTotal + frete) / fatorFixo;
+        const comissao = (preco - frete) * comPct;
+
+        let impostos = 0;
+        let creditoPisCofins = 0;
+        if (!semImpostos) {
+          if (regime === 'simples') {
+            impostos = preco * 0.0865; // DAS
+          } else {
+            const pisCofinsDebito = preco * 0.0925;
+            creditoPisCofins = (frete + comissao) * 0.0925;
+            const icms = preco * 0.044;
+            const difal = preco * 0.077;
+            impostos = pisCofinsDebito - creditoPisCofins + icms + difal;
+          }
+        }
+
+        const novoPreco = (custoTotal + frete + comissao + impostos) / (1 - margem);
         if (Math.abs(novoPreco - preco) < 0.01) { preco = novoPreco; break; }
         preco = novoPreco;
       }
 
       const freteReal = lookupFrete(faixas, modeFrete, pesoTotal, preco);
+      const comissaoReal = (preco - freteReal) * comPct;
+      let impostosReal = 0;
+      let creditoReal = 0;
+      if (!semImpostos) {
+        if (regime === 'simples') {
+          impostosReal = preco * 0.0865;
+        } else {
+          const pisCofinsDebito = preco * 0.0925;
+          creditoReal = (freteReal + comissaoReal) * 0.0925;
+          impostosReal = pisCofinsDebito - creditoReal + preco * 0.044 + preco * 0.077;
+        }
+      }
+
       return {
         preco: Math.ceil(preco * 100) / 100,
         frete: freteReal,
-        comissao: preco * (comissaoPct / 100),
-        imposto: preco * impostoPct,
+        comissao: comissaoReal,
+        imposto: impostosReal,
+        creditoPisCofins: creditoReal,
       };
     }
 
     // ── Margem atual de um anúncio ──
     function calcMargemAtual(preco, custo, peso, comissaoPct, faixas, modeFrete, regime) {
       const frete = lookupFrete(faixas, modeFrete, peso, preco);
-      const comissao = preco * (comissaoPct / 100);
-      const imposto = regime === 'simples' ? preco * 0.0865 : preco * 0.0925;
-      const margem = preco - custo - frete - comissao - imposto;
-      return { margem, margemPct: preco > 0 ? (margem / preco) * 100 : 0, frete, comissao, imposto };
+      const comissao = (preco - frete) * (comissaoPct / 100); // comissão sobre preço sem frete
+
+      let impostos = 0;
+      let creditoPisCofins = 0;
+      if (regime === 'simples') {
+        impostos = preco * 0.0865; // DAS
+      } else {
+        const pisCofinsDebito = preco * 0.0925;
+        creditoPisCofins = (frete + comissao) * 0.0925;
+        const icms = preco * 0.044;  // ICMS médio
+        const difal = preco * 0.077; // DIFAL médio
+        impostos = pisCofinsDebito - creditoPisCofins + icms + difal;
+      }
+
+      const margem = preco - custo - frete - comissao - impostos;
+      return { margem, margemPct: preco > 0 ? (margem / preco) * 100 : 0, frete, comissao, imposto: impostos, creditoPisCofins };
     }
 
     // ══════════════════════════════════════════
