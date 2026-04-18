@@ -731,7 +731,7 @@
                   const mc1pct = Number(row.receita) > 0 ? mc1/Number(row.receita)*100 : 0;
                   const difal = Number(row.difal_reserva) || 0;
                   const shareRec = totals && totals.receita > 0 ? (Number(row.receita) / totals.receita * 100) : 0;
-                  const shareMC1 = totals && totals.mc1 !== 0 ? (mc1 / totals.mc1 * 100) : 0;
+                  const shareMC1 = totals && totals.mc2 !== 0 ? (mc1 / totals.mc2 * 100) : 0;
                   return (
                     <tr key={row.mlb_id + '-' + i} className="border-t border-gge-border/50 hover:bg-white/5 transition-colors row-clickable"
                         onClick={() => onDrill && onDrill(row.mlb_id, row.titulo)}>
@@ -1350,26 +1350,28 @@
 
       // Totals — MC2 = c/ DIFAL (margem final), MC1 = s/ DIFAL (antes do DIFAL)
       const totals = useMemo(() => {
-        const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, ads: 0, frete: 0, custo: 0, comissao: 0, difal: 0, prejuizo_count: 0 };
-        filtered.forEach(d => {
-          t.anuncios++;
-          t.vendas += Number(d.qtd_vendas) || 0;
-          t.receita += Number(d.receita) || 0;
-          t.margem += Number(d.margem_valor) || 0;
-          t.ads += Number(d.custo_ads) || 0;
-          t.frete += Number(d.custo_frete) || 0;
-          t.custo += Number(d.custo_produto) || 0;
-          t.comissao += Number(d.comissao) || 0;
-          t.difal += Number(d.difal_reserva) || 0;
-          if (Number(d.margem_valor) < 0) t.prejuizo_count++;
-        });
-        t.mc1 = t.margem;                    // variável mc1 = margem_valor (final) → exibida como MC2
-        t.mc2 = t.margem + t.difal;          // variável mc2 = margem antes do DIFAL → exibida como MC1
-        t.mc1_pct = t.receita > 0 ? (t.mc1 / t.receita * 100) : 0;
-        t.mc2_pct = t.receita > 0 ? (t.mc2 / t.receita * 100) : 0;
-        t.ticket = t.vendas > 0 ? (t.receita / t.vendas) : 0;
-        return t;
-      }, [filtered]);
+      const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, ads: 0, frete: 0, custo: 0, comissao: 0, difal: 0, prejuizo_count: 0, pis_cofins: 0, icms_simples: 0 };
+      filtered.forEach(d => {
+        t.anuncios++;
+        t.vendas += Number(d.qtd_vendas) || 0;
+        t.receita += Number(d.receita) || 0;
+        t.margem += Number(d.margem_valor) || 0;
+        t.ads += Number(d.custo_ads) || 0;
+        t.frete += Number(d.custo_frete) || 0;
+        t.custo += Number(d.custo_produto) || 0;
+        t.comissao += Number(d.comissao) || 0;
+        t.difal += Number(d.difal_reserva) || 0;
+        t.pis_cofins += (Number(d.pis_cofins_debito) || 0) - (Number(d.credito_pis_cofins) || 0);
+        t.icms_simples += Number(d.imposto_simples) || 0;
+        if (Number(d.margem_valor) < 0) t.prejuizo_count++;
+      });
+      t.mc2 = t.margem;
+      t.mc1 = t.margem + t.difal;
+      t.mc1_pct = t.receita > 0 ? (t.mc1 / t.receita * 100) : 0;
+      t.mc2_pct = t.receita > 0 ? (t.mc2 / t.receita * 100) : 0;
+      t.ticket = t.vendas > 0 ? (t.receita / t.vendas) : 0;
+      return t;
+    }, [filtered]);
 
       // Unique filter options
       const filterOpts = useMemo(() => {
@@ -1486,113 +1488,56 @@
               </div>
             ) : (
               <>
-                {/* Vendas Brutas vs Cancelamentos — uses RPC when available */}
-                {(() => {
-                  const hasRpc = !!rpcTotals;
-                  const r = rpcTotals || {};
-                  const qtdEfetivas = hasRpc ? (r.vendas_efetivas || 0) : cancelTotals.qtd_vendas;
-                  const qtdCancel = hasRpc ? (r.vendas_canceladas || 0) : cancelTotals.qtd_cancel;
-                  const valorCancel = hasRpc ? (r.valor_cancelamentos || 0) : cancelTotals.cancelado;
-                  const receita = hasRpc ? (r.receita || 0) : cancelTotals.liquido;
-                  const vendasBrutas = receita + valorCancel;
-                  const qtdTotal = qtdEfetivas + qtdCancel;
-                  const pctCancel = hasRpc ? (r.taxa_cancelamento_pct || 0) : cancelTotals.pct;
-                  const qtdRefund = cancelTotals.qtd_refund;
-                  const refundValor = cancelTotals.refund_valor;
-
-                  if (qtdCancel <= 0 && qtdRefund <= 0) return null;
-                  return (
-                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg font-semibold text-white">Vendas Brutas vs Cancelamentos</span>
-                      <span className="text-xs text-gge-muted">(status das ordens no ML)</span>
-                    </div>
-                    <div className={`grid grid-cols-1 gap-4 items-center ${qtdRefund > 0 ? 'md:grid-cols-7' : 'md:grid-cols-5'}`}>
-                      <div className="text-center">
-                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Brutas</div>
-                        <div className="text-xl font-bold text-white">R$ {fmt(vendasBrutas)}</div>
-                        <div className="text-gge-muted text-xs">{fmtInt(qtdTotal)} ordens</div>
-                      </div>
-                      <div className="text-center text-gge-muted text-2xl hidden md:block">→</div>
-                      <div className="text-center">
-                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Cancelamentos</div>
-                        <div className="text-xl font-bold text-gge-red">- R$ {fmt(valorCancel)}</div>
-                        <div className="text-gge-red text-xs">{fmtInt(qtdCancel)} ordens ({fmtPct(pctCancel)})</div>
-                      </div>
-                      <div className="text-center text-gge-muted text-2xl hidden md:block">→</div>
-                      <div className="text-center">
-                        <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Vendas Realizadas</div>
-                        <div className="text-xl font-bold text-gge-green">R$ {fmt(receita)}</div>
-                        <div className="text-gge-green text-xs">{fmtInt(qtdEfetivas)} ordens efetivas</div>
-                      </div>
-                      {qtdRefund > 0 && (
-                        <>
-                          <div className="text-center text-gge-muted text-2xl hidden md:block">↵</div>
-                          <div className="text-center">
-                            <div className="text-gge-muted text-xs uppercase tracking-wider mb-1">Devoluções Parciais</div>
-                            <div className="text-xl font-bold text-gge-yellow">R$ {fmt(refundValor)}</div>
-                            <div className="text-gge-yellow text-xs">{fmtInt(qtdRefund)} devoluções</div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    {/* Visual proportion bar */}
-                    <div className="mt-4 h-3 rounded-full bg-gge-border overflow-hidden flex">
-                      <div className="bg-gge-green h-full rounded-l-full transition-all" style={{ width: `${100 - pctCancel}%` }} />
-                      <div className="bg-gge-red h-full rounded-r-full transition-all" style={{ width: `${pctCancel}%` }} />
-                    </div>
-                    <div className="flex justify-between mt-1 text-xs text-gge-muted">
-                      <span>Realizadas ({fmtPct(100 - pctCancel)})</span>
-                      <span>Canceladas ({fmtPct(pctCancel)})</span>
-                    </div>
+{/* Vendas Brutas vs Cancelamentos + Ticket & Vendas */}
+          <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+            <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+              {/* Cancel/Refund info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-white mb-3">Vendas Brutas vs Cancelamentos</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-gge-muted text-xs mb-1">Vendas Brutas</div>
+                    <div className="text-white text-lg font-bold">{fmtInt(cancelTotals.qtd_bruta)}</div>
                   </div>
-                  );
-                })()}
+                  <div>
+                    <div className="text-gge-muted text-xs mb-1">Cancelamentos</div>
+                    <div className="text-gge-red text-lg font-bold">{fmtInt(cancelTotals.qtd_cancel)}</div>
+                    <div className="text-gge-muted text-xs">R$ {fmt(cancelTotals.valor_cancel)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gge-muted text-xs mb-1">Devoluções</div>
+                    <div className="text-gge-orange text-lg font-bold">{fmtInt(cancelTotals.qtd_refund)}</div>
+                    <div className="text-gge-muted text-xs">R$ {fmt(cancelTotals.valor_refund)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gge-muted text-xs mb-1">Vendas Efetivas</div>
+                    <div className="text-gge-green text-lg font-bold">{fmtInt(cancelTotals.qtd_bruta - cancelTotals.qtd_cancel - cancelTotals.qtd_refund)}</div>
+                  </div>
+                </div>
+              </div>
+              {/* Ticket + Vendas */}
+              <div className="flex gap-4 lg:border-l lg:border-gge-border lg:pl-6 shrink-0">
+                <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`} icon="🎫" />
+                <MetricCard label="Vendas" value={fmtInt(totals.vendas)} sub={`${fmtInt(totals.anuncios)} anúncios`} icon="🛒" />
+              </div>
+            </div>
+          </div>
 
-                {/* KPI Cards — uses RPC for accurate period data, fallback to view totals */}
-                {(() => {
-                  const r = rpcTotals || {};
-                  const hasRpc = !!rpcTotals;
-                  const rec = hasRpc ? (r.receita || 0) : totals.receita;
-                  const custo = hasRpc ? (r.custo_produto || 0) : totals.custo;
-                  const comissao = hasRpc ? (r.comissao_ml || 0) : totals.comissao;
-                  const frete = hasRpc ? (r.frete || 0) : totals.frete;
-                  const ads = hasRpc ? (r.ads || 0) : totals.ads;
-                  const mc1 = hasRpc ? (r.mc1_valor || 0) : totals.mc1;
-                  const mc1_pct = hasRpc ? (r.mc1_pct || 0) : totals.mc1_pct;
-                  const difal = hasRpc ? (r.difal_valor || 0) : totals.difal;
-                  const mc2 = hasRpc ? (r.mc2_valor || 0) : totals.mc2;
-                  const mc2_pct = hasRpc ? (r.mc2_pct || 0) : totals.mc2_pct;
-                  const ticket = hasRpc ? (r.ticket_medio || 0) : totals.ticket;
-                  const vendas = hasRpc ? (r.vendas_efetivas || 0) : totals.vendas;
-                  return (
-                    <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-                      <MetricCard label="Receita" value={`R$ ${fmt(rec)}`} icon="💰" />
-                      <MetricCard label="Custo Produto" value={`R$ ${fmt(custo)}`}
-                                  sub={rec > 0 ? `${fmtPct(custo/rec*100)} da receita` : ''} icon="📦" />
-                      <MetricCard label="Comissão ML" value={`R$ ${fmt(comissao)}`}
-                                  sub={rec > 0 ? `${fmtPct(comissao/rec*100)} da receita` : ''} icon="🏆" />
-                      <MetricCard label="Frete" value={`R$ ${fmt(frete)}`}
-                                  sub={rec > 0 ? `${fmtPct(frete/rec*100)} da receita` : ''} icon="🚚" />
-                      <MetricCard label="ADs" value={`R$ ${fmt(ads)}`} color="text-gge-yellow"
-                                  sub={rec > 0 ? `${fmtPct(ads/rec*100)} da receita` : ''} icon="📢" />
-                      <MetricCard label="MC2 (c/ DIFAL)" value={`R$ ${fmt(mc1)}`}
-                                  color={mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                                  sub={`${fmtPct(mc1_pct)} da receita`} icon="🏅" />
-                      <MetricCard label="DIFAL" value={`R$ ${fmt(difal)}`} color="text-gge-orange"
-                                  sub={rec > 0 ? `${fmtPct(difal/rec*100)} da receita` : ''} icon="🍰" />
-                      <MetricCard label="MC1 (s/ DIFAL)" value={`R$ ${fmt(mc2)}`}
-                                  color={mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}
-                                  sub={`${fmtPct(mc2_pct)} da receita`} icon="📊" />
-                      <MetricCard label="Ticket Médio" value={`R$ ${fmt(ticket)}`}
-                                  sub={`${fmtInt(vendas)} vendas`} icon="🍕" />
-                      <MetricCard label="Vendas" value={fmtInt(vendas)}
-                                  sub={`${fmtInt(totals.prejuizo_count)} em prejuízo`} icon="🛒" />
-                    </div>
-                  );
-                })()}
+          {/* KPI Cards — Custos + Impostos + MC1 → DIFAL → MC2 */}
+          <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
+            <MetricCard label="Receita" value={`R$ ${fmt(totals.receita)}`} icon="💰" />
+            <MetricCard label="Custo Produto" value={`R$ ${fmt(totals.custo)}`} sub={`${fmtPct(totals.receita > 0 ? totals.custo/totals.receita*100 : 0)} da receita`} icon="📦" />
+            <MetricCard label="Comissão ML" value={`R$ ${fmt(totals.comissao)}`} sub={`${fmtPct(totals.receita > 0 ? totals.comissao/totals.receita*100 : 0)} da receita`} icon="🏆" />
+            <MetricCard label="Frete" value={`R$ ${fmt(totals.frete)}`} sub={`${fmtPct(totals.receita > 0 ? totals.frete/totals.receita*100 : 0)} da receita`} icon="🚚" />
+            <MetricCard label="ADs" value={`R$ ${fmt(totals.ads)}`} sub={`${fmtPct(totals.receita > 0 ? totals.ads/totals.receita*100 : 0)} da receita`} color="text-gge-yellow" icon="📢" />
+            <MetricCard label="ICMS / Simples" value={`R$ ${fmt(totals.icms_simples)}`} sub={`${fmtPct(totals.receita > 0 ? totals.icms_simples/totals.receita*100 : 0)} da receita`} color="text-gge-red" icon="🏛️" />
+            <MetricCard label="PIS & COFINS" value={`R$ ${fmt(totals.pis_cofins)}`} sub={`${fmtPct(totals.receita > 0 ? totals.pis_cofins/totals.receita*100 : 0)} da receita`} color="text-gge-red" icon="📋" />
+            <MetricCard label="MC1" value={`R$ ${fmt(totals.mc1)}`} sub={`${fmtPct(totals.mc1_pct)} da receita`} color={totals.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'} icon="📊" />
+            <MetricCard label="DIFAL" value={`R$ ${fmt(totals.difal)}`} sub={`${fmtPct(totals.receita > 0 ? totals.difal/totals.receita*100 : 0)} da receita`} color="text-gge-orange" icon="⚖️" />
+            <MetricCard label="MC2" value={`R$ ${fmt(totals.mc2)}`} sub={`${fmtPct(totals.mc2_pct)} da receita`} color={totals.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'} icon="🏅" />
+          </div>
 
-                {/* Charts Row */}
+                          {/* Charts Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <GroupsChart data={filtered} />
@@ -1644,8 +1589,8 @@
                 {/* Footer — fórmulas atualizadas MC1/MC2 */}
                 <div className="text-center text-gge-muted text-xs py-8 border-t border-gge-border space-y-1">
                   <p className="font-medium text-gge-text">Controle Total GGE — Dados do Supabase em tempo real</p>
-                  <p><strong>MC1</strong> = Receita - Comissão - Frete - Custo Produto - ADs - Impostos (PIS/COFINS, ICMS, Simples)</p>
-                  <p><strong>MC2</strong> = MC1 - DIFAL (alíq. interna destino - alíq. interestadual, por UF, apenas GGE)</p>
+                  <p><strong>MC1</strong> = Receita − Comissão − Frete − Custo Produto − ADs − ICMS/Simples − PIS&amp;COFINS</p>
+                  <p><strong>MC2</strong> = MC1 − DIFAL (alíq. interna destino − alíq. interestadual, por UF)</p>
                 </div>
               </>
             )}
