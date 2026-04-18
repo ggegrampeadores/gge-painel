@@ -1508,6 +1508,10 @@
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-lg font-semibold text-white">Vendas Brutas vs Cancelamentos</span>
                       <span className="text-xs text-gge-muted">(status das ordens no ML)</span>
+                      <div className="flex gap-3 ml-auto">
+                        <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`} icon="🎫" />
+                        <MetricCard label="Vendas" value={fmtInt(totals.vendas)} sub={`${fmtInt(totals.anuncios)} anúncios`} icon="🛒" />
+                      </div>
                     </div>
                     <div className={`grid grid-cols-1 gap-4 items-center ${qtdRefund > 0 ? 'md:grid-cols-7' : 'md:grid-cols-5'}`}>
                       <div className="text-center">
@@ -1548,10 +1552,6 @@
                       <span>Canceladas ({fmtPct(pctCancel)})</span>
                     </div>
 
-                  <div className="flex gap-4 mt-4 pt-4 border-t border-gge-border/30">
-                    <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`} icon="🎫" />
-                    <MetricCard label="Vendas" value={fmtInt(totals.vendas)} sub={`${fmtInt(totals.anuncios)} anúncios`} icon="🛒" />
-                  </div>
                   </div>
                   );
                 })()}
@@ -1587,8 +1587,8 @@
                                   sub={`${fmtPct(totals.receita > 0 ? totals.icms_simples/totals.receita*100 : 0)} da receita`} color="text-gge-red" icon="🏛️" />
                       <MetricCard label="PIS & COFINS" value={`R$ ${fmt(totals.pis_cofins)}`}
                                   sub={`${fmtPct(totals.receita > 0 ? totals.pis_cofins/totals.receita*100 : 0)} da receita`} color="text-gge-red" icon="📋" />
-                      <MetricCard label="MC1" value={`R$ ${fmt(mc1)}`}
-                                  color={mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'} sub={fmtPct(mc1_pct)} icon="📊" />
+                      <MetricCard label="MC1" value={`R$ ${fmt(mc2 + difal)}`}
+                                  color={(mc2 + difal) >= 0 ? 'text-gge-green' : 'text-gge-red'} sub={fmtPct(rec > 0 ? (mc2 + difal) / rec * 100 : 0)} icon="📊" />
                       <MetricCard label="DIFAL" value={`R$ ${fmt(difal)}`} color="text-gge-orange" icon="🏛️" />
                       <MetricCard label="MC2" value={`R$ ${fmt(mc2)}`}
                                   color={mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'} sub={fmtPct(mc2_pct)} icon="✅" />
