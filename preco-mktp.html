@@ -132,9 +132,9 @@
     }
 
     // ── Cálculo reverso: preço para atingir margem ──
-    // GGE (Lucro Real): comissão sobre (preço-frete), PIS/COFINS 9,25% débito com crédito sobre frete+comissão, ICMS médio 4,4%, DIFAL dinâmico
+    // GGE (Lucro Real): comissão sobre (preço-frete), PIS/COFINS 9,25% débito com crédito sobre frete+comissão, ICMS dinâmico, DIFAL dinâmico
     // Toow (Simples): comissão sobre (preço-frete), DAS 8,65%, sem ICMS/DIFAL/PIS-COFINS
-    function calcPrecoParaMargem(custo, peso, qtd, margemPct, comissaoPct, faixas, modeFrete, regime, semImpostos, difalPctParam) {
+    function calcPrecoParaMargem(custo, peso, qtd, margemPct, comissaoPct, faixas, modeFrete, regime, semImpostos, difalPctParam, icmsPctParam) {
       if (custo <= 0) return null;
       const custoTotal = custo * qtd;
       const pesoTotal = peso * qtd;
@@ -155,7 +155,7 @@
           } else {
             const pisCofinsDebito = preco * 0.0925;
             creditoPisCofins = (frete + comissao) * 0.0925;
-            const icms = preco * 0.044;
+            const icms = preco * (icmsPctParam || 0.044);
             const difal = preco * (difalPctParam || 0.077);
             impostos = pisCofinsDebito - creditoPisCofins + icms + difal;
           }
@@ -176,7 +176,7 @@
         } else {
           const pisCofinsDebito = preco * 0.0925;
           creditoReal = (freteReal + comissaoReal) * 0.0925;
-          impostosReal = pisCofinsDebito - creditoReal + preco * 0.044 + preco * 0.077;
+          impostosReal = pisCofinsDebito - creditoReal + preco * (icmsPctParam || 0.044) + preco * (difalPctParam || 0.077);
         }
       }
 
@@ -190,7 +190,7 @@
     }
 
     // ── Margem atual de um anúncio ──
-    function calcMargemAtual(preco, custo, peso, comissaoPct, faixas, modeFrete, regime, difalPctParam) {
+    function calcMargemAtual(preco, custo, peso, comissaoPct, faixas, modeFrete, regime, difalPctParam, icmsPctParam) {
       const frete = lookupFrete(faixas, modeFrete, peso, preco);
       const comissao = (preco - frete) * (comissaoPct / 100); // comissão sobre preço sem frete
 
@@ -201,7 +201,7 @@
       } else {
         const pisCofinsDebito = preco * 0.0925;
         creditoPisCofins = (frete + comissao) * 0.0925;
-        const icms = preco * 0.044;  // ICMS médio
+        const icms = preco * (icmsPctParam || 0.044);  // ICMS médio dinâmico
         const difal = preco * (difalPctParam || 0.077); // DIFAL médio
         impostos = pisCofinsDebito - creditoPisCofins + icms + difal;
       }
@@ -227,6 +227,7 @@
       const [comissoes, setComissoes] = useState([]);
       const [faixasFrete, setFaixasFrete] = useState([]);
       const [difalPct, setDifalPct] = useState(0.077); // default 7,7%, atualizado dinamicamente
+      const [icmsPct, setIcmsPct] = useState(0.044); // default 4,4%, atualizado dinamicamente
       const [loading, setLoading] = useState(true);
 
       // ── Helper: fetch all rows (bypasses Supabase 1000-row limit) ──
@@ -251,7 +252,7 @@
             fetchAll(() => sb.from('anuncios').select('mlb_id, titulo, sku_vendedor, tipo_listagem, preco_atual, preco_promocional, estoque_declarado, categoria_ml, comissao_efetiva_pct, permalink, status, contas!inner(nome, empresa)').in('status', ['active', 'paused'])),
             sb.from('comissoes_ml').select('categoria_nome, classico_pct, premium_pct').eq('ativo', true),
             sb.from('tabela_frete_ml').select('modo, peso_max_kg, preco_min, preco_max, frete'),
-            sb.from('vw_margem_anuncio_mes').select('receita, difal_reserva'),
+            sb.from('vw_margem_anuncio_mes').select('receita, difal_reserva, icms_debito_valor'),
           ]);
 
           setSkus(skuData.map(r => ({
@@ -281,13 +282,15 @@
             preco_min: Number(r.preco_min), preco_max: Number(r.preco_max), frete: Number(r.frete),
           })));
 
-          // Calcular DIFAL% dinâmico a partir dos dados reais de vendas
+          // Calcular DIFAL% e ICMS% dinâmicos a partir dos dados reais de vendas
           const difalRows = difalRes.data || [];
           if (difalRows.length > 0) {
             const totalReceita = difalRows.reduce((s, r) => s + (Number(r.receita) || 0), 0);
             const totalDifal = difalRows.reduce((s, r) => s + Math.abs(Number(r.difal_reserva) || 0), 0);
+            const totalIcms = difalRows.reduce((s, r) => s + Math.abs(Number(r.icms_debito_valor) || 0), 0);
             if (totalReceita > 0) {
               setDifalPct(totalDifal / totalReceita); // ex: 0.077 = 7,7%
+              if (totalIcms > 0) setIcmsPct(totalIcms / totalReceita); // ex: 0.044 = 4,4%
             }
           }
 
@@ -504,12 +507,12 @@
                         : 0;
 
                       const margemAtual = temCusto && precoMlAtual > 0 && temPeso
-                        ? calcMargemAtual(precoMlAtual, custo, sku.peso, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, difalPct)
+                        ? calcMargemAtual(precoMlAtual, custo, sku.peso, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, difalPct, icmsPct)
                         : null;
 
                       const sugestoes = MARGENS_ALVO.map(m =>
                         temCusto && temPeso
-                          ? calcPrecoParaMargem(custo, sku.peso, 1, m, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct)
+                          ? calcPrecoParaMargem(custo, sku.peso, 1, m, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct, icmsPct)
                           : null
                       );
 
@@ -555,7 +558,7 @@
                             const precoAnuncio = anuncio.preco_promocional || anuncio.preco_atual;
                             const comPctAnuncio = anuncio.comissao_efetiva_pct || getComissaoPct(comissoes, anuncio.categoria_ml, anuncio.tipo_listagem);
                             const margemAnuncio = temCusto && temPeso
-                              ? calcMargemAtual(precoAnuncio, custo, sku.peso, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, difalPct)
+                              ? calcMargemAtual(precoAnuncio, custo, sku.peso, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, difalPct, icmsPct)
                               : null;
 
                             const isAnuncioExp = expandedAnuncio === anuncio.mlb_id;
@@ -563,7 +566,7 @@
 
                             const sugAnuncio = MARGENS_ALVO.map(m =>
                               temCusto && temPeso
-                                ? calcPrecoParaMargem(custo, sku.peso, 1, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct)
+                                ? calcPrecoParaMargem(custo, sku.peso, 1, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct, icmsPct)
                                 : null
                             );
 
@@ -631,7 +634,7 @@
                                           <tbody>
                                             {QTDS_ATACADO.map(qtd => {
                                               const sugAtacado = MARGENS_ALVO.map(m =>
-                                                calcPrecoParaMargem(custo, sku.peso, qtd, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct)
+                                                calcPrecoParaMargem(custo, sku.peso, qtd, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct, icmsPct)
                                               );
                                               return (
                                                 <tr key={qtd} className="border-t border-gge-border/10">
@@ -682,7 +685,7 @@
             <p>* Comissão sobre (preço − frete): {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'} (default {defaultComissao}%, ajustado por categoria quando disponível).</p>
             <p>* Frete calculado pela tabela ML ({origemConfig.modeFrete}) × peso do produto. Atacado: frete consolidado pelo peso total.</p>
             {origemConfig.regime === 'lucro_real' && !semImpostos && (
-              <p>* GGE Lucro Real: PIS+COFINS 9,25% (com crédito sobre frete e comissão) · ICMS médio 4,4% · DIFAL <span className="text-gge-orange font-medium">{(difalPct * 100).toFixed(1)}%</span> (dinâmico, calculado das vendas reais).</p>
+              <p>* GGE Lucro Real: PIS+COFINS 9,25% (com crédito sobre frete e comissão) · ICMS <span className="text-gge-orange font-medium">{(icmsPct * 100).toFixed(1)}%</span> · DIFAL <span className="text-gge-orange font-medium">{(difalPct * 100).toFixed(1)}%</span> (dinâmicos, calculados das vendas reais).</p>
             )}
             {origemConfig.regime === 'simples' && !semImpostos && (
               <p>* Toow Simples Nacional: DAS 8,65% sobre faturamento. Sem ICMS/DIFAL/PIS-COFINS.</p>
