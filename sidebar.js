@@ -5,7 +5,7 @@
   var pages = [
     { href: '/',             icon: '\uD83D\uDCCA', label: 'Dashboard',      key: 'dashboard' },
     { href: '/margem',       icon: '\uD83D\uDCC8', label: 'Margem',         key: 'margem' },
-    { href: '/precificacao', icon: '\uD83C\uDFF7\uFE0F', label: 'Precifica\u00E7\u00E3o', key: 'precificacao' },
+    { href: '/precificacao', icon: '\uD83C\uDFF7\uFE0F', label: 'Tabela VD', key: 'precificacao' },
     { href: '/preco-mktp',   icon: '\uD83D\uDCB2', label: 'Pre\u00E7o MKTP',     key: 'preco-mktp' },
     { href: '/saude',        icon: '\uD83D\uDCAA', label: 'Sa\u00FAde',          key: 'saude' },
     { href: '/avaliacao',    icon: '\u2B50',        label: 'Avalia\u00E7\u00E3o',      key: 'avaliacao' },
