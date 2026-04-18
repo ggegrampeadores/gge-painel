@@ -1549,8 +1549,8 @@
                     </div>
 
                   <div className="flex gap-4 mt-4 pt-4 border-t border-gge-border/30">
-                    <MetricCard label="Ticket Médio" value={`R$ ${fmt(ticket)}`} icon="🎫" />
-                    <MetricCard label="Vendas" value={fmtInt(vendas)} sub={`${fmtInt(totals.anuncios)} anúncios`} icon="🛒" />
+                    <MetricCard label="Ticket Médio" value={`R$ ${fmt(totals.ticket)}`} icon="🎫" />
+                    <MetricCard label="Vendas" value={fmtInt(totals.vendas)} sub={`${fmtInt(totals.anuncios)} anúncios`} icon="🛒" />
                   </div>
                   </div>
                   );
