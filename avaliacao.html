@@ -184,9 +184,10 @@
   </div>
 </div>
 <div class="footer">Controle Total GGE © 2026 — Simulador de Avaliação de Compra</div>
-<script>
-const SB_URL='https://opceujqpqyvxsatzdarg.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+<script src="/config.js"></script>
+    <script>
+const SB_URL = window.GGE_SUPABASE_URL;
+const SB_KEY = window.GGE_SUPABASE_KEY;
 const RATES={comClassico:0.12,comPremium:0.17,pisCofins:0.0664,icmsRj:0.054,difal:0.0715,ads:0.038,simples:0.0865,icmsSp:0.1868};
 let grupos=[],produtos=[],freteTable=[],currentGroup=null,currentAcct='toow';
 async function sbFetch(t,p){const u=SB_URL+'/rest/v1/'+t+'?'+p;const r=await fetch(u,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});if(!r.ok)throw new Error('Supabase '+r.status);return r.json();}
