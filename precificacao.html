@@ -272,10 +272,11 @@
         </div>
     </div>
 
+    <script src="/config.js"></script>
     <script>
     // ── Config ──
-    const SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+    const SUPABASE_URL = window.GGE_SUPABASE_URL;
+    const SUPABASE_KEY = window.GGE_SUPABASE_KEY;
     const PIS_PCT = 1.65;
     const COFINS_PCT = 7.6;
     const MARGINS = [25, 30, 35, 40, 45, 50];

@@ -1,4 +1,4 @@
-// Configuracao centralizada do Supabase - Controle Total GGE
+// Configuração centralizada do Supabase - Controle Total GGE
 // Importar este arquivo ANTES de qualquer script que use Supabase
 (function() {
   window.GGE_SUPABASE_URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
