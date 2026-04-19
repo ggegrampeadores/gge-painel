@@ -121,8 +121,8 @@
         /* Cards Grid */
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 16px;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 10px;
             margin-bottom: 20px;
         }
 
@@ -325,8 +325,8 @@
         .metric-card {
             background-color: #1a1d27;
             border: 1px solid #2a2d3a;
-            border-radius: 10px;
-            padding: 12px;
+            border-radius: 8px;
+            padding: 10px 8px;
             transition: all 0.3s ease;
             cursor: default;
         }
@@ -414,7 +414,7 @@
 
         /* Percentage card styling */
         .metric-card.pct .metric-value {
-            font-size: 28px;
+            font-size: 22px;
             color: #58a6ff;
         }
 
@@ -1276,7 +1276,13 @@
             // 1 card de MARGEM: MC2 (o que sobra após todos os custos e impostos)
             const margensHtml = buildMetricCard('MC2', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem');
 
-            document.getElementById('custos-margens-row').innerHTML = custosOp + custosImp + margensHtml;
+            // MC1 = MC2 + DIFAL (margem antes do DIFAL)
+            const mc1_pct = (data.mc2_pct || 0) + (data.difal_pct || 0);
+            const mc1_valor = (data.mc2_valor || 0) + (data.difal_valor || 0);
+            const prev_mc1_pct = (prev.mc2_pct || 0) + (prev.difal_pct || 0);
+            const mc1Html = buildMetricCard('MC1', fmtPct(mc1_pct), fmt(mc1_valor), calculateTrend(mc1_pct, prev_mc1_pct), true, 'card-margem');
+
+            document.getElementById('custos-margens-row').innerHTML = custosOp + custosImp + margensHtml + mc1Html;
         }
 
         // renderMargensCards agora é parte de renderCustosCards
