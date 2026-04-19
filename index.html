@@ -360,6 +360,15 @@
             background-color: #1d1a24;
         }
 
+        .metric-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
         .metric-value {
             font-size: 20px;
             font-weight: 700;
@@ -1079,11 +1088,9 @@
 
             return `
                 <div class="metric-card ${cardClass}">
+                    <div class="metric-title">${title}</div>
                     <div class="metric-value">${value}</div>
-                    <div class="metric-subtitle">
-                        <span class="metric-subtitle-main">${title}</span>
-                    </div>
-                    <div style="font-size: 11px; color: #8b949e; margin-top: 4px;">${subtitle}</div>
+                    <div style="font-size: 11px; color: #8b949e; margin-top: 2px;">${subtitle}</div>
                     ${trendHtml}
                 </div>
             `;
@@ -1096,10 +1103,8 @@
 
             return `
                 <div class="metric-card indicator ${extraClass}">
+                    <div class="metric-title">${title}</div>
                     <div class="metric-value">${fmtNum(value)}</div>
-                    <div class="metric-subtitle">
-                        <span class="metric-subtitle-main">${title}</span>
-                    </div>
                     <div class="indicator-trend-arrow" style="color: ${color};">${arrow}</div>
                     <div class="indicator-trend-pct">${trendPct > 0 ? '+' : ''}${trendPct.toFixed(1)}%</div>
                 </div>
@@ -1245,35 +1250,33 @@
             document.getElementById('vendas-row').innerHTML = unidadesHtml + valoresHtml + ticketHtml;
         }
 
-        // ========== RENDER CUSTOS + MARGENS (8 cards, 1 linha) ==========
-        // ========== RENDER CUSTOS + MARGENS (8 cards, 1 linha) ==========
+        // ========== RENDER CUSTOS + MARGENS ==========
+        // Custos detalhados + Margem final = soma 100% da receita
+        // Custo Prod + Comissão + Frete + ADs + ICMS + PIS&COFINS + Simples + DIFAL + MC2 = 100%
         function renderCustosCards() {
             const data = currentData;
             const prev = previousData;
 
-            // MC1 correto = MC2 + DIFAL (margem antes do DIFAL)
-            const mc1_valor_real = (data.mc2_valor || 0) + (data.difal_valor || 0);
-            const mc1_pct_real = (data.mc2_pct || 0) + (data.difal_pct || 0);
-            const prev_mc1_valor_real = (prev.mc2_valor || 0) + (prev.difal_valor || 0);
-            const prev_mc1_pct_real = (prev.mc2_pct || 0) + (prev.difal_pct || 0);
-
-            // 5 cards de CUSTOS (Custo Produto, Comissão, Frete, ADs, Impostos)
-            const custosHtml = [
+            // Cards de CUSTOS operacionais (4)
+            const custosOp = [
                 buildMetricCard('Custo Produto', fmtPct(data.custo_produto_pct), fmt(data.custo_produto), calculateTrend(data.custo_produto_pct, prev.custo_produto_pct, true), true, 'card-custo'),
                 buildMetricCard('Comissão ML', fmtPct(data.comissao_ml_pct), fmt(data.comissao_ml), calculateTrend(data.comissao_ml_pct, prev.comissao_ml_pct, true), true, 'card-custo'),
                 buildMetricCard('Frete', fmtPct(data.frete_pct), fmt(data.frete), calculateTrend(data.frete_pct, prev.frete_pct, true), true, 'card-custo'),
-                buildMetricCard('ADs', fmtPct(data.ads_pct), fmt(data.ads), calculateTrend(data.ads_pct, prev.ads_pct, true), true, 'card-custo'),
-                buildMetricCard('Impostos', fmtPct(data.impostos_pct), fmt(data.impostos_valor), calculateTrend(data.impostos_pct, prev.impostos_pct, true), true, 'card-custo')
+                buildMetricCard('ADs', fmtPct(data.ads_pct), fmt(data.ads), calculateTrend(data.ads_pct, prev.ads_pct, true), true, 'card-custo')
             ].join('');
 
-            // 3 cards de MARGENS: MC2 (final), DIFAL, MC1 (= MC2 + DIFAL)
-            const margensHtml = [
-                buildMetricCard('MC2', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem'),
-                buildMetricCard('DIFAL', fmt(data.difal_valor), fmtPct(data.difal_pct), calculateTrend(data.difal_valor, prev.difal_valor), false, 'card-margem'),
-                buildMetricCard('MC1', fmtPct(mc1_pct_real), fmt(mc1_valor_real), calculateTrend(mc1_pct_real, prev_mc1_pct_real), true, 'card-margem')
+            // Cards de IMPOSTOS (4): ICMS, PIS & COFINS, Simples (Toow), DIFAL
+            const custosImp = [
+                buildMetricCard('ICMS', fmtPct(data.icms_debito_pct), fmt(data.icms_debito_valor), calculateTrend(data.icms_debito_pct, prev.icms_debito_pct, true), true, 'card-custo'),
+                buildMetricCard('PIS & COFINS', fmtPct(data.pis_cofins_liq_pct), fmt(data.pis_cofins_liq_valor), calculateTrend(data.pis_cofins_liq_pct, prev.pis_cofins_liq_pct, true), true, 'card-custo'),
+                buildMetricCard('Simples', fmtPct(data.simples_pct), fmt(data.simples_valor), calculateTrend(data.simples_pct, prev.simples_pct, true), true, 'card-custo'),
+                buildMetricCard('DIFAL', fmtPct(data.difal_pct), fmt(data.difal_valor), calculateTrend(data.difal_pct, prev.difal_pct, true), true, 'card-custo')
             ].join('');
 
-            document.getElementById('custos-margens-row').innerHTML = custosHtml + margensHtml;
+            // 1 card de MARGEM: MC2 (o que sobra após todos os custos e impostos)
+            const margensHtml = buildMetricCard('MC2', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem');
+
+            document.getElementById('custos-margens-row').innerHTML = custosOp + custosImp + margensHtml;
         }
 
         // renderMargensCards agora é parte de renderCustosCards
