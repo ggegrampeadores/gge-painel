@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ressarcimentos · Controle Total GGE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js" defer></script>
+  <script src="sidebar.js" defer></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: {
+        'gge-bg':'#0f1117','gge-card':'#1a1d2e','gge-border':'#2a2d3e',
+        'gge-text':'#e2e8f0','gge-muted':'#94a3b8','gge-accent':'#6366f1',
+        'gge-green':'#22c55e','gge-red':'#ef4444','gge-yellow':'#eab308',
+        'gge-orange':'#f97316','gge-cyan':'#22d3ee',
+      }}}
+    }
+  </script>
+  <style>
+    body { background:#0f1117; color:#e2e8f0; font-family:'Inter',system-ui,sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+    const sb = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+
+    // ─── Helpers ──────────────────────────────────────
+    const brl = (v) => v == null ? 'R$ 0,00' : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    const num = (v) => v == null ? '0' : v.toLocaleString('pt-BR');
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+
+    function getDateRange(period) {
+      const now = new Date();
+      const to = now.toISOString().split('T')[0];
+      const ms = { '15d':15, '30d':30, '60d':60, '90d':90 };
+      const days = ms[period] || 60;
+      const from = new Date(now.getTime() - days*86400000).toISOString().split('T')[0];
+      return { from, to };
+    }
+
+    function CopyCell({ text }) {
+      const [copied, setCopied] = React.useState(false);
+      if (!text) return <span className="text-gge-muted">—</span>;
+      const copy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(()=>setCopied(false),1500); };
+      return (
+        <button onClick={copy} className="group flex items-center gap-1 hover:text-gge-yellow transition-colors" title="Copiar">
+          <span className="font-mono text-xs">{text}</span>
+          {copied
+            ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            : <svg className="opacity-0 group-hover:opacity-100" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          }
+        </button>
+      );
+    }
+
+    // SVG icons inline (Lucide-style)
+    const Icon = ({ d, size=16, color='currentColor', extra }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {typeof d === 'string' ? <path d={d}/> : d}
+      </svg>
+    );
+    const WalletIcon = ({size=16,color}) => <Icon size={size} color={color} d={<><rect x="1" y="5" width="22" height="16" rx="2"/><path d="M16 14h.01"/><path d="M1 10h22"/></>}/>;
+    const TruckIcon = ({size=16,color}) => <Icon size={size} color={color} d={<><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>}/>;
+    const PackageXIcon = ({size=16,color}) => <Icon size={size} color={color} d={<><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m7.5 4.21 4.5 2.6 4.5-2.6"/><path d="M12 22V12"/><path d="m3.29 7 8.71 5 8.71-5"/></>}/>;
+    const ClockIcon = ({size=16,color}) => <Icon size={size} color={color} d={<><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></>}/>;
+    const CheckCircleIcon = ({size=16,color}) => <Icon size={size} color={color} d={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></>}/>;
+    const SendIcon = ({size=16,color}) => <Icon size={size} color={color} d={<><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2z"/></>}/>;
+    const AlertIcon = ({size=16,color}) => <Icon size={size} color={color} d={<><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>}/>;
+    const DownloadIcon = ({size=14,color}) => <Icon size={size} color={color} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>}/>;
+    const FilterIcon = ({size=14,color}) => <Icon size={size} color={color} d={<><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></>}/>;
+
+    function statusBadge(status) {
+      const map = {
+        pendente:  { bg:'bg-gge-yellow/15', text:'text-gge-yellow', label:'Pendente' },
+        enviado:   { bg:'bg-blue-500/15', text:'text-blue-400', label:'Enviado ao ML' },
+        aceito:    { bg:'bg-gge-green/15', text:'text-gge-green', label:'Aceito' },
+        negado:    { bg:'bg-gge-red/15', text:'text-gge-red', label:'Negado' },
+      };
+      const s = map[status] || map.pendente;
+      return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${s.bg} ${s.text}`}>{s.label}</span>;
+    }
+
+    // ─── Cálculo de frete esperado ──────────────────
+    function calcFreteEsperado(peso, preco, modo, tabela) {
+      const modoNorm = modo.includes('fulfillment') ? 'full'
+        : modo.includes('coleta') || modo.includes('xd') ? 'coleta'
+        : modo.includes('drop') ? 'drop_off'
+        : modo;
+      const faixas = tabela.filter(f =>
+        f.modo.toLowerCase().includes(modoNorm.toLowerCase()) &&
+        peso <= f.peso_max_kg && preco >= f.preco_min && preco <= f.preco_max
+      );
+      if (faixas.length === 0) return null;
+      faixas.sort((a, b) => a.peso_max_kg - b.peso_max_kg);
+      return faixas[0].frete;
+    }
+
+    // ─── Periods ─────────────────────────────────────
+    const PERIODS = [
+      { value: '15d', label: '15 dias' },
+      { value: '30d', label: '30 dias' },
+      { value: '60d', label: '60 dias' },
+      { value: '90d', label: '90 dias' },
+    ];
+
+    // ─── Fetchers ────────────────────────────────────
+    async function fetchContas() {
+      const { data } = await sb.from('contas').select('id, nome').order('nome');
+      return data || [];
+    }
+
+    async function fetchTabelaFrete() {
+      const { data } = await sb.from('tabela_frete_ml')
+        .select('modo, peso_max_kg, preco_min, preco_max, frete')
+        .order('modo').order('peso_max_kg').order('preco_min');
+      return (data || []).map(r => ({
+        modo: r.modo, peso_max_kg: +r.peso_max_kg,
+        preco_min: +r.preco_min, preco_max: +r.preco_max, frete: +r.frete,
+      }));
+    }
+
+    async function fetchSkusComCusto() {
+      const { data } = await sb.from('skus_custo')
+        .select('sku, descricao, peso, custo_cif_rj, custo_cif_sp, is_combo, unidade')
+        .order('descricao');
+      return (data || []).map(r => ({
+        sku: r.sku, descricao: r.descricao||'', peso: +(r.peso||0),
+        custo_cif_rj: +(r.custo_cif_rj||0), custo_cif_sp: +(r.custo_cif_sp||0),
+        is_combo: r.is_combo||false, unidade: r.unidade||'',
+      }));
+    }
+
+    async function fetchEnviosComFrete(from, to, contaId) {
+      let q = sb.from('envios').select(`
+        ordem_id, shipment_id, status_envio, custo_frete_vendedor, tipo_logistica,
+        data_envio, data_entrega,
+        vendas!inner(mlb_id, data_venda, preco_unitario, quantidade, conta_id,
+          anuncios!inner(titulo, sku_vendedor), contas!inner(nome))
+      `)
+      .gte('data_envio', from+'T00:00:00').lte('data_envio', to+'T23:59:59')
+      .eq('status_envio', 'delivered').gt('custo_frete_vendedor', 0);
+      if (contaId && contaId !== 'all') q = q.eq('vendas.conta_id', contaId);
+      const { data } = await q;
+      return (data || []).map(r => ({
+        ordem_id: r.ordem_id, shipment_id: r.shipment_id,
+        mlb_id: r.vendas?.mlb_id||'', titulo: r.vendas?.anuncios?.titulo||'',
+        sku_vendedor: r.vendas?.anuncios?.sku_vendedor||'',
+        conta_id: r.vendas?.conta_id||'', conta_nome: r.vendas?.contas?.nome||'',
+        data_venda: r.vendas?.data_venda||'', preco_unitario: +(r.vendas?.preco_unitario||0),
+        quantidade: +(r.vendas?.quantidade||1), tipo_logistica: r.tipo_logistica||'',
+        custo_frete_cobrado: +(r.custo_frete_vendedor||0), data_entrega: r.data_entrega||'',
+      }));
+    }
+
+    async function fetchClaimsDevolucao(from, to, contaId) {
+      let q = sb.from('claims').select(`claim_id, mlb_id, tipo, motivo, status, data_criacao,
+        anuncios!inner(titulo, sku_vendedor), contas!inner(nome)`)
+        .eq('tipo','returns')
+        .gte('data_criacao', from+'T00:00:00').lte('data_criacao', to+'T23:59:59')
+        .order('data_criacao', { ascending: false });
+      if (contaId && contaId !== 'all') q = q.eq('conta_id', contaId);
+      const { data } = await q;
+      return (data || []).map(r => ({
+        claim_id: r.claim_id, mlb_id: r.mlb_id||'',
+        titulo: r.anuncios?.titulo||'', sku_vendedor: r.anuncios?.sku_vendedor||'',
+        conta_nome: r.contas?.nome||'', data_criacao: r.data_criacao||'',
+        tipo: r.tipo||'', motivo: r.motivo||'', status: r.status||'',
+      }));
+    }
+
+    async function fetchRessarcimentos(contaId) {
+      let q = sb.from('ressarcimentos')
+        .select('*, anuncios(titulo, sku_vendedor), contas(nome)')
+        .order('data_deteccao', { ascending: false });
+      if (contaId && contaId !== 'all') q = q.eq('conta_id', contaId);
+      const { data } = await q;
+      return (data || []).map(r => ({
+        id: r.id, tipo: r.tipo||'', ordem_id: r.ordem_id||'',
+        claim_id: r.claim_id||null, mlb_id: r.mlb_id||'',
+        titulo: r.anuncios?.titulo||'', sku_vendedor: r.anuncios?.sku_vendedor||'',
+        conta_nome: r.contas?.nome||'',
+        valor_esperado: +(r.valor_esperado||0), valor_cobrado: +(r.valor_cobrado||0),
+        diferenca: +(r.diferenca||0), status_pedido: r.status_pedido||'pendente',
+        data_deteccao: r.data_deteccao||'', data_envio_pedido: r.data_envio_pedido||null,
+        observacao: r.observacao||'',
+      }));
+    }
+
+    // ─── App ─────────────────────────────────────────
+    function App() {
+      const [period, setPeriod] = useState('60d');
+      const [contaId, setContaId] = useState('all');
+      const [contas, setContas] = useState([]);
+      const [envios, setEnvios] = useState([]);
+      const [tabFrete, setTabFrete] = useState([]);
+      const [skus, setSkus] = useState([]);
+      const [devolucoes, setDevolucoes] = useState([]);
+      const [ressarcimentos, setRessarcimentos] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [tab, setTab] = useState('frete');
+      const [filtroStatus, setFiltroStatus] = useState('todos');
+
+      useEffect(() => {
+        fetchContas().then(setContas);
+        fetchTabelaFrete().then(setTabFrete);
+        fetchSkusComCusto().then(setSkus);
+      }, []);
+
+      useEffect(() => {
+        setLoading(true);
+        const { from, to } = getDateRange(period);
+        Promise.all([
+          fetchEnviosComFrete(from, to, contaId),
+          fetchClaimsDevolucao(from, to, contaId),
+          fetchRessarcimentos(contaId),
+        ]).then(([env, dev, ress]) => {
+          setEnvios(env); setDevolucoes(dev); setRessarcimentos(ress);
+          setLoading(false);
+        });
+      }, [period, contaId]);
+
+      // Mapa SKU→peso
+      const skuMap = useMemo(() => {
+        const m = {};
+        for (const s of skus) m[s.sku] = s;
+        return m;
+      }, [skus]);
+
+      // Detectar fretes divergentes
+      const fretesDivergentes = useMemo(() => {
+        if (tabFrete.length === 0) return [];
+        const divs = [];
+        for (const e of envios) {
+          const sku = skuMap[e.sku_vendedor];
+          const peso = sku?.peso ?? 0;
+          if (peso === 0) continue;
+          const freteEsperado = calcFreteEsperado(peso * e.quantidade, e.preco_unitario, e.tipo_logistica, tabFrete);
+          if (freteEsperado === null) continue;
+          const diferenca = e.custo_frete_cobrado - freteEsperado;
+          if (diferenca > 2 && diferenca / freteEsperado > 0.10) {
+            divs.push({
+              ordem_id: e.ordem_id, shipment_id: e.shipment_id,
+              mlb_id: e.mlb_id, titulo: e.titulo, sku_vendedor: e.sku_vendedor,
+              conta_nome: e.conta_nome, data_venda: e.data_venda,
+              preco_unitario: e.preco_unitario, peso,
+              tipo_logistica: e.tipo_logistica,
+              frete_cobrado: e.custo_frete_cobrado,
+              frete_esperado: freteEsperado, diferenca,
+            });
+          }
+        }
+        return divs.sort((a, b) => b.diferenca - a.diferenca);
+      }, [envios, tabFrete, skuMap]);
+
+      // Métricas
+      const metrics = useMemo(() => {
+        const totalDivFrete = fretesDivergentes.reduce((s, f) => s + f.diferenca, 0);
+        const ressPendentes = ressarcimentos.filter(r => r.status_pedido === 'pendente');
+        const ressAceitos = ressarcimentos.filter(r => r.status_pedido === 'aceito');
+        return {
+          qtdDivFrete: fretesDivergentes.length,
+          totalDivFrete,
+          qtdDevolucoes: devolucoes.length,
+          qtdRessPendentes: ressPendentes.length,
+          valorPendente: ressPendentes.reduce((s, r) => s + r.diferenca, 0),
+          valorRecuperado: ressAceitos.reduce((s, r) => s + r.diferenca, 0),
+          totalRessarcimentos: ressarcimentos.length,
+        };
+      }, [fretesDivergentes, devolucoes, ressarcimentos]);
+
+      // Filtro histórico
+      const ressFiltered = useMemo(() => {
+        if (filtroStatus === 'todos') return ressarcimentos;
+        return ressarcimentos.filter(r => r.status_pedido === filtroStatus);
+      }, [ressarcimentos, filtroStatus]);
+
+      // Export CSV
+      const exportCSV = (tipo) => {
+        let csv = '';
+        if (tipo === 'frete') {
+          csv = 'Ordem,Shipment,MLB,SKU,Titulo,Conta,Data,Preco,Peso_kg,Logistica,Frete_Cobrado,Frete_Esperado,Diferenca\n';
+          for (const f of fretesDivergentes) {
+            csv += `${f.ordem_id},${f.shipment_id},${f.mlb_id},${f.sku_vendedor},"${f.titulo}",${f.conta_nome},${fmtDate(f.data_venda)},${f.preco_unitario},${f.peso},${f.tipo_logistica},${f.frete_cobrado},${f.frete_esperado},${f.diferenca}\n`;
+          }
+        } else {
+          csv = 'Claim_ID,MLB,SKU,Titulo,Conta,Data,Tipo,Motivo,Status\n';
+          for (const d of devolucoes) {
+            csv += `${d.claim_id},${d.mlb_id},${d.sku_vendedor},"${d.titulo}",${d.conta_nome},${fmtDate(d.data_criacao)},${d.tipo},${d.motivo},${d.status}\n`;
+          }
+        }
+        const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `ressarcimentos_${tipo}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click(); URL.revokeObjectURL(url);
+      };
+
+      // ─── Skeleton ──────────────────────────────────
+      const Skeleton = () => (
+        <div className="space-y-3">
+          {Array.from({length:6}).map((_,i) => <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse"/>)}
+        </div>
+      );
+
+      return (
+        <div className="min-h-screen">
+          <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6" style={{marginLeft:'48px'}}>
+
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <WalletIcon size={24} color="#eab308"/> Ressarcimentos ML
+                </h1>
+                <p className="text-sm text-gge-muted">Cobranças indevidas de frete e devoluções aceitas sem comprovação — controle e pedidos de estorno</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gge-muted font-medium">Período</label>
+                  <select value={period} onChange={e=>setPeriod(e.target.value)}
+                    className="bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gge-yellow transition-colors">
+                    {PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gge-muted font-medium">Conta</label>
+                  <select value={contaId} onChange={e=>setContaId(e.target.value)}
+                    className="bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gge-yellow transition-colors">
+                    <option value="all">Consolidado</option>
+                    {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* KPI Cards */}
+            {!loading && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1"><TruckIcon size={14} color="#eab308"/>
+                    <p className="text-xs text-gge-muted uppercase tracking-wider">Fretes Divergentes</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white">{num(metrics.qtdDivFrete)}</p>
+                  <p className="text-xs text-gge-yellow mt-1">{brl(metrics.totalDivFrete)} a recuperar</p>
+                </div>
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1"><PackageXIcon size={14} color="#ef4444"/>
+                    <p className="text-xs text-gge-muted uppercase tracking-wider">Devoluções</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white">{num(metrics.qtdDevolucoes)}</p>
+                  <p className="text-xs text-gge-muted mt-1">no período</p>
+                </div>
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1"><ClockIcon size={14} color="#eab308"/>
+                    <p className="text-xs text-gge-muted uppercase tracking-wider">Pendentes</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gge-yellow">{num(metrics.qtdRessPendentes)}</p>
+                  <p className="text-xs text-gge-muted mt-1">{brl(metrics.valorPendente)}</p>
+                </div>
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1"><CheckCircleIcon size={14} color="#22c55e"/>
+                    <p className="text-xs text-gge-muted uppercase tracking-wider">Recuperado</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gge-green">{brl(metrics.valorRecuperado)}</p>
+                  <p className="text-xs text-gge-muted mt-1">total aceito pelo ML</p>
+                </div>
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1"><SendIcon size={14} color="#60a5fa"/>
+                    <p className="text-xs text-gge-muted uppercase tracking-wider">Hist. Total</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white">{num(metrics.totalRessarcimentos)}</p>
+                  <p className="text-xs text-gge-muted mt-1">pedidos registrados</p>
+                </div>
+              </div>
+            )}
+
+            {/* Aviso de ação */}
+            {!loading && (metrics.qtdDivFrete > 0 || metrics.qtdRessPendentes > 0) && (
+              <div className="bg-gge-card border border-gge-yellow/30 rounded-xl p-4 flex items-center gap-3">
+                <AlertIcon size={18} color="#eab308"/>
+                <p className="text-sm text-gge-muted">
+                  <span className="text-white font-medium">{num(metrics.qtdDivFrete + metrics.qtdRessPendentes)} itens</span> precisam de ação.
+                  Exporte o relatório e envie ao Mercado Livre para solicitar os estornos.
+                </p>
+                <div className="ml-auto flex gap-2">
+                  {metrics.qtdDivFrete > 0 && (
+                    <button onClick={()=>exportCSV('frete')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gge-yellow/10 text-gge-yellow text-xs font-medium hover:bg-gge-yellow/20 transition-colors">
+                      <DownloadIcon/> Exportar Fretes
+                    </button>
+                  )}
+                  {metrics.qtdDevolucoes > 0 && (
+                    <button onClick={()=>exportCSV('devolucoes')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gge-yellow/10 text-gge-yellow text-xs font-medium hover:bg-gge-yellow/20 transition-colors">
+                      <DownloadIcon/> Exportar Devoluções
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <div className="flex gap-1 border-b border-gge-border overflow-x-auto">
+              {[
+                { key:'frete', label:'Frete Divergente', count: metrics.qtdDivFrete },
+                { key:'devolucoes', label:'Devoluções', count: metrics.qtdDevolucoes },
+                { key:'historico', label:'Histórico de Pedidos', count: metrics.totalRessarcimentos },
+              ].map(t => (
+                <button key={t.key} onClick={()=>setTab(t.key)}
+                  className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                    tab===t.key ? 'border-gge-yellow text-gge-yellow' : 'border-transparent text-gge-muted hover:text-white'
+                  }`}>
+                  {t.label}
+                  {t.count > 0 && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-white/10">{t.count}</span>}
+                </button>
+              ))}
+            </div>
+
+            {loading && <Skeleton/>}
+
+            {/* ═══ TAB: Frete Divergente ═══ */}
+            {!loading && tab === 'frete' && (
+              <div className="space-y-4">
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <p className="text-sm text-gge-muted">
+                    Envios onde o frete cobrado pelo ML é <span className="text-white font-medium">maior que o esperado pela tabela de frete</span> (diferença {'>'} R$ 2,00 e {'>'} 10%).
+                    Estes valores podem ser reivindicados ao Mercado Livre.
+                    {envios.length > 0 && fretesDivergentes.length === 0 && (
+                      <span className="block mt-1 text-gge-green">Nenhuma divergência detectada nos {num(envios.length)} envios analisados.</span>
+                    )}
+                    {envios.length === 0 && (
+                      <span className="block mt-1 text-gge-yellow">Nenhum envio encontrado no período. Verifique se a coleta de envios está rodando.</span>
+                    )}
+                  </p>
+                </div>
+                {fretesDivergentes.length > 0 && (
+                  <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gge-border text-xs text-gge-muted uppercase tracking-wider">
+                            <th className="text-left px-3 py-3">Ordem</th>
+                            <th className="text-left px-3 py-3">MLB</th>
+                            <th className="text-left px-3 py-3">SKU</th>
+                            <th className="text-left px-3 py-3 hidden lg:table-cell">Título</th>
+                            <th className="text-center px-3 py-3">Peso</th>
+                            <th className="text-center px-3 py-3">Logística</th>
+                            <th className="text-right px-3 py-3">Cobrado</th>
+                            <th className="text-right px-3 py-3">Esperado</th>
+                            <th className="text-right px-3 py-3">Diferença</th>
+                            <th className="text-center px-3 py-3">Data</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fretesDivergentes.map(f => (
+                            <tr key={f.ordem_id} className="border-b border-gge-border/30 hover:bg-white/[0.02] transition-colors">
+                              <td className="px-3 py-2.5"><CopyCell text={f.ordem_id}/></td>
+                              <td className="px-3 py-2.5"><CopyCell text={f.mlb_id}/></td>
+                              <td className="px-3 py-2.5"><CopyCell text={f.sku_vendedor}/></td>
+                              <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[180px] truncate hidden lg:table-cell">{f.titulo}</td>
+                              <td className="text-center px-3 py-2.5 text-xs text-gge-muted">{f.peso.toFixed(1)}kg</td>
+                              <td className="text-center px-3 py-2.5">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gge-muted">{f.tipo_logistica}</span>
+                              </td>
+                              <td className="text-right px-3 py-2.5 text-gge-red font-medium text-xs">{brl(f.frete_cobrado)}</td>
+                              <td className="text-right px-3 py-2.5 text-gge-green font-medium text-xs">{brl(f.frete_esperado)}</td>
+                              <td className="text-right px-3 py-2.5">
+                                <span className="text-gge-yellow font-bold text-xs">+{brl(f.diferenca)}</span>
+                              </td>
+                              <td className="text-center px-3 py-2.5 text-xs text-gge-muted">{fmtDate(f.data_venda)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t border-gge-border bg-white/[0.02]">
+                            <td colSpan={8} className="text-right px-3 py-3 text-xs text-gge-muted font-medium">Total a recuperar:</td>
+                            <td className="text-right px-3 py-3">
+                              <span className="text-gge-yellow font-bold">{brl(fretesDivergentes.reduce((s,f)=>s+f.diferenca,0))}</span>
+                            </td>
+                            <td/>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ TAB: Devoluções ═══ */}
+            {!loading && tab === 'devolucoes' && (
+              <div className="space-y-4">
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <p className="text-sm text-gge-muted">
+                    Devoluções aceitas pelo ML no período. Verifique se o comprador enviou <span className="text-white font-medium">fotos do produto como comprovação</span>.
+                    Quando o ML aceita uma devolução sem fotos, ele é obrigado a ressarcir a sua conta.
+                  </p>
+                </div>
+                {devolucoes.length === 0 ? (
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-12 text-center">
+                    <div className="flex justify-center mb-3"><PackageXIcon size={32} color="#22c55e"/></div>
+                    <p className="text-white font-medium">Nenhuma devolução no período</p>
+                  </div>
+                ) : (
+                  <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gge-border text-xs text-gge-muted uppercase tracking-wider">
+                            <th className="text-left px-3 py-3">Claim ID</th>
+                            <th className="text-left px-3 py-3">MLB</th>
+                            <th className="text-left px-3 py-3">SKU</th>
+                            <th className="text-left px-3 py-3 hidden lg:table-cell">Título</th>
+                            <th className="text-left px-3 py-3">Conta</th>
+                            <th className="text-left px-3 py-3">Motivo</th>
+                            <th className="text-center px-3 py-3">Status</th>
+                            <th className="text-center px-3 py-3">Data</th>
+                            <th className="text-center px-3 py-3">Fotos?</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {devolucoes.map(d => (
+                            <tr key={d.claim_id} className="border-b border-gge-border/30 hover:bg-white/[0.02] transition-colors">
+                              <td className="px-3 py-2.5"><CopyCell text={d.claim_id}/></td>
+                              <td className="px-3 py-2.5"><CopyCell text={d.mlb_id}/></td>
+                              <td className="px-3 py-2.5"><CopyCell text={d.sku_vendedor}/></td>
+                              <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[180px] truncate hidden lg:table-cell">{d.titulo}</td>
+                              <td className="px-3 py-2.5 text-xs text-gge-muted">{d.conta_nome}</td>
+                              <td className="px-3 py-2.5">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gge-muted">{d.motivo || '—'}</span>
+                              </td>
+                              <td className="text-center px-3 py-2.5">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                  d.status==='opened' ? 'bg-gge-yellow/15 text-gge-yellow' : 'bg-white/10 text-gge-muted'
+                                }`}>{d.status==='opened' ? 'Aberto' : 'Fechado'}</span>
+                              </td>
+                              <td className="text-center px-3 py-2.5 text-xs text-gge-muted">{fmtDate(d.data_criacao)}</td>
+                              <td className="text-center px-3 py-2.5">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gge-muted">Verificar</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ TAB: Histórico de Pedidos ═══ */}
+            {!loading && tab === 'historico' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-gge-muted">Pedidos de ressarcimento registrados.</p>
+                  <div className="ml-auto flex items-center gap-2">
+                    <FilterIcon color="#94a3b8"/>
+                    <select value={filtroStatus} onChange={e=>setFiltroStatus(e.target.value)}
+                      className="bg-gge-card border border-gge-border rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gge-yellow transition-colors">
+                      <option value="todos">Todos</option>
+                      <option value="pendente">Pendentes</option>
+                      <option value="enviado">Enviados</option>
+                      <option value="aceito">Aceitos</option>
+                      <option value="negado">Negados</option>
+                    </select>
+                  </div>
+                </div>
+                {ressFiltered.length === 0 ? (
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-12 text-center">
+                    <div className="flex justify-center mb-3"><WalletIcon size={32} color="#94a3b8"/></div>
+                    <p className="text-white font-medium">Nenhum pedido de ressarcimento registrado</p>
+                    <p className="text-sm text-gge-muted mt-1">Quando divergências forem detectadas e enviadas ao ML, aparecerão aqui.</p>
+                  </div>
+                ) : (
+                  <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gge-border text-xs text-gge-muted uppercase tracking-wider">
+                            <th className="text-left px-3 py-3">Tipo</th>
+                            <th className="text-left px-3 py-3">Ordem/Claim</th>
+                            <th className="text-left px-3 py-3">MLB</th>
+                            <th className="text-left px-3 py-3 hidden lg:table-cell">Título</th>
+                            <th className="text-right px-3 py-3">Cobrado</th>
+                            <th className="text-right px-3 py-3">Esperado</th>
+                            <th className="text-right px-3 py-3">Diferença</th>
+                            <th className="text-center px-3 py-3">Status</th>
+                            <th className="text-center px-3 py-3">Detectado</th>
+                            <th className="text-center px-3 py-3">Enviado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ressFiltered.map(r => (
+                            <tr key={r.id} className="border-b border-gge-border/30 hover:bg-white/[0.02] transition-colors">
+                              <td className="px-3 py-2.5">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                  r.tipo==='frete' ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'
+                                }`}>{r.tipo==='frete' ? 'Frete' : 'Devolução'}</span>
+                              </td>
+                              <td className="px-3 py-2.5"><CopyCell text={r.ordem_id || r.claim_id || ''}/></td>
+                              <td className="px-3 py-2.5"><CopyCell text={r.mlb_id}/></td>
+                              <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[180px] truncate hidden lg:table-cell">{r.titulo}</td>
+                              <td className="text-right px-3 py-2.5 text-xs text-gge-muted">{brl(r.valor_cobrado)}</td>
+                              <td className="text-right px-3 py-2.5 text-xs text-gge-muted">{brl(r.valor_esperado)}</td>
+                              <td className="text-right px-3 py-2.5 text-gge-yellow font-medium text-xs">{brl(r.diferenca)}</td>
+                              <td className="text-center px-3 py-2.5">{statusBadge(r.status_pedido)}</td>
+                              <td className="text-center px-3 py-2.5 text-xs text-gge-muted">{fmtDate(r.data_deteccao)}</td>
+                              <td className="text-center px-3 py-2.5 text-xs text-gge-muted">{fmtDate(r.data_envio_pedido)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
