@@ -3,13 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Total GGE - ADs</title>
+  <title>ADs — Controle Total GGE</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -28,6 +26,7 @@
             'gge-yellow': '#eab308',
             'gge-orange': '#f97316',
             'gge-cyan': '#22d3ee',
+            'gge-blue': '#3b82f6',
           }
         }
       }
@@ -44,8 +43,6 @@
     ::-webkit-scrollbar-track { background: #1a1d2e; }
     ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
-    .row-clickable { cursor: pointer; }
-    .row-clickable:hover { background: rgba(99, 102, 241, 0.1) !important; }
   </style>
   <script src="auth.js" defer></script>
   <script src="sidebar.js" defer></script>
@@ -55,35 +52,20 @@
     <div id="root"></div>
   </div>
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback, useRef } = React;
-    const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ComposedChart, Area, Legend } = Recharts;
+    const { useState, useEffect, useMemo } = React;
 
-    // ÂÂ Supabase Client ÂÂ
-    const SUPABASE_URL = window.GGE_SUPABASE_URL;
-    const SUPABASE_ANON = window.GGE_SUPABASE_KEY;
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    const sb = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
-    // ÂÂ Helpers ÂÂ
-    const fmt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtInt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR');
-    const fmtPct = (v) => v == null ? '—' : Number(v).toFixed(1) + '%';
-    const fmtPct2 = (v) => v == null ? '—' : Number(v).toFixed(2) + '%';
-    const fmtR$ = (v) => v == null ? '—' : 'R$ ' + fmt(v);
+    // ── Helpers ──
+    const fmt = v => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtInt = v => v == null ? '—' : Number(v).toLocaleString('pt-BR');
+    const fmtPct = v => v == null ? '—' : Number(v).toFixed(1) + '%';
 
-    const COLORS = {
-      bg: '#0f1117', card: '#1a1d2e', border: '#2a2d3e', text: '#e2e8f0',
-      muted: '#94a3b8', accent: '#6366f1', green: '#22c55e', red: '#ef4444',
-      yellow: '#eab308', orange: '#f97316', cyan: '#22d3ee'
-    };
-
-    // ÂÂ Period helpers ÂÂ
-    const today = () => {
-      const d = new Date(); d.setHours(0,0,0,0); return d;
-    };
+    const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+    const fmtDate = d => d.toISOString().slice(0, 10);
     const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
-    const fmtDate = (d) => d.toISOString().slice(0, 10);
 
-    const PERIODO_OPTIONS = [
+    const PERIODOS = [
       { value: '7d', label: '7 dias' },
       { value: '15d', label: '15 dias' },
       { value: '30d', label: '30 dias' },
@@ -92,727 +74,412 @@
       { value: '90d', label: '90 dias' },
     ];
 
-    function getDateRange(periodo) {
+    function getDateRange(p) {
       const t = today();
-      let start, end, prevStart, prevEnd;
-      if (periodo === 'mes_atual') {
-        start = new Date(t.getFullYear(), t.getMonth(), 1);
-        end = addDays(t, -1);
-        const pm = new Date(t.getFullYear(), t.getMonth() - 1, 1);
-        prevStart = pm;
-        prevEnd = new Date(t.getFullYear(), t.getMonth(), 0);
-      } else if (periodo === 'mes_passado') {
-        start = new Date(t.getFullYear(), t.getMonth() - 1, 1);
-        end = new Date(t.getFullYear(), t.getMonth(), 0);
-        prevStart = new Date(t.getFullYear(), t.getMonth() - 2, 1);
-        prevEnd = new Date(t.getFullYear(), t.getMonth() - 1, 0);
-      } else {
-        const days = parseInt(periodo);
-        end = addDays(t, -1);
-        start = addDays(end, -(days - 1));
-        prevEnd = addDays(start, -1);
-        prevStart = addDays(prevEnd, -(days - 1));
+      if (p === 'mes_atual') return { start: fmtDate(new Date(t.getFullYear(), t.getMonth(), 1)), end: fmtDate(addDays(t, -1)) };
+      if (p === 'mes_passado') return { start: fmtDate(new Date(t.getFullYear(), t.getMonth()-1, 1)), end: fmtDate(new Date(t.getFullYear(), t.getMonth(), 0)) };
+      const days = parseInt(p);
+      const end = addDays(t, -1);
+      return { start: fmtDate(addDays(end, -(days-1))), end: fmtDate(end) };
+    }
+
+    // ── Semáforo: lógica de recomendação ──
+    // Retorna: { cor, texto, prioridade (para ordenação) }
+    function calcRecomendacao(row) {
+      const { gasto, receitaTotal, vendasTotal, vendasAds, mc2, gastoReceitaPct, adsMargPct } = row;
+
+      // Sem gasto = oportunidade (se vende bem)
+      if (gasto <= 0) {
+        if (vendasTotal >= 5) return { cor: 'blue', texto: 'Oportunidade', icon: '🔵', prio: 4 };
+        return { cor: 'muted', texto: '—', icon: '', prio: 5 };
       }
-      return { start: fmtDate(start), end: fmtDate(end), prevStart: fmtDate(prevStart), prevEnd: fmtDate(prevEnd) };
+
+      // 🔴 PARAR: gasto alto sem retorno
+      if (vendasAds === 0 && gasto > 30) return { cor: 'red', texto: 'Parar', icon: '🔴', prio: 1 };
+      if (mc2 < 0 && gasto > 20) return { cor: 'red', texto: 'Parar', icon: '🔴', prio: 1 };
+      if (gastoReceitaPct > 25 && vendasAds < 3) return { cor: 'red', texto: 'Parar', icon: '🔴', prio: 1 };
+
+      // 🟢 BOM: investimento eficiente
+      if (gastoReceitaPct < 8 && mc2 > 0 && vendasAds > 0) return { cor: 'green', texto: 'Bom', icon: '🟢', prio: 3 };
+
+      // 🟡 AVALIAR: intermediário
+      return { cor: 'yellow', texto: 'Avaliar', icon: '🟡', prio: 2 };
     }
 
-    // ÂÂ Section Title Component ÂÂ
-    function SectionTitle({ color, children }) {
-      return (
-        <div className="flex items-center gap-3 mb-4 mt-8">
-          <div className="w-1 h-6 rounded-full" style={{ background: color }}></div>
-          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color }}>{children}</h2>
-        </div>
-      );
+    // ── Fetcher paginado ──
+    async function fetchAll(queryFn) {
+      let all = [], from = 0, size = 1000, done = false;
+      while (!done) {
+        const { data, error } = await queryFn().range(from, from + size - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all = all.concat(data);
+        if (data.length < size) done = true;
+        from += size;
+      }
+      return all;
     }
 
-    // ÂÂ Skeleton Card ÂÂ
-    function SkeletonCard() {
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-          <div className="h-3 w-20 bg-gge-border rounded pulse-load mb-3"></div>
-          <div className="h-7 w-28 bg-gge-border rounded pulse-load mb-2"></div>
-          <div className="h-3 w-16 bg-gge-border rounded pulse-load"></div>
-        </div>
-      );
-    }
-
-    // ÂÂ Variation Badge ÂÂ
-    function VarBadge({ current, previous }) {
-      if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">—</span>;
-      const pct = ((current - previous) / Math.abs(previous)) * 100;
-      const isUp = pct >= 0;
-      const color = isUp ? 'text-gge-green' : 'text-gge-red';
-      const arrow = isUp ? '▲' : '▼';
-      return <span className={`text-xs font-medium ${color}`}>{arrow} {Math.abs(pct).toFixed(1)}%</span>;
-    }
-
-    // ÂÂ Variation Badge for inverted metrics (lower is better, like ACOS/CPC) ÂÂ
-    function VarBadgeInv({ current, previous }) {
-      if (previous == null || previous === 0 || current == null) return <span className="text-xs text-gge-muted">—</span>;
-      const pct = ((current - previous) / Math.abs(previous)) * 100;
-      const isUp = pct >= 0;
-      const color = isUp ? 'text-gge-red' : 'text-gge-green';
-      const arrow = isUp ? '▲' : '▼';
-      return <span className={`text-xs font-medium ${color}`}>{arrow} {Math.abs(pct).toFixed(1)}%</span>;
-    }
-
-    // ÂÂ Custom Tooltip ÂÂ
-    function ChartTooltip({ active, payload, label, formatters }) {
-      if (!active || !payload || !payload.length) return null;
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-lg p-3 shadow-xl">
-          <p className="text-xs text-gge-muted mb-1">{label}</p>
-          {payload.map((p, i) => (
-            <p key={i} className="text-xs font-medium" style={{ color: p.color }}>
-              {p.name}: {formatters && formatters[p.dataKey] ? formatters[p.dataKey](p.value) : fmt(p.value)}
-            </p>
-          ))}
-        </div>
-      );
-    }
-
-    // ÂÂ Main App ÂÂ
+    // ── App ──
     function AdsPage() {
       const [periodo, setPeriodo] = useState('30d');
-      const [conta, setConta] = useState('all');
-      const [campanha, setCampanha] = useState('all');
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
-
-      // Raw data
       const [adsData, setAdsData] = useState([]);
-      const [prevAdsData, setPrevAdsData] = useState([]);
+      const [vendasData, setVendasData] = useState([]);
       const [anuncios, setAnuncios] = useState([]);
-      const [contas, setContas] = useState([]);
       const [margemData, setMargemData] = useState([]);
+      const [sortKey, setSortKey] = useState('gasto');
+      const [sortDir, setSortDir] = useState('desc');
+      const [filtroSinal, setFiltroSinal] = useState('all');
+      const [search, setSearch] = useState('');
 
-      // UI state
-      const [selectedCampaign, setSelectedCampaign] = useState(null);
-      const [sortConfig, setSortConfig] = useState({ key: 'gasto', dir: 'desc' });
-      const [adSortConfig, setAdSortConfig] = useState({ key: 'gasto_ads', dir: 'desc' });
-
-      // ÂÂ Data loading ÂÂ
-      useEffect(() => {
-        loadData();
-      }, [periodo]);
+      useEffect(() => { loadData(); }, [periodo]);
 
       async function loadData() {
         setLoading(true);
         setError(null);
         try {
           const range = getDateRange(periodo);
-
-          // Fetch all in parallel
-          const [adsRes, prevAdsRes, anunciosRes, contasRes, margemRes] = await Promise.all([
-            supabase.from('ads_diario').select('*').gte('data_referencia', range.start).lte('data_referencia', range.end),
-            supabase.from('ads_diario').select('*').gte('data_referencia', range.prevStart).lte('data_referencia', range.prevEnd),
-            supabase.from('anuncios').select('mlb_id, conta_id, titulo, sku_vendedor, status, tipo_listagem, preco_atual'),
-            supabase.from('contas').select('id, nome'),
-            supabase.from('vw_margem_canonica').select('mlb_id, margem_valor, margem_pct, receita, custo_ads_rateado').gte('data_venda', range.start).lte('data_venda', range.end),
+          const [ads, vendas, anunciosRes, margem] = await Promise.all([
+            fetchAll(() => sb.from('ads_diario').select('mlb_id, gasto_ads, receita_ads, vendas_diretas_ads, cliques_ads, impressoes_ads').gte('data_referencia', range.start).lte('data_referencia', range.end)),
+            fetchAll(() => sb.from('vendas').select('mlb_id, preco_total, quantidade, status').gte('data_venda', range.start + 'T00:00:00').lte('data_venda', range.end + 'T23:59:59').neq('status', 'cancelled')),
+            sb.from('anuncios').select('mlb_id, titulo, sku_vendedor, status, tipo_listagem, preco_atual, conta_id').then(r => r.data || []),
+            fetchAll(() => sb.from('vw_margem_canonica').select('mlb_id, margem_valor, receita, custo_ads_rateado').gte('data_venda', range.start + 'T00:00:00').lte('data_venda', range.end + 'T23:59:59')),
           ]);
-
-          if (adsRes.error) throw adsRes.error;
-          if (prevAdsRes.error) throw prevAdsRes.error;
-          if (anunciosRes.error) throw anunciosRes.error;
-          if (contasRes.error) throw contasRes.error;
-          // margemData may fail silently if view not ready
-
-          setAdsData(adsRes.data || []);
-          setPrevAdsData(prevAdsRes.data || []);
-          setAnuncios(anunciosRes.data || []);
-          setContas(contasRes.data || []);
-          setMargemData(margemRes.data || []);
+          setAdsData(ads);
+          setVendasData(vendas);
+          setAnuncios(anunciosRes);
+          setMargemData(margem);
         } catch (err) {
-          console.error('Erro ao carregar dados:', err);
-          setError(err.message || 'Erro ao carregar dados');
+          setError(err.message);
         } finally {
           setLoading(false);
         }
       }
 
-      // ÂÂ Derived: conta map ÂÂ
-      const contaMap = useMemo(() => {
-        const m = {};
-        contas.forEach(c => { m[c.id] = c.nome; });
-        return m;
-      }, [contas]);
-
-      // ÂÂ Derived: anuncio map ÂÂ
+      // ── Mapas auxiliares ──
       const anuncioMap = useMemo(() => {
         const m = {};
         anuncios.forEach(a => { m[a.mlb_id] = a; });
         return m;
       }, [anuncios]);
 
-      // ÂÂ Derived: margem map (grouped by mlb_id) ÂÂ
-      const margemMap = useMemo(() => {
+      // Vendas totais por MLB
+      const vendasPorMlb = useMemo(() => {
         const m = {};
-        margemData.forEach(row => {
-          if (!m[row.mlb_id]) m[row.mlb_id] = { margem_valor: 0, receita: 0, count: 0 };
-          m[row.mlb_id].margem_valor += Number(row.margem_valor || 0);
-          m[row.mlb_id].receita += Number(row.receita || 0);
-          m[row.mlb_id].count++;
+        vendasData.forEach(v => {
+          if (!m[v.mlb_id]) m[v.mlb_id] = { receita: 0, vendas: 0, unidades: 0 };
+          m[v.mlb_id].receita += Number(v.preco_total || 0);
+          m[v.mlb_id].vendas += 1;
+          m[v.mlb_id].unidades += Number(v.quantidade || 1);
         });
-        // compute pct
-        Object.keys(m).forEach(k => {
-          m[k].margem_pct = m[k].receita > 0 ? (m[k].margem_valor / m[k].receita) * 100 : 0;
+        return m;
+      }, [vendasData]);
+
+      // Margem por MLB
+      const margemPorMlb = useMemo(() => {
+        const m = {};
+        margemData.forEach(r => {
+          if (!m[r.mlb_id]) m[r.mlb_id] = { mc2: 0, receita: 0, ads: 0 };
+          m[r.mlb_id].mc2 += Number(r.margem_valor || 0);
+          m[r.mlb_id].receita += Number(r.receita || 0);
+          m[r.mlb_id].ads += Number(r.custo_ads_rateado || 0);
         });
         return m;
       }, [margemData]);
 
-      // ÂÂ Filtered data by conta ÂÂ
-      const filteredAds = useMemo(() => {
-        if (conta === 'all') return adsData;
-        return adsData.filter(row => {
-          const an = anuncioMap[row.mlb_id];
-          if (!an) return false;
-          return contaMap[an.conta_id] === conta;
+      // ── Tabela de decisão: unificar tudo ──
+      const tabelaDecisao = useMemo(() => {
+        // Agregar ads por MLB
+        const adsPorMlb = {};
+        adsData.forEach(r => {
+          if (!adsPorMlb[r.mlb_id]) adsPorMlb[r.mlb_id] = { gasto: 0, receitaAds: 0, vendasAds: 0, cliques: 0, impressoes: 0 };
+          adsPorMlb[r.mlb_id].gasto += Number(r.gasto_ads || 0);
+          adsPorMlb[r.mlb_id].receitaAds += Number(r.receita_ads || 0);
+          adsPorMlb[r.mlb_id].vendasAds += Number(r.vendas_diretas_ads || 0);
+          adsPorMlb[r.mlb_id].cliques += Number(r.cliques_ads || 0);
+          adsPorMlb[r.mlb_id].impressoes += Number(r.impressoes_ads || 0);
         });
-      }, [adsData, conta, anuncioMap, contaMap]);
 
-      const filteredPrevAds = useMemo(() => {
-        if (conta === 'all') return prevAdsData;
-        return prevAdsData.filter(row => {
-          const an = anuncioMap[row.mlb_id];
-          if (!an) return false;
-          return contaMap[an.conta_id] === conta;
-        });
-      }, [prevAdsData, conta, anuncioMap, contaMap]);
+        // Todos os MLBs que têm ADs OU vendas
+        const mlbs = new Set([...Object.keys(adsPorMlb), ...Object.keys(vendasPorMlb)]);
+        const rows = [];
 
-      // ÂÂ Filtered by campanha ÂÂ
-      const finalAds = useMemo(() => {
-        if (campanha === 'all') return filteredAds;
-        return filteredAds.filter(r => String(r.campaign_id) === campanha);
-      }, [filteredAds, campanha]);
+        mlbs.forEach(mlb => {
+          const ads = adsPorMlb[mlb] || { gasto: 0, receitaAds: 0, vendasAds: 0, cliques: 0, impressoes: 0 };
+          const vd = vendasPorMlb[mlb] || { receita: 0, vendas: 0, unidades: 0 };
+          const mg = margemPorMlb[mlb] || { mc2: 0, receita: 0, ads: 0 };
+          const an = anuncioMap[mlb] || {};
 
-      const finalPrevAds = useMemo(() => {
-        if (campanha === 'all') return filteredPrevAds;
-        return filteredPrevAds.filter(r => String(r.campaign_id) === campanha);
-      }, [filteredPrevAds, campanha]);
+          const receitaTotal = vd.receita;
+          const vendasTotal = vd.vendas;
+          const vendasOrg = Math.max(0, vendasTotal - ads.vendasAds);
+          const gastoReceitaPct = receitaTotal > 0 ? (ads.gasto / receitaTotal) * 100 : (ads.gasto > 0 ? 999 : 0);
+          const depAds = vendasTotal > 0 ? (ads.vendasAds / vendasTotal) * 100 : 0;
+          // MC2 sem ads = MC2 + custo_ads (para ver quanto ads come da margem)
+          const mc2SemAds = mg.mc2 + mg.ads;
+          const adsMargPct = mc2SemAds > 0 ? (ads.gasto / mc2SemAds) * 100 : (ads.gasto > 0 ? 999 : 0);
+          const acos = ads.receitaAds > 0 ? (ads.gasto / ads.receitaAds) * 100 : null;
 
-      // ÂÂ Campaign list for filter ÂÂ
-      const campaignList = useMemo(() => {
-        const set = new Set();
-        filteredAds.forEach(r => { if (r.campaign_id) set.add(String(r.campaign_id)); });
-        return Array.from(set).sort();
-      }, [filteredAds]);
-
-      // ÂÂ Conta list for filter ÂÂ
-      const contaNames = useMemo(() => {
-        const names = new Set();
-        contas.forEach(c => names.add(c.nome));
-        return Array.from(names).sort();
-      }, [contas]);
-
-      // ÂÂ KPI calculations ÂÂ
-      function calcKPIs(data) {
-        const gasto = data.reduce((s, r) => s + Number(r.gasto_ads || 0), 0);
-        const receita = data.reduce((s, r) => s + Number(r.receita_ads || 0), 0);
-        const receitaOrg = data.reduce((s, r) => s + Number(r.receita_organica || 0), 0);
-        const vendas = data.reduce((s, r) => s + Number(r.vendas_diretas_ads || 0), 0);
-        const cliques = data.reduce((s, r) => s + Number(r.cliques_ads || 0), 0);
-        const impressoes = data.reduce((s, r) => s + Number(r.impressoes_ads || 0), 0);
-        const acos = receita > 0 ? (gasto / receita) * 100 : null;
-        const roas = gasto > 0 ? receita / gasto : null;
-        const cpc = cliques > 0 ? gasto / cliques : null;
-        const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : null;
-        const tacos = (receita + receitaOrg) > 0 ? (gasto / (receita + receitaOrg)) * 100 : null;
-        return { gasto, receita, receitaOrg, vendas, cliques, impressoes, acos, roas, cpc, ctr, tacos };
-      }
-
-      const kpis = useMemo(() => calcKPIs(finalAds), [finalAds]);
-      const prevKpis = useMemo(() => calcKPIs(finalPrevAds), [finalPrevAds]);
-
-      // ÂÂ Daily aggregation for charts ÂÂ
-      const dailyData = useMemo(() => {
-        const byDate = {};
-        finalAds.forEach(r => {
-          const d = r.data_referencia;
-          if (!byDate[d]) byDate[d] = { date: d, gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0 };
-          byDate[d].gasto += Number(r.gasto_ads || 0);
-          byDate[d].receita += Number(r.receita_ads || 0);
-          byDate[d].cliques += Number(r.cliques_ads || 0);
-          byDate[d].impressoes += Number(r.impressoes_ads || 0);
-          byDate[d].vendas += Number(r.vendas_diretas_ads || 0);
-        });
-        return Object.values(byDate)
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .map(d => ({
-            ...d,
-            dateLabel: new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-            ctr: d.impressoes > 0 ? (d.cliques / d.impressoes) * 100 : 0,
-            acos: d.receita > 0 ? (d.gasto / d.receita) * 100 : 0,
-          }));
-      }, [finalAds]);
-
-      // ÂÂ Campaign aggregation ÂÂ
-      const campaignData = useMemo(() => {
-        const byCamp = {};
-        filteredAds.forEach(r => {
-          const cid = r.campaign_id ? String(r.campaign_id) : 'sem_campanha';
-          if (!byCamp[cid]) byCamp[cid] = {
-            campaign_id: cid, strategy: r.strategy || '—',
-            gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0, mlbs: new Set(),
-            advertiser_id: r.advertiser_id
+          const row = {
+            mlb, gasto: ads.gasto, receitaAds: ads.receitaAds, vendasAds: ads.vendasAds,
+            cliques: ads.cliques, impressoes: ads.impressoes,
+            receitaTotal, vendasTotal, vendasOrg, gastoReceitaPct, depAds,
+            mc2: mg.mc2, mc2SemAds, adsMargPct, acos,
+            titulo: an.titulo || mlb, sku: an.sku_vendedor || '—', status: an.status,
           };
-          byCamp[cid].gasto += Number(r.gasto_ads || 0);
-          byCamp[cid].receita += Number(r.receita_ads || 0);
-          byCamp[cid].cliques += Number(r.cliques_ads || 0);
-          byCamp[cid].impressoes += Number(r.impressoes_ads || 0);
-          byCamp[cid].vendas += Number(r.vendas_diretas_ads || 0);
-          if (r.mlb_id) byCamp[cid].mlbs.add(r.mlb_id);
-          if (r.strategy) byCamp[cid].strategy = r.strategy;
+          row.rec = calcRecomendacao(row);
+          rows.push(row);
         });
-        return Object.values(byCamp).map(c => ({
-          ...c,
-          anuncios: c.mlbs.size,
-          acos: c.receita > 0 ? (c.gasto / c.receita) * 100 : null,
-          cpc: c.cliques > 0 ? c.gasto / c.cliques : null,
-          conta: (() => {
-            // find conta via any mlb in this campaign
-            for (const mlb of c.mlbs) {
-              const an = anuncioMap[mlb];
-              if (an && an.conta_id) return contaMap[an.conta_id] || '—';
-            }
-            return '—';
-          })(),
-        }));
-      }, [filteredAds, anuncioMap, contaMap]);
 
-      // ÂÂ Sort campaigns ÂÂ
-      const sortedCampaigns = useMemo(() => {
-        const arr = [...campaignData];
-        arr.sort((a, b) => {
-          const av = a[sortConfig.key] ?? 0;
-          const bv = b[sortConfig.key] ?? 0;
-          return sortConfig.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+        return rows;
+      }, [adsData, vendasPorMlb, margemPorMlb, anuncioMap]);
+
+      // ── Filtro e ordenação ──
+      const tabelaFiltrada = useMemo(() => {
+        let rows = tabelaDecisao;
+
+        // Filtro por sinal
+        if (filtroSinal === 'parar') rows = rows.filter(r => r.rec.cor === 'red');
+        else if (filtroSinal === 'avaliar') rows = rows.filter(r => r.rec.cor === 'yellow');
+        else if (filtroSinal === 'bom') rows = rows.filter(r => r.rec.cor === 'green');
+        else if (filtroSinal === 'oportunidade') rows = rows.filter(r => r.rec.cor === 'blue');
+        else if (filtroSinal === 'com_ads') rows = rows.filter(r => r.gasto > 0);
+
+        // Busca
+        if (search) {
+          const q = search.toLowerCase();
+          rows = rows.filter(r => r.titulo.toLowerCase().includes(q) || r.sku.toLowerCase().includes(q) || r.mlb.toLowerCase().includes(q));
+        }
+
+        // Ordenação
+        rows = [...rows].sort((a, b) => {
+          let av, bv;
+          if (sortKey === 'rec') { av = a.rec.prio; bv = b.rec.prio; }
+          else { av = a[sortKey] ?? -Infinity; bv = b[sortKey] ?? -Infinity; }
+          return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
         });
-        return arr;
-      }, [campaignData, sortConfig]);
 
-      // ÂÂ Ad-level aggregation ÂÂ
-      const adData = useMemo(() => {
-        const targetAds = selectedCampaign
-          ? filteredAds.filter(r => String(r.campaign_id) === selectedCampaign)
-          : finalAds;
+        return rows;
+      }, [tabelaDecisao, filtroSinal, search, sortKey, sortDir]);
 
-        const byMlb = {};
-        targetAds.forEach(r => {
-          if (!byMlb[r.mlb_id]) byMlb[r.mlb_id] = { mlb_id: r.mlb_id, gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0 };
-          byMlb[r.mlb_id].gasto += Number(r.gasto_ads || 0);
-          byMlb[r.mlb_id].receita += Number(r.receita_ads || 0);
-          byMlb[r.mlb_id].cliques += Number(r.cliques_ads || 0);
-          byMlb[r.mlb_id].impressoes += Number(r.impressoes_ads || 0);
-          byMlb[r.mlb_id].vendas += Number(r.vendas_diretas_ads || 0);
-        });
-        return Object.values(byMlb).map(ad => {
-          const an = anuncioMap[ad.mlb_id] || {};
-          const mg = margemMap[ad.mlb_id] || {};
-          const acos = ad.receita > 0 ? (ad.gasto / ad.receita) * 100 : null;
-          const ctr = ad.impressoes > 0 ? (ad.cliques / ad.impressoes) * 100 : null;
-          const conv = ad.cliques > 0 ? (ad.vendas / ad.cliques) * 100 : null;
-          const mc2_total = mg.margem_valor || 0;
-          const mc2_pct = mg.margem_pct || 0;
+      // ── KPIs consolidados ──
+      const kpis = useMemo(() => {
+        const comAds = tabelaDecisao.filter(r => r.gasto > 0);
+        const gastoTotal = comAds.reduce((s, r) => s + r.gasto, 0);
+        const receitaTotalAds = comAds.reduce((s, r) => s + r.receitaTotal, 0);
+        const mc2Total = comAds.reduce((s, r) => s + r.mc2, 0);
+        const vendasAdsTotal = comAds.reduce((s, r) => s + r.vendasAds, 0);
+        const vendasTotalAll = comAds.reduce((s, r) => s + r.vendasTotal, 0);
+        const parar = comAds.filter(r => r.rec.cor === 'red').length;
+        const bom = comAds.filter(r => r.rec.cor === 'green').length;
+        const avaliar = comAds.filter(r => r.rec.cor === 'yellow').length;
+        const oportunidades = tabelaDecisao.filter(r => r.rec.cor === 'blue').length;
+        return {
+          gastoTotal, receitaTotalAds, mc2Total,
+          eficiencia: receitaTotalAds > 0 ? (gastoTotal / receitaTotalAds * 100) : 0,
+          vendasAdsTotal, vendasTotalAll,
+          depMedia: vendasTotalAll > 0 ? (vendasAdsTotal / vendasTotalAll * 100) : 0,
+          totalComAds: comAds.length, parar, bom, avaliar, oportunidades,
+        };
+      }, [tabelaDecisao]);
 
-          let veredicto = 'yellow';
-          if (mc2_total > 0 && acos != null && acos < 10) veredicto = 'green';
-          else if (mc2_total < 0) veredicto = 'red';
-          else if (ad.cliques > 20 && ad.vendas === 0) veredicto = 'red';
-
-          return {
-            ...ad,
-            titulo: an.titulo || ad.mlb_id,
-            sku: an.sku_vendedor || '—',
-            acos, ctr, conv, mc2_total, mc2_pct, veredicto
-          };
-        });
-      }, [finalAds, filteredAds, selectedCampaign, anuncioMap, margemMap]);
-
-      // ÂÂ Sort ads ÂÂ
-      const sortedAds = useMemo(() => {
-        const arr = [...adData];
-        arr.sort((a, b) => {
-          const av = a[adSortConfig.key] ?? -Infinity;
-          const bv = b[adSortConfig.key] ?? -Infinity;
-          return adSortConfig.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
-        });
-        return arr;
-      }, [adData, adSortConfig]);
-
-      // ÂÂ Sort handler ÂÂ
-      function handleSort(config, setConfig, key) {
-        setConfig(prev => ({
-          key,
-          dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc'
-        }));
+      // ── Sort handler ──
+      function doSort(key) {
+        if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+        else { setSortKey(key); setSortDir('desc'); }
+      }
+      function SortArrow({ col }) {
+        if (sortKey !== col) return <span className="text-gge-border ml-0.5">↕</span>;
+        return <span className="text-gge-accent ml-0.5">{sortDir === 'asc' ? '▲' : '▼'}</span>;
       }
 
-      function SortArrow({ config, col }) {
-        if (config.key !== col) return <span className="text-gge-border ml-1">↕</span>;
-        return <span className="text-gge-accent ml-1">{config.dir === 'asc' ? '▲' : '▼'}</span>;
-      }
-
-      // ÂÂ ACOS color ÂÂ
-      function acosColor(v) {
-        if (v == null) return COLORS.muted;
-        if (v < 5) return COLORS.green;
-        if (v <= 10) return COLORS.yellow;
-        return COLORS.red;
-      }
-
-      // ÂÂ Render ÂÂ
-      if (error) {
-        return (
-          <div className="p-6 max-w-7xl mx-auto">
-            <div className="bg-red-900/30 border border-red-700 rounded-lg p-6 text-center">
-              <p className="text-gge-red font-semibold mb-2">Erro ao carregar dados</p>
-              <p className="text-gge-muted text-sm">{error}</p>
-              <button onClick={loadData} className="mt-4 px-4 py-2 bg-gge-accent text-white rounded-lg text-sm hover:opacity-90">
-                Tentar novamente
-              </button>
-            </div>
+      // ── Render ──
+      if (error) return (
+        <div className="p-6 max-w-7xl mx-auto">
+          <div className="bg-red-900/30 border border-red-700 rounded-lg p-6 text-center">
+            <p className="text-gge-red font-semibold mb-2">Erro ao carregar dados</p>
+            <p className="text-gge-muted text-sm">{error}</p>
+            <button onClick={loadData} className="mt-4 px-4 py-2 bg-gge-accent text-white rounded-lg text-sm">Tentar novamente</button>
           </div>
-        );
-      }
+        </div>
+      );
 
       return (
-        <div className="p-4 md:p-6 max-w-[1400px] mx-auto fade-in">
+        <div className="p-4 md:p-6 max-w-[1500px] mx-auto fade-in">
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-xl md:text-2xl font-bold text-gge-text">ADs &mdash; Publicidade Mercado Livre</h1>
-            <p className="text-sm text-gge-muted mt-1">Análise de campanhas, gastos e performance de anúncios patrocinados</p>
+          <div className="mb-4">
+            <h1 className="text-xl md:text-2xl font-bold text-gge-text">ADs — Decisão de Investimento</h1>
+            <p className="text-sm text-gge-muted mt-1">Onde investir, onde parar, onde está o retorno</p>
           </div>
 
-          {/* ÂÂ FILTERS BAR ÂÂ */}
-          <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6 flex flex-wrap gap-4 items-end">
+          {/* Filtros */}
+          <div className="bg-gge-card border border-gge-border rounded-lg p-3 mb-4 flex flex-wrap gap-3 items-end">
             <div>
-              <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Período</label>
+              <label className="text-[10px] text-gge-muted uppercase tracking-wider block mb-1">Período</label>
               <select value={periodo} onChange={e => setPeriodo(e.target.value)}
-                className="bg-gge-bg border border-gge-border rounded-md px-3 py-2 text-sm text-gge-text focus:border-gge-accent outline-none">
-                {PERIODO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                className="bg-gge-bg border border-gge-border rounded px-3 py-1.5 text-sm text-gge-text focus:border-gge-accent outline-none">
+                {PERIODOS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Conta</label>
-              <select value={conta} onChange={e => { setConta(e.target.value); setCampanha('all'); setSelectedCampaign(null); }}
-                className="bg-gge-bg border border-gge-border rounded-md px-3 py-2 text-sm text-gge-text focus:border-gge-accent outline-none">
-                <option value="all">Consolidado</option>
-                {contaNames.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <label className="text-[10px] text-gge-muted uppercase tracking-wider block mb-1">Busca</label>
+              <input type="text" placeholder="Título, SKU ou MLB..." value={search} onChange={e => setSearch(e.target.value)}
+                className="bg-gge-bg border border-gge-border rounded px-3 py-1.5 text-sm text-gge-text focus:border-gge-accent outline-none w-56" />
             </div>
-            <div>
-              <label className="text-xs text-gge-muted uppercase tracking-wider block mb-1">Campanha</label>
-              <select value={campanha} onChange={e => { setCampanha(e.target.value); setSelectedCampaign(null); }}
-                className="bg-gge-bg border border-gge-border rounded-md px-3 py-2 text-sm text-gge-text focus:border-gge-accent outline-none min-w-[160px]">
-                <option value="all">Todas</option>
-                {campaignList.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            {(conta !== 'all' || campanha !== 'all') && (
-              <button onClick={() => { setConta('all'); setCampanha('all'); setSelectedCampaign(null); }}
-                className="text-xs text-gge-accent hover:text-white transition-colors px-3 py-2">
-                Limpar filtros
-              </button>
-            )}
           </div>
 
-          {/* ÂÂ BLOCK 1: KPI CARDS ÂÂ */}
           {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              {/* Gasto Total */}
-              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Gasto Total</div>
-                <div className="text-lg md:text-xl font-bold text-gge-text">{fmtR$(kpis.gasto)}</div>
-                <VarBadgeInv current={kpis.gasto} previous={prevKpis.gasto} />
-              </div>
-              {/* Receita ADs */}
-              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Receita ADs</div>
-                <div className="text-lg md:text-xl font-bold text-gge-green">{fmtR$(kpis.receita)}</div>
-                <VarBadge current={kpis.receita} previous={prevKpis.receita} />
-              </div>
-              {/* ACOS */}
-              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">ACOS</div>
-                <div className="text-lg md:text-xl font-bold" style={{ color: acosColor(kpis.acos) }}>{fmtPct(kpis.acos)}</div>
-                <VarBadgeInv current={kpis.acos} previous={prevKpis.acos} />
-              </div>
-              {/* ROAS */}
-              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">ROAS</div>
-                <div className="text-lg md:text-xl font-bold text-gge-accent">{kpis.roas != null ? kpis.roas.toFixed(2) + 'x' : '—'}</div>
-                <VarBadge current={kpis.roas} previous={prevKpis.roas} />
-              </div>
-              {/* Vendas ADs */}
-              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Vendas ADs</div>
-                <div className="text-lg md:text-xl font-bold text-gge-text">{fmtInt(kpis.vendas)}</div>
-                <VarBadge current={kpis.vendas} previous={prevKpis.vendas} />
-              </div>
-              {/* CPC Médio */}
-              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">CPC Médio</div>
-                <div className="text-lg md:text-xl font-bold text-gge-text">{fmtR$(kpis.cpc)}</div>
-                <VarBadgeInv current={kpis.cpc} previous={prevKpis.cpc} />
-              </div>
-              {/* CTR Médio */}
-              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">CTR Médio</div>
-                <div className="text-lg md:text-xl font-bold text-gge-text">{fmtPct2(kpis.ctr)}</div>
-                <VarBadge current={kpis.ctr} previous={prevKpis.ctr} />
-              </div>
-              {/* TACOS */}
-              <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">TACOS</div>
-                <div className="text-lg md:text-xl font-bold text-gge-orange">{fmtPct(kpis.tacos)}</div>
-                <VarBadgeInv current={kpis.tacos} previous={prevKpis.tacos} />
-              </div>
-            </div>
-          )}
-
-          {/* ÂÂ BLOCK 2: VISITAÇÃO ÂÂ */}
-          <SectionTitle color={COLORS.orange}>Visitação</SectionTitle>
-
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-              {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              {[...Array(4)].map((_, i) => <div key={i} className="bg-gge-card border border-gge-border rounded-lg p-4"><div className="h-12 pulse-load bg-gge-border rounded"></div></div>)}
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                {/* Impressões */}
+              {/* KPI Cards — 4 essenciais */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Impressões Totais</div>
-                  <div className="text-xl font-bold text-gge-text">{fmtInt(kpis.impressoes)}</div>
-                  <VarBadge current={kpis.impressoes} previous={prevKpis.impressoes} />
+                  <div className="text-[10px] text-gge-muted uppercase tracking-wider mb-1">Gasto Total em ADs</div>
+                  <div className="text-lg font-bold text-gge-red">R$ {fmt(kpis.gastoTotal)}</div>
+                  <div className="text-xs text-gge-muted mt-1">{kpis.totalComAds} anúncios com ADs</div>
                 </div>
-                {/* Cliques */}
                 <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-1">Cliques Totais</div>
-                  <div className="text-xl font-bold text-gge-cyan">{fmtInt(kpis.cliques)}</div>
-                  <VarBadge current={kpis.cliques} previous={prevKpis.cliques} />
+                  <div className="text-[10px] text-gge-muted uppercase tracking-wider mb-1">Gasto / Receita Total</div>
+                  <div className="text-lg font-bold" style={{ color: kpis.eficiencia < 8 ? '#22c55e' : kpis.eficiencia < 15 ? '#eab308' : '#ef4444' }}>{fmtPct(kpis.eficiencia)}</div>
+                  <div className="text-xs text-gge-muted mt-1">Quanto da receita vai para ADs</div>
                 </div>
-                {/* Funil */}
                 <div className="bg-gge-card border border-gge-border rounded-lg p-4">
-                  <div className="text-xs text-gge-muted uppercase tracking-wider mb-2">Funil de Conversão</div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gge-text font-semibold">{fmtInt(kpis.impressoes)}</span>
-                    <span className="text-gge-muted">→</span>
-                    <span className="text-gge-cyan font-semibold">{fmtInt(kpis.cliques)}</span>
-                    <span className="text-xs text-gge-yellow">({fmtPct2(kpis.ctr)} CTR)</span>
-                    <span className="text-gge-muted">→</span>
-                    <span className="text-gge-green font-semibold">{fmtInt(kpis.vendas)}</span>
-                    <span className="text-xs text-gge-green">({kpis.cliques > 0 ? fmtPct2((kpis.vendas / kpis.cliques) * 100) : '—'} Conv)</span>
-                  </div>
-                  <div className="mt-2 flex gap-1 h-2 rounded overflow-hidden">
-                    <div className="bg-gge-accent rounded" style={{ width: '100%' }} title="Impressões"></div>
-                    <div className="bg-gge-cyan rounded" style={{ width: kpis.impressoes > 0 ? Math.max((kpis.cliques / kpis.impressoes) * 100, 2) + '%' : '0%' }} title="Cliques"></div>
-                    <div className="bg-gge-green rounded" style={{ width: kpis.impressoes > 0 ? Math.max((kpis.vendas / kpis.impressoes) * 100, 1) + '%' : '0%' }} title="Vendas"></div>
-                  </div>
+                  <div className="text-[10px] text-gge-muted uppercase tracking-wider mb-1">Dependência de ADs</div>
+                  <div className="text-lg font-bold text-gge-orange">{fmtPct(kpis.depMedia)}</div>
+                  <div className="text-xs text-gge-muted mt-1">{fmtInt(kpis.vendasAdsTotal)} de {fmtInt(kpis.vendasTotalAll)} vendas via ADs</div>
+                </div>
+                <div className="bg-gge-card border border-gge-border rounded-lg p-4">
+                  <div className="text-[10px] text-gge-muted uppercase tracking-wider mb-1">MC2 (com ADs)</div>
+                  <div className="text-lg font-bold" style={{ color: kpis.mc2Total >= 0 ? '#22c55e' : '#ef4444' }}>R$ {fmt(kpis.mc2Total)}</div>
+                  <div className="text-xs text-gge-muted mt-1">Margem líquida dos anúncios com ADs</div>
                 </div>
               </div>
 
-              {/* Visitação Chart */}
-              {dailyData.length > 0 && (
-                <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
-                  <h3 className="text-sm font-semibold text-gge-text mb-4">Impressões, Cliques & CTR por dia</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <ComposedChart data={dailyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-                      <XAxis dataKey="dateLabel" tick={{ fill: COLORS.muted, fontSize: 11 }} />
-                      <YAxis yAxisId="left" tick={{ fill: COLORS.muted, fontSize: 11 }} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fill: COLORS.yellow, fontSize: 11 }} unit="%" />
-                      <Tooltip content={<ChartTooltip formatters={{
-                        impressoes: fmtInt, cliques: fmtInt, ctr: v => fmtPct2(v)
-                      }} />} />
-                      <Bar yAxisId="left" dataKey="impressoes" name="Impressões" fill={COLORS.accent} opacity={0.3} radius={[2,2,0,0]} />
-                      <Line yAxisId="left" dataKey="cliques" name="Cliques" stroke={COLORS.cyan} strokeWidth={2} dot={false} />
-                      <Line yAxisId="right" dataKey="ctr" name="CTR %" stroke={COLORS.yellow} strokeWidth={2} dot={false} strokeDasharray="4 2" />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+              {/* Semáforo summary + filtro */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {[
+                  { key: 'com_ads', label: `Todos com ADs (${kpis.totalComAds})`, color: 'gge-text' },
+                  { key: 'parar', label: `🔴 Parar (${kpis.parar})`, color: 'gge-red' },
+                  { key: 'avaliar', label: `🟡 Avaliar (${kpis.avaliar})`, color: 'gge-yellow' },
+                  { key: 'bom', label: `🟢 Bom (${kpis.bom})`, color: 'gge-green' },
+                  { key: 'oportunidade', label: `🔵 Oportunidades (${kpis.oportunidades})`, color: 'gge-blue' },
+                ].map(f => (
+                  <button key={f.key}
+                    onClick={() => setFiltroSinal(prev => prev === f.key ? 'all' : f.key)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      filtroSinal === f.key
+                        ? 'bg-gge-accent/20 border-gge-accent text-white'
+                        : 'bg-gge-card border-gge-border text-gge-muted hover:border-gge-accent/50'
+                    }`}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* ══ TABELA DE DECISÃO ══ */}
+              <div className="bg-gge-card border border-gge-border rounded-lg overflow-hidden mb-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-gge-muted text-[10px] uppercase tracking-wider bg-gge-bg">
+                        {[
+                          { key: 'rec', label: 'Sinal', w: '60px' },
+                          { key: 'titulo', label: 'Anúncio', w: '220px' },
+                          { key: 'gasto', label: 'Investido' },
+                          { key: 'receitaTotal', label: 'Receita Total' },
+                          { key: 'gastoReceitaPct', label: 'Invest/Receita' },
+                          { key: 'vendasTotal', label: 'Vendas' },
+                          { key: 'vendasAds', label: 'Via ADs' },
+                          { key: 'vendasOrg', label: 'Orgânicas' },
+                          { key: 'depAds', label: 'Dep. ADs' },
+                          { key: 'mc2', label: 'MC2' },
+                          { key: 'adsMargPct', label: 'ADs/Margem' },
+                          { key: 'acos', label: 'ACOS' },
+                        ].map(col => (
+                          <th key={col.key}
+                            className="px-2 py-2.5 text-left cursor-pointer hover:text-gge-text transition-colors whitespace-nowrap"
+                            style={col.w ? { width: col.w } : {}}
+                            onClick={() => doSort(col.key)}>
+                            {col.label}<SortArrow col={col.key} />
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tabelaFiltrada.length === 0 ? (
+                        <tr><td colSpan={12} className="text-center text-gge-muted py-8">Nenhum anúncio encontrado</td></tr>
+                      ) : tabelaFiltrada.map((r, i) => {
+                        const recColor = r.rec.cor === 'red' ? 'bg-red-900/10' : r.rec.cor === 'green' ? 'bg-green-900/10' : r.rec.cor === 'blue' ? 'bg-blue-900/10' : '';
+                        return (
+                          <tr key={r.mlb} className={`border-t border-gge-border/30 hover:bg-gge-accent/5 transition-colors ${recColor}`}>
+                            <td className="px-2 py-2 text-center text-sm" title={r.rec.texto}>{r.rec.icon}</td>
+                            <td className="px-2 py-2">
+                              <div className="text-xs text-gge-text truncate max-w-[220px]" title={r.titulo}>{r.titulo}</div>
+                              <div className="text-[10px] text-gge-muted font-mono">{r.sku}</div>
+                            </td>
+                            <td className="px-2 py-2 text-xs font-medium text-gge-red text-right">R$ {fmt(r.gasto)}</td>
+                            <td className="px-2 py-2 text-xs text-right">{r.receitaTotal > 0 ? `R$ ${fmt(r.receitaTotal)}` : '—'}</td>
+                            <td className="px-2 py-2 text-xs font-bold text-right" style={{
+                              color: r.gastoReceitaPct === 0 ? '#94a3b8' : r.gastoReceitaPct < 8 ? '#22c55e' : r.gastoReceitaPct < 15 ? '#eab308' : '#ef4444'
+                            }}>
+                              {r.gasto > 0 ? (r.gastoReceitaPct >= 999 ? '∞' : fmtPct(r.gastoReceitaPct)) : '—'}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-center font-medium">{fmtInt(r.vendasTotal)}</td>
+                            <td className="px-2 py-2 text-xs text-center text-gge-cyan">{r.vendasAds > 0 ? fmtInt(r.vendasAds) : '—'}</td>
+                            <td className="px-2 py-2 text-xs text-center text-gge-green">{r.vendasOrg > 0 ? fmtInt(r.vendasOrg) : '—'}</td>
+                            <td className="px-2 py-2 text-xs text-right" style={{
+                              color: r.depAds === 0 ? '#94a3b8' : r.depAds > 70 ? '#ef4444' : r.depAds > 40 ? '#eab308' : '#22c55e'
+                            }}>
+                              {r.vendasTotal > 0 ? fmtPct(r.depAds) : '—'}
+                            </td>
+                            <td className="px-2 py-2 text-xs font-medium text-right" style={{ color: r.mc2 >= 0 ? '#22c55e' : '#ef4444' }}>
+                              {r.mc2 !== 0 ? `R$ ${fmt(r.mc2)}` : '—'}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-right" style={{
+                              color: r.adsMargPct === 0 ? '#94a3b8' : r.adsMargPct < 20 ? '#22c55e' : r.adsMargPct < 50 ? '#eab308' : '#ef4444'
+                            }}>
+                              {r.gasto > 0 && r.mc2SemAds > 0 ? fmtPct(r.adsMargPct) : '—'}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-right" style={{
+                              color: r.acos == null ? '#94a3b8' : r.acos < 8 ? '#22c55e' : r.acos < 15 ? '#eab308' : '#ef4444'
+                            }}>
+                              {r.acos != null ? fmtPct(r.acos) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+                <div className="px-3 py-2 bg-gge-bg/50 border-t border-gge-border text-xs text-gge-muted">
+                  {tabelaFiltrada.length} anúncio(s) — {filtroSinal !== 'all' ? `filtro: ${filtroSinal}` : 'todos'}
+                </div>
+              </div>
+
+              {/* Legenda */}
+              <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-8">
+                <h3 className="text-xs font-bold text-gge-muted uppercase tracking-wider mb-3">Como interpretar</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-xs text-gge-muted">
+                  <div>
+                    <p className="mb-2"><strong className="text-gge-text">Invest/Receita</strong> — de cada R$ 100 de receita, quanto foi gasto em ADs. <span className="text-gge-green">{'<'}8% bom</span> · <span className="text-gge-yellow">8-15% atenção</span> · <span className="text-gge-red">{'>'}15% alto</span></p>
+                    <p className="mb-2"><strong className="text-gge-text">Dep. ADs</strong> — % das vendas que vieram via ADs. <span className="text-gge-green">{'<'}40% saudável</span> · <span className="text-gge-yellow">40-70% dependente</span> · <span className="text-gge-red">{'>'}70% viciado</span></p>
+                    <p><strong className="text-gge-text">ADs/Margem</strong> — quanto do lucro bruto (sem ads) é consumido pelo gasto em ADs. <span className="text-gge-green">{'<'}20% eficiente</span> · <span className="text-gge-red">{'>'}50% inviável</span></p>
+                  </div>
+                  <div>
+                    <p className="mb-2">🔴 <strong className="text-gge-red">Parar</strong> — gasto alto sem conversão, ou margem negativa. Recomendação: pausar campanha.</p>
+                    <p className="mb-2">🟡 <strong className="text-gge-yellow">Avaliar</strong> — performance intermediária. Analisar caso a caso antes de decidir.</p>
+                    <p className="mb-2">🟢 <strong className="text-gge-green">Bom</strong> — investimento eficiente: gasto baixo relativo à receita e margem positiva.</p>
+                    <p>🔵 <strong className="text-gge-blue">Oportunidade</strong> — produto com vendas orgânicas sem ADs. Potencial para testar campanha.</p>
+                  </div>
+                </div>
+              </div>
             </>
           )}
-
-          {/* ÂÂ BLOCK 3: EVOLUÇÃO FINANCEIRA ÂÂ */}
-          <SectionTitle color={COLORS.green}>Evolução Financeira</SectionTitle>
-
-          {!loading && dailyData.length > 0 && (
-            <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
-              <h3 className="text-sm font-semibold text-gge-text mb-4">Gasto, Receita & ACOS por dia</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <ComposedChart data={dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-                  <XAxis dataKey="dateLabel" tick={{ fill: COLORS.muted, fontSize: 11 }} />
-                  <YAxis yAxisId="left" tick={{ fill: COLORS.muted, fontSize: 11 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fill: COLORS.yellow, fontSize: 11 }} unit="%" />
-                  <Tooltip content={<ChartTooltip formatters={{
-                    gasto: fmtR$, receita: fmtR$, acos: v => fmtPct(v)
-                  }} />} />
-                  <Bar yAxisId="left" dataKey="gasto" name="Gasto" fill={COLORS.red} opacity={0.7} radius={[2,2,0,0]} />
-                  <Line yAxisId="left" dataKey="receita" name="Receita ADs" stroke={COLORS.green} strokeWidth={2} dot={false} />
-                  <Line yAxisId="right" dataKey="acos" name="ACOS %" stroke={COLORS.yellow} strokeWidth={2} dot={false} strokeDasharray="4 2" />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* ÂÂ BLOCK 4: CAMPANHAS ÂÂ */}
-          <SectionTitle color={COLORS.cyan}>Campanhas</SectionTitle>
-
-          {loading ? (
-            <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
-              <div className="h-48 flex items-center justify-center">
-                <div className="text-gge-muted text-sm pulse-load">Carregando campanhas...</div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-gge-card border border-gge-border rounded-lg overflow-hidden mb-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-gge-muted text-xs uppercase tracking-wider bg-gge-bg">
-                      {[
-                        { key: 'campaign_id', label: 'Campanha' },
-                        { key: 'conta', label: 'Conta' },
-                        { key: 'strategy', label: 'Estratégia' },
-                        { key: 'anuncios', label: 'Anúncios' },
-                        { key: 'gasto', label: 'Gasto' },
-                        { key: 'cliques', label: 'Cliques' },
-                        { key: 'vendas', label: 'Vendas' },
-                        { key: 'receita', label: 'Receita' },
-                        { key: 'acos', label: 'ACOS' },
-                        { key: 'cpc', label: 'CPC' },
-                      ].map(col => (
-                        <th key={col.key} className="px-3 py-3 text-left cursor-pointer hover:text-gge-text transition-colors whitespace-nowrap"
-                          onClick={() => handleSort(sortConfig, setSortConfig, col.key)}>
-                          {col.label}<SortArrow config={sortConfig} col={col.key} />
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedCampaigns.length === 0 ? (
-                      <tr><td colSpan={10} className="text-center text-gge-muted py-8">Nenhuma campanha encontrada</td></tr>
-                    ) : sortedCampaigns.map((c, i) => (
-                      <tr key={c.campaign_id}
-                        className={`row-clickable border-t border-gge-border/50 ${selectedCampaign === c.campaign_id ? 'bg-gge-accent/10' : (i % 2 === 0 ? 'bg-gge-card' : 'bg-gge-bg/30')}`}
-                        onClick={() => setSelectedCampaign(prev => prev === c.campaign_id ? null : c.campaign_id)}>
-                        <td className="px-3 py-2.5 font-mono text-xs text-gge-accent">{c.campaign_id}</td>
-                        <td className="px-3 py-2.5 text-xs">{c.conta}</td>
-                        <td className="px-3 py-2.5 text-xs capitalize">{c.strategy}</td>
-                        <td className="px-3 py-2.5 text-xs text-center">{c.anuncios}</td>
-                        <td className="px-3 py-2.5 text-xs font-medium text-gge-red">{fmtR$(c.gasto)}</td>
-                        <td className="px-3 py-2.5 text-xs">{fmtInt(c.cliques)}</td>
-                        <td className="px-3 py-2.5 text-xs">{fmtInt(c.vendas)}</td>
-                        <td className="px-3 py-2.5 text-xs font-medium text-gge-green">{fmtR$(c.receita)}</td>
-                        <td className="px-3 py-2.5 text-xs font-medium" style={{ color: acosColor(c.acos) }}>{fmtPct(c.acos)}</td>
-                        <td className="px-3 py-2.5 text-xs">{fmtR$(c.cpc)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {selectedCampaign && (
-                <div className="px-3 py-2 bg-gge-accent/5 border-t border-gge-border text-xs text-gge-muted">
-                  Campanha <span className="text-gge-accent font-mono">{selectedCampaign}</span> selecionada &mdash; tabela de anúncios filtrada abaixo.
-                  <button onClick={() => setSelectedCampaign(null)} className="ml-2 text-gge-accent hover:text-white">[limpar]</button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ÂÂ BLOCK 5: ANÚNcios ÂÂ */}
-          <SectionTitle color={COLORS.accent}>Anúncios</SectionTitle>
-
-          {loading ? (
-            <div className="bg-gge-card border border-gge-border rounded-lg p-4 mb-6">
-              <div className="h-48 flex items-center justify-center">
-                <div className="text-gge-muted text-sm pulse-load">Carregando anúncios...</div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-gge-card border border-gge-border rounded-lg overflow-hidden mb-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-gge-muted text-xs uppercase tracking-wider bg-gge-bg">
-                      {[
-                        { key: 'titulo', label: 'Título' },
-                        { key: 'sku', label: 'SKU' },
-                        { key: 'gasto', label: 'Gasto ADs' },
-                        { key: 'impressoes', label: 'Impressões' },
-                        { key: 'cliques', label: 'Cliques' },
-                        { key: 'ctr', label: 'CTR' },
-                        { key: 'vendas', label: 'Vendas ADs' },
-                        { key: 'receita', label: 'Receita ADs' },
-                        { key: 'acos', label: 'ACOS' },
-                        { key: 'conv', label: 'Conv%' },
-                        { key: 'mc2_pct', label: 'MC2%' },
-                        { key: 'mc2_total', label: 'MC2 Total' },
-                        { key: 'veredicto', label: '' },
-                      ].map(col => (
-                        <th key={col.key} className="px-2 py-3 text-left cursor-pointer hover:text-gge-text transition-colors whitespace-nowrap"
-                          onClick={() => handleSort(adSortConfig, setAdSortConfig, col.key)}>
-                          {col.label}<SortArrow config={adSortConfig} col={col.key} />
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedAds.length === 0 ? (
-                      <tr><td colSpan={13} className="text-center text-gge-muted py-8">Nenhum anúncio encontrado</td></tr>
-                    ) : sortedAds.map((ad, i) => (
-                      <tr key={ad.mlb_id} className={`border-t border-gge-border/50 ${i % 2 === 0 ? 'bg-gge-card' : 'bg-gge-bg/30'} hover:bg-gge-accent/5 transition-colors`}>
-                        <td className="px-2 py-2 text-xs max-w-[200px] truncate" title={ad.titulo}>{ad.titulo}</td>
-                        <td className="px-2 py-2 text-xs font-mono text-gge-muted">{ad.sku}</td>
-                        <td className="px-2 py-2 text-xs font-medium text-gge-red">{fmtR$(ad.gasto)}</td>
-                        <td className="px-2 py-2 text-xs">{fmtInt(ad.impressoes)}</td>
-                        <td className="px-2 py-2 text-xs">{fmtInt(ad.cliques)}</td>
-                        <td className="px-2 py-2 text-xs">{fmtPct2(ad.ctr)}</td>
-                        <td className="px-2 py-2 text-xs text-center">{fmtInt(ad.vendas)}</td>
-                        <td className="px-2 py-2 text-xs font-medium text-gge-green">{fmtR$(ad.receita)}</td>
-                        <td className="px-2 py-2 text-xs font-medium" style={{ color: acosColor(ad.acos) }}>{fmtPct(ad.acos)}</td>
-                        <td className="px-2 py-2 text-xs">{fmtPct2(ad.conv)}</td>
-                        <td className="px-2 py-2 text-xs" style={{ color: ad.mc2_pct >= 0 ? COLORS.green : COLORS.red }}>{fmtPct(ad.mc2_pct)}</td>
-                        <td className="px-2 py-2 text-xs font-medium" style={{ color: ad.mc2_total >= 0 ? COLORS.green : COLORS.red }}>{fmtR$(ad.mc2_total)}</td>
-                        <td className="px-2 py-2 text-center">
-                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{
-                            background: ad.veredicto === 'green' ? COLORS.green : ad.veredicto === 'red' ? COLORS.red : COLORS.yellow
-                          }}></span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-3 py-2 bg-gge-bg/50 border-t border-gge-border text-xs text-gge-muted">
-                {sortedAds.length} anúncio(s) &mdash; {selectedCampaign ? `filtrado por campanha ${selectedCampaign}` : 'todos'}
-              </div>
-            </div>
-          )}
-
-          {/* ÂÂ FOOTER ÂÂ */}
-          <div className="bg-gge-card border border-gge-border rounded-lg p-4 mt-6 mb-8">
-            <h3 className="text-xs font-bold text-gge-muted uppercase tracking-wider mb-3">Fórmulas & Definições</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 text-xs text-gge-muted">
-              <p><strong className="text-gge-text">ACOS</strong> = Gasto / Receita ADs &times; 100</p>
-              <p><strong className="text-gge-text">ROAS</strong> = Receita ADs / Gasto</p>
-              <p><strong className="text-gge-text">TACOS</strong> = Gasto / (Receita ADs + Receita Orgânica) &times; 100</p>
-              <p><strong className="text-gge-text">CPC</strong> = Gasto / Cliques</p>
-              <p><strong className="text-gge-text">CTR</strong> = Cliques / Impressões &times; 100</p>
-              <p><strong className="text-gge-text">Conv%</strong> = Vendas ADs / Cliques &times; 100</p>
-              <p><strong className="text-gge-text">MC2</strong> = Margem Canônica (receita - custos - ads - comissão - frete)</p>
-              <p><strong className="text-gge-text">Veredicto</strong> = <span className="text-gge-green">Verde</span> MC2{'>'}0 e ACOS{'<'}10% | <span className="text-gge-yellow">Amarelo</span> neutro | <span className="text-gge-red">Vermelho</span> MC2{'<'}0 ou sem conversão</p>
-              <p><strong className="text-gge-text">Variação</strong> = compara período atual vs período anterior equivalente</p>
-            </div>
-          </div>
         </div>
       );
     }
