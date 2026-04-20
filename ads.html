@@ -27,6 +27,7 @@
             'gge-orange': '#f97316',
             'gge-cyan': '#22d3ee',
             'gge-blue': '#3b82f6',
+            'gge-purple': '#a855f7',
           }
         }
       }
@@ -83,27 +84,83 @@
       return { start: fmtDate(addDays(end, -(days-1))), end: fmtDate(end) };
     }
 
-    // ── Semáforo: lógica de recomendação ──
-    // Retorna: { cor, texto, prioridade (para ordenação) }
-    function calcRecomendacao(row) {
+    // ── Parâmetros default do semáforo (5 níveis) ──
+    const DEFAULT_PARAMS = {
+      // 🟣 Investir Bem Mais — gasto muito baixo, ótimo retorno
+      investirMais_gastoReceitaMax: 4,       // Invest/Receita < 4%
+      investirMais_mc2Min: 50,               // MC2 > R$ 50
+      investirMais_vendasAdsMin: 3,          // >= 3 vendas via ADs
+      // 🟢 Investir Mais — gasto baixo, bom retorno
+      bom_gastoReceitaMax: 8,                // Invest/Receita < 8%
+      bom_mc2Min: 0,                         // MC2 > 0
+      bom_vendasAdsMin: 1,                   // >= 1 venda via ADs
+      // 🔵 Manter — performance aceitável
+      manter_gastoReceitaMax: 15,            // Invest/Receita < 15%
+      manter_mc2Min: -20,                    // MC2 > -R$ 20
+      manter_vendasAdsMin: 1,                // >= 1 venda via ADs
+      // 🟡 Reduzir — gasto alto relativo ao retorno
+      reduzir_gastoReceitaMax: 25,           // Invest/Receita < 25%
+      reduzir_vendasAdsMin: 1,               // >= 1 venda
+      // 🔴 Parar — acima desses limites, ou sem vendas
+      parar_gastoSemVendaMin: 30,            // Gasto > R$ 30 sem nenhuma venda via ADs
+      parar_mc2MaxNeg: -50,                  // MC2 < -R$ 50 com gasto alto
+      parar_gastoMc2NegMin: 20,              // Gasto mínimo para considerar MC2 negativo como "Parar"
+      // 🔵 Oportunidade — sem ADs mas com vendas orgânicas
+      oportunidade_vendasOrgMin: 5,          // >= 5 vendas orgânicas para sugerir testar ADs
+    };
+
+    // Carregar params do localStorage ou usar default
+    function loadParams() {
+      try {
+        const saved = localStorage.getItem('gge_ads_params');
+        if (saved) return { ...DEFAULT_PARAMS, ...JSON.parse(saved) };
+      } catch {}
+      return { ...DEFAULT_PARAMS };
+    }
+    function saveParams(p) {
+      try { localStorage.setItem('gge_ads_params', JSON.stringify(p)); } catch {}
+    }
+
+    // ── Semáforo: lógica de recomendação (5 níveis) ──
+    const SINAIS = {
+      investirMais: { cor: 'purple', texto: 'Investir Bem Mais', icon: '🟣', prio: 5 },
+      bom:          { cor: 'green',  texto: 'Investir Mais',     icon: '🟢', prio: 4 },
+      manter:       { cor: 'blue',   texto: 'Manter',            icon: '🔵', prio: 3 },
+      reduzir:      { cor: 'yellow', texto: 'Reduzir',           icon: '🟡', prio: 2 },
+      parar:        { cor: 'red',    texto: 'Parar',             icon: '🔴', prio: 1 },
+      oportunidade: { cor: 'cyan',   texto: 'Oportunidade',      icon: '💡', prio: 6 },
+      neutro:       { cor: 'muted',  texto: '—',                 icon: '',   prio: 0 },
+    };
+
+    function calcRecomendacao(row, params) {
+      const P = params || DEFAULT_PARAMS;
       const { gasto, receitaTotal, vendasTotal, vendasAds, mc2, gastoReceitaPct, adsMargPct } = row;
 
-      // Sem gasto = oportunidade (se vende bem)
+      // Sem gasto = oportunidade (se vende bem organicamente)
       if (gasto <= 0) {
-        if (vendasTotal >= 5) return { cor: 'blue', texto: 'Oportunidade', icon: '🔵', prio: 4 };
-        return { cor: 'muted', texto: '—', icon: '', prio: 5 };
+        if (vendasTotal >= P.oportunidade_vendasOrgMin) return { ...SINAIS.oportunidade };
+        return { ...SINAIS.neutro };
       }
 
       // 🔴 PARAR: gasto alto sem retorno
-      if (vendasAds === 0 && gasto > 30) return { cor: 'red', texto: 'Parar', icon: '🔴', prio: 1 };
-      if (mc2 < 0 && gasto > 20) return { cor: 'red', texto: 'Parar', icon: '🔴', prio: 1 };
-      if (gastoReceitaPct > 25 && vendasAds < 3) return { cor: 'red', texto: 'Parar', icon: '🔴', prio: 1 };
+      if (vendasAds === 0 && gasto > P.parar_gastoSemVendaMin) return { ...SINAIS.parar };
+      if (mc2 < P.parar_mc2MaxNeg && gasto > P.parar_gastoMc2NegMin) return { ...SINAIS.parar };
+      if (gastoReceitaPct > P.reduzir_gastoReceitaMax && vendasAds < P.reduzir_vendasAdsMin) return { ...SINAIS.parar };
 
-      // 🟢 BOM: investimento eficiente
-      if (gastoReceitaPct < 8 && mc2 > 0 && vendasAds > 0) return { cor: 'green', texto: 'Bom', icon: '🟢', prio: 3 };
+      // 🟣 INVESTIR BEM MAIS: muito eficiente
+      if (gastoReceitaPct < P.investirMais_gastoReceitaMax && mc2 > P.investirMais_mc2Min && vendasAds >= P.investirMais_vendasAdsMin) return { ...SINAIS.investirMais };
 
-      // 🟡 AVALIAR: intermediário
-      return { cor: 'yellow', texto: 'Avaliar', icon: '🟡', prio: 2 };
+      // 🟢 INVESTIR MAIS: eficiente
+      if (gastoReceitaPct < P.bom_gastoReceitaMax && mc2 > P.bom_mc2Min && vendasAds >= P.bom_vendasAdsMin) return { ...SINAIS.bom };
+
+      // 🔵 MANTER: aceitável
+      if (gastoReceitaPct < P.manter_gastoReceitaMax && mc2 > P.manter_mc2Min && vendasAds >= P.manter_vendasAdsMin) return { ...SINAIS.manter };
+
+      // 🟡 REDUZIR: gasto alto mas ainda tem alguma conversão
+      if (gastoReceitaPct < P.reduzir_gastoReceitaMax && vendasAds >= P.reduzir_vendasAdsMin) return { ...SINAIS.reduzir };
+
+      // Se não encaixou em nenhum dos anteriores, é Parar
+      return { ...SINAIS.parar };
     }
 
     // ── Fetcher paginado ──
@@ -121,6 +178,105 @@
     }
 
     // ── App ──
+    // ── Painel de Parâmetros ──
+    function ParamsPanel({ params, setParams, onClose }) {
+      const [local, setLocal] = useState({ ...params });
+      const set = (k, v) => setLocal(p => ({ ...p, [k]: Number(v) }));
+      const apply = () => { setParams(local); saveParams(local); onClose(); };
+      const reset = () => { setLocal({ ...DEFAULT_PARAMS }); };
+
+      const Field = ({ label, field, suffix = '', step = '1' }) => (
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-xs text-gge-muted flex-1">{label}</label>
+          <div className="flex items-center gap-1">
+            <input type="number" value={local[field]} step={step}
+              onChange={e => set(field, e.target.value)}
+              className="w-20 bg-gge-bg border border-gge-border rounded px-2 py-1 text-xs text-gge-text text-right focus:border-gge-accent outline-none" />
+            {suffix && <span className="text-[10px] text-gge-muted w-6">{suffix}</span>}
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+          <div className="bg-gge-card border border-gge-border rounded-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gge-text">Calibrar Parâmetros</h2>
+              <button onClick={onClose} className="text-gge-muted hover:text-gge-text text-xl">&times;</button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Investir Bem Mais */}
+              <div className="border-l-2 border-purple-500 pl-3">
+                <div className="text-sm font-semibold text-purple-400 mb-2">🟣 Investir Bem Mais</div>
+                <div className="space-y-2">
+                  <Field label="Invest/Receita máximo" field="investirMais_gastoReceitaMax" suffix="%" />
+                  <Field label="MC2 mínimo (R$)" field="investirMais_mc2Min" suffix="R$" />
+                  <Field label="Vendas via ADs mínimo" field="investirMais_vendasAdsMin" />
+                </div>
+              </div>
+
+              {/* Investir Mais */}
+              <div className="border-l-2 border-green-500 pl-3">
+                <div className="text-sm font-semibold text-green-400 mb-2">🟢 Investir Mais</div>
+                <div className="space-y-2">
+                  <Field label="Invest/Receita máximo" field="bom_gastoReceitaMax" suffix="%" />
+                  <Field label="MC2 mínimo (R$)" field="bom_mc2Min" suffix="R$" />
+                  <Field label="Vendas via ADs mínimo" field="bom_vendasAdsMin" />
+                </div>
+              </div>
+
+              {/* Manter */}
+              <div className="border-l-2 border-blue-500 pl-3">
+                <div className="text-sm font-semibold text-blue-400 mb-2">🔵 Manter Investimento</div>
+                <div className="space-y-2">
+                  <Field label="Invest/Receita máximo" field="manter_gastoReceitaMax" suffix="%" />
+                  <Field label="MC2 mínimo (R$)" field="manter_mc2Min" suffix="R$" />
+                  <Field label="Vendas via ADs mínimo" field="manter_vendasAdsMin" />
+                </div>
+              </div>
+
+              {/* Reduzir */}
+              <div className="border-l-2 border-yellow-500 pl-3">
+                <div className="text-sm font-semibold text-yellow-400 mb-2">🟡 Reduzir Investimento</div>
+                <div className="space-y-2">
+                  <Field label="Invest/Receita máximo" field="reduzir_gastoReceitaMax" suffix="%" />
+                  <Field label="Vendas via ADs mínimo" field="reduzir_vendasAdsMin" />
+                </div>
+              </div>
+
+              {/* Parar */}
+              <div className="border-l-2 border-red-500 pl-3">
+                <div className="text-sm font-semibold text-red-400 mb-2">🔴 Parar Investimento</div>
+                <div className="space-y-2">
+                  <Field label="Gasto sem vendas p/ parar (R$)" field="parar_gastoSemVendaMin" suffix="R$" />
+                  <Field label="MC2 negativo máximo (R$)" field="parar_mc2MaxNeg" suffix="R$" />
+                  <Field label="Gasto mín. p/ considerar MC2 neg." field="parar_gastoMc2NegMin" suffix="R$" />
+                </div>
+              </div>
+
+              {/* Oportunidade */}
+              <div className="border-l-2 border-cyan-500 pl-3">
+                <div className="text-sm font-semibold text-cyan-400 mb-2">💡 Oportunidade</div>
+                <div className="space-y-2">
+                  <Field label="Vendas orgânicas mínimo" field="oportunidade_vendasOrgMin" />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6 pt-4 border-t border-gge-border">
+              <button onClick={reset} className="px-4 py-2 text-xs text-gge-muted hover:text-gge-text border border-gge-border rounded-lg hover:bg-gge-bg transition-all">
+                Restaurar Padrão
+              </button>
+              <div className="flex-1"></div>
+              <button onClick={onClose} className="px-4 py-2 text-xs text-gge-muted border border-gge-border rounded-lg hover:bg-gge-bg">Cancelar</button>
+              <button onClick={apply} className="px-4 py-2 text-xs bg-gge-accent text-white rounded-lg font-medium hover:bg-gge-accent/80 transition-all">Aplicar</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function AdsPage() {
       const [periodo, setPeriodo] = useState('30d');
       const [loading, setLoading] = useState(true);
@@ -133,6 +289,8 @@
       const [sortDir, setSortDir] = useState('desc');
       const [filtroSinal, setFiltroSinal] = useState('all');
       const [search, setSearch] = useState('');
+      const [params, setParams] = useState(loadParams);
+      const [showParams, setShowParams] = useState(false);
 
       useEffect(() => { loadData(); }, [periodo]);
 
@@ -229,12 +387,12 @@
             mc2: mg.mc2, mc2SemAds, adsMargPct, acos,
             titulo: an.titulo || mlb, sku: an.sku_vendedor || '—', status: an.status,
           };
-          row.rec = calcRecomendacao(row);
+          row.rec = calcRecomendacao(row, params);
           rows.push(row);
         });
 
         return rows;
-      }, [adsData, vendasPorMlb, margemPorMlb, anuncioMap]);
+      }, [adsData, vendasPorMlb, margemPorMlb, anuncioMap, params]);
 
       // ── Filtro e ordenação ──
       const tabelaFiltrada = useMemo(() => {
@@ -242,9 +400,11 @@
 
         // Filtro por sinal
         if (filtroSinal === 'parar') rows = rows.filter(r => r.rec.cor === 'red');
-        else if (filtroSinal === 'avaliar') rows = rows.filter(r => r.rec.cor === 'yellow');
+        else if (filtroSinal === 'reduzir') rows = rows.filter(r => r.rec.cor === 'yellow');
+        else if (filtroSinal === 'manter') rows = rows.filter(r => r.rec.cor === 'blue');
         else if (filtroSinal === 'bom') rows = rows.filter(r => r.rec.cor === 'green');
-        else if (filtroSinal === 'oportunidade') rows = rows.filter(r => r.rec.cor === 'blue');
+        else if (filtroSinal === 'investirMais') rows = rows.filter(r => r.rec.cor === 'purple');
+        else if (filtroSinal === 'oportunidade') rows = rows.filter(r => r.rec.cor === 'cyan');
         else if (filtroSinal === 'com_ads') rows = rows.filter(r => r.gasto > 0);
 
         // Busca
@@ -273,15 +433,17 @@
         const vendasAdsTotal = comAds.reduce((s, r) => s + r.vendasAds, 0);
         const vendasTotalAll = comAds.reduce((s, r) => s + r.vendasTotal, 0);
         const parar = comAds.filter(r => r.rec.cor === 'red').length;
+        const reduzir = comAds.filter(r => r.rec.cor === 'yellow').length;
+        const manter = comAds.filter(r => r.rec.cor === 'blue').length;
         const bom = comAds.filter(r => r.rec.cor === 'green').length;
-        const avaliar = comAds.filter(r => r.rec.cor === 'yellow').length;
-        const oportunidades = tabelaDecisao.filter(r => r.rec.cor === 'blue').length;
+        const investirMais = comAds.filter(r => r.rec.cor === 'purple').length;
+        const oportunidades = tabelaDecisao.filter(r => r.rec.cor === 'cyan').length;
         return {
           gastoTotal, receitaTotalAds, mc2Total,
           eficiencia: receitaTotalAds > 0 ? (gastoTotal / receitaTotalAds * 100) : 0,
           vendasAdsTotal, vendasTotalAll,
           depMedia: vendasTotalAll > 0 ? (vendasAdsTotal / vendasTotalAll * 100) : 0,
-          totalComAds: comAds.length, parar, bom, avaliar, oportunidades,
+          totalComAds: comAds.length, parar, reduzir, manter, bom, investirMais, oportunidades,
         };
       }, [tabelaDecisao]);
 
@@ -308,6 +470,7 @@
 
       return (
         <div className="p-4 md:p-6 max-w-[1500px] mx-auto fade-in">
+          {showParams && <ParamsPanel params={params} setParams={setParams} onClose={() => setShowParams(false)} />}
           {/* Header */}
           <div className="mb-4">
             <h1 className="text-xl md:text-2xl font-bold text-gge-text">ADs — Decisão de Investimento</h1>
@@ -361,13 +524,15 @@
               </div>
 
               {/* Semáforo summary + filtro */}
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4 items-center">
                 {[
-                  { key: 'com_ads', label: `Todos com ADs (${kpis.totalComAds})`, color: 'gge-text' },
+                  { key: 'com_ads', label: `Todos (${kpis.totalComAds})`, color: 'gge-text' },
                   { key: 'parar', label: `🔴 Parar (${kpis.parar})`, color: 'gge-red' },
-                  { key: 'avaliar', label: `🟡 Avaliar (${kpis.avaliar})`, color: 'gge-yellow' },
-                  { key: 'bom', label: `🟢 Bom (${kpis.bom})`, color: 'gge-green' },
-                  { key: 'oportunidade', label: `🔵 Oportunidades (${kpis.oportunidades})`, color: 'gge-blue' },
+                  { key: 'reduzir', label: `🟡 Reduzir (${kpis.reduzir})`, color: 'gge-yellow' },
+                  { key: 'manter', label: `🔵 Manter (${kpis.manter})`, color: 'gge-blue' },
+                  { key: 'bom', label: `🟢 Investir+ (${kpis.bom})`, color: 'gge-green' },
+                  { key: 'investirMais', label: `🟣 Investir++ (${kpis.investirMais})`, color: 'purple' },
+                  { key: 'oportunidade', label: `💡 Oportunidade (${kpis.oportunidades})`, color: 'gge-cyan' },
                 ].map(f => (
                   <button key={f.key}
                     onClick={() => setFiltroSinal(prev => prev === f.key ? 'all' : f.key)}
@@ -379,6 +544,11 @@
                     {f.label}
                   </button>
                 ))}
+                <button onClick={() => setShowParams(true)}
+                  className="ml-auto px-3 py-1.5 rounded-full text-xs font-medium border border-gge-border text-gge-muted hover:border-gge-accent/50 hover:text-gge-text transition-all"
+                  title="Calibrar parâmetros do semáforo">
+                  ⚙️ Calibrar
+                </button>
               </div>
 
               {/* ══ TABELA DE DECISÃO ══ */}
@@ -414,7 +584,7 @@
                       {tabelaFiltrada.length === 0 ? (
                         <tr><td colSpan={12} className="text-center text-gge-muted py-8">Nenhum anúncio encontrado</td></tr>
                       ) : tabelaFiltrada.map((r, i) => {
-                        const recColor = r.rec.cor === 'red' ? 'bg-red-900/10' : r.rec.cor === 'green' ? 'bg-green-900/10' : r.rec.cor === 'blue' ? 'bg-blue-900/10' : '';
+                        const recColor = r.rec.cor === 'red' ? 'bg-red-900/10' : r.rec.cor === 'purple' ? 'bg-purple-900/10' : r.rec.cor === 'green' ? 'bg-green-900/10' : r.rec.cor === 'blue' ? 'bg-blue-900/10' : r.rec.cor === 'cyan' ? 'bg-cyan-900/10' : '';
                         return (
                           <tr key={r.mlb} className={`border-t border-gge-border/30 hover:bg-gge-accent/5 transition-colors ${recColor}`}>
                             <td className="px-2 py-2 text-center text-sm" title={r.rec.texto}>{r.rec.icon}</td>
@@ -471,10 +641,12 @@
                     <p><strong className="text-gge-text">ADs/Margem</strong> — quanto do lucro bruto (sem ads) é consumido pelo gasto em ADs. <span className="text-gge-green">{'<'}20% eficiente</span> · <span className="text-gge-red">{'>'}50% inviável</span></p>
                   </div>
                   <div>
-                    <p className="mb-2">🔴 <strong className="text-gge-red">Parar</strong> — gasto alto sem conversão, ou margem negativa. Recomendação: pausar campanha.</p>
-                    <p className="mb-2">🟡 <strong className="text-gge-yellow">Avaliar</strong> — performance intermediária. Analisar caso a caso antes de decidir.</p>
-                    <p className="mb-2">🟢 <strong className="text-gge-green">Bom</strong> — investimento eficiente: gasto baixo relativo à receita e margem positiva.</p>
-                    <p>🔵 <strong className="text-gge-blue">Oportunidade</strong> — produto com vendas orgânicas sem ADs. Potencial para testar campanha.</p>
+                    <p className="mb-2">🔴 <strong className="text-gge-red">Parar</strong> — gasto alto sem conversão ou margem muito negativa. Pausar campanha.</p>
+                    <p className="mb-2">🟡 <strong className="text-gge-yellow">Reduzir</strong> — retorno insuficiente para o nível de gasto atual. Diminuir lance/orçamento.</p>
+                    <p className="mb-2">🔵 <strong className="text-gge-blue">Manter</strong> — performance aceitável. Manter investimento atual e monitorar.</p>
+                    <p className="mb-2">🟢 <strong className="text-gge-green">Investir Mais</strong> — bom retorno. Considerar aumentar o investimento.</p>
+                    <p className="mb-2">🟣 <strong style={{color:'#a855f7'}}>Investir Bem Mais</strong> — excelente eficiência. Prioridade máxima para aumento de orçamento.</p>
+                    <p>💡 <strong className="text-gge-cyan">Oportunidade</strong> — produto com vendas orgânicas sem ADs. Potencial para testar campanha.</p>
                   </div>
                 </div>
               </div>
