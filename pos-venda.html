@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pós-Venda · Controle Total GGE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js" defer></script>
+  <script src="sidebar.js" defer></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: {
+        'gge-bg':'#0f1117','gge-card':'#1a1d2e','gge-border':'#2a2d3e',
+        'gge-text':'#e2e8f0','gge-muted':'#94a3b8','gge-accent':'#6366f1',
+        'gge-green':'#22c55e','gge-red':'#ef4444','gge-yellow':'#eab308',
+        'gge-orange':'#f97316','gge-cyan':'#22d3ee',
+      }}}
+    }
+  </script>
+  <style>
+    body { background:#0f1117; color:#e2e8f0; font-family:'Inter',system-ui,sans-serif; }
+    .fade-in { animation: fadeIn .3s ease-out; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .tab-active { border-bottom:2px solid #6366f1; color:#fff; }
+    .tab-inactive { border-bottom:2px solid transparent; color:#94a3b8; }
+    .tab-inactive:hover { color:#e2e8f0; }
+    .row-hover:hover { background:rgba(99,102,241,.08); }
+    .sortable { cursor:pointer; user-select:none; }
+    .sortable:hover { color:#6366f1; }
+    .copy-btn { cursor:pointer; }
+    .copy-btn:hover { color:#6366f1; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const SB_URL = window.GGE_SUPABASE_URL;
+    const SB_KEY = window.GGE_SUPABASE_KEY;
+    const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+    // ── Helpers ──
+    const fmtN = n => n==null?'--':Number(n).toLocaleString('pt-BR');
+    const fmtP = n => n==null?'--':Number(n).toFixed(1)+'%';
+    const fmtR = n => n==null?'--':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('pt-BR') : '--';
+
+    const PERIODOS = [
+      {v:'30d',l:'30 dias'},{v:'60d',l:'60 dias'},{v:'90d',l:'90 dias'},
+      {v:'180d',l:'180 dias'},{v:'1a',l:'1 ano'},{v:'all',l:'Todo periodo'},
+    ];
+
+    function getRange(p) {
+      const now = new Date(), to = now.toISOString();
+      let from;
+      switch(p){
+        case '30d': from=new Date(now-30*864e5);break;
+        case '60d': from=new Date(now-60*864e5);break;
+        case '90d': from=new Date(now-90*864e5);break;
+        case '180d': from=new Date(now-180*864e5);break;
+        case '1a': from=new Date(now-365*864e5);break;
+        default: from=new Date('2020-01-01');
+      }
+      return {from:from.toISOString(), to};
+    }
+
+    const TIPO_LABEL = {mediations:'Reclamacao',returns:'Devolucao',cancel_purchase:'Canc. Comprador',cancel_sale:'Canc. Vendedor'};
+    const tipoL = t => TIPO_LABEL[t]||t||'--';
+
+    function motivoCat(m) {
+      if(!m) return 'Outros';
+      if(m.startsWith('PDD')) return 'Defeituoso/Diferente';
+      if(m.startsWith('PNR')) return 'Nao Recebido';
+      return 'Outros';
+    }
+
+    const COR_LABEL = {green:'Verde',light_green:'Verde Claro',yellow:'Amarelo',orange:'Laranja',red:'Vermelho'};
+    const COR_CLASS = {green:'text-gge-green',light_green:'text-lime-400',yellow:'text-gge-yellow',orange:'text-gge-orange',red:'text-gge-red'};
+    const COR_BG = {green:'bg-gge-green',light_green:'bg-lime-400',yellow:'bg-gge-yellow',orange:'bg-gge-orange',red:'bg-gge-red'};
+
+    function horasRestantes(dc) {
+      const prazo = new Date(dc).getTime() + 48*36e5;
+      return Math.max(0, Math.round((prazo - Date.now())/36e5));
+    }
+    function prazoClass(h) { return h<=12?'text-gge-red':h<=24?'text-gge-orange':'text-gge-green'; }
+    function prazoLabel(h) {
+      if(h===0) return 'Expirado';
+      if(h<24) return h+'h restantes';
+      return Math.floor(h/24)+'d '+(h%24)+'h';
+    }
+
+    // ── Copy button ──
+    function CopyCell({text}) {
+      const [ok, setOk] = useState(false);
+      if(!text) return <span className="text-gge-muted">--</span>;
+      const copy = () => { navigator.clipboard.writeText(text); setOk(true); setTimeout(()=>setOk(false),1500); };
+      return <span onClick={copy} className="copy-btn font-mono text-xs">{text} {ok ? <span className="text-gge-green">&#10003;</span> : ''}</span>;
+    }
+
+    // ── KPI Card ──
+    function Kpi({title,value,sub,color,icon}) {
+      return (
+        <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+          <div className="flex items-center gap-2 mb-1"><span>{icon}</span><span className="text-xs text-gge-muted font-medium uppercase tracking-wider">{title}</span></div>
+          <div className={`text-2xl font-bold ${color||'text-white'}`}>{value}</div>
+          {sub && <div className="text-xs text-gge-muted mt-1">{sub}</div>}
+        </div>
+      );
+    }
+
+    // ── Main ──
+    function App() {
+      const [periodo, setPeriodo] = useState('60d');
+      const [contaId, setContaId] = useState('');
+      const [contas, setContas] = useState([]);
+      const [claims, setClaims] = useState([]);
+      const [allClaims, setAllClaims] = useState([]);
+      const [vendas, setVendas] = useState([]);
+      const [reputacao, setReputacao] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [tab, setTab] = useState('visao');
+
+      // Load contas
+      useEffect(() => {
+        sb.from('contas').select('id,nome').order('nome').then(r => setContas(r.data||[]));
+      }, []);
+
+      // Load data
+      useEffect(() => {
+        setLoading(true);
+        const {from, to} = getRange(periodo);
+        Promise.all([
+          // Claims do periodo
+          (()=>{
+            let q = sb.from('claims').select('*').gte('data_abertura', from).lte('data_abertura', to);
+            if(contaId) q = q.eq('conta_id', contaId);
+            return q;
+          })(),
+          // Todos os claims (para cronicos)
+          (()=>{
+            let q = sb.from('claims').select('*');
+            if(contaId) q = q.eq('conta_id', contaId);
+            return q;
+          })(),
+          // Vendas do periodo (para cancelamentos e feedback)
+          (()=>{
+            let q = sb.from('vw_reputacao_vendas').select('*').gte('data_venda', from).lte('data_venda', to);
+            if(contaId) q = q.eq('conta_id', contaId);
+            return q;
+          })(),
+          // Reputacao atual
+          sb.from('reputacao_conta').select('*').order('data',{ascending:false}).limit(10),
+        ]).then(([clR, allR, vR, repR]) => {
+          setClaims(clR.data||[]);
+          setAllClaims(allR.data||[]);
+          setVendas(vR.data||[]);
+          setReputacao(repR.data||[]);
+          setLoading(false);
+        });
+      }, [periodo, contaId]);
+
+      // ── Metrics ──
+      const met = useMemo(() => {
+        const vendasEf = vendas.filter(v=>v.status!=='cancelled');
+        const canceladas = vendas.filter(v=>v.status==='cancelled');
+        const fbNeg = vendas.filter(v=>v.feedback_rating==='negative'||v.feedback_rating==='neutral');
+        const clAfetam = claims.filter(c=>c.afeta_reputacao);
+        const totalV = vendasEf.length;
+        return {
+          totalClaims: claims.length,
+          clAfetam: clAfetam.length,
+          clNaoAfetam: claims.length - clAfetam.length,
+          taxaClaims: totalV>0 ? claims.length/totalV*100 : 0,
+          canceladas: canceladas.length,
+          taxaCancel: (vendasEf.length+canceladas.length)>0 ? canceladas.length/(vendasEf.length+canceladas.length)*100 : 0,
+          fbNeg: fbNeg.length,
+          totalVendas: totalV,
+        };
+      }, [claims, vendas]);
+
+      // ── Claims abertos com prazo ──
+      const claimsAbertos = useMemo(() => {
+        return allClaims
+          .filter(c => c.status === 'opened')
+          .map(c => ({...c, horas: horasRestantes(c.data_abertura||c.data_criacao||c.created_at)}))
+          .sort((a,b) => a.horas - b.horas);
+      }, [allClaims]);
+
+      // ── Ranking Pareto por anuncio (periodo) ──
+      const ranking = useMemo(() => {
+        const map = {};
+        const ensure = (mlb, tit, sku, conta) => {
+          if(!map[mlb]) map[mlb] = {mlb_id:mlb, titulo:tit||'--', sku:sku||'', conta:conta||'',
+            claims:0, clAfetam:0, cancel:0, fbNeg:0, score:0, tipos:{}, motivos:{}};
+        };
+        claims.forEach(c => {
+          ensure(c.mlb_id, c.titulo, c.sku_vendedor, c.conta_nome);
+          const r = map[c.mlb_id];
+          r.claims++;
+          if(c.afeta_reputacao) r.clAfetam++;
+          r.tipos[c.tipo] = (r.tipos[c.tipo]||0)+1;
+          const cat = motivoCat(c.motivo||c.reason_id);
+          r.motivos[cat] = (r.motivos[cat]||0)+1;
+        });
+        vendas.forEach(v => {
+          ensure(v.mlb_id, v.titulo, v.sku_vendedor, v.conta_nome);
+          if(v.status==='cancelled') map[v.mlb_id].cancel++;
+          if(v.feedback_rating==='negative'||v.feedback_rating==='neutral') map[v.mlb_id].fbNeg++;
+        });
+        Object.values(map).forEach(r => {
+          r.score = r.clAfetam*5 + (r.claims-r.clAfetam)*3 + r.cancel*2 + r.fbNeg;
+        });
+        return Object.values(map).sort((a,b) => b.score - a.score);
+      }, [claims, vendas]);
+
+      // ── Simulacao Pareto ──
+      const sim = useMemo(() => {
+        if(ranking.length===0||met.totalVendas===0) return null;
+        const top10 = ranking.slice(0,10);
+        const clTop10 = top10.reduce((s,r)=>s+r.claims,0);
+        const pctProb = met.totalClaims>0 ? clTop10/met.totalClaims*100 : 0;
+        const taxaSem = met.totalVendas>0 ? (met.totalClaims-clTop10)/met.totalVendas*100 : 0;
+        return {clTop10, pctProb, taxaSem, total: ranking.length};
+      }, [ranking, met]);
+
+      // ── Cronicos (all-time, 2+ meses) ──
+      const cronicos = useMemo(() => {
+        const map = {};
+        allClaims.forEach(c => {
+          const mlb = c.mlb_id;
+          if(!map[mlb]) map[mlb] = {mlb_id:mlb, titulo:c.titulo||'--', sku:c.sku_vendedor||'', conta:c.conta_nome||'',
+            claims:0, clAfetam:0, meses:new Set(), primeiro:'', ultimo:'', score:0};
+          const r = map[mlb];
+          r.claims++;
+          if(c.afeta_reputacao) r.clAfetam++;
+          const dt = c.data_abertura||c.data_criacao||c.created_at||'';
+          if(dt) {
+            r.meses.add(dt.substring(0,7));
+            if(!r.primeiro||dt<r.primeiro) r.primeiro = dt;
+            if(!r.ultimo||dt>r.ultimo) r.ultimo = dt;
+          }
+        });
+        return Object.values(map)
+          .filter(r => r.meses.size >= 2)
+          .map(r => ({...r, mesesN:r.meses.size, score: r.clAfetam*5+r.claims*2+r.meses.size*3}))
+          .sort((a,b) => b.score - a.score);
+      }, [allClaims]);
+
+      // ── Agrupamentos visao geral ──
+      const porTipo = useMemo(() => {
+        const m = {};
+        claims.forEach(c => {
+          const t = c.tipo||'outros';
+          if(!m[t]) m[t]={total:0,afetam:0};
+          m[t].total++;
+          if(c.afeta_reputacao) m[t].afetam++;
+        });
+        return Object.entries(m).sort((a,b)=>b[1].total-a[1].total);
+      }, [claims]);
+
+      const porMotivo = useMemo(() => {
+        const m = {};
+        claims.forEach(c => {
+          const cat = motivoCat(c.motivo||c.reason_id);
+          if(!m[cat]) m[cat]={total:0,afetam:0};
+          m[cat].total++;
+          if(c.afeta_reputacao) m[cat].afetam++;
+        });
+        return Object.entries(m).sort((a,b)=>b[1].total-a[1].total);
+      }, [claims]);
+
+      // ── Reputacao por conta (mais recente) ──
+      const repAtual = useMemo(() => {
+        const m = {};
+        reputacao.forEach(r => {
+          const cid = r.conta_id;
+          if(!m[cid]) m[cid] = r;
+        });
+        return Object.values(m);
+      }, [reputacao]);
+
+      // ── Feedbacks negativos recentes ──
+      const fbNegativos = useMemo(() => {
+        return vendas
+          .filter(v=>v.feedback_rating==='negative'||v.feedback_rating==='neutral')
+          .sort((a,b)=>(b.data_venda||'').localeCompare(a.data_venda||''))
+          .slice(0,10);
+      }, [vendas]);
+
+      const urgentes = claimsAbertos.filter(c=>c.horas<=12).length;
+
+      return (
+        <div className="min-h-screen">
+          <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6" style={{marginLeft:'48px'}}>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-white flex items-center gap-2">&#128737; Pos-Venda</h1>
+                <p className="text-sm text-gge-muted">Claims, devolucoes, cancelamentos e reputacao — foco nos anuncios que mais prejudicam a conta</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gge-muted font-medium">Periodo</label>
+                  <select value={periodo} onChange={e=>setPeriodo(e.target.value)} className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
+                    {PERIODOS.map(p=><option key={p.v} value={p.v}>{p.l}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gge-muted font-medium">Conta</label>
+                  <select value={contaId} onChange={e=>setContaId(e.target.value)} className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
+                    <option value="">Consolidado</option>
+                    {contas.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* KPI Cards */}
+            {!loading && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <Kpi title="Claims" value={fmtN(met.totalClaims)} icon="&#9888;" color="text-white"
+                  sub={<span className={met.taxaClaims>2?'text-gge-red':'text-gge-green'}>{fmtP(met.taxaClaims)} das vendas {met.taxaClaims>2?'(acima da meta 2%)':''}</span>} />
+                <Kpi title="Afetam Reputacao" value={fmtN(met.clAfetam)} icon="&#128293;" color="text-gge-red"
+                  sub={fmtN(met.clNaoAfetam)+' sem impacto'} />
+                <Kpi title="Cancelamentos" value={fmtN(met.canceladas)} icon="&#10060;" color="text-white"
+                  sub={<span className={met.taxaCancel>3?'text-gge-red':'text-gge-green'}>{fmtP(met.taxaCancel)} das vendas</span>} />
+                <Kpi title="Feedback Neg." value={fmtN(met.fbNeg)} icon="&#128078;" color="text-white"
+                  sub="negativos + neutros" />
+                <Kpi title="Abertos Agora" value={fmtN(claimsAbertos.length)} icon="&#9200;" color="text-gge-yellow"
+                  sub={urgentes>0 ? <span className="text-gge-red">{urgentes} urgentes</span> : 'nenhum urgente'} />
+              </div>
+            )}
+
+            {/* Reputacao atual */}
+            {!loading && repAtual.length>0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {repAtual.map(r => {
+                  const cn = r.conta_nome || contas.find(c=>c.id===r.conta_id)?.nome || r.conta_id;
+                  return (
+                    <div key={r.conta_id} className="bg-gge-card border border-gge-border rounded-xl p-4 flex items-center gap-4 fade-in">
+                      <div className={`w-3 h-12 rounded-full ${COR_BG[r.nivel_cor]||'bg-gge-muted'}`} />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white">{cn}</p>
+                        <p className={`text-xs font-semibold ${COR_CLASS[r.nivel_cor]||'text-gge-muted'}`}>{COR_LABEL[r.nivel_cor]||r.nivel_cor||'--'}</p>
+                      </div>
+                      <div className="text-right space-y-0.5">
+                        <p className="text-[10px] text-gge-muted">Claims: <span className={Number(r.taxa_claims_pct)>2?'text-gge-red':'text-gge-green'}>{fmtP(r.taxa_claims_pct)}</span></p>
+                        <p className="text-[10px] text-gge-muted">Canc.: <span className={Number(r.taxa_cancelamento_pct)>3?'text-gge-red':'text-gge-green'}>{fmtP(r.taxa_cancelamento_pct)}</span></p>
+                        <p className="text-[10px] text-gge-muted">Atraso: <span className={Number(r.taxa_atraso_pct)>3?'text-gge-red':'text-gge-green'}>{fmtP(r.taxa_atraso_pct)}</span></p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Simulacao Pareto */}
+            {!loading && sim && sim.total>0 && (
+              <div className="bg-gge-card border border-gge-yellow/30 rounded-xl p-5 fade-in">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">&#128200;</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {sim.total} anuncios tiveram problemas. Os TOP 10 concentram <span className="text-gge-yellow">{fmtP(sim.pctProb)}</span> dos claims.
+                    </p>
+                    <p className="text-sm text-gge-muted mt-1">
+                      Taxa atual: <span className={met.taxaClaims>2?'text-gge-red font-semibold':'text-gge-green font-semibold'}>{fmtP(met.taxaClaims)}</span>
+                      {' → Se resolvidos: '}<span className="text-gge-green font-semibold">{fmtP(sim.taxaSem)}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <div className="flex gap-6 border-b border-gge-border overflow-x-auto">
+              {[
+                {k:'visao',l:'Visao Geral'},
+                {k:'top',l:'TOP Problematicos'},
+                {k:'cronicos',l:'Cronicos'},
+                {k:'prazo',l:'Prazo para Agir'},
+              ].map(t => (
+                <button key={t.k} onClick={()=>setTab(t.k)}
+                  className={`pb-3 px-1 text-sm font-semibold transition-colors whitespace-nowrap ${tab===t.k?'tab-active':'tab-inactive'}`}>
+                  {t.l}
+                  {t.k==='prazo' && urgentes>0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-gge-red text-[10px] text-white font-bold">{urgentes}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Loading */}
+            {loading && <div className="space-y-3">{[...Array(6)].map((_,i)=><div key={i} className="h-12 bg-gge-card rounded-xl animate-pulse"/>)}</div>}
+
+            {/* ═══ TAB: Visao Geral ═══ */}
+            {!loading && tab==='visao' && (
+              <div className="space-y-6 fade-in">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Por Tipo */}
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-5">
+                    <h3 className="text-sm font-semibold text-white mb-4">Por Tipo de Problema</h3>
+                    {porTipo.length===0 ? <p className="text-sm text-gge-muted">Nenhum claim no periodo.</p> : (
+                      <div className="space-y-3">
+                        {porTipo.map(([tipo,v]) => (
+                          <div key={tipo}>
+                            <div className="flex justify-between text-sm mb-1"><span className="text-gge-muted">{tipoL(tipo)}</span><span className="text-white font-medium">{fmtN(v.total)}</span></div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
+                              <div className="h-full bg-gge-red rounded-l-full" style={{width:met.totalClaims>0?(v.afetam/met.totalClaims*100)+'%':'0'}} />
+                              <div className="h-full bg-gge-orange" style={{width:met.totalClaims>0?((v.total-v.afetam)/met.totalClaims*100)+'%':'0'}} />
+                            </div>
+                            <div className="flex gap-3 mt-1">
+                              <span className="text-[10px] text-gge-red">{v.afetam} afetam rep.</span>
+                              <span className="text-[10px] text-gge-orange">{v.total-v.afetam} sem impacto</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Por Motivo */}
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-5">
+                    <h3 className="text-sm font-semibold text-white mb-4">Por Categoria de Motivo</h3>
+                    {porMotivo.length===0 ? <p className="text-sm text-gge-muted">Nenhum claim no periodo.</p> : (
+                      <div className="space-y-3">
+                        {porMotivo.map(([cat,v]) => (
+                          <div key={cat}>
+                            <div className="flex justify-between text-sm mb-1"><span className="text-gge-muted">{cat}</span><span className="text-white font-medium">{fmtN(v.total)}</span></div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
+                              <div className="h-full bg-gge-red rounded-l-full" style={{width:met.totalClaims>0?(v.afetam/met.totalClaims*100)+'%':'0'}} />
+                              <div className="h-full bg-gge-orange" style={{width:met.totalClaims>0?((v.total-v.afetam)/met.totalClaims*100)+'%':'0'}} />
+                            </div>
+                            <div className="flex gap-3 mt-1">
+                              <span className="text-[10px] text-gge-red">{v.afetam} afetam rep.</span>
+                              <span className="text-[10px] text-gge-orange">{v.total-v.afetam} sem impacto</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Feedbacks negativos */}
+                {fbNegativos.length>0 && (
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-5">
+                    <h3 className="text-sm font-semibold text-white mb-4">Feedbacks Negativos / Neutros Recentes</h3>
+                    <div className="space-y-2">
+                      {fbNegativos.map(f => (
+                        <div key={f.ordem_id} className="flex items-start gap-3 px-3 py-2 rounded-lg bg-white/[0.02]">
+                          <span className={f.feedback_rating==='negative'?'text-gge-red':'text-gge-orange'}>&#128078;</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-white truncate">{f.titulo}</p>
+                            <p className="text-xs text-gge-muted mt-0.5">{f.feedback_mensagem||'Sem mensagem'}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <CopyCell text={f.mlb_id} />
+                            <p className="text-[10px] text-gge-muted mt-0.5">{fmtDate(f.data_venda)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ TAB: TOP Problematicos ═══ */}
+            {!loading && tab==='top' && (
+              <div className="space-y-4 fade-in">
+                <p className="text-sm text-gge-muted">Score = (claims reputacao x5) + (outros claims x3) + (cancelamentos x2) + (feedback negativo x1).</p>
+                <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gge-border text-xs text-gge-muted uppercase tracking-wider">
+                          <th className="text-center px-3 py-3 w-8">#</th>
+                          <th className="text-left px-3 py-3">MLB</th>
+                          <th className="text-left px-3 py-3">SKU</th>
+                          <th className="text-left px-3 py-3">Titulo</th>
+                          <th className="text-center px-3 py-3">Claims</th>
+                          <th className="text-center px-3 py-3">Afetam</th>
+                          <th className="text-center px-3 py-3">Cancel.</th>
+                          <th className="text-center px-3 py-3">FB-</th>
+                          <th className="text-center px-3 py-3">Score</th>
+                          <th className="text-left px-3 py-3">Motivos</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ranking.length===0 ? (
+                          <tr><td colSpan={10} className="text-center py-12 text-gge-muted">Nenhum problema no periodo.</td></tr>
+                        ) : ranking.slice(0,20).map((r,i) => (
+                          <tr key={r.mlb_id} className={`border-b border-gge-border/30 row-hover ${i<3?'bg-gge-red/[0.04]':''}`}>
+                            <td className="text-center px-3 py-2.5"><span className={`text-xs font-bold ${i<3?'text-gge-red':i<10?'text-gge-orange':'text-gge-muted'}`}>{i+1}</span></td>
+                            <td className="px-3 py-2.5"><CopyCell text={r.mlb_id} /></td>
+                            <td className="px-3 py-2.5"><CopyCell text={r.sku} /></td>
+                            <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[200px] truncate">{r.titulo}</td>
+                            <td className="text-center px-3 py-2.5 font-semibold text-white">{r.claims}</td>
+                            <td className="text-center px-3 py-2.5"><span className={r.clAfetam>0?'text-gge-red font-semibold':'text-gge-muted'}>{r.clAfetam}</span></td>
+                            <td className="text-center px-3 py-2.5"><span className={r.cancel>0?'text-gge-orange font-semibold':'text-gge-muted'}>{r.cancel}</span></td>
+                            <td className="text-center px-3 py-2.5"><span className={r.fbNeg>0?'text-gge-red font-semibold':'text-gge-muted'}>{r.fbNeg}</span></td>
+                            <td className="text-center px-3 py-2.5">
+                              <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold ${r.score>=15?'bg-gge-red/20 text-gge-red':r.score>=8?'bg-gge-orange/20 text-gge-orange':'bg-white/10 text-gge-muted'}`}>{r.score}</span>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="flex flex-wrap gap-1">
+                                {Object.entries(r.motivos).map(([m,n])=><span key={m} className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gge-muted">{m}: {n}</span>)}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ═══ TAB: Cronicos ═══ */}
+            {!loading && tab==='cronicos' && (
+              <div className="space-y-4 fade-in">
+                <div className="bg-gge-card border border-gge-orange/30 rounded-xl p-4">
+                  <p className="text-sm text-gge-muted">Anuncios com problemas em <span className="text-white font-medium">2 ou mais meses diferentes</span> ao longo de todo o historico. Mesmo que nao gerem crise aguda, corroem a conta constantemente.</p>
+                </div>
+                <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gge-border text-xs text-gge-muted uppercase tracking-wider">
+                          <th className="text-center px-3 py-3 w-8">#</th>
+                          <th className="text-left px-3 py-3">MLB</th>
+                          <th className="text-left px-3 py-3">SKU</th>
+                          <th className="text-left px-3 py-3">Titulo</th>
+                          <th className="text-center px-3 py-3">Meses c/ Prob.</th>
+                          <th className="text-center px-3 py-3">Claims</th>
+                          <th className="text-center px-3 py-3">Afetam</th>
+                          <th className="text-left px-3 py-3">Periodo</th>
+                          <th className="text-center px-3 py-3">Score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cronicos.length===0 ? (
+                          <tr><td colSpan={9} className="text-center py-12 text-gge-muted">Nenhum anuncio cronico encontrado.</td></tr>
+                        ) : cronicos.slice(0,20).map((r,i) => (
+                          <tr key={r.mlb_id} className={`border-b border-gge-border/30 row-hover ${i<3?'bg-gge-orange/[0.04]':''}`}>
+                            <td className="text-center px-3 py-2.5"><span className={`text-xs font-bold ${i<3?'text-gge-orange':'text-gge-muted'}`}>{i+1}</span></td>
+                            <td className="px-3 py-2.5"><CopyCell text={r.mlb_id} /></td>
+                            <td className="px-3 py-2.5"><CopyCell text={r.sku} /></td>
+                            <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[200px] truncate">{r.titulo}</td>
+                            <td className="text-center px-3 py-2.5">
+                              <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${r.mesesN>=4?'bg-gge-red/20 text-gge-red':r.mesesN>=3?'bg-gge-orange/20 text-gge-orange':'bg-white/10 text-gge-muted'}`}>{r.mesesN}</span>
+                            </td>
+                            <td className="text-center px-3 py-2.5 font-semibold text-white">{r.claims}</td>
+                            <td className="text-center px-3 py-2.5"><span className={r.clAfetam>0?'text-gge-red font-semibold':'text-gge-muted'}>{r.clAfetam}</span></td>
+                            <td className="px-3 py-2.5 text-xs text-gge-muted">{fmtDate(r.primeiro)} → {fmtDate(r.ultimo)}</td>
+                            <td className="text-center px-3 py-2.5">
+                              <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold ${r.score>=20?'bg-gge-red/20 text-gge-red':r.score>=10?'bg-gge-orange/20 text-gge-orange':'bg-white/10 text-gge-muted'}`}>{r.score}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ═══ TAB: Prazo para Agir ═══ */}
+            {!loading && tab==='prazo' && (
+              <div className="space-y-4 fade-in">
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4">
+                  <p className="text-sm text-gge-muted">Claims abertos agora. O ML da aproximadamente <span className="text-white font-medium">48h</span> para resolver sem impacto na reputacao.</p>
+                </div>
+                {claimsAbertos.length===0 ? (
+                  <div className="bg-gge-card border border-gge-border rounded-xl p-12 text-center">
+                    <p className="text-3xl mb-3">&#9989;</p>
+                    <p className="text-white font-medium">Nenhum claim aberto no momento</p>
+                    <p className="text-sm text-gge-muted mt-1">Boa noticia!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {claimsAbertos.map(c => (
+                      <div key={c.claim_id||c.id} className={`bg-gge-card border rounded-xl p-4 flex items-center gap-4 fade-in ${c.horas<=12?'border-gge-red/50':c.horas<=24?'border-gge-orange/50':'border-gge-border'}`}>
+                        <div className={`flex-shrink-0 w-16 text-center ${prazoClass(c.horas)}`}>
+                          <span className="text-lg">&#9200;</span>
+                          <p className="text-xs font-bold">{prazoLabel(c.horas)}</p>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-white truncate">{c.titulo||c.mlb_id}</p>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gge-muted">{tipoL(c.tipo)}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gge-muted">{motivoCat(c.motivo||c.reason_id)}</span>
+                            {c.afeta_reputacao && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gge-red/20 text-gge-red font-medium">Afeta reputacao</span>}
+                            <span className="text-[10px] text-gge-muted">Stage: {c.stage||'--'}</span>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 text-right space-y-1">
+                          <CopyCell text={c.mlb_id} />
+                          <CopyCell text={c.sku_vendedor} />
+                        </div>
+                        <div className="flex-shrink-0 text-xs text-gge-muted">{fmtDate(c.data_abertura||c.data_criacao)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

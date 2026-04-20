@@ -15,6 +15,8 @@
     saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     avaliacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
     ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
+    'pos-venda':  svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+    reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
   };
 
   var pages = [
@@ -23,6 +25,8 @@
     { href: '/precificacao', icon: icons.precificacao, label: 'Precifica\u00E7\u00E3o', key: 'precificacao' },
     { href: '/preco-mktp',   icon: icons['preco-mktp'],label: 'Pre\u00E7o MKTP',     key: 'preco-mktp' },
     { href: '/saude',        icon: icons.saude,        label: 'Sa\u00FAde',          key: 'saude' },
+    { href: '/pos-venda',    icon: icons['pos-venda'], label: 'P\u00F3s-Venda',      key: 'pos-venda' },
+    { href: '/reputacao',    icon: icons.reputacao,     label: 'Reputa\u00E7\u00E3o',      key: 'reputacao' },
     { href: '/avaliacao',    icon: icons.avaliacao,     label: 'Avalia\u00E7\u00E3o',      key: 'avaliacao' },
     { href: '/ads',          icon: icons.ads,           label: 'ADs',            key: 'ads' },
   ];
