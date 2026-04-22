@@ -44,6 +44,15 @@
         .header h1 {
             font-size: 24px;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
         }
 
         .header-right {
@@ -121,8 +130,8 @@
         /* Cards Grid */
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 16px;
             margin-bottom: 20px;
         }
 
@@ -325,8 +334,8 @@
         .metric-card {
             background-color: #1a1d27;
             border: 1px solid #2a2d3a;
-            border-radius: 8px;
-            padding: 10px 8px;
+            border-radius: 10px;
+            padding: 12px;
             transition: all 0.3s ease;
             cursor: default;
         }
@@ -337,11 +346,29 @@
         }
 
         .metric-card.card-unidade {
-            background-color: #1a1f2a;
+            background-color: #181a20;
+            border-color: #22252e;
+            opacity: 0.75;
+        }
+
+        .metric-card.card-unidade .metric-value {
+            color: #8b949e;
+            font-size: 18px;
+        }
+
+        .metric-card.card-unidade .metric-title {
+            color: #6e7681;
         }
 
         .metric-card.card-valor {
-            background-color: #1a1d24;
+            background-color: #1a1d27;
+            border-color: #3a5a8a;
+            border-left: 3px solid #58a6ff;
+        }
+
+        .metric-card.card-valor .metric-value {
+            color: #58a6ff;
+            font-size: 22px;
         }
 
         .metric-card.card-custo {
@@ -349,7 +376,18 @@
         }
 
         .metric-card.card-margem {
-            background-color: #1a1d1a;
+            background-color: #1a2a1a;
+            border-color: #2d5a2d;
+            border-left: 3px solid #3fb950;
+        }
+
+        .metric-card.card-margem .metric-value {
+            color: #3fb950;
+            font-size: 22px;
+        }
+
+        .metric-card.card-margem .metric-title {
+            color: #56d364;
         }
 
         .metric-card.card-ind-vendas {
@@ -414,7 +452,7 @@
 
         /* Percentage card styling */
         .metric-card.pct .metric-value {
-            font-size: 22px;
+            font-size: 28px;
             color: #58a6ff;
         }
 
@@ -460,7 +498,7 @@
         /* Projections Grid */
         .projections-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 16px;
             margin: 30px 0;
         }
@@ -642,14 +680,13 @@
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
     <!-- Sidebar (injetado por sidebar.js) -->
 
     <!-- Main container -->
     <div class="container main-with-sidebar" id="container">
         <!-- Header -->
         <div class="header">
-            <h1>Dashboard Controle Total GGE</h1>
+            <h1><svg class="header-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" fill="#3fb950"/><ellipse cx="32" cy="32" rx="22" ry="14" fill="none" stroke="#fff" stroke-width="3"/><circle cx="32" cy="32" r="8" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#1a1d27"/></svg>Dashboard Controle Total GGE</h1>
             <div class="header-right">
                 <div class="user-info">
                     <div id="userName" style="display:none;"></div>
@@ -740,9 +777,11 @@
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
 
-            <!-- CUSTOS + MARGENS — 8 cards em linha única -->
+            <!-- CUSTOS + MARGENS — 9 cards: 4 custos op + 4 impostos + 1 margem = 100% -->
             <div class="section-title">CUSTOS / MARGENS</div>
-            <div class="cards-grid" style="grid-template-columns: repeat(10, 1fr); gap: 10px;" id="custos-margens-row">
+            <div class="cards-grid" style="grid-template-columns: repeat(5, 1fr); gap: 10px;" id="custos-margens-row">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
@@ -790,6 +829,7 @@
             <!-- Projections -->
             <div class="section-title">PROJEÇÕES</div>
             <div class="projections-grid" id="projections-grid">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
@@ -1125,6 +1165,19 @@
                     contaSelect.appendChild(option);
                 });
 
+                // Load fornecedores
+                const fornecedoresData = await sbQuery('fornecedores', 'id,nome', {});
+                fornecedores = fornecedoresData || [];
+                const fornecedorSelect = document.getElementById('filterFornecedor');
+                fornecedores
+                    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                    .forEach(f => {
+                        const option = document.createElement('option');
+                        option.value = f.id;
+                        option.textContent = f.nome;
+                        fornecedorSelect.appendChild(option);
+                    });
+
                 await applyFilter();
             } catch (error) {
                 showError('Erro ao carregar dados iniciais: ' + error.message);
@@ -1273,16 +1326,13 @@
                 buildMetricCard('DIFAL', fmtPct(data.difal_pct), fmt(data.difal_valor), calculateTrend(data.difal_pct, prev.difal_pct, true), true, 'card-custo')
             ].join('');
 
-            // 1 card de MARGEM: MC2 (o que sobra após todos os custos e impostos)
-            const margensHtml = buildMetricCard('MC2', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem');
+            // 2 cards de MARGEM: MC1 (sem impostos) e MC2 (final)
+            const margensHtml = [
+                buildMetricCard('MC1', fmtPct(data.mc1_pct), fmt(data.mc1_valor), calculateTrend(data.mc1_pct, prev.mc1_pct), true, 'card-margem'),
+                buildMetricCard('MC2', fmtPct(data.mc2_pct), fmt(data.mc2_valor), calculateTrend(data.mc2_pct, prev.mc2_pct), true, 'card-margem')
+            ].join('');
 
-            // MC1 = MC2 + DIFAL (margem antes do DIFAL)
-            const mc1_pct = (data.mc2_pct || 0) + (data.difal_pct || 0);
-            const mc1_valor = (data.mc2_valor || 0) + (data.difal_valor || 0);
-            const prev_mc1_pct = (prev.mc2_pct || 0) + (prev.difal_pct || 0);
-            const mc1Html = buildMetricCard('MC1', fmtPct(mc1_pct), fmt(mc1_valor), calculateTrend(mc1_pct, prev_mc1_pct), true, 'card-margem');
-
-            document.getElementById('custos-margens-row').innerHTML = custosOp + custosImp + margensHtml + mc1Html;
+            document.getElementById('custos-margens-row').innerHTML = custosOp + custosImp + margensHtml;
         }
 
         // renderMargensCards agora é parte de renderCustosCards
@@ -1550,17 +1600,14 @@
         // ========== RENDER EVOLUÇÃO MENSAL ==========
         async function renderEvolucaoMensal(conta, dateRange) {
             try {
-                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=mes,receita,margem_valor&order=mes.asc`;
-
-                // Add date range filter for last 12 months
+                // Fetch last 24 months of data (current 12 + prior 12 for YoY)
                 const today = new Date();
-                const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), 1);
-                const startMonth = oneYearAgo.toISOString().split('T')[0].substring(0, 7);
+                const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), 1);
+                const startMonth = twoYearsAgo.toISOString().split('T')[0].substring(0, 7);
 
+                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=mes,receita,margem_valor&order=mes.asc`;
                 url += `&mes=gte.${startMonth}-01`;
-                if (conta) {
-                    url += `&conta_id=eq.${conta}`;
-                }
+                if (conta) url += `&conta_id=eq.${conta}`;
 
                 const response = await fetch(url, {
                     headers: {
@@ -1583,19 +1630,56 @@
                     aggregated[row.mes].margem_valor += row.margem_valor || 0;
                 });
 
-                const meses = Object.keys(aggregated).sort();
-                const receitas = meses.map(m => aggregated[m].receita);
-                const margens = meses.map(m => aggregated[m].margem_valor);
+                // Build last 12 months as the main display
+                const allMonths = Object.keys(aggregated).sort();
+                const currentYear = today.getFullYear();
+                const currentMonth = today.getMonth();
+
+                // Generate 12 month labels (current period)
+                const last12 = [];
+                for (let i = 11; i >= 0; i--) {
+                    const d = new Date(currentYear, currentMonth - i, 1);
+                    const key = d.toISOString().split('T')[0].substring(0, 7) + '-01';
+                    // Also try just YYYY-MM-01 format
+                    last12.push(key);
+                }
+
+                // Match keys from aggregated data
+                const findMonth = (targetKey) => {
+                    // Try exact match first
+                    if (aggregated[targetKey]) return aggregated[targetKey];
+                    // Try matching by YYYY-MM prefix
+                    const prefix = targetKey.substring(0, 7);
+                    const match = allMonths.find(m => m.substring(0, 7) === prefix);
+                    return match ? aggregated[match] : null;
+                };
+
+                const labels = [];
+                const receitas = [];
+                const margens = [];
+                const receitasYoY = [];
+
+                last12.forEach(monthKey => {
+                    const prefix = monthKey.substring(0, 7);
+                    const monthData = findMonth(monthKey);
+                    labels.push(prefix);
+                    receitas.push(monthData ? monthData.receita : 0);
+                    margens.push(monthData ? monthData.margem_valor : 0);
+
+                    // YoY: same month, previous year
+                    const parts = prefix.split('-');
+                    const yoyKey = (parseInt(parts[0]) - 1) + '-' + parts[1] + '-01';
+                    const yoyData = findMonth(yoyKey);
+                    receitasYoY.push(yoyData ? yoyData.receita : 0);
+                });
 
                 const ctx = document.getElementById('evolucao-mensal-chart').getContext('2d');
-
-                // Destroy existing chart if it exists
                 if (window.evolucaoChart) window.evolucaoChart.destroy();
 
                 window.evolucaoChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: meses,
+                        labels: labels,
                         datasets: [
                             {
                                 label: 'Receita',
@@ -1605,21 +1689,36 @@
                                 borderColor: '#58a6ff',
                                 borderWidth: 1,
                                 yAxisID: 'y',
-                                order: 2
+                                order: 3,
+                                barPercentage: 0.4,
+                                categoryPercentage: 0.8
                             },
                             {
                                 label: 'Margem',
                                 data: margens,
-                                type: 'line',
+                                type: 'bar',
+                                backgroundColor: 'rgba(63, 185, 80, 0.7)',
                                 borderColor: '#3fb950',
-                                backgroundColor: 'rgba(63, 185, 80, 0.1)',
+                                borderWidth: 1,
+                                yAxisID: 'y',
+                                order: 2,
+                                barPercentage: 0.4,
+                                categoryPercentage: 0.8
+                            },
+                            {
+                                label: 'Receita Ano Anterior',
+                                data: receitasYoY,
+                                type: 'line',
+                                borderColor: '#f0883e',
+                                backgroundColor: 'transparent',
                                 borderWidth: 2,
-                                fill: true,
-                                yAxisID: 'y1',
+                                borderDash: [6, 3],
+                                yAxisID: 'y',
                                 order: 1,
-                                pointBackgroundColor: '#3fb950',
+                                pointBackgroundColor: '#f0883e',
                                 pointBorderColor: '#fff',
                                 pointBorderWidth: 1,
+                                pointRadius: 3,
                                 tension: 0.3
                             }
                         ]
@@ -1643,7 +1742,12 @@
                                 titleColor: '#c9d1d9',
                                 bodyColor: '#8b949e',
                                 borderColor: '#2a2d3a',
-                                borderWidth: 1
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + fmt(context.raw);
+                                    }
+                                }
                             }
                         },
                         scales: {
@@ -1653,15 +1757,7 @@
                                 position: 'left',
                                 ticks: { color: '#8b949e' },
                                 grid: { color: 'rgba(42, 45, 58, 0.5)' },
-                                title: { display: true, text: 'Receita', color: '#8b949e' }
-                            },
-                            y1: {
-                                type: 'linear',
-                                display: true,
-                                position: 'right',
-                                ticks: { color: '#8b949e' },
-                                grid: { display: false },
-                                title: { display: true, text: 'Margem', color: '#8b949e' }
+                                title: { display: true, text: 'Valor (R$)', color: '#8b949e' }
                             },
                             x: {
                                 ticks: { color: '#8b949e' },
@@ -1819,63 +1915,52 @@
         }
 
         // ========== RENDER PROJECTIONS ==========
-        function renderProjections() {
+        async function renderProjections() {
             try {
                 if (!currentData) return;
 
-                const period = currentPeriod;
-                const daysElapsed = getDaysElapsed(period);
-                const remainingDays = getRemainingDaysInMonth();
+                const today = new Date();
+                const todayISO = today.toISOString().split('T')[0];
 
-                // Use RPC data to compute projections
-                const dailyAvg = daysElapsed > 0 ? currentData.receita / daysElapsed : 0;
-                const acumulado = currentData.receita;
-                const projMonth = acumulado + (dailyAvg * remainingDays);
+                // Fetch sales data for each projection window (7d, 15d, 21d, 30d)
+                const windows = [7, 15, 21, 30];
+                const projections = [];
 
-                const html = `
+                for (const days of windows) {
+                    const fromDate = new Date(today);
+                    fromDate.setDate(fromDate.getDate() - days);
+                    const fromISO = fromDate.toISOString().split('T')[0];
+
+                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=valor_total&data_venda=gte.${fromISO}&data_venda=lt.${todayISO}&status=neq.cancelled`;
+                    if (currentConta) url += `&conta_id=eq.${currentConta}`;
+
+                    const resp = await fetch(url, {
+                        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                    });
+                    const rows = await resp.json();
+                    const totalVendas = Array.isArray(rows) ? rows.reduce((s, r) => s + (r.valor_total || 0), 0) : 0;
+                    const dailyAvg = days > 0 ? totalVendas / days : 0;
+                    const proj30 = dailyAvg * 30;
+
+                    projections.push({ days, totalVendas, dailyAvg, proj30 });
+                }
+
+                const html = projections.map(p => `
                     <div class="projection-card">
-                        <div class="projection-title">Projeção 7 dias</div>
-                        <div class="projection-value">${fmt(acumulado + (dailyAvg * 7))}</div>
+                        <div class="projection-title">${p.days} DIAS PROJETANDO 30 DIAS</div>
+                        <div class="projection-value">${fmt(p.proj30)}</div>
                         <div class="projection-rows">
                             <div class="projection-row">
-                                <span class="projection-label">Acumulado</span>
-                                <span class="projection-val">${fmt(acumulado)}</span>
+                                <span class="projection-label">Vendas ${p.days}d</span>
+                                <span class="projection-val">${fmt(p.totalVendas)}</span>
                             </div>
                             <div class="projection-row">
                                 <span class="projection-label">Média/dia</span>
-                                <span class="projection-val">${fmt(dailyAvg)}</span>
+                                <span class="projection-val">${fmt(p.dailyAvg)}</span>
                             </div>
                         </div>
                     </div>
-                    <div class="projection-card">
-                        <div class="projection-title">Projeção 15 dias</div>
-                        <div class="projection-value">${fmt(acumulado + (dailyAvg * 15))}</div>
-                        <div class="projection-rows">
-                            <div class="projection-row">
-                                <span class="projection-label">Acumulado</span>
-                                <span class="projection-val">${fmt(acumulado)}</span>
-                            </div>
-                            <div class="projection-row">
-                                <span class="projection-label">Média/dia</span>
-                                <span class="projection-val">${fmt(dailyAvg)}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="projection-card">
-                        <div class="projection-title">Projeção Mensal</div>
-                        <div class="projection-value">${fmt(projMonth)}</div>
-                        <div class="projection-rows">
-                            <div class="projection-row">
-                                <span class="projection-label">Acumulado</span>
-                                <span class="projection-val">${fmt(acumulado)}</span>
-                            </div>
-                            <div class="projection-row">
-                                <span class="projection-label">Média/dia</span>
-                                <span class="projection-val">${fmt(dailyAvg)}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                `).join('');
 
                 document.getElementById('projections-grid').innerHTML = html;
             } catch (error) {
