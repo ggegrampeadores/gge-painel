@@ -51,6 +51,22 @@
     const SB_KEY = window.GGE_SUPABASE_KEY;
     const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
+    // ── Fetch ALL rows (paginação automática, sem limite de 1000) ──
+    async function fetchAll(buildQuery) {
+      const PAGE = 1000;
+      let allRows = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await buildQuery().range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allRows = allRows.concat(data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return allRows;
+    }
+
     // ── Helpers ──
     const fmtN = n => n == null ? '—' : Number(n).toLocaleString('pt-BR');
     const fmtP = n => n == null ? '—' : Number(n).toFixed(1) + '%';
@@ -316,20 +332,19 @@
       // Helper to get param by metrica name
       const getParam = useCallback((metrica) => params.find(p => p.metrica === metrica), [params]);
 
-      // Load data
+      // Load data (paginado — busca TODOS os registros)
       useEffect(() => {
         async function load() {
           setLoading(true);
           setError(null);
           try {
             const range = getRange(periodoSel);
-            const [vendasRes, claimsRes] = await Promise.all([
-              sb.from('vw_reputacao_vendas').select('*').gte('data_venda', range.from).lte('data_venda', range.to),
-              sb.from('claims').select('*').gte('data_abertura', range.from).lte('data_abertura', range.to),
+            const [vendasAll, claimsAll] = await Promise.all([
+              fetchAll(() => sb.from('vw_reputacao_vendas').select('*').gte('data_venda', range.from).lte('data_venda', range.to)),
+              fetchAll(() => sb.from('claims').select('*').gte('data_abertura', range.from).lte('data_abertura', range.to)),
             ]);
-            if (vendasRes.error) throw vendasRes.error;
-            setVendasData(vendasRes.data || []);
-            setClaimsData(claimsRes.data || []);
+            setVendasData(vendasAll);
+            setClaimsData(claimsAll);
           } catch (e) {
             setError(e.message || 'Erro ao carregar dados');
           }
@@ -345,9 +360,8 @@
           setFreteLoading(true);
           try {
             const range = getRange(periodoSel);
-            const res = await sb.from('vw_frete_desacordo').select('*').gte('data_venda', range.from).lte('data_venda', range.to);
-            if (res.error) throw res.error;
-            setFreteData(res.data || []);
+            const allFrete = await fetchAll(() => sb.from('vw_frete_desacordo').select('*').gte('data_venda', range.from).lte('data_venda', range.to));
+            setFreteData(allFrete);
           } catch (e) { console.error('Erro frete:', e); }
           setFreteLoading(false);
         }
@@ -364,22 +378,22 @@
           try {
             const now = new Date();
             const from30 = new Date(now - 30 * 864e5).toISOString();
-            const res = await sb.from('claims')
-              .select('*, vendas!inner(mlb_id, preco_total, data_venda, quantidade), anuncios!inner(titulo, sku_vendedor, conta_id, contas!inner(nome))')
-              .eq('tem_devolucao', true)
-              .gte('data_abertura', from30)
-              .order('data_abertura', { ascending: false });
-            if (res.error) {
+            let allDevol;
+            try {
+              allDevol = await fetchAll(() => sb.from('claims')
+                .select('*, vendas!inner(mlb_id, preco_total, data_venda, quantidade), anuncios!inner(titulo, sku_vendedor, conta_id, contas!inner(nome))')
+                .eq('tem_devolucao', true)
+                .gte('data_abertura', from30)
+                .order('data_abertura', { ascending: false }));
+            } catch (e) {
               // Fallback: simpler query without joins if FK not set up
-              const res2 = await sb.from('claims')
+              allDevol = await fetchAll(() => sb.from('claims')
                 .select('*')
                 .eq('tem_devolucao', true)
                 .gte('data_abertura', from30)
-                .order('data_abertura', { ascending: false });
-              setDevolData(res2.data || []);
-            } else {
-              setDevolData(res.data || []);
+                .order('data_abertura', { ascending: false }));
             }
+            setDevolData(allDevol);
           } catch (e) { console.error('Erro devoluções:', e); }
           setDevolLoading(false);
         }
