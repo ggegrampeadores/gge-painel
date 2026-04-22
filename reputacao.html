@@ -12,7 +12,6 @@
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="sidebar.js" defer></script>
   <script>
     tailwind.config = {
       theme: { extend: { colors: {
@@ -37,8 +36,11 @@
     .modal-box { background:#1a1d2e;border:1px solid #2a2d3e;border-radius:16px;max-width:800px;width:95%;max-height:85vh;overflow-y:auto;padding:24px; }
     .filter-active select { border-color:#6366f1 !important; color:#fff !important; font-weight:600; }
   </style>
+  <script src="auth.js" defer></script>
+  <script src="sidebar.js" defer></script>
 </head>
 <body>
+  <div class="main-with-sidebar">
   <div id="root"></div>
   <script type="text/babel">
     const { useState, useEffect, useMemo, useCallback } = React;
@@ -612,7 +614,7 @@
       const totalAlerts = alerts.criticos.length + alerts.ruins.length + alerts.atencao.length;
 
       return (
-        <div className="min-h-screen" style={{ marginLeft: 48 }}>
+        <div className="min-h-screen">
           {/* Header */}
           <header className="bg-gge-card/80 backdrop-blur border-b border-gge-border sticky top-0 z-50">
             <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
@@ -811,7 +813,7 @@
                   </div>
                 </div>
               </>
-            ) : (
+            ) : tab === 'frete' ? (
               /* ── Tab: Fretes em Desacordo ── */
               <>
                 {freteLoading ? (
@@ -1084,7 +1086,7 @@
             )}
           </main>
 
-          <footer className="max-w-[1600px] mx-auto px-6 py-4 text-center text-xs text-gge-muted border-t border-gge-border mt-8" style={{ marginLeft: 48 }}>
+          <footer className="max-w-[1600px] mx-auto px-6 py-4 text-center text-xs text-gge-muted border-t border-gge-border mt-8">
             Controle Total GGE · Reputação e Claims · Dados via Supabase
           </footer>
         </div>
@@ -1093,5 +1095,6 @@
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
+  </div>
 </body>
 </html>
