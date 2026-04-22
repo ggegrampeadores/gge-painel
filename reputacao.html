@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Total GGE — Reputação</title>
+  <title>Reputação · Controle Total GGE</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -12,105 +12,93 @@
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js" defer></script>
+  <script src="sidebar.js" defer></script>
   <script>
     tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'gge-bg': '#0f1117',
-            'gge-card': '#1a1d2e',
-            'gge-border': '#2a2d3e',
-            'gge-text': '#e2e8f0',
-            'gge-muted': '#94a3b8',
-            'gge-accent': '#6366f1',
-            'gge-green': '#22c55e',
-            'gge-red': '#ef4444',
-            'gge-yellow': '#eab308',
-            'gge-orange': '#f97316',
-            'gge-cyan': '#22d3ee',
-          }
-        }
-      }
+      theme: { extend: { colors: {
+        'gge-bg':'#0f1117','gge-card':'#1a1d2e','gge-border':'#2a2d3e',
+        'gge-text':'#e2e8f0','gge-muted':'#94a3b8','gge-accent':'#6366f1',
+        'gge-green':'#22c55e','gge-red':'#ef4444','gge-yellow':'#eab308',
+        'gge-orange':'#f97316','gge-cyan':'#22d3ee',
+      }}}
     }
   </script>
   <style>
-    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
-    .fade-in { animation: fadeIn 0.3s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .filter-active select { border-color: #6366f1 !important; color: #fff !important; font-weight: 600; }
-    .row-hover:hover { background: rgba(99, 102, 241, 0.08); }
-    .tab-active { border-bottom: 2px solid #6366f1; color: #fff; }
-    .tab-inactive { border-bottom: 2px solid transparent; color: #94a3b8; }
-    .tab-inactive:hover { color: #e2e8f0; }
-    .sortable { cursor: pointer; user-select: none; }
-    .sortable:hover { color: #6366f1; }
+    body { background:#0f1117; color:#e2e8f0; font-family:'Inter',system-ui,sans-serif; }
+    .fade-in { animation: fadeIn .3s ease-out; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .row-hover:hover { background:rgba(99,102,241,.08); }
+    .tab-active { border-bottom:2px solid #6366f1; color:#fff; }
+    .tab-inactive { border-bottom:2px solid transparent; color:#94a3b8; }
+    .tab-inactive:hover { color:#e2e8f0; }
+    .sortable { cursor:pointer; user-select:none; }
+    .sortable:hover { color:#6366f1; }
+    .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center; }
+    .modal-box { background:#1a1d2e;border:1px solid #2a2d3e;border-radius:16px;max-width:800px;width:95%;max-height:85vh;overflow-y:auto;padding:24px; }
+    .filter-active select { border-color:#6366f1 !important; color:#fff !important; font-weight:600; }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
     const { useState, useEffect, useMemo, useCallback } = React;
-    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie, Legend } = Recharts;
+    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } = Recharts;
 
-    const SUPABASE_URL = window.GGE_SUPABASE_URL;
-    const SUPABASE_KEY = window.GGE_SUPABASE_KEY;
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SB_URL = window.GGE_SUPABASE_URL;
+    const SB_KEY = window.GGE_SUPABASE_KEY;
+    const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
     // ── Helpers ──
-    const fmtN = (n) => n == null ? '—' : Number(n).toLocaleString('pt-BR');
-    const fmtP = (n) => n == null ? '—' : Number(n).toFixed(1) + '%';
-    const fmtR = (n) => n == null ? '—' : 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+    const fmtN = n => n == null ? '—' : Number(n).toLocaleString('pt-BR');
+    const fmtP = n => n == null ? '—' : Number(n).toFixed(1) + '%';
+    const fmtR = n => n == null ? '—' : 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+    const TIPO_LABELS = { gold_special: 'Clássico', gold_pro: 'Premium' };
+    const labelTipo = t => TIPO_LABELS[t] || t;
 
-    const TIPO_LABELS = { 'gold_special': 'Clássico', 'gold_pro': 'Premium', 'Desconhecido': 'Desconhecido' };
-    const labelTipo = (t) => TIPO_LABELS[t] || t;
-
-    // ── Period config (same as margem) ──
-    const PERIODO_OPTIONS = [
-      { value: '30d', label: '30 dias' },
-      { value: '60d', label: '60 dias' },
-      { value: '90d', label: '90 dias' },
-      { value: '180d', label: '180 dias' },
-      { value: '1a', label: '1 ano' },
-      { value: 'all', label: 'Todo período' },
+    const PERIODOS = [
+      { v: '30d', l: '30 dias' }, { v: '60d', l: '60 dias' }, { v: '90d', l: '90 dias' },
+      { v: '180d', l: '180 dias' }, { v: '1a', l: '1 ano' }, { v: 'all', l: 'Todo período' },
     ];
 
-    function getDateRange(periodo) {
-      const now = new Date();
-      const to = now.toISOString();
+    function getRange(p) {
+      const now = new Date(), to = now.toISOString();
       let from;
-      switch (periodo) {
-        case '30d': from = new Date(now - 30 * 86400000); break;
-        case '60d': from = new Date(now - 60 * 86400000); break;
-        case '90d': from = new Date(now - 90 * 86400000); break;
-        case '180d': from = new Date(now - 180 * 86400000); break;
-        case '1a': from = new Date(now - 365 * 86400000); break;
-        case 'all': from = new Date('2020-01-01'); break;
-        default: from = new Date(now - 60 * 86400000);
+      switch (p) {
+        case '30d': from = new Date(now - 30 * 864e5); break;
+        case '60d': from = new Date(now - 60 * 864e5); break;
+        case '90d': from = new Date(now - 90 * 864e5); break;
+        case '180d': from = new Date(now - 180 * 864e5); break;
+        case '1a': from = new Date(now - 365 * 864e5); break;
+        default: from = new Date('2020-01-01');
       }
       return { from: from.toISOString(), to };
     }
 
-    // ── Filter select ──
-    function FilterSelect({ label, value, onChange, options, allLabel, labelFn, isActive }) {
-      return (
-        <div className={`flex flex-col gap-1 ${isActive ? 'filter-active' : ''}`}>
-          <label className="text-xs text-gge-muted font-medium">{label}</label>
-          <select value={value} onChange={e => onChange(e.target.value)}
-                  className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
-            <option value="">{allLabel || 'Todos'}</option>
-            {options.map(o => <option key={o} value={o}>{labelFn ? labelFn(o) : o}</option>)}
-          </select>
-        </div>
-      );
+    // ── Classify value against thresholds ──
+    function classify(value, param) {
+      if (!param) return { label: '—', color: 'text-gge-muted', bg: 'bg-gge-bg', level: 0 };
+      const v = Number(value) || 0;
+      if (v <= Number(param.muito_bom_ate)) return { label: 'Muito Bom', color: 'text-gge-green', bg: 'bg-green-900/30 border-green-700/40', level: 0 };
+      if (v <= Number(param.bom_ate)) return { label: 'Bom', color: 'text-emerald-400', bg: 'bg-emerald-900/20 border-emerald-700/30', level: 1 };
+      if (v <= Number(param.regular_ate)) return { label: 'Regular', color: 'text-gge-yellow', bg: 'bg-yellow-900/20 border-yellow-700/30', level: 2 };
+      if (v <= Number(param.ruim_ate)) return { label: 'Ruim', color: 'text-gge-orange', bg: 'bg-orange-900/20 border-orange-700/30', level: 3 };
+      return { label: 'Crítico', color: 'text-gge-red', bg: 'bg-red-900/30 border-red-700/40', level: 4 };
     }
 
-    // ── Skeleton ──
-    function Skeleton({ className }) {
-      return <div className={`bg-gge-card border border-gge-border rounded-xl animate-pulse ${className || 'h-24'}`} />;
+    // ── Small components ──
+    function Badge({ text, color }) {
+      const cls = {
+        green: 'bg-green-900/40 text-green-400 border-green-700/50',
+        red: 'bg-red-900/40 text-red-400 border-red-700/50',
+        yellow: 'bg-yellow-900/40 text-yellow-400 border-yellow-700/50',
+        orange: 'bg-orange-900/40 text-orange-400 border-orange-700/50',
+        muted: 'bg-gge-bg text-gge-muted border-gge-border',
+      };
+      return <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium whitespace-nowrap ${cls[color] || cls.muted}`}>{text}</span>;
     }
 
-    // ── KPI Card ──
     function KpiCard({ title, value, sub, color, icon }) {
       return (
         <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
@@ -124,6 +112,168 @@
       );
     }
 
+    function FilterSelect({ label, value, onChange, options, allLabel, labelFn, isActive }) {
+      return (
+        <div className={`flex flex-col gap-1 ${isActive ? 'filter-active' : ''}`}>
+          <label className="text-xs text-gge-muted font-medium">{label}</label>
+          <select value={value} onChange={e => onChange(e.target.value)}
+                  className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
+            <option value="">{allLabel || 'Todos'}</option>
+            {options.map(o => <option key={o} value={o}>{labelFn ? labelFn(o) : o}</option>)}
+          </select>
+        </div>
+      );
+    }
+
+    function Skeleton({ className }) {
+      return <div className={`bg-gge-card border border-gge-border rounded-xl animate-pulse ${className || 'h-24'}`} />;
+    }
+
+    // ── Parameters Modal ──
+    function ParametrosModal({ params, onClose }) {
+      const FAIXA_COLORS = [
+        { label: 'Muito Bom', cls: 'bg-green-900/40 text-green-400 border-green-700/50' },
+        { label: 'Bom', cls: 'bg-emerald-900/30 text-emerald-400 border-emerald-700/50' },
+        { label: 'Regular', cls: 'bg-yellow-900/30 text-yellow-400 border-yellow-700/50' },
+        { label: 'Ruim', cls: 'bg-orange-900/30 text-orange-400 border-orange-700/50' },
+        { label: 'Crítico', cls: 'bg-red-900/40 text-red-400 border-red-700/50' },
+      ];
+
+      const METRICA_NOME = {
+        taxa_cancelamento: 'Taxa de Cancelamento',
+        fb_negativo_pct: 'Feedback Negativo',
+        claims_por_100_vendas: 'Claims / 100 vendas',
+        devolucoes_por_100_vendas: 'Devoluções / 100 vendas',
+        score_reputacao: 'Score de Reputação',
+        frete_desacordo_pct: 'Frete em Desacordo',
+      };
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-white">Parâmetros de Classificação</h2>
+                <p className="text-xs text-gge-muted mt-1">Faixas que definem a classificação de cada métrica. Ajustáveis via Supabase Studio.</p>
+              </div>
+              <button onClick={onClose} className="text-gge-muted hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+
+            <div className="space-y-4">
+              {params.map(p => (
+                <div key={p.metrica} className="bg-gge-bg border border-gge-border rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <span className="text-sm font-semibold text-white">{METRICA_NOME[p.metrica] || p.metrica}</span>
+                      <span className="text-xs text-gge-muted ml-2">({p.unidade})</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gge-muted mb-3">{p.descricao}</p>
+
+                  <div className="grid grid-cols-5 gap-2 mb-3">
+                    <div className={`rounded-lg border p-2 text-center ${FAIXA_COLORS[0].cls}`}>
+                      <div className="text-[10px] font-medium mb-1">Muito Bom</div>
+                      <div className="text-sm font-bold">≤ {p.muito_bom_ate}</div>
+                    </div>
+                    <div className={`rounded-lg border p-2 text-center ${FAIXA_COLORS[1].cls}`}>
+                      <div className="text-[10px] font-medium mb-1">Bom</div>
+                      <div className="text-sm font-bold">{p.muito_bom_ate} — {p.bom_ate}</div>
+                    </div>
+                    <div className={`rounded-lg border p-2 text-center ${FAIXA_COLORS[2].cls}`}>
+                      <div className="text-[10px] font-medium mb-1">Regular</div>
+                      <div className="text-sm font-bold">{p.bom_ate} — {p.regular_ate}</div>
+                    </div>
+                    <div className={`rounded-lg border p-2 text-center ${FAIXA_COLORS[3].cls}`}>
+                      <div className="text-[10px] font-medium mb-1">Ruim</div>
+                      <div className="text-sm font-bold">{p.regular_ate} — {p.ruim_ate}</div>
+                    </div>
+                    <div className={`rounded-lg border p-2 text-center ${FAIXA_COLORS[4].cls}`}>
+                      <div className="text-[10px] font-medium mb-1">Crítico</div>
+                      <div className="text-sm font-bold">&gt; {p.critico_acima}</div>
+                    </div>
+                  </div>
+
+                  {(p.acao_sugerida_ruim || p.acao_sugerida_critico) && (
+                    <div className="space-y-1.5">
+                      {p.acao_sugerida_ruim && (
+                        <div className="flex gap-2 text-xs">
+                          <span className="text-gge-orange font-medium shrink-0">Ruim →</span>
+                          <span className="text-gge-muted">{p.acao_sugerida_ruim}</span>
+                        </div>
+                      )}
+                      {p.acao_sugerida_critico && (
+                        <div className="flex gap-2 text-xs">
+                          <span className="text-gge-red font-medium shrink-0">Crítico →</span>
+                          <span className="text-gge-muted">{p.acao_sugerida_critico}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 p-3 bg-gge-accent/10 border border-gge-accent/20 rounded-lg">
+              <p className="text-xs text-gge-accent">
+                <strong>Como ajustar:</strong> Acesse o Supabase Studio → Tabela <code>parametros_reputacao</code> → edite os valores das colunas <code>muito_bom_ate</code>, <code>bom_ate</code>, etc. As mudanças refletem automaticamente ao recarregar a página.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Alert Card ──
+    function AlertCard({ icon, title, items, color, actionLabel, param }) {
+      const [expanded, setExpanded] = useState(false);
+      const shown = expanded ? items : items.slice(0, 5);
+      const colorMap = {
+        red: { border: 'border-red-700/40', bg: 'bg-red-900/20', text: 'text-red-400', badge: 'bg-red-900/40 text-red-300' },
+        orange: { border: 'border-orange-700/40', bg: 'bg-orange-900/20', text: 'text-orange-400', badge: 'bg-orange-900/40 text-orange-300' },
+        yellow: { border: 'border-yellow-700/40', bg: 'bg-yellow-900/20', text: 'text-yellow-400', badge: 'bg-yellow-900/40 text-yellow-300' },
+      };
+      const c = colorMap[color] || colorMap.yellow;
+
+      return (
+        <div className={`border ${c.border} ${c.bg} rounded-xl p-4 fade-in`}>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">{icon}</span>
+            <span className={`text-sm font-bold ${c.text}`}>{title}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${c.badge}`}>{items.length}</span>
+          </div>
+          <div className="space-y-2">
+            {shown.map((item, i) => (
+              <div key={i} className="flex items-start gap-3 py-1.5 px-2 rounded-lg bg-black/20">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-white truncate">{item.titulo}</div>
+                  <div className="text-xs text-gge-muted">{item.mlb_id} · {item.conta_nome}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className={`text-sm font-bold ${c.text}`}>{item.valor}</div>
+                  <div className="text-[10px] text-gge-muted">{item.detalhe}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {items.length > 5 && (
+            <button onClick={() => setExpanded(!expanded)} className={`mt-2 text-xs ${c.text} hover:underline`}>
+              {expanded ? 'Mostrar menos' : `Ver todos (${items.length})`}
+            </button>
+          )}
+          {param?.acao_sugerida_critico && color === 'red' && (
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <p className="text-xs text-gge-muted"><span className={`font-semibold ${c.text}`}>Ação:</span> {param.acao_sugerida_critico}</p>
+            </div>
+          )}
+          {param?.acao_sugerida_ruim && color === 'orange' && (
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <p className="text-xs text-gge-muted"><span className={`font-semibold ${c.text}`}>Ação:</span> {param.acao_sugerida_ruim}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // ── Main App ──
     function App() {
       const [tab, setTab] = useState('reputacao');
@@ -133,6 +283,8 @@
       const [claimsData, setClaimsData] = useState([]);
       const [freteData, setFreteData] = useState([]);
       const [freteLoading, setFreteLoading] = useState(false);
+      const [params, setParams] = useState([]);
+      const [showParams, setShowParams] = useState(false);
 
       // Filters
       const [periodoSel, setPeriodoSel] = useState('60d');
@@ -143,13 +295,22 @@
       const [catSel, setCatSel] = useState('');
       const [fornSel, setFornSel] = useState('');
       const [pontoSel, setPontoSel] = useState('');
-      const [idadeSel, setIdadeSel] = useState('');
 
       // Sorting
-      const [sortCol, setSortCol] = useState('cancelamentos');
+      const [sortCol, setSortCol] = useState('score');
       const [sortDir, setSortDir] = useState('desc');
       const [freteSortCol, setFreteSortCol] = useState('diferenca');
       const [freteSortDir, setFreteSortDir] = useState('asc');
+
+      // Load parameters once
+      useEffect(() => {
+        sb.from('parametros_reputacao').select('*').order('id').then(({ data }) => {
+          if (data) setParams(data);
+        });
+      }, []);
+
+      // Helper to get param by metrica name
+      const getParam = useCallback((metrica) => params.find(p => p.metrica === metrica), [params]);
 
       // Load data
       useEffect(() => {
@@ -157,16 +318,10 @@
           setLoading(true);
           setError(null);
           try {
-            const range = getDateRange(periodoSel);
+            const range = getRange(periodoSel);
             const [vendasRes, claimsRes] = await Promise.all([
-              supabase.from('vw_reputacao_vendas')
-                .select('*')
-                .gte('data_venda', range.from)
-                .lte('data_venda', range.to),
-              supabase.from('claims')
-                .select('*')
-                .gte('data_abertura', range.from)
-                .lte('data_abertura', range.to)
+              sb.from('vw_reputacao_vendas').select('*').gte('data_venda', range.from).lte('data_venda', range.to),
+              sb.from('claims').select('*').gte('data_abertura', range.from).lte('data_abertura', range.to),
             ]);
             if (vendasRes.error) throw vendasRes.error;
             setVendasData(vendasRes.data || []);
@@ -179,28 +334,22 @@
         load();
       }, [periodoSel]);
 
-      // Load frete data when tab switches
+      // Load frete when switching tab
       useEffect(() => {
         if (tab !== 'frete' || freteData.length > 0) return;
         async function loadFrete() {
           setFreteLoading(true);
           try {
-            const range = getDateRange(periodoSel);
-            const res = await supabase.from('vw_frete_desacordo')
-              .select('*')
-              .gte('data_venda', range.from)
-              .lte('data_venda', range.to);
+            const range = getRange(periodoSel);
+            const res = await sb.from('vw_frete_desacordo').select('*').gte('data_venda', range.from).lte('data_venda', range.to);
             if (res.error) throw res.error;
             setFreteData(res.data || []);
-          } catch (e) {
-            console.error('Erro frete:', e);
-          }
+          } catch (e) { console.error('Erro frete:', e); }
           setFreteLoading(false);
         }
         loadFrete();
       }, [tab, periodoSel]);
 
-      // Reset frete data when period changes
       useEffect(() => { setFreteData([]); }, [periodoSel]);
 
       // Filter options
@@ -214,11 +363,9 @@
           cats: unique(vendasData, 'catalogo_anuncio'),
           forns: unique(vendasData, 'fornecedor'),
           pontos: unique(vendasData, 'ponto_saida'),
-          idades: unique(vendasData, 'idade_anuncio'),
         };
       }, [vendasData]);
 
-      // Apply filters
       const applyFilter = useCallback((d) => {
         if (contaSel && d.conta_nome !== contaSel) return false;
         if (tipoSel && d.tipo_listagem !== tipoSel) return false;
@@ -227,9 +374,8 @@
         if (catSel && d.catalogo_anuncio !== catSel) return false;
         if (fornSel && d.fornecedor !== fornSel) return false;
         if (pontoSel && d.ponto_saida !== pontoSel) return false;
-        if (idadeSel && d.idade_anuncio !== idadeSel) return false;
         return true;
-      }, [contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
+      }, [contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel]);
 
       const filteredVendas = useMemo(() => vendasData.filter(applyFilter), [vendasData, applyFilter]);
       const filteredFrete = useMemo(() => freteData.filter(applyFilter), [freteData, applyFilter]);
@@ -247,51 +393,42 @@
         return map;
       }, [claimsData]);
 
-      // Aggregate reputação per anúncio
+      // Aggregate per anúncio
       const repData = useMemo(() => {
         const map = {};
         filteredVendas.forEach(v => {
           const key = v.mlb_id;
           if (!map[key]) map[key] = {
             mlb_id: key, titulo: v.titulo || '—', conta_nome: v.conta_nome, sku_vendedor: v.sku_vendedor,
-            tipo_listagem: v.tipo_listagem, ponto_saida: v.ponto_saida,
+            tipo_listagem: v.tipo_listagem, ponto_saida: v.ponto_saida, fornecedor: v.fornecedor,
             total: 0, cancelamentos: 0, reembolsos: 0,
-            fb_pos: 0, fb_neg: 0, fb_neu: 0, fb_total: 0,
-            receita: 0
+            fb_pos: 0, fb_neg: 0, fb_neu: 0, fb_total: 0, receita: 0
           };
           const m = map[key];
           if (v.status === 'cancelled') m.cancelamentos++;
-          else {
-            m.total++;
-            m.receita += Number(v.preco_total) || 0;
-          }
+          else { m.total++; m.receita += Number(v.preco_total) || 0; }
           if (v.status === 'partially_refunded') m.reembolsos++;
           if (v.feedback_rating === 'positive') { m.fb_pos++; m.fb_total++; }
           if (v.feedback_rating === 'negative') { m.fb_neg++; m.fb_total++; }
           if (v.feedback_rating === 'neutral') { m.fb_neu++; m.fb_total++; }
         });
-        // Merge claims
         Object.keys(map).forEach(mlb => {
           const cl = claimsByMlb[mlb];
-          if (cl) {
-            map[mlb].claims_afetou = cl.afetou;
-            map[mlb].claims_nao_afetou = cl.nao_afetou;
-            map[mlb].devolucoes = cl.devolucoes;
-          } else {
-            map[mlb].claims_afetou = 0;
-            map[mlb].claims_nao_afetou = 0;
-            map[mlb].devolucoes = 0;
-          }
           const m = map[mlb];
+          m.claims_afetou = cl ? cl.afetou : 0;
+          m.claims_nao_afetou = cl ? cl.nao_afetou : 0;
+          m.devolucoes = cl ? cl.devolucoes : 0;
           m.total_ordens = m.total + m.cancelamentos;
           m.taxa_cancel = m.total_ordens > 0 ? (m.cancelamentos / m.total_ordens * 100) : 0;
-          // Score: higher = worse reputation
+          m.fb_neg_pct = m.fb_total > 0 ? (m.fb_neg / m.fb_total * 100) : 0;
+          m.claims_ratio = m.total > 0 ? (m.claims_afetou / m.total * 100) : 0;
+          m.devol_ratio = m.total > 0 ? (m.devolucoes / m.total * 100) : 0;
           m.score = m.cancelamentos * 2 + m.claims_afetou * 10 + m.claims_nao_afetou * 3 + m.devolucoes * 5 + m.fb_neg * 4 + m.reembolsos * 1;
         });
         return Object.values(map);
       }, [filteredVendas, claimsByMlb]);
 
-      // Sort reputação
+      // Sort
       const sortedRep = useMemo(() => {
         return [...repData].sort((a, b) => {
           const va = a[sortCol] ?? 0, vb = b[sortCol] ?? 0;
@@ -299,7 +436,7 @@
         });
       }, [repData, sortCol, sortDir]);
 
-      // Totals for KPIs
+      // Totals
       const totals = useMemo(() => {
         const t = { vendas: 0, cancelamentos: 0, reembolsos: 0, claims_afetou: 0, claims_nao_afetou: 0,
                     devolucoes: 0, fb_pos: 0, fb_neg: 0, fb_neu: 0, receita_cancel: 0 };
@@ -318,10 +455,60 @@
         });
         t.total_ordens = t.vendas + t.cancelamentos;
         t.taxa_cancel = t.total_ordens > 0 ? (t.cancelamentos / t.total_ordens * 100) : 0;
+        t.fb_neg_pct = (t.fb_pos + t.fb_neg + t.fb_neu) > 0 ? (t.fb_neg / (t.fb_pos + t.fb_neg + t.fb_neu) * 100) : 0;
         return t;
       }, [filteredVendas, claimsData]);
 
-      // Frete aggregates
+      // ── Build alert items ──
+      const alerts = useMemo(() => {
+        const pCancel = getParam('taxa_cancelamento');
+        const pFb = getParam('fb_negativo_pct');
+        const pScore = getParam('score_reputacao');
+        const pClaims = getParam('claims_por_100_vendas');
+
+        const criticos = [];
+        const ruins = [];
+        const atencao = [];
+
+        repData.forEach(d => {
+          // Only flag anúncios with enough volume
+          if (d.total_ordens < 3) return;
+
+          const cancelClass = classify(d.taxa_cancel, pCancel);
+          const scoreClass = classify(d.score, pScore);
+          const fbClass = d.fb_total >= 3 ? classify(d.fb_neg_pct, pFb) : null;
+
+          if (cancelClass.level >= 4 || scoreClass.level >= 4) {
+            criticos.push({
+              ...d,
+              valor: cancelClass.level >= 4 ? `${fmtP(d.taxa_cancel)} cancel.` : `Score ${d.score}`,
+              detalhe: `${d.cancelamentos} cancel. / ${d.total_ordens} ordens`,
+              reason: cancelClass.level >= 4 ? 'cancel' : 'score',
+            });
+          } else if (cancelClass.level >= 3 || scoreClass.level >= 3 || (fbClass && fbClass.level >= 3)) {
+            ruins.push({
+              ...d,
+              valor: cancelClass.level >= 3 ? `${fmtP(d.taxa_cancel)} cancel.` : (fbClass && fbClass.level >= 3) ? `${d.fb_neg} FB neg.` : `Score ${d.score}`,
+              detalhe: `${d.total_ordens} ordens no período`,
+            });
+          } else if (cancelClass.level >= 2 || scoreClass.level >= 2) {
+            atencao.push({
+              ...d,
+              valor: `${fmtP(d.taxa_cancel)} cancel.`,
+              detalhe: `Score ${d.score}`,
+            });
+          }
+        });
+
+        // Sort by severity
+        criticos.sort((a, b) => b.score - a.score);
+        ruins.sort((a, b) => b.score - a.score);
+        atencao.sort((a, b) => b.score - a.score);
+
+        return { criticos, ruins, atencao };
+      }, [repData, params]);
+
+      // Frete totals
       const freteTotals = useMemo(() => {
         const t = { total: filteredFrete.length, impacto: 0, ml_mais: 0, ml_menos: 0, impacto_mais: 0, impacto_menos: 0 };
         filteredFrete.forEach(f => {
@@ -333,29 +520,27 @@
         return t;
       }, [filteredFrete]);
 
-      // Sort frete
       const sortedFrete = useMemo(() => {
         return [...filteredFrete].sort((a, b) => {
           let va = a[freteSortCol], vb = b[freteSortCol];
-          if (['diferenca','diferenca_pct','frete_real_ml','frete_previsto','preco_total'].includes(freteSortCol)) {
+          if (['diferenca', 'diferenca_pct', 'frete_real_ml', 'frete_previsto', 'preco_total'].includes(freteSortCol)) {
             va = Number(va) || 0; vb = Number(vb) || 0;
           }
           return freteSortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
         });
       }, [filteredFrete, freteSortCol, freteSortDir]);
 
-      // Frete grouped by anúncio for chart
       const freteByAnuncio = useMemo(() => {
         const map = {};
         filteredFrete.forEach(f => {
-          if (!map[f.mlb_id]) map[f.mlb_id] = { mlb_id: f.mlb_id, titulo: f.titulo || '—', total: 0, impacto: 0, count: 0 };
+          if (!map[f.mlb_id]) map[f.mlb_id] = { mlb_id: f.mlb_id, titulo: f.titulo || '—', impacto: 0, count: 0 };
           map[f.mlb_id].count++;
           map[f.mlb_id].impacto += Number(f.diferenca) || 0;
         });
         return Object.values(map).sort((a, b) => a.impacto - b.impacto).slice(0, 15);
       }, [filteredFrete]);
 
-      // Cancelamentos evolution by week
+      // Weekly evolution
       const cancelEvo = useMemo(() => {
         const map = {};
         filteredVendas.forEach(v => {
@@ -376,11 +561,6 @@
         return Object.values(map).sort((a, b) => a.semana.localeCompare(b.semana));
       }, [filteredVendas, claimsData]);
 
-      // Top canceladores for pie
-      const topCancel = useMemo(() => {
-        return [...repData].filter(d => d.cancelamentos > 0).sort((a, b) => b.cancelamentos - a.cancelamentos).slice(0, 8);
-      }, [repData]);
-
       function handleSort(col) {
         if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
         else { setSortCol(col); setSortDir('desc'); }
@@ -391,38 +571,41 @@
       }
       const sortIcon = (col, active, dir) => col === active ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
 
-      const clearFilters = () => { setPeriodoSel('60d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); setIdadeSel(''); };
+      const clearFilters = () => { setPeriodoSel('60d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); };
 
-      const periodoLabel = PERIODO_OPTIONS.find(p => p.value === periodoSel)?.label || '';
+      const periodoLabel = PERIODOS.find(p => p.v === periodoSel)?.l || '';
 
-      const COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#6366f1','#a855f7','#ec4899'];
+      const pCancel = getParam('taxa_cancelamento');
+      const pScore = getParam('score_reputacao');
+
+      const totalAlerts = alerts.criticos.length + alerts.ruins.length + alerts.atencao.length;
 
       return (
-        <div className="min-h-screen">
+        <div className="min-h-screen" style={{ marginLeft: 48 }}>
           {/* Header */}
           <header className="bg-gge-card/80 backdrop-blur border-b border-gge-border sticky top-0 z-50">
             <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gge-accent rounded-xl flex items-center justify-center text-white font-bold text-lg">G</div>
-                <div>
-                  <h1 className="text-lg font-bold text-white tracking-tight">Controle Total GGE</h1>
-                  <p className="text-xs text-gge-muted">Reputação e Claims</p>
-                </div>
+                <h1 className="text-lg font-bold text-white tracking-tight">Reputação e Claims</h1>
+                {totalAlerts > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-900/40 text-red-400 border border-red-700/50 font-bold">
+                    {totalAlerts} {totalAlerts === 1 ? 'alerta' : 'alertas'}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-4">
                 {periodoLabel && <span className="text-sm text-gge-muted">Dados: <span className="text-white font-medium">{periodoLabel}</span></span>}
-                <a href="index.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-green/15 border border-gge-green/30 rounded-lg text-gge-green hover:bg-gge-green/25 transition-all text-sm font-medium">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                  Dashboard
-                </a>
-                <a href="margem.html" className="flex items-center gap-2 px-3 py-1.5 bg-gge-accent/15 border border-gge-accent/30 rounded-lg text-gge-accent hover:bg-gge-accent/25 transition-all text-sm font-medium">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                  Margem
-                </a>
+                <button onClick={() => setShowParams(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gge-accent/15 border border-gge-accent/30 rounded-lg text-gge-accent hover:bg-gge-accent/25 transition-all text-sm font-medium">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                  Parâmetros
+                </button>
                 <div className="w-2 h-2 rounded-full bg-gge-green animate-pulse" title="Conectado ao Supabase"></div>
               </div>
             </div>
           </header>
+
+          {showParams && <ParametrosModal params={params} onClose={() => setShowParams(false)} />}
 
           <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
             {/* Tabs */}
@@ -443,10 +626,10 @@
                   ({tab === 'reputacao' ? `${fmtN(sortedRep.length)} anúncios` : `${fmtN(filteredFrete.length)} envios`})
                 </span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3">
                 <FilterSelect label="Período" value={periodoSel} onChange={setPeriodoSel}
-                              options={PERIODO_OPTIONS.map(p => p.value)} allLabel="Todo período"
-                              labelFn={v => PERIODO_OPTIONS.find(p => p.value === v)?.label || v}
+                              options={PERIODOS.map(p => p.v)} allLabel="Todo período"
+                              labelFn={v => PERIODOS.find(p => p.v === v)?.l || v}
                               isActive={periodoSel !== '60d'} />
                 <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={filterOpts.contas} isActive={!!contaSel} />
                 <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} isActive={!!tipoSel} />
@@ -455,7 +638,6 @@
                 <FilterSelect label="Catálogo" value={catSel} onChange={setCatSel} options={filterOpts.cats} isActive={!!catSel} />
                 <FilterSelect label="Fornecedor" value={fornSel} onChange={setFornSel} options={filterOpts.forns} isActive={!!fornSel} />
                 <FilterSelect label="Pto Saída" value={pontoSel} onChange={setPontoSel} options={filterOpts.pontos} isActive={!!pontoSel} />
-                <FilterSelect label="Idade" value={idadeSel} onChange={setIdadeSel} options={filterOpts.idades} isActive={!!idadeSel} />
                 <div className="flex items-end">
                   <button onClick={clearFilters} className="w-full px-3 py-2 text-sm text-gge-muted border border-gge-border rounded-lg hover:bg-white/5 transition-colors">Limpar</button>
                 </div>
@@ -463,9 +645,7 @@
             </div>
 
             {error && (
-              <div className="bg-gge-red/10 border border-gge-red/30 rounded-xl p-4 text-gge-red text-sm">
-                Erro ao carregar: {error}
-              </div>
+              <div className="bg-gge-red/10 border border-gge-red/30 rounded-xl p-4 text-gge-red text-sm">Erro ao carregar: {error}</div>
             )}
 
             {loading ? (
@@ -474,69 +654,75 @@
               </div>
             ) : tab === 'reputacao' ? (
               <>
-                {/* KPI Cards */}
+                {/* ── VISÃO GERAL — KPIs ── */}
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                   <KpiCard title="Vendas Efetivas" value={fmtN(totals.vendas)} icon="📦" color="text-white" sub={`${fmtN(totals.total_ordens)} ordens totais`} />
-                  <KpiCard title="Cancelamentos" value={fmtN(totals.cancelamentos)} icon="❌" color="text-gge-red" sub={`${fmtP(totals.taxa_cancel)} taxa`} />
+                  <KpiCard title="Cancelamentos" value={fmtN(totals.cancelamentos)} icon="❌"
+                           color={classify(totals.taxa_cancel, pCancel).color}
+                           sub={`${fmtP(totals.taxa_cancel)} · ${classify(totals.taxa_cancel, pCancel).label}`} />
+                  <KpiCard title="Receita Perdida" value={fmtR(totals.receita_cancel)} icon="💸" color="text-gge-red" sub="em cancelamentos" />
                   <KpiCard title="Reemb. Parciais" value={fmtN(totals.reembolsos)} icon="↩️" color="text-gge-orange" />
-                  <KpiCard title="Claims (Afetou)" value={fmtN(totals.claims_afetou)} icon="⚠️" color={totals.claims_afetou > 0 ? 'text-gge-red' : 'text-gge-muted'} sub={totals.claims_afetou === 0 ? 'Tabela claims vazia' : ''} />
-                  <KpiCard title="Claims (S/ Efeito)" value={fmtN(totals.claims_nao_afetou)} icon="📋" color="text-gge-yellow" />
+                  <KpiCard title="Claims (Afetou)" value={fmtN(totals.claims_afetou)} icon="⚠️" color={totals.claims_afetou > 0 ? 'text-gge-red' : 'text-gge-green'} sub={totals.claims_afetou === 0 ? 'Nenhum no período' : ''} />
                   <KpiCard title="Devoluções" value={fmtN(totals.devolucoes)} icon="🔄" color="text-gge-orange" />
-                  <KpiCard title="FB Positivo" value={fmtN(totals.fb_pos)} icon="👍" color="text-gge-green" sub={totals.fb_pos + totals.fb_neg + totals.fb_neu > 0 ? `${fmtP(totals.fb_pos / (totals.fb_pos + totals.fb_neg + totals.fb_neu) * 100)} dos feedbacks` : 'Sem negativo/neutro coletado'} />
-                  <KpiCard title="FB Negativo" value={fmtN(totals.fb_neg)} icon="👎" color={totals.fb_neg > 0 ? 'text-gge-red' : 'text-gge-green'} sub={totals.fb_neg === 0 ? 'Nenhum coletado' : ''} />
+                  <KpiCard title="FB Positivo" value={fmtN(totals.fb_pos)} icon="👍" color="text-gge-green" sub={totals.fb_pos + totals.fb_neg + totals.fb_neu > 0 ? `${fmtP(totals.fb_pos / (totals.fb_pos + totals.fb_neg + totals.fb_neu) * 100)} dos FB` : ''} />
+                  <KpiCard title="FB Negativo" value={fmtN(totals.fb_neg)} icon="👎" color={totals.fb_neg > 0 ? 'text-gge-red' : 'text-gge-green'} sub={totals.fb_neg === 0 ? 'Nenhum no período' : `${fmtP(totals.fb_neg_pct)}`} />
                 </div>
 
-                {/* Charts Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Cancel evolution chart */}
-                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-                    <h3 className="text-sm font-semibold text-white mb-4">Evolução Semanal — Cancelamentos vs Vendas</h3>
-                    <div style={{ height: 280 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={cancelEvo} barGap={0}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
-                          <XAxis dataKey="semana" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => v.slice(5)} />
-                          <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                          <Tooltip contentStyle={{ background: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8 }}
-                                   labelFormatter={v => `Semana de ${fmtDate(v)}`} />
-                          <Bar dataKey="vendas" name="Vendas" fill="#22c55e" radius={[2,2,0,0]} />
-                          <Bar dataKey="cancelamentos" name="Cancelamentos" fill="#ef4444" radius={[2,2,0,0]} />
-                          {claimsData.length > 0 && <Bar dataKey="claims" name="Claims" fill="#eab308" radius={[2,2,0,0]} />}
-                        </BarChart>
-                      </ResponsiveContainer>
+                {/* ── ATENÇÃO IMEDIATA — ALERTAS ── */}
+                {totalAlerts > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-bold text-white">Atenção Imediata</h2>
+                      <span className="text-xs text-gge-muted">— Anúncios que precisam de ação baseado nos parâmetros configurados</span>
+                    </div>
+                    <div className={`grid gap-4 ${alerts.criticos.length > 0 && alerts.ruins.length > 0 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} ${alerts.atencao.length > 0 ? 'xl:grid-cols-3' : ''}`}>
+                      {alerts.criticos.length > 0 && (
+                        <AlertCard icon="🚨" title="Crítico — Agir Agora" items={alerts.criticos} color="red" param={getParam('taxa_cancelamento')} />
+                      )}
+                      {alerts.ruins.length > 0 && (
+                        <AlertCard icon="⚠️" title="Ruim — Investigar" items={alerts.ruins} color="orange" param={getParam('taxa_cancelamento')} />
+                      )}
+                      {alerts.atencao.length > 0 && (
+                        <AlertCard icon="👀" title="Regular — Monitorar" items={alerts.atencao} color="yellow" />
+                      )}
                     </div>
                   </div>
+                )}
 
-                  {/* Top canceladores */}
-                  <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-                    <h3 className="text-sm font-semibold text-white mb-4">Top Anúncios com Mais Cancelamentos</h3>
-                    {topCancel.length === 0 ? (
-                      <p className="text-gge-muted text-sm">Nenhum cancelamento no período.</p>
-                    ) : (
-                      <div className="space-y-2 max-h-[260px] overflow-y-auto">
-                        {topCancel.map((d, i) => (
-                          <div key={d.mlb_id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-white/5">
-                            <span className="text-xs font-bold text-gge-muted w-5">{i + 1}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm text-white truncate">{d.titulo}</div>
-                              <div className="text-xs text-gge-muted">{d.mlb_id} · {d.conta_nome}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-bold text-gge-red">{d.cancelamentos}</div>
-                              <div className="text-xs text-gge-muted">{fmtP(d.taxa_cancel)}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                {totalAlerts === 0 && repData.length > 0 && (
+                  <div className="bg-green-900/20 border border-green-700/30 rounded-xl p-4 fade-in flex items-center gap-3">
+                    <span className="text-2xl">✅</span>
+                    <div>
+                      <p className="text-sm font-semibold text-gge-green">Tudo sob controle</p>
+                      <p className="text-xs text-gge-muted">Nenhum anúncio com indicadores fora dos parâmetros configurados no período selecionado.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── GRÁFICO — Evolução semanal ── */}
+                <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+                  <h3 className="text-sm font-semibold text-white mb-4">Evolução Semanal — Cancelamentos vs Vendas</h3>
+                  <div style={{ height: 280 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={cancelEvo} barGap={0}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+                        <XAxis dataKey="semana" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => v.slice(5)} />
+                        <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                        <Tooltip contentStyle={{ background: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8 }}
+                                 labelFormatter={v => `Semana de ${fmtDate(v)}`} />
+                        <Bar dataKey="vendas" name="Vendas" fill="#22c55e" radius={[2, 2, 0, 0]} />
+                        <Bar dataKey="cancelamentos" name="Cancelamentos" fill="#ef4444" radius={[2, 2, 0, 0]} />
+                        {claimsData.length > 0 && <Bar dataKey="claims" name="Claims" fill="#eab308" radius={[2, 2, 0, 0]} />}
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
 
-                {/* Reputação Table */}
+                {/* ── TABELA DETALHADA ── */}
                 <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
                   <div className="p-5 border-b border-gge-border">
-                    <h3 className="text-sm font-semibold text-white">Reputação por Anúncio</h3>
-                    <p className="text-xs text-gge-muted mt-1">Clique nas colunas para ordenar. Score = peso ponderado de problemas.</p>
+                    <h3 className="text-sm font-semibold text-white">Detalhamento por Anúncio</h3>
+                    <p className="text-xs text-gge-muted mt-1">Clique nas colunas para ordenar. Cores seguem os parâmetros configurados.</p>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -548,34 +734,41 @@
                           <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('cancelamentos')}>Cancel.{sortIcon('cancelamentos', sortCol, sortDir)}</th>
                           <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('taxa_cancel')}>% Cancel{sortIcon('taxa_cancel', sortCol, sortDir)}</th>
                           <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('reembolsos')}>Reemb.{sortIcon('reembolsos', sortCol, sortDir)}</th>
-                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('claims_afetou')}>Claims ⚠️{sortIcon('claims_afetou', sortCol, sortDir)}</th>
+                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('claims_afetou')}>Claims{sortIcon('claims_afetou', sortCol, sortDir)}</th>
                           <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('devolucoes')}>Devol.{sortIcon('devolucoes', sortCol, sortDir)}</th>
-                          <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('fb_pos')}>FB+{sortIcon('fb_pos', sortCol, sortDir)}</th>
                           <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('fb_neg')}>FB-{sortIcon('fb_neg', sortCol, sortDir)}</th>
                           <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('score')}>Score{sortIcon('score', sortCol, sortDir)}</th>
+                          <th className="text-center py-3 px-2 font-medium">Status</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedRep.slice(0, 200).map((d, i) => (
-                          <tr key={d.mlb_id} className={`border-b border-gge-border/50 row-hover ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
-                            <td className="py-2.5 px-4 max-w-[300px]">
-                              <div className="text-sm text-white truncate">{d.titulo}</div>
-                              <div className="text-xs text-gge-muted">{d.mlb_id}{d.sku_vendedor ? ` · ${d.sku_vendedor}` : ''}</div>
-                            </td>
-                            <td className="py-2.5 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
-                            <td className="py-2.5 px-2 text-right text-white">{fmtN(d.total_ordens)}</td>
-                            <td className={`py-2.5 px-2 text-right font-medium ${d.cancelamentos > 0 ? 'text-gge-red' : 'text-gge-muted'}`}>{d.cancelamentos}</td>
-                            <td className={`py-2.5 px-2 text-right ${d.taxa_cancel > 10 ? 'text-gge-red font-bold' : d.taxa_cancel > 5 ? 'text-gge-orange' : 'text-gge-muted'}`}>{fmtP(d.taxa_cancel)}</td>
-                            <td className={`py-2.5 px-2 text-right ${d.reembolsos > 0 ? 'text-gge-orange' : 'text-gge-muted'}`}>{d.reembolsos}</td>
-                            <td className={`py-2.5 px-2 text-right ${d.claims_afetou > 0 ? 'text-gge-red font-bold' : 'text-gge-muted'}`}>{d.claims_afetou}</td>
-                            <td className={`py-2.5 px-2 text-right ${d.devolucoes > 0 ? 'text-gge-orange' : 'text-gge-muted'}`}>{d.devolucoes}</td>
-                            <td className="py-2.5 px-2 text-right text-gge-green">{d.fb_pos || '—'}</td>
-                            <td className={`py-2.5 px-2 text-right ${d.fb_neg > 0 ? 'text-gge-red font-bold' : 'text-gge-muted'}`}>{d.fb_neg || '—'}</td>
-                            <td className={`py-2.5 px-2 text-right font-bold ${d.score > 20 ? 'text-gge-red' : d.score > 5 ? 'text-gge-orange' : d.score > 0 ? 'text-gge-yellow' : 'text-gge-green'}`}>
-                              {d.score}
-                            </td>
-                          </tr>
-                        ))}
+                        {sortedRep.slice(0, 200).map((d, i) => {
+                          const cancelCls = classify(d.taxa_cancel, pCancel);
+                          const scoreCls = classify(d.score, pScore);
+                          const worstLevel = Math.max(cancelCls.level, scoreCls.level);
+                          const statusLabels = ['Muito Bom', 'Bom', 'Regular', 'Ruim', 'Crítico'];
+                          const statusColors = ['green', 'green', 'yellow', 'orange', 'red'];
+                          return (
+                            <tr key={d.mlb_id} className={`border-b border-gge-border/50 row-hover ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
+                              <td className="py-2.5 px-4 max-w-[300px]">
+                                <div className="text-sm text-white truncate">{d.titulo}</div>
+                                <div className="text-xs text-gge-muted">{d.mlb_id}{d.sku_vendedor ? ` · ${d.sku_vendedor}` : ''}</div>
+                              </td>
+                              <td className="py-2.5 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
+                              <td className="py-2.5 px-2 text-right text-white">{fmtN(d.total_ordens)}</td>
+                              <td className={`py-2.5 px-2 text-right font-medium ${d.cancelamentos > 0 ? 'text-gge-red' : 'text-gge-muted'}`}>{d.cancelamentos}</td>
+                              <td className={`py-2.5 px-2 text-right ${cancelCls.color}`}>{fmtP(d.taxa_cancel)}</td>
+                              <td className={`py-2.5 px-2 text-right ${d.reembolsos > 0 ? 'text-gge-orange' : 'text-gge-muted'}`}>{d.reembolsos}</td>
+                              <td className={`py-2.5 px-2 text-right ${d.claims_afetou > 0 ? 'text-gge-red font-bold' : 'text-gge-muted'}`}>{d.claims_afetou}</td>
+                              <td className={`py-2.5 px-2 text-right ${d.devolucoes > 0 ? 'text-gge-orange' : 'text-gge-muted'}`}>{d.devolucoes}</td>
+                              <td className={`py-2.5 px-2 text-right ${d.fb_neg > 0 ? 'text-gge-red font-bold' : 'text-gge-muted'}`}>{d.fb_neg || '—'}</td>
+                              <td className={`py-2.5 px-2 text-right font-bold ${scoreCls.color}`}>{d.score}</td>
+                              <td className="py-2.5 px-2 text-center">
+                                <Badge text={statusLabels[worstLevel]} color={statusColors[worstLevel]} />
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                     {sortedRep.length > 200 && (
@@ -593,17 +786,15 @@
                   </div>
                 ) : (
                   <>
-                    {/* Frete KPIs */}
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       <KpiCard title="Envios em Desacordo" value={fmtN(freteTotals.total)} icon="📊" color="text-white" />
-                      <KpiCard title="ML Cobrou Mais" value={fmtN(freteTotals.ml_mais)} icon="🍈" color="text-gge-red" sub={fmtR(freteTotals.impacto_mais)} />
+                      <KpiCard title="ML Cobrou Mais" value={fmtN(freteTotals.ml_mais)} icon="📈" color="text-gge-red" sub={fmtR(freteTotals.impacto_mais)} />
                       <KpiCard title="ML Cobrou Menos" value={fmtN(freteTotals.ml_menos)} icon="📉" color="text-gge-green" sub={fmtR(freteTotals.impacto_menos)} />
                       <KpiCard title="Impacto Total" value={fmtR(freteTotals.impacto)} icon="💰" color={freteTotals.impacto < 0 ? 'text-gge-red' : 'text-gge-green'} sub="Previsto − Real ML" />
                       <KpiCard title="Média por Envio" value={fmtR(freteTotals.total > 0 ? freteTotals.impacto / freteTotals.total : 0)} icon="📐" color="text-gge-orange" />
                       <KpiCard title="Tolerância" value="> R$ 1,00" icon="⚙️" color="text-gge-muted" sub="Diferenças ≤ R$1 ignoradas" />
                     </div>
 
-                    {/* Frete chart */}
                     {freteByAnuncio.length > 0 && (
                       <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
                         <h3 className="text-sm font-semibold text-white mb-4">Top 15 Anúncios — Maior Impacto de Frete</h3>
@@ -626,11 +817,10 @@
                       </div>
                     )}
 
-                    {/* Frete Table */}
                     <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
                       <div className="p-5 border-b border-gge-border">
                         <h3 className="text-sm font-semibold text-white">Detalhamento — Fretes em Desacordo</h3>
-                        <p className="text-xs text-gge-muted mt-1">Comparação entre frete previsto (tabela GGE) e frete real cobrado pelo ML. Vermelho = ML cobrou mais.</p>
+                        <p className="text-xs text-gge-muted mt-1">Vermelho = ML cobrou mais que o previsto.</p>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -679,17 +869,15 @@
               </>
             )}
 
-            {/* Info banner about claims */}
             {tab === 'reputacao' && claimsData.length === 0 && (
               <div className="bg-gge-yellow/5 border border-gge-yellow/20 rounded-xl p-4 fade-in">
                 <div className="flex items-start gap-3">
                   <span className="text-lg">💡</span>
                   <div>
-                    <p className="text-sm text-gge-yellow font-medium">Tabela de Claims vazia</p>
+                    <p className="text-sm text-gge-yellow font-medium">Coleta de Claims ainda não ativa</p>
                     <p className="text-xs text-gge-muted mt-1">
-                      A coleta de claims e devoluções do Mercado Livre ainda não está populando dados. 
                       Quando implementada, as colunas de Claims e Devoluções serão preenchidas automaticamente.
-                      Enquanto isso, os dados de cancelamentos e feedbacks das vendas estão funcionando normalmente.
+                      Cancelamentos e feedbacks já estão funcionando.
                     </p>
                   </div>
                 </div>
@@ -697,8 +885,7 @@
             )}
           </main>
 
-          {/* Footer */}
-          <footer className="max-w-[1600px] mx-auto px-6 py-4 text-center text-xs text-gge-muted border-t border-gge-border mt-8">
+          <footer className="max-w-[1600px] mx-auto px-6 py-4 text-center text-xs text-gge-muted border-t border-gge-border mt-8" style={{ marginLeft: 48 }}>
             Controle Total GGE · Reputação e Claims · Dados via Supabase
           </footer>
         </div>
