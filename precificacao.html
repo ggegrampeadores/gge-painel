@@ -294,6 +294,102 @@
             background-color: #1a1d27;
         }
 
+        tbody tr.product-row {
+            cursor: pointer;
+        }
+
+        tbody tr.product-row.active-row {
+            background-color: #1e2a3a;
+            border-left: 3px solid #f0883e;
+        }
+
+        /* Expandable Detail Row */
+        tr.detail-row {
+            display: none;
+        }
+
+        tr.detail-row.open {
+            display: table-row;
+        }
+
+        tr.detail-row td {
+            padding: 0;
+            border-bottom: 2px solid #f0883e40;
+        }
+
+        .detail-panel {
+            background: linear-gradient(135deg, #141822 0%, #1a1d27 100%);
+            padding: 16px 20px;
+            animation: slideDown 0.25s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; max-height: 0; }
+            to { opacity: 1; max-height: 500px; }
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .detail-section {
+            background: #0f111780;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .detail-section h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #f0883e;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .detail-row-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 3px 0;
+            border-bottom: 1px solid #2a2d3a20;
+        }
+
+        .detail-row-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #8b949e;
+        }
+
+        .detail-value {
+            color: #e6edf3;
+            font-weight: 600;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .detail-value.highlight {
+            color: #f0883e;
+        }
+
+        .detail-value.green {
+            color: #3fb950;
+        }
+
+        .detail-formula {
+            font-size: 11px;
+            color: #8b949e;
+            font-style: italic;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #2a2d3a;
+        }
+
         td.sku {
             font-family: 'Monaco', 'Courier New', monospace;
             font-size: 13px;
@@ -790,8 +886,11 @@
                 pricesCells = `<td colspan="5" class="price no-cost">SEM CUSTO</td>`;
             }
 
+            const detailId = `detail-${sku}`;
+            const detailContent = buildDetailPanel(sku, item, custo, margins);
+
             return `
-                <tr>
+                <tr class="product-row" onclick="toggleDetail('${detailId}', this)">
                     <td>${item.descricao}</td>
                     <td class="sku">${sku}</td>
                     <td>${item.is_combo ? 'COMBO' : ''}</td>
@@ -799,6 +898,106 @@
                     <td class="price ${costClass}">${costText}</td>
                     ${pricesCells}
                 </tr>
+                <tr class="detail-row" id="${detailId}">
+                    <td colspan="10">${detailContent}</td>
+                </tr>
+            `;
+        }
+
+        function toggleDetail(detailId, productRow) {
+            const detailRow = document.getElementById(detailId);
+            if (!detailRow) return;
+
+            const wasOpen = detailRow.classList.contains('open');
+
+            // Fechar todas as linhas abertas
+            document.querySelectorAll('tr.detail-row.open').forEach(r => r.classList.remove('open'));
+            document.querySelectorAll('tr.product-row.active-row').forEach(r => r.classList.remove('active-row'));
+
+            // Se não estava aberta, abrir esta
+            if (!wasOpen) {
+                detailRow.classList.add('open');
+                productRow.classList.add('active-row');
+            }
+        }
+
+        function buildDetailPanel(sku, item, custo, margins) {
+            const p = PREC_PARAMS[currentEmpresa] || PREC_PARAMS.GGE;
+            const custoRJ = item.custo_cif_rj || 0;
+            const custoSP = item.custo_cif_sp || 0;
+
+            // Cálculo das deduções
+            let deducaoLines = '';
+            let totalDed = 0;
+            if (currentEmpresa === 'TOOW') {
+                totalDed = p.comissao_pct + p.simples_pct + p.ads_pct;
+                deducaoLines = `
+                    <div class="detail-row-item"><span class="detail-label">Comissão ML</span><span class="detail-value">${(p.comissao_pct * 100).toFixed(1)}%</span></div>
+                    <div class="detail-row-item"><span class="detail-label">Simples Nacional</span><span class="detail-value">${(p.simples_pct * 100).toFixed(2)}%</span></div>
+                    <div class="detail-row-item"><span class="detail-label">ADs</span><span class="detail-value">${(p.ads_pct * 100).toFixed(1)}%</span></div>
+                `;
+            } else {
+                const pisLiq = p.pis_cofins_pct * (1 - p.comissao_pct - p.ads_pct);
+                totalDed = p.comissao_pct + p.icms_pct + pisLiq + p.ads_pct;
+                deducaoLines = `
+                    <div class="detail-row-item"><span class="detail-label">Comissão ML</span><span class="detail-value">${(p.comissao_pct * 100).toFixed(1)}%</span></div>
+                    <div class="detail-row-item"><span class="detail-label">ICMS débito</span><span class="detail-value">${(p.icms_pct * 100).toFixed(1)}%</span></div>
+                    <div class="detail-row-item"><span class="detail-label">PIS/COFINS líq.</span><span class="detail-value">${(pisLiq * 100).toFixed(2)}%</span></div>
+                    <div class="detail-row-item"><span class="detail-label">ADs</span><span class="detail-value">${(p.ads_pct * 100).toFixed(1)}%</span></div>
+                `;
+            }
+
+            // Cálculo de PV por margem
+            let margemLines = '';
+            if (custo > 0) {
+                margins.forEach(mc => {
+                    const pv = calcPV(custo, mc, currentEmpresa);
+                    const markup = pv > 0 ? ((pv / custo - 1) * 100).toFixed(0) : '—';
+                    const lucro = pv > 0 ? (pv * (mc / 100)).toFixed(2) : '—';
+                    margemLines += `
+                        <div class="detail-row-item">
+                            <span class="detail-label">MC ${mc}%</span>
+                            <span class="detail-value green">R$ ${pv > 0 ? formatPrice(pv) : '—'} <span style="color:#8b949e;font-size:10px;font-weight:400;">(lucro R$ ${lucro} · markup ${markup}%)</span></span>
+                        </div>
+                    `;
+                });
+            }
+
+            const margemMax = ((1 - totalDed) * 100).toFixed(1);
+
+            return `
+                <div class="detail-panel">
+                    <div class="detail-grid">
+                        <div class="detail-section">
+                            <h4>Identificação</h4>
+                            <div class="detail-row-item"><span class="detail-label">SKU</span><span class="detail-value highlight">${sku}</span></div>
+                            <div class="detail-row-item"><span class="detail-label">Descrição</span><span class="detail-value">${item.descricao}</span></div>
+                            <div class="detail-row-item"><span class="detail-label">Unidade</span><span class="detail-value">${item.unidade || '—'}</span></div>
+                            <div class="detail-row-item"><span class="detail-label">Tipo</span><span class="detail-value">${item.is_combo ? 'COMBO' : 'Unitário'}</span></div>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Custos CIF</h4>
+                            <div class="detail-row-item"><span class="detail-label">Custo CIF RJ</span><span class="detail-value ${currentEmpresa === 'GGE' ? 'highlight' : ''}">${custoRJ > 0 ? 'R$ ' + formatPrice(custoRJ) : '—'}</span></div>
+                            <div class="detail-row-item"><span class="detail-label">Custo CIF SP</span><span class="detail-value ${currentEmpresa === 'TOOW' ? 'highlight' : ''}">${custoSP > 0 ? 'R$ ' + formatPrice(custoSP) : '—'}</span></div>
+                            <div class="detail-row-item"><span class="detail-label">Custo usado</span><span class="detail-value highlight">${custo > 0 ? 'R$ ' + formatPrice(custo) : 'SEM CUSTO'}</span></div>
+                            <div class="detail-formula">GGE usa CIF RJ · TOOW usa CIF SP</div>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Deduções (${currentEmpresa})</h4>
+                            ${deducaoLines}
+                            <div class="detail-row-item" style="border-top:1px solid #2a2d3a;padding-top:6px;margin-top:4px;">
+                                <span class="detail-label" style="font-weight:700;">Total deduções</span>
+                                <span class="detail-value highlight">${(totalDed * 100).toFixed(2)}%</span>
+                            </div>
+                            <div class="detail-row-item"><span class="detail-label">Margem máxima</span><span class="detail-value green">${margemMax}%</span></div>
+                            <div class="detail-formula">PV = Custo / (1 − Ded% − MC%)</div>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Preços por Margem</h4>
+                            ${margemLines || '<div class="detail-row-item"><span class="detail-label" style="color:#f85149;">Sem custo cadastrado</span></div>'}
+                        </div>
+                    </div>
+                </div>
             `;
         }
 
