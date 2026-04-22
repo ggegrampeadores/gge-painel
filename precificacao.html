@@ -390,6 +390,48 @@
             border-top: 1px dashed #2a2d3a;
         }
 
+        .detail-toggle {
+            padding: 3px 10px;
+            font-size: 11px;
+            border: 1px solid #2a2d3a;
+            background: #0f1117;
+            color: #8b949e;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-weight: 500;
+        }
+
+        .detail-toggle:hover {
+            border-color: #f0883e;
+            color: #c9d1d9;
+        }
+
+        .detail-toggle.active {
+            background: #f0883e;
+            color: #0f1117;
+            border-color: #f0883e;
+            font-weight: 700;
+        }
+
+        @media (max-width: 1400px) {
+            .detail-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .detail-grid {
+                grid-template-columns: 1fr 1fr !important;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .detail-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
         td.sku {
             font-family: 'Monaco', 'Courier New', monospace;
             font-size: 13px;
@@ -600,7 +642,7 @@
         </div>
     </main>
 
-    <script src="/config.js"></script>
+    <script src="config.js"></script>
     <script>
         // Configuration
         const SUPABASE_URL = window.GGE_SUPABASE_URL;
@@ -730,8 +772,16 @@
 
         // State
         let skuData = {};
+        let anunciosPorSku = {};   // { sku: [{ mlb_id, titulo, preco_atual, tipo_listagem, status }] }
+        let custoHistPorSku = {};  // { sku: { preco_fob, frete, icms_credito, pis_credito, cofins_credito, ipi_credito, st_valor, difal_valor, outros_custos, custo_cif, nota_fiscal, data_vigencia } }
         let filteredData = null;
         let currentEmpresa = 'GGE';
+
+        // Alíquotas ICMS internas por UF (para DIFAL)
+        const ICMS_UF = {
+            AC:17,AL:19,AM:20,AP:18,BA:20.5,CE:20,DF:20,ES:17,GO:19,MA:22,MG:18,MS:17,MT:17,PA:19,PB:20,PE:20.5,PI:21,PR:19.5,RJ:22,RN:18,RO:19.5,RR:20,RS:17,SC:17,SE:19,SP:18,TO:20
+        };
+        const UFS_SUL_SUDESTE = ['PR','SC','RS','SP','RJ','MG','ES'];
 
         // DOM Elements
         const empresaSelect = document.getElementById('empresaSelect');
@@ -777,25 +827,26 @@
         async function loadSkuData() {
             loadingState.style.display = 'flex';
             pricingTable.style.display = 'none';
+            const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
 
             try {
-                const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/skus_custo?select=sku,descricao,custo_cif_rj,custo_cif_sp,unidade,is_combo`,
-                    {
-                        headers: {
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        }
-                    }
-                );
+                const [skuRes, anunciosRes, custoHistRes] = await Promise.all([
+                    fetch(`${SUPABASE_URL}/rest/v1/skus_custo?select=sku,descricao,custo_cif_rj,custo_cif_sp,unidade,is_combo`, { headers }),
+                    fetch(`${SUPABASE_URL}/rest/v1/anuncios?select=mlb_id,sku_vendedor,titulo,preco_atual,tipo_listagem,status&status=eq.active&sku_vendedor=not.is.null`, { headers }),
+                    fetch(`${SUPABASE_URL}/rest/v1/skus_custo_historico?select=sku,empresa,preco_fob,frete,icms_credito,pis_cofins_credito,ipi_valor,st_valor,outros_custos,custo_cif_rj,custo_cif_sp,nota_fiscal,data_vigencia,origem&order=data_vigencia.desc`, { headers })
+                ]);
 
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status}`);
-                }
+                if (!skuRes.ok) throw new Error(`SKUs: ${skuRes.status}`);
 
-                const data = await response.json();
+                const [skuArr, anunciosArr, custoHistArr] = await Promise.all([
+                    skuRes.json(),
+                    anunciosRes.ok ? anunciosRes.json() : [],
+                    custoHistRes.ok ? custoHistRes.json() : []
+                ]);
+
+                // SKU base data
                 skuData = {};
-                data.forEach(item => {
+                skuArr.forEach(item => {
                     skuData[item.sku] = {
                         descricao: item.descricao || '',
                         custo_cif_rj: item.custo_cif_rj || 0,
@@ -805,11 +856,40 @@
                     };
                 });
 
+                // Anúncios agrupados por SKU
+                anunciosPorSku = {};
+                anunciosArr.forEach(a => {
+                    const s = (a.sku_vendedor || '').trim().toUpperCase();
+                    if (!s) return;
+                    if (!anunciosPorSku[s]) anunciosPorSku[s] = [];
+                    anunciosPorSku[s].push({
+                        mlb_id: a.mlb_id,
+                        titulo: a.titulo || '',
+                        preco: a.preco_atual || 0,
+                        tipo: a.tipo_listagem || '',
+                        status: a.status || ''
+                    });
+                });
+
+                // Custo histórico — mais recente por SKU+empresa
+                custoHistPorSku = {};
+                custoHistArr.forEach(h => {
+                    const key = h.sku + '|' + (h.empresa || 'GGE');
+                    if (!custoHistPorSku[key]) {
+                        custoHistPorSku[key] = h; // já ordenado desc, primeiro = mais recente
+                    }
+                });
+
                 renderTable();
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
                 showToast(`Erro ao carregar dados: ${error.message}`, 'error');
-                loadingState.style.display = 'none';
+                // Mesmo com erro, tenta renderizar o que tem
+                if (Object.keys(skuData).length > 0) {
+                    renderTable();
+                } else {
+                    loadingState.style.display = 'none';
+                }
             }
         }
 
@@ -921,84 +1001,313 @@
             }
         }
 
-        function buildDetailPanel(sku, item, custo, margins) {
-            const p = PREC_PARAMS[currentEmpresa] || PREC_PARAMS.GGE;
-            const custoRJ = item.custo_cif_rj || 0;
-            const custoSP = item.custo_cif_sp || 0;
+        // ─── B2B Calculation helpers ───
+        // ICMS interestadual: importado=4%, nacional: S/SE(exceto ES)=12%, demais=7%
+        function icmsInterestadual(importado, ufDestino) {
+            if (importado) return 4;
+            if (UFS_SUL_SUDESTE.includes(ufDestino) && ufDestino !== 'ES') return 12;
+            return 7;
+        }
 
-            // Cálculo das deduções
-            let deducaoLines = '';
-            let totalDed = 0;
-            if (currentEmpresa === 'TOOW') {
-                totalDed = p.comissao_pct + p.simples_pct + p.ads_pct;
-                deducaoLines = `
-                    <div class="detail-row-item"><span class="detail-label">Comissão ML</span><span class="detail-value">${(p.comissao_pct * 100).toFixed(1)}%</span></div>
-                    <div class="detail-row-item"><span class="detail-label">Simples Nacional</span><span class="detail-value">${(p.simples_pct * 100).toFixed(2)}%</span></div>
-                    <div class="detail-row-item"><span class="detail-label">ADs</span><span class="detail-value">${(p.ads_pct * 100).toFixed(1)}%</span></div>
+        // Calcula PV B2B: PV = Custo / (1 - ICMS% - PIS/COFINS% - MC%)
+        // Para indústria/revenda: sem DIFAL. Para consumidor final: inclui DIFAL.
+        function calcPV_B2B(custo, mcPct, importado, ufDestino, consumidorFinal) {
+            if (custo <= 0) return 0;
+            const icmsNF = icmsInterestadual(importado, ufDestino) / 100;
+            const pisCofins = 0.0925;
+            let difal = 0;
+            if (consumidorFinal && ufDestino && ICMS_UF[ufDestino]) {
+                const aliqInterna = ICMS_UF[ufDestino] / 100;
+                difal = Math.max(0, aliqInterna - icmsNF);
+            }
+            const den = 1 - icmsNF - pisCofins - difal - (mcPct / 100);
+            if (den <= 0) return 0;
+            return custo / den;
+        }
+
+        function buildDetailPanel(sku, item, custo, margins) {
+            const panelId = `panel-${sku.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+            // ── Card 1: Referências ──
+            const anuncios = anunciosPorSku[sku.toUpperCase()] || [];
+            let refLines = '';
+            if (anuncios.length > 0) {
+                anuncios.forEach(a => {
+                    const tipo = a.tipo === 'gold_pro' ? '⭐' : a.tipo === 'gold_special' ? '🏷️' : '';
+                    refLines += `<div class="detail-row-item">
+                        <span class="detail-label" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.titulo}">${a.mlb_id}</span>
+                        <span class="detail-value green">R$ ${formatPrice(a.preco)} ${tipo}</span>
+                    </div>`;
+                });
+            } else {
+                refLines = '<div class="detail-row-item"><span class="detail-label" style="color:#6e7681;">Nenhum anúncio ativo com este SKU</span></div>';
+            }
+
+            const card1 = `
+                <div class="detail-section">
+                    <h4>📋 Referências</h4>
+                    <div style="font-size:10px;color:#6e7681;margin-bottom:6px;text-transform:uppercase;">Preços no Mercado Livre</div>
+                    ${refLines}
+                    <div style="border-top:1px solid #2a2d3a40;margin-top:6px;padding-top:6px;">
+                        <div class="detail-row-item"><span class="detail-label">Preço no Site</span><span class="detail-value" style="color:#6e7681;">—</span></div>
+                        <div class="detail-row-item"><span class="detail-label">Qtd / Caixa</span><span class="detail-value" style="color:#6e7681;">—</span></div>
+                        <div class="detail-row-item"><span class="detail-label">Cx / Sobrecaixa</span><span class="detail-value" style="color:#6e7681;">—</span></div>
+                    </div>
+                    <div class="detail-formula">Site, Qtd/cx e Cx/sobrecx virão do Bling</div>
+                </div>`;
+
+            // ── Card 2: Custo CIF destrinchado ──
+            const empresa = currentEmpresa || 'GGE';
+            const histKey = sku + '|' + empresa;
+            const hist = custoHistPorSku[histKey] || custoHistPorSku[sku + '|GGE'] || null;
+
+            let card2Content = '';
+            if (hist) {
+                const fob = hist.preco_fob || 0;
+                const ipi = hist.ipi_valor || 0;
+                const st = hist.st_valor || 0;
+                const freteCompra = hist.frete || 0;
+                const icmsCredito = hist.icms_credito || 0;
+                const pisCofinsCredito = hist.pis_cofins_credito || 0;
+                const outros = hist.outros_custos || 0;
+                const cifRJ = hist.custo_cif_rj || 0;
+                const cifSP = hist.custo_cif_sp || 0;
+                const cifFinal = empresa === 'TOOW' ? cifSP : (cifSP || cifRJ);
+                const nf = hist.nota_fiscal || '—';
+                const origemProd = hist.origem || '—';
+                const dataVig = hist.data_vigencia ? new Date(hist.data_vigencia + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+
+                card2Content = `
+                    <div class="detail-row-item"><span class="detail-label">FOB unitário</span><span class="detail-value">R$ ${formatPrice(fob)}</span></div>
+                    <div class="detail-row-item"><span class="detail-label">(+) IPI</span><span class="detail-value">R$ ${formatPrice(ipi)}</span></div>
+                    <div class="detail-row-item"><span class="detail-label">(+) ST</span><span class="detail-value">R$ ${formatPrice(st)}</span></div>
+                    <div class="detail-row-item"><span class="detail-label">(+) Frete compra</span><span class="detail-value">R$ ${formatPrice(freteCompra)}</span></div>
+                    <div class="detail-row-item"><span class="detail-label">(+) Outros</span><span class="detail-value">R$ ${formatPrice(outros)}</span></div>
+                    ${empresa !== 'TOOW' ? `
+                    <div style="border-top:1px solid #2a2d3a;margin-top:4px;padding-top:4px;">
+                        <div class="detail-row-item"><span class="detail-label">(−) ICMS crédito</span><span class="detail-value" style="color:#f85149;">−R$ ${formatPrice(icmsCredito)}</span></div>
+                        <div class="detail-row-item"><span class="detail-label">(−) PIS/COFINS créd.</span><span class="detail-value" style="color:#f85149;">−R$ ${formatPrice(pisCofinsCredito)}</span></div>
+                    </div>` : ''}
+                    <div class="detail-row-item" style="border-top:1px solid #f0883e40;margin-top:6px;padding-top:6px;">
+                        <span class="detail-label" style="font-weight:700;">= CIF Final</span>
+                        <span class="detail-value highlight" style="font-size:14px;">R$ ${formatPrice(cifFinal)}</span>
+                    </div>
+                    <div class="detail-formula">NF ${nf} · ${dataVig} · ${origemProd}${empresa === 'TOOW' ? ' · Simples: sem créditos' : ''}</div>
                 `;
             } else {
-                const pisLiq = p.pis_cofins_pct * (1 - p.comissao_pct - p.ads_pct);
-                totalDed = p.comissao_pct + p.icms_pct + pisLiq + p.ads_pct;
-                deducaoLines = `
-                    <div class="detail-row-item"><span class="detail-label">Comissão ML</span><span class="detail-value">${(p.comissao_pct * 100).toFixed(1)}%</span></div>
-                    <div class="detail-row-item"><span class="detail-label">ICMS débito</span><span class="detail-value">${(p.icms_pct * 100).toFixed(1)}%</span></div>
-                    <div class="detail-row-item"><span class="detail-label">PIS/COFINS líq.</span><span class="detail-value">${(pisLiq * 100).toFixed(2)}%</span></div>
-                    <div class="detail-row-item"><span class="detail-label">ADs</span><span class="detail-value">${(p.ads_pct * 100).toFixed(1)}%</span></div>
+                // Fallback: custo fixo da tabela skus_custo
+                card2Content = `
+                    <div class="detail-row-item"><span class="detail-label">CIF RJ (fixo)</span><span class="detail-value">${item.custo_cif_rj > 0 ? 'R$ ' + formatPrice(item.custo_cif_rj) : '—'}</span></div>
+                    <div class="detail-row-item"><span class="detail-label">CIF SP (fixo)</span><span class="detail-value">${item.custo_cif_sp > 0 ? 'R$ ' + formatPrice(item.custo_cif_sp) : '—'}</span></div>
+                    <div class="detail-row-item" style="border-top:1px solid #f0883e40;margin-top:6px;padding-top:6px;">
+                        <span class="detail-label" style="font-weight:700;">= CIF usado</span>
+                        <span class="detail-value highlight">${custo > 0 ? 'R$ ' + formatPrice(custo) : 'SEM CUSTO'}</span>
+                    </div>
+                    <div class="detail-formula" style="color:#f85149;">Sem histórico de NF — usando custo fixo legado</div>
                 `;
             }
 
-            // Cálculo de PV por margem
-            let margemLines = '';
+            const card2 = `
+                <div class="detail-section">
+                    <h4>💰 Custo CIF</h4>
+                    ${card2Content}
+                </div>`;
+
+            // ── Card 3: Custo Venda B2B ──
+            // Default: nacional, indústria/revenda, SP destino
+            const card3 = `
+                <div class="detail-section" id="${panelId}-card3">
+                    <h4>📊 Custo Venda B2B</h4>
+                    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+                        <button class="detail-toggle active" data-panel="${panelId}" data-field="importado" data-val="false" onclick="toggleB2B(this,'importado','false')">Nacional</button>
+                        <button class="detail-toggle" data-panel="${panelId}" data-field="importado" data-val="true" onclick="toggleB2B(this,'importado','true')">Importado</button>
+                    </div>
+                    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+                        <button class="detail-toggle active" data-panel="${panelId}" data-field="tipocliente" data-val="industria" onclick="toggleB2B(this,'tipocliente','industria')">Indústria/Revenda</button>
+                        <button class="detail-toggle" data-panel="${panelId}" data-field="tipocliente" data-val="consumidor" onclick="toggleB2B(this,'tipocliente','consumidor')">Consumidor Final</button>
+                    </div>
+                    <div id="${panelId}-b2b-deducoes">
+                        ${renderB2BDeducoes(false, 'SP', false)}
+                    </div>
+                    <div class="detail-formula">PV = Custo / (1 − ICMS% − PIS/COFINS% − MC%)</div>
+                </div>`;
+
+            // ── Card 4: Preços por Margem (Indústria/Revenda) ──
+            let card4Lines = '';
             if (custo > 0) {
-                margins.forEach(mc => {
-                    const pv = calcPV(custo, mc, currentEmpresa);
-                    const markup = pv > 0 ? ((pv / custo - 1) * 100).toFixed(0) : '—';
-                    const lucro = pv > 0 ? (pv * (mc / 100)).toFixed(2) : '—';
-                    margemLines += `
-                        <div class="detail-row-item">
-                            <span class="detail-label">MC ${mc}%</span>
-                            <span class="detail-value green">R$ ${pv > 0 ? formatPrice(pv) : '—'} <span style="color:#8b949e;font-size:10px;font-weight:400;">(lucro R$ ${lucro} · markup ${markup}%)</span></span>
-                        </div>
-                    `;
+                [50, 45, 40, 35, 30, 25, 20].forEach(mc => {
+                    const pv = calcPV_B2B(custo, mc, false, 'SP', false);
+                    const lucro = pv > 0 ? (pv * (mc / 100)) : 0;
+                    card4Lines += `<div class="detail-row-item">
+                        <span class="detail-label">MC ${mc}%</span>
+                        <span class="detail-value green">R$ ${pv > 0 ? formatPrice(pv) : '—'} <span style="color:#8b949e;font-size:10px;font-weight:400;">lucro R$ ${formatPrice(lucro)}</span></span>
+                    </div>`;
                 });
+            } else {
+                card4Lines = '<div class="detail-row-item"><span class="detail-label" style="color:#f85149;">Sem custo cadastrado</span></div>';
             }
 
-            const margemMax = ((1 - totalDed) * 100).toFixed(1);
+            const card4 = `
+                <div class="detail-section" id="${panelId}-card4">
+                    <h4>🏷️ Preços por Margem</h4>
+                    <div style="font-size:10px;color:#6e7681;margin-bottom:6px;">INDÚSTRIA/REVENDA · Nacional · SP</div>
+                    <div id="${panelId}-precos-b2b">
+                        ${card4Lines}
+                    </div>
+                </div>`;
 
+            // ── Card 5: Consumidor Final (UF + DIFAL) ──
+            const ufOptions = Object.keys(ICMS_UF).sort().map(uf =>
+                `<option value="${uf}" ${uf === 'SP' ? 'selected' : ''}>${uf} (${ICMS_UF[uf]}%)</option>`
+            ).join('');
+
+            let card5Lines = '';
+            if (custo > 0) {
+                [50, 45, 40, 35, 30, 25, 20].forEach(mc => {
+                    const pv = calcPV_B2B(custo, mc, false, 'SP', true);
+                    card5Lines += `<div class="detail-row-item">
+                        <span class="detail-label">MC ${mc}%</span>
+                        <span class="detail-value green">R$ ${pv > 0 ? formatPrice(pv) : '—'}</span>
+                    </div>`;
+                });
+            } else {
+                card5Lines = '<div class="detail-row-item"><span class="detail-label" style="color:#f85149;">Sem custo cadastrado</span></div>';
+            }
+
+            const card5 = `
+                <div class="detail-section" id="${panelId}-card5">
+                    <h4>🏠 Consumidor Final</h4>
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                        <label style="font-size:11px;color:#8b949e;">UF destino:</label>
+                        <select style="padding:4px 8px;background:#0f1117;border:1px solid #2a2d3a;color:#c9d1d9;border-radius:4px;font-size:12px;"
+                                onchange="recalcConsumidorFinal('${panelId}','${sku}',this.value)">
+                            ${ufOptions}
+                        </select>
+                    </div>
+                    <div id="${panelId}-difal-info" style="margin-bottom:6px;">
+                        ${renderDifalInfo(false, 'SP')}
+                    </div>
+                    <div id="${panelId}-precos-cf">
+                        ${card5Lines}
+                    </div>
+                </div>`;
+
+            // Store sku/custo for recalculation
             return `
-                <div class="detail-panel">
-                    <div class="detail-grid">
-                        <div class="detail-section">
-                            <h4>Identificação</h4>
-                            <div class="detail-row-item"><span class="detail-label">SKU</span><span class="detail-value highlight">${sku}</span></div>
-                            <div class="detail-row-item"><span class="detail-label">Descrição</span><span class="detail-value">${item.descricao}</span></div>
-                            <div class="detail-row-item"><span class="detail-label">Unidade</span><span class="detail-value">${item.unidade || '—'}</span></div>
-                            <div class="detail-row-item"><span class="detail-label">Tipo</span><span class="detail-value">${item.is_combo ? 'COMBO' : 'Unitário'}</span></div>
-                        </div>
-                        <div class="detail-section">
-                            <h4>Custos CIF</h4>
-                            <div class="detail-row-item"><span class="detail-label">Custo CIF RJ</span><span class="detail-value ${currentEmpresa === 'GGE' ? 'highlight' : ''}">${custoRJ > 0 ? 'R$ ' + formatPrice(custoRJ) : '—'}</span></div>
-                            <div class="detail-row-item"><span class="detail-label">Custo CIF SP</span><span class="detail-value ${currentEmpresa === 'TOOW' ? 'highlight' : ''}">${custoSP > 0 ? 'R$ ' + formatPrice(custoSP) : '—'}</span></div>
-                            <div class="detail-row-item"><span class="detail-label">Custo usado</span><span class="detail-value highlight">${custo > 0 ? 'R$ ' + formatPrice(custo) : 'SEM CUSTO'}</span></div>
-                            <div class="detail-formula">GGE usa CIF RJ · TOOW usa CIF SP</div>
-                        </div>
-                        <div class="detail-section">
-                            <h4>Deduções (${currentEmpresa})</h4>
-                            ${deducaoLines}
-                            <div class="detail-row-item" style="border-top:1px solid #2a2d3a;padding-top:6px;margin-top:4px;">
-                                <span class="detail-label" style="font-weight:700;">Total deduções</span>
-                                <span class="detail-value highlight">${(totalDed * 100).toFixed(2)}%</span>
-                            </div>
-                            <div class="detail-row-item"><span class="detail-label">Margem máxima</span><span class="detail-value green">${margemMax}%</span></div>
-                            <div class="detail-formula">PV = Custo / (1 − Ded% − MC%)</div>
-                        </div>
-                        <div class="detail-section">
-                            <h4>Preços por Margem</h4>
-                            ${margemLines || '<div class="detail-row-item"><span class="detail-label" style="color:#f85149;">Sem custo cadastrado</span></div>'}
-                        </div>
+                <div class="detail-panel" data-sku="${sku}" data-custo="${custo}" data-empresa="${empresa}" id="${panelId}">
+                    <div class="detail-grid" style="grid-template-columns: repeat(5, 1fr);">
+                        ${card1}${card2}${card3}${card4}${card5}
                     </div>
                 </div>
             `;
+        }
+
+        // Render ICMS/PIS info for B2B deductions card
+        function renderB2BDeducoes(importado, ufDestino, consumidorFinal) {
+            const icmsNF = icmsInterestadual(importado, ufDestino);
+            const pisCofins = 9.25;
+            let difal = 0;
+            if (consumidorFinal && ICMS_UF[ufDestino]) {
+                difal = Math.max(0, ICMS_UF[ufDestino] - icmsNF);
+            }
+            const total = icmsNF + pisCofins + difal;
+            return `
+                <div class="detail-row-item"><span class="detail-label">ICMS NF (${importado ? 'import.' : 'nac.'})</span><span class="detail-value">${icmsNF.toFixed(1)}%</span></div>
+                <div class="detail-row-item"><span class="detail-label">PIS/COFINS</span><span class="detail-value">9,25%</span></div>
+                ${consumidorFinal ? `<div class="detail-row-item"><span class="detail-label">DIFAL (${ufDestino})</span><span class="detail-value" style="color:#f0883e;">${difal.toFixed(1)}%</span></div>` : ''}
+                <div class="detail-row-item" style="border-top:1px solid #2a2d3a;padding-top:4px;margin-top:4px;">
+                    <span class="detail-label" style="font-weight:700;">Total deduções</span>
+                    <span class="detail-value highlight">${total.toFixed(2)}%</span>
+                </div>
+                <div class="detail-row-item"><span class="detail-label">Margem máxima</span><span class="detail-value green">${(100 - total).toFixed(2)}%</span></div>
+            `;
+        }
+
+        function renderDifalInfo(importado, ufDestino) {
+            const icmsNF = icmsInterestadual(importado, ufDestino);
+            const aliqInterna = ICMS_UF[ufDestino] || 0;
+            const difal = Math.max(0, aliqInterna - icmsNF);
+            return `
+                <div class="detail-row-item"><span class="detail-label">ICMS NF</span><span class="detail-value">${icmsNF}%</span></div>
+                <div class="detail-row-item"><span class="detail-label">Alíq. interna ${ufDestino}</span><span class="detail-value">${aliqInterna}%</span></div>
+                <div class="detail-row-item"><span class="detail-label">DIFAL</span><span class="detail-value highlight">${difal.toFixed(1)}%</span></div>
+            `;
+        }
+
+        // Toggle buttons for B2B card (importado/nacional, ind/consumidor)
+        function toggleB2B(btn, field, val) {
+            const panelId = btn.dataset.panel;
+            // Update active button
+            btn.parentElement.querySelectorAll('.detail-toggle').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Recalculate cards 3, 4, 5
+            recalcB2BCards(panelId);
+        }
+
+        function getB2BState(panelId) {
+            const panel = document.getElementById(panelId);
+            if (!panel) return { importado: false, consumidorFinal: false, uf: 'SP', sku: '', custo: 0 };
+            const importBtn = panel.querySelector('[data-field="importado"].active');
+            const tipoBtn = panel.querySelector('[data-field="tipocliente"].active');
+            const ufSelect = panel.querySelector(`#${panelId}-card5 select`);
+            return {
+                importado: importBtn ? importBtn.dataset.val === 'true' : false,
+                consumidorFinal: tipoBtn ? tipoBtn.dataset.val === 'consumidor' : false,
+                uf: ufSelect ? ufSelect.value : 'SP',
+                sku: panel.dataset.sku,
+                custo: parseFloat(panel.dataset.custo) || 0
+            };
+        }
+
+        function recalcB2BCards(panelId) {
+            const st = getB2BState(panelId);
+            // Update card 3
+            const dedEl = document.getElementById(panelId + '-b2b-deducoes');
+            if (dedEl) dedEl.innerHTML = renderB2BDeducoes(st.importado, st.uf, st.consumidorFinal);
+            // Update card 4 (indústria/revenda prices)
+            recalcPrecosB2B(panelId, st);
+            // Update card 5 (consumidor final)
+            recalcCFPrecos(panelId, st);
+        }
+
+        function recalcPrecosB2B(panelId, st) {
+            const el = document.getElementById(panelId + '-precos-b2b');
+            const label = document.querySelector(`#${panelId}-card4 > div:nth-child(2)`);
+            if (!el) return;
+            if (label) label.textContent = `INDÚSTRIA/REVENDA · ${st.importado ? 'Importado' : 'Nacional'} · ${st.uf}`;
+            if (st.custo <= 0) { el.innerHTML = '<div class="detail-row-item"><span class="detail-label" style="color:#f85149;">Sem custo</span></div>'; return; }
+            let html = '';
+            [50, 45, 40, 35, 30, 25, 20].forEach(mc => {
+                const pv = calcPV_B2B(st.custo, mc, st.importado, st.uf, false);
+                const lucro = pv > 0 ? (pv * (mc / 100)) : 0;
+                html += `<div class="detail-row-item"><span class="detail-label">MC ${mc}%</span><span class="detail-value green">R$ ${pv > 0 ? formatPrice(pv) : '—'} <span style="color:#8b949e;font-size:10px;font-weight:400;">lucro R$ ${formatPrice(lucro)}</span></span></div>`;
+            });
+            el.innerHTML = html;
+        }
+
+        function recalcConsumidorFinal(panelId, sku, uf) {
+            const st = getB2BState(panelId);
+            st.uf = uf;
+            // Update DIFAL info
+            const difalEl = document.getElementById(panelId + '-difal-info');
+            if (difalEl) difalEl.innerHTML = renderDifalInfo(st.importado, uf);
+            // Update CF prices
+            recalcCFPrecos(panelId, { ...st, uf });
+            // Also update card 3 deductions with new UF
+            const dedEl = document.getElementById(panelId + '-b2b-deducoes');
+            if (dedEl) dedEl.innerHTML = renderB2BDeducoes(st.importado, uf, st.consumidorFinal);
+        }
+
+        function recalcCFPrecos(panelId, st) {
+            const el = document.getElementById(panelId + '-precos-cf');
+            if (!el) return;
+            if (st.custo <= 0) { el.innerHTML = '<div class="detail-row-item"><span class="detail-label" style="color:#f85149;">Sem custo</span></div>'; return; }
+            let html = '';
+            [50, 45, 40, 35, 30, 25, 20].forEach(mc => {
+                const pv = calcPV_B2B(st.custo, mc, st.importado, st.uf, true);
+                html += `<div class="detail-row-item"><span class="detail-label">MC ${mc}%</span><span class="detail-value green">R$ ${pv > 0 ? formatPrice(pv) : '—'}</span></div>`;
+            });
+            el.innerHTML = html;
         }
 
         function formatPrice(value) {
