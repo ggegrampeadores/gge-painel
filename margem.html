@@ -111,6 +111,7 @@
 
     // ── Período config ──
     const PERIODO_OPTIONS = [
+      { value: 'mes_atual', label: 'Mês atual' },
       { value: '7d', label: '7 dias' },
       { value: '15d', label: '15 dias' },
       { value: '30d', label: '30 dias' },
@@ -130,6 +131,10 @@
       const mYM = (m) => String(m).slice(0, 7);
 
       switch (periodo) {
+        case 'mes_atual': {
+          const ym = toYM(today);
+          return sorted.filter(m => mYM(m) === ym);
+        }
         case '7d': case '15d': case '30d': {
           const days = periodo === '7d' ? 7 : periodo === '15d' ? 15 : 30;
           const cutoff = new Date(today);
@@ -1032,7 +1037,7 @@
                           ['MC2', mlbData.margem_valor, Number(mlbData.margem_valor) >= 0 ? 'text-gge-green' : 'text-gge-red'],
                         ].map(([label, val, color]) => (
                           <div key={label}>
-                            <div className="text-gge-muted text.xs uppercase tracking-wider">{label}</div>
+                            <div className="text-gge-muted text-xs uppercase tracking-wider">{label}</div>
                             <div className={`text-sm font-bold mt-0.5 ${color}`}>R$ {fmt(val)}</div>
                           </div>
                         ))}
@@ -1506,9 +1511,6 @@
 
                 {/* Groups Table */}
                 <GroupsSummary data={filtered} />
-
-                {/* Alerts Panel — 2×2 grid */}
-                <AlertsPanel data={filtered} />
 
                 {/* Evolution + Curva ABC */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
