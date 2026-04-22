@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Precificação B2B — Venda Direta | Controle Total</title>
-    <script src="auth.js"></script>
+    <script src="auth.js" defer></script>
     <script src="sidebar.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -22,89 +22,13 @@
             min-height: 100vh;
         }
 
-        /* Sidebar */
-        .sidebar {
-            width: 250px;
-            background-color: #1a1d27;
-            border-right: 1px solid #2a2d3a;
-            padding: 20px;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar.collapsed {
-            transform: translateX(-100%);
-        }
-
-        .sidebar-logo {
-            display: flex;
-            align-items: center;
-            margin-bottom: 30px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #f0883e;
-        }
-
-        .sidebar-logo span {
-            margin-left: 8px;
-        }
-
-        .sidebar-nav {
-            list-style: none;
-        }
-
-        .sidebar-nav li {
-            margin-bottom: 12px;
-        }
-
-        .sidebar-nav a {
-            display: block;
-            padding: 10px 12px;
-            color: #c9d1d9;
-            text-decoration: none;
-            border-radius: 6px;
-            transition: background-color 0.2s;
-            font-size: 14px;
-        }
-
-        .sidebar-nav a:hover {
-            background-color: #2a2d3a;
-        }
-
-        .sidebar-nav a.active {
-            background-color: #f0883e;
-            color: #0f1117;
-            font-weight: 600;
-        }
-
-        .toggle-sidebar {
-            display: none;
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            background-color: #1a1d27;
-            border: 1px solid #2a2d3a;
-            color: #c9d1d9;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-        }
+        /* Sidebar handled by sidebar.js */
 
         /* Main Content */
         .main {
-            margin-left: 48px;
             flex: 1;
             display: flex;
             flex-direction: column;
-            transition: margin-left 0.3s ease;
-        }
-
-        .main.full-width {
-            margin-left: 0;
         }
 
         .header {
@@ -471,37 +395,12 @@
 
         /* Responsive */
         @media (max-width: 1024px) {
-            .sidebar {
-                width: 200px;
-            }
-
-            .main {
-                margin-left: 200px;
-            }
-
             .controls-bar {
                 grid-template-columns: 1fr;
             }
         }
 
         @media (max-width: 768px) {
-            .toggle-sidebar {
-                display: block;
-            }
-
-            .sidebar {
-                width: 100%;
-                z-index: 999;
-            }
-
-            .main {
-                margin-left: 0;
-            }
-
-            .sidebar.collapsed {
-                transform: translateX(-100%);
-            }
-
             .header {
                 padding: 20px;
             }
@@ -586,7 +485,7 @@
     <!-- Sidebar (injetado por sidebar.js) -->
 
     <!-- Main Content -->
-    <main class="main" id="main">
+    <main class="main main-with-sidebar" id="main">
         <!-- Header -->
         <header class="header">
             <h1>Precificação B2B — Venda Direta</h1>
@@ -792,8 +691,6 @@
         const loadingState = document.getElementById('loadingState');
         const pricingTable = document.getElementById('pricingTable');
         const tableBody = document.getElementById('tableBody');
-        const toggleSidebar = document.getElementById('toggleSidebar');
-        const sidebar = document.getElementById('sidebar');
         const main = document.getElementById('main');
 
         // Initialization
@@ -816,12 +713,6 @@
             downloadBtn.addEventListener('click', downloadExcel);
             uploadBtn.addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', handleFileUpload);
-            toggleSidebar.addEventListener('click', toggleSidebarVisibility);
-        }
-
-        function toggleSidebarVisibility() {
-            sidebar.classList.toggle('collapsed');
-            main.classList.toggle('full-width');
         }
 
         async function loadSkuData() {
