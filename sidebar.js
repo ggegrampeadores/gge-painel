@@ -15,15 +15,23 @@
     saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     avaliacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
     ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
+    'pos-venda':  svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+    reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
+    catalogo:     svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/>'),
+    ressarcimentos: svgIcon('<rect x="1" y="5" width="22" height="16" rx="2"/><path d="M16 14h.01"/><path d="M1 10h22"/>'),
   };
 
   var pages = [
     { href: '/',             icon: icons.dashboard,    label: 'Dashboard',      key: 'dashboard' },
     { href: '/margem',       icon: icons.margem,       label: 'Margem',         key: 'margem' },
-    { href: '/precificacao', icon: icons.precificacao, label: 'Tabela VD', key: 'precificacao' },
+    { href: '/precificacao', icon: icons.precificacao, label: 'Precifica\u00E7\u00E3o', key: 'precificacao' },
     { href: '/preco-mktp',   icon: icons['preco-mktp'],label: 'Pre\u00E7o MKTP',     key: 'preco-mktp' },
     { href: '/saude',        icon: icons.saude,        label: 'Sa\u00FAde',          key: 'saude' },
+    { href: '/pos-venda',    icon: icons['pos-venda'], label: 'P\u00F3s-Venda',      key: 'pos-venda' },
+    { href: '/reputacao',    icon: icons.reputacao,     label: 'Reputa\u00E7\u00E3o',      key: 'reputacao' },
+    { href: '/catalogo',     icon: icons.catalogo,      label: 'Cat\u00E1logos',           key: 'catalogo' },
     { href: '/avaliacao',    icon: icons.avaliacao,     label: 'Avalia\u00E7\u00E3o',      key: 'avaliacao' },
+    { href: '/ressarcimentos', icon: icons.ressarcimentos, label: 'Ressarcimentos', key: 'ressarcimentos' },
     { href: '/ads',          icon: icons.ads,           label: 'ADs',            key: 'ads' },
   ];
 
