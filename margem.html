@@ -80,6 +80,20 @@
     const SUPABASE_ANON = window.GGE_SUPABASE_KEY;
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+    async function fetchAll(buildQuery) {
+      const PAGE = 1000;
+      let allRows = [], from = 0;
+      while (true) {
+        const { data, error } = await buildQuery().range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allRows = allRows.concat(data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return allRows;
+    }
+
     // ── Helpers ──
     const fmt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtInt = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR');
@@ -135,13 +149,15 @@
           const ym = toYM(today);
           return sorted.filter(m => mYM(m) === ym);
         }
-        case '7d': case '15d': case '30d': {
-          const days = periodo === '7d' ? 7 : periodo === '15d' ? 15 : 30;
-          const cutoff = new Date(today);
-          cutoff.setDate(cutoff.getDate() - days);
-          const cutoffYM = toYM(cutoff);
-          const todayYM = toYM(today);
-          return sorted.filter(m => mYM(m) >= cutoffYM && mYM(m) <= todayYM);
+        case '7d': case '15d': {
+          // 7 and 15 days always fall within current month
+          const ym = toYM(today);
+          return sorted.filter(m => mYM(m) === ym);
+        }
+        case '30d': {
+          // 30 days = current month only (dados são mensais, não dá para cortar no meio)
+          const ym = toYM(today);
+          return sorted.filter(m => mYM(m) === ym);
         }
         case 'mes_passado': {
           const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -424,21 +440,25 @@
                                     {anunciosData[g.grupo]?.map((item, idx) => (
                                       <tr key={idx} className={`border-t border-gge-border/20 ${idx % 2 === 0 ? '' : 'bg-white/[0.01]'}`}>
                                         <td className="px-3 py-2 text-gge-text truncate max-w-xs" title={item.titulo}>{item.titulo}</td>
-                                        <td className="px-3 py-2 text-gge-accent font-mono flex items-center gap-1">
-                                          <span>{item.mlb_id}</span>
-                                          <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.mlb_id, 'mlb'); }}
-                                                  className="opacity-50 hover:opacity-100 transition-opacity" title="Copiar MLB">
-                                            📋
-                                          </button>
-                                        </td>
-                                        <td className="px-3 py-2 text-gge-text flex items-center gap-1">
-                                          <span className="truncate">{item.sku_vendedor || '—'}</span>
-                                          {item.sku_vendedor && (
-                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.sku_vendedor, 'sku'); }}
-                                                    className="opacity-50 hover:opacity-100 transition-opacity shrink-0" title="Copiar SKU">
+                                        <td className="px-3 py-2 text-gge-accent font-mono">
+                                          <div className="inline-flex items-center gap-1">
+                                            <span>{item.mlb_id}</span>
+                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.mlb_id, 'mlb'); }}
+                                                    className="opacity-50 hover:opacity-100 transition-opacity" title="Copiar MLB">
                                               📋
                                             </button>
-                                          )}
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2 text-gge-text">
+                                          <div className="inline-flex items-center gap-1">
+                                            <span className="truncate">{item.sku_vendedor || '—'}</span>
+                                            {item.sku_vendedor && (
+                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(item.sku_vendedor, 'sku'); }}
+                                                      className="opacity-50 hover:opacity-100 transition-opacity shrink-0" title="Copiar SKU">
+                                                📋
+                                              </button>
+                                            )}
+                                          </div>
                                         </td>
                                         <td className={`text-right px-3 py-2 ${Number(item.margem_pct) >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
                                           {fmtPct(item.margem_pct)}
@@ -1181,12 +1201,67 @@
           setLoading(true);
           setError(null);
           try {
-            const [margemRes, saldoRes] = await Promise.all([
-              supabase.from('vw_margem_segmentada').select('*').order('mes', { ascending: false }),
+            // v2: Load individual sales from mat_margem_canonica + vendas for cancellations
+            const [margemRaw, vendasAll, saldoRes] = await Promise.all([
+              fetchAll(() => supabase.from('mat_margem_canonica').select('*').order('data_venda', { ascending: false })),
+              fetchAll(() => supabase.from('vendas').select('ordem_id,conta_id,data_venda,preco_total,status').order('data_venda', { ascending: false })),
               supabase.from('vw_saldo_vendas').select('*').order('mes', { ascending: false })
             ]);
-            if (margemRes.error) throw margemRes.error;
-            const data = margemRes.data || [];
+
+            // Build conta lookup from saldo
+            const contaLookup = {};
+            (saldoRes.data || []).forEach(s => { contaLookup[s.conta_id] = s.conta_nome; });
+
+            // Aggregate margem data by mlb_id + month (same shape as vw_margem_segmentada)
+            // but also store raw sales for date-based filtering
+            window.__rawSales = margemRaw || [];
+            window.__vendasAll = vendasAll || [];
+            window.__contaLookup = contaLookup;
+
+            // Aggregate into monthly groups for backward compatibility with charts/groups
+            const aggMap = {};
+            (margemRaw || []).forEach(s => {
+              const key = `${s.mlb_id}__${s.mes_venda}`;
+              if (!aggMap[key]) {
+                aggMap[key] = {
+                  mlb_id: s.mlb_id, conta_nome: s.conta_nome, mes: s.mes_venda,
+                  sku_vendedor: s.sku_vendedor, titulo: s.titulo,
+                  tipo_listagem: '', catalogo_anuncio: '', kit_produto: '', fornecedor: '',
+                  ponto_saida: '', modo_logistica: '', idade_anuncio: '',
+                  qtd_vendas: 0, receita: 0, comissao: 0, custo_frete: 0, custo_produto: 0,
+                  custo_ads: 0, pis_cofins_debito: 0, credito_pis_cofins: 0,
+                  imposto_simples: 0, icms_debito_valor: 0, difal_reserva: 0,
+                  margem_valor: 0, margem_sem_ads: 0, margem_pct: 0, margem_sem_ads_pct: 0,
+                  grupo: '', apenas_ads: false, tem_custo: false, tem_frete_real: false, tem_ads_real: false
+                };
+              }
+              const a = aggMap[key];
+              a.qtd_vendas++;
+              a.receita += Number(s.receita) || 0;
+              a.comissao += Number(s.comissao) || 0;
+              a.custo_frete += Number(s.custo_frete) || 0;
+              a.custo_produto += Number(s.custo_produto) || 0;
+              a.custo_ads += Number(s.custo_ads_rateado) || 0;
+              a.pis_cofins_debito += Number(s.pis_cofins_debito) || 0;
+              a.credito_pis_cofins += Number(s.credito_pis_cofins) || 0;
+              a.imposto_simples += Number(s.imposto_simples) || 0;
+              a.icms_debito_valor += Number(s.icms_debito_valor) || 0;
+              a.difal_reserva += Number(s.difal_reserva) || 0;
+              a.margem_valor += Number(s.margem_valor) || 0;
+              a.margem_sem_ads = a.margem_valor + a.custo_ads;
+              if (a.receita > 0) {
+                a.margem_pct = Math.round(a.margem_valor / a.receita * 10000) / 100;
+                a.margem_sem_ads_pct = Math.round(a.margem_sem_ads / a.receita * 10000) / 100;
+              }
+              a.grupo = a.margem_sem_ads < 0 ? 'P1' : a.margem_valor < 0 ? 'P2' :
+                a.margem_pct <= 5 ? 'L1' : a.margem_pct <= 10 ? 'L2' : a.margem_pct <= 15 ? 'L3' :
+                a.margem_pct <= 20 ? 'L4' : a.margem_pct <= 25 ? 'L5' : a.margem_pct <= 30 ? 'L6' :
+                a.margem_pct <= 40 ? 'L7' : 'L8';
+              a.tem_custo = a.tem_custo || s.tem_custo;
+              a.tem_frete_real = a.tem_frete_real || s.tem_frete_real;
+              a.tem_ads_real = a.tem_ads_real || s.tem_ads_real;
+            });
+            const data = Object.values(aggMap);
             setRawData(data);
             setSaldoData(saldoRes.data || []);
 
@@ -1235,8 +1310,11 @@
         loadVisitas();
       }, [topMode, visitasGrowth]);
 
-      // Active months for the selected period
+      // Active months for charts/evolution (backward compat)
       const activeMeses = useMemo(() => getMesesForPeriodo(periodoSel, meses), [periodoSel, meses]);
+
+      // Date range for exact filtering
+      const dateRange = useMemo(() => getDateRangeForPeriodo(periodoSel), [periodoSel]);
 
       // Period label for header
       const periodoLabel = useMemo(() => {
@@ -1247,10 +1325,58 @@
         return opt.label;
       }, [periodoSel, activeMeses]);
 
-      // Filtered data
+      // Filtered data — v2: aggregate raw sales by date range, then apply filters
       const filtered = useMemo(() => {
-        return rawData.filter(d => {
-          if (!activeMeses.includes(d.mes)) return false;
+        const { from: fromD, to: toD } = dateRange;
+        // Re-aggregate from raw sales within exact date range
+        const sales = (window.__rawSales || []).filter(s => {
+          const dv = (s.data_venda || '').slice(0, 10);
+          return dv >= fromD && dv <= toD;
+        });
+        // Aggregate by mlb_id (no month grouping — all in one period)
+        const aggMap = {};
+        sales.forEach(s => {
+          const key = s.mlb_id;
+          if (!aggMap[key]) {
+            aggMap[key] = {
+              mlb_id: s.mlb_id, conta_nome: s.conta_nome, mes: s.mes_venda,
+              sku_vendedor: s.sku_vendedor, titulo: s.titulo,
+              tipo_listagem: '', catalogo_anuncio: '', kit_produto: '', fornecedor: '',
+              ponto_saida: '', modo_logistica: '', idade_anuncio: '',
+              qtd_vendas: 0, receita: 0, comissao: 0, custo_frete: 0, custo_produto: 0,
+              custo_ads: 0, pis_cofins_debito: 0, credito_pis_cofins: 0,
+              imposto_simples: 0, icms_debito_valor: 0, difal_reserva: 0,
+              margem_valor: 0, margem_sem_ads: 0, margem_pct: 0, margem_sem_ads_pct: 0,
+              grupo: '', apenas_ads: false, tem_custo: false, tem_frete_real: false, tem_ads_real: false
+            };
+          }
+          const a = aggMap[key];
+          a.qtd_vendas++;
+          a.receita += Number(s.receita) || 0;
+          a.comissao += Number(s.comissao) || 0;
+          a.custo_frete += Number(s.custo_frete) || 0;
+          a.custo_produto += Number(s.custo_produto) || 0;
+          a.custo_ads += Number(s.custo_ads_rateado) || 0;
+          a.pis_cofins_debito += Number(s.pis_cofins_debito) || 0;
+          a.credito_pis_cofins += Number(s.credito_pis_cofins) || 0;
+          a.imposto_simples += Number(s.imposto_simples) || 0;
+          a.icms_debito_valor += Number(s.icms_debito_valor) || 0;
+          a.difal_reserva += Number(s.difal_reserva) || 0;
+          a.margem_valor += Number(s.margem_valor) || 0;
+          a.margem_sem_ads = a.margem_valor + a.custo_ads;
+          if (a.receita > 0) {
+            a.margem_pct = Math.round(a.margem_valor / a.receita * 10000) / 100;
+            a.margem_sem_ads_pct = Math.round(a.margem_sem_ads / a.receita * 10000) / 100;
+          }
+          a.grupo = a.margem_sem_ads < 0 ? 'P1' : a.margem_valor < 0 ? 'P2' :
+            a.margem_pct <= 5 ? 'L1' : a.margem_pct <= 10 ? 'L2' : a.margem_pct <= 15 ? 'L3' :
+            a.margem_pct <= 20 ? 'L4' : a.margem_pct <= 25 ? 'L5' : a.margem_pct <= 30 ? 'L6' :
+            a.margem_pct <= 40 ? 'L7' : 'L8';
+          a.tem_custo = a.tem_custo || s.tem_custo;
+          a.tem_frete_real = a.tem_frete_real || s.tem_frete_real;
+          a.tem_ads_real = a.tem_ads_real || s.tem_ads_real;
+        });
+        return Object.values(aggMap).filter(d => {
           if (contaSel && d.conta_nome !== contaSel) return false;
           if (tipoSel && d.tipo_listagem !== tipoSel) return false;
           if (modeSel && d.modo_logistica !== modeSel) return false;
@@ -1261,7 +1387,7 @@
           if (idadeSel && d.idade_anuncio !== idadeSel) return false;
           return true;
         });
-      }, [rawData, activeMeses, contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
+      }, [dateRange, contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
 
       // Totals — MC1 = antes do DIFAL, MC2 = margem final (MC1 - DIFAL)
       const totals = useMemo(() => {
@@ -1303,27 +1429,36 @@
         };
       }, [rawData, activeMeses]);
 
-      // Cancel totals for selected period
+      // Cancel totals — v2: exact date range from vendas table
       const cancelTotals = useMemo(() => {
-        const rows = saldoData.filter(d => {
-          if (!activeMeses.includes(d.mes)) return false;
-          if (contaSel && d.conta_nome !== contaSel) return false;
+        const { from: fromD, to: toD } = dateRange;
+        const contaLookup = window.__contaLookup || {};
+        const vendas = (window.__vendasAll || []).filter(v => {
+          const dv = (v.data_venda || '').slice(0, 10);
+          if (dv < fromD || dv > toD) return false;
+          if (contaSel && contaLookup[v.conta_id] !== contaSel) return false;
           return true;
         });
         const t = { bruto: 0, cancelado: 0, liquido: 0, qtd_vendas: 0, qtd_cancel: 0, qtd_refund: 0, refund_valor: 0 };
-        rows.forEach(r => {
-          t.bruto += Number(r.faturamento_bruto) || 0;
-          t.cancelado += Number(r.cancelamentos) || 0;
-          t.qtd_vendas += Number(r.qtd_vendas) || 0;
-          t.qtd_cancel += Number(r.qtd_cancelamentos) || 0;
-          t.qtd_refund += Number(r.qtd_parcial_refund) || 0;
-          t.refund_valor += Number(r.valor_parcial_refund_original) || 0;
+        vendas.forEach(v => {
+          const preco = Number(v.preco_total) || 0;
+          if (v.status === 'cancelled') {
+            t.cancelado += preco;
+            t.qtd_cancel++;
+          } else {
+            t.bruto += preco;
+            t.qtd_vendas++;
+            if (v.status === 'partially_refunded') {
+              t.qtd_refund++;
+              t.refund_valor += preco;
+            }
+          }
         });
         t.liquido = t.bruto;
         t.vendas_brutas = t.bruto + t.cancelado;
         t.pct = t.vendas_brutas > 0 ? (t.cancelado / t.vendas_brutas * 100) : 0;
         return t;
-      }, [saldoData, activeMeses, contaSel]);
+      }, [dateRange, contaSel]);
 
       if (error) {
         return (
@@ -1425,10 +1560,10 @@
                         <div className="text-gge-red text-[10px]">{fmtInt(cancelTotals.qtd_cancel)} ordens ({fmtPct(cancelTotals.pct)})</div>
                       </div>
                       <div className="text-center text-gge-muted text-xl hidden md:block">→</div>
-                      <div className="text-center">
-                        <div className="text-gge-muted text-[10px] uppercase tracking-wider mb-0.5">Vendas Realizadas</div>
-                        <div className="text-lg font-bold text-gge-green">R$ {fmt(cancelTotals.liquido)}</div>
-                        <div className="text-gge-green text-[10px]">{fmtInt(cancelTotals.qtd_vendas)} ordens efetivas</div>
+                      <div className="text-center px-4 py-2 bg-green-900/20 border border-green-700/30 rounded-xl">
+                        <div className="text-green-400 text-xs font-bold uppercase tracking-widest mb-1">Vendas Realizadas</div>
+                        <div className="text-3xl font-black text-white tracking-tight">R$ {fmt(cancelTotals.liquido)}</div>
+                        <div className="text-green-400 text-sm font-bold mt-0.5">{fmtInt(cancelTotals.qtd_vendas)} ordens efetivas</div>
                       </div>
                       {cancelTotals.qtd_refund > 0 && (
                         <>
