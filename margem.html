@@ -149,15 +149,13 @@
           const ym = toYM(today);
           return sorted.filter(m => mYM(m) === ym);
         }
-        case '7d': case '15d': {
-          // 7 and 15 days always fall within current month
-          const ym = toYM(today);
-          return sorted.filter(m => mYM(m) === ym);
-        }
-        case '30d': {
-          // 30 days = current month only (dados são mensais, não dá para cortar no meio)
-          const ym = toYM(today);
-          return sorted.filter(m => mYM(m) === ym);
+        case '7d': case '15d': case '30d': {
+          const days = periodo === '7d' ? 7 : periodo === '15d' ? 15 : 30;
+          const cutoff = new Date(today);
+          cutoff.setDate(cutoff.getDate() - days);
+          const cutoffYM = toYM(cutoff);
+          const todayYM = toYM(today);
+          return sorted.filter(m => mYM(m) >= cutoffYM && mYM(m) <= todayYM);
         }
         case 'mes_passado': {
           const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -1201,69 +1199,28 @@
           setLoading(true);
           setError(null);
           try {
-            // v2: Load individual sales from mat_margem_canonica + vendas for cancellations
-            const [margemRaw, vendasAll, saldoRes] = await Promise.all([
-              fetchAll(() => supabase.from('mat_margem_canonica').select('*').order('data_venda', { ascending: false })),
-              fetchAll(() => supabase.from('vendas').select('ordem_id,conta_id,data_venda,preco_total,status').order('data_venda', { ascending: false })),
-              supabase.from('vw_saldo_vendas').select('*').order('mes', { ascending: false })
+            // v3: Load BOTH sources:
+            // 1) vw_margem_segmentada for charts, groups, detail panels (has all fields, grouped by month)
+            // 2) mat_margem_canonica for exact date filtering in totals
+            // 3) vendas for cancel totals
+            const [segRes, saldoRes, rawSalesRes, vendasAllRes] = await Promise.all([
+              supabase.from('vw_margem_segmentada').select('*').order('mes', { ascending: false }),
+              supabase.from('vw_saldo_vendas').select('*').order('mes', { ascending: false }),
+              fetchAll(() => supabase.from('mat_margem_canonica').select('ordem_id,mlb_id,conta_nome,data_venda,receita,comissao,custo_frete,custo_produto,custo_ads_rateado,pis_cofins_debito,credito_pis_cofins,imposto_simples,icms_debito_valor,difal_reserva,margem_valor,margem_pct,tem_custo,tem_frete_real,tem_ads_real,sku_vendedor,titulo').order('data_venda', { ascending: false })),
+              fetchAll(() => supabase.from('vendas').select('ordem_id,conta_id,data_venda,preco_total,status').order('data_venda', { ascending: false }))
             ]);
-
-            // Build conta lookup from saldo
-            const contaLookup = {};
-            (saldoRes.data || []).forEach(s => { contaLookup[s.conta_id] = s.conta_nome; });
-
-            // Aggregate margem data by mlb_id + month (same shape as vw_margem_segmentada)
-            // but also store raw sales for date-based filtering
-            window.__rawSales = margemRaw || [];
-            window.__vendasAll = vendasAll || [];
-            window.__contaLookup = contaLookup;
-
-            // Aggregate into monthly groups for backward compatibility with charts/groups
-            const aggMap = {};
-            (margemRaw || []).forEach(s => {
-              const key = `${s.mlb_id}__${s.mes_venda}`;
-              if (!aggMap[key]) {
-                aggMap[key] = {
-                  mlb_id: s.mlb_id, conta_nome: s.conta_nome, mes: s.mes_venda,
-                  sku_vendedor: s.sku_vendedor, titulo: s.titulo,
-                  tipo_listagem: '', catalogo_anuncio: '', kit_produto: '', fornecedor: '',
-                  ponto_saida: '', modo_logistica: '', idade_anuncio: '',
-                  qtd_vendas: 0, receita: 0, comissao: 0, custo_frete: 0, custo_produto: 0,
-                  custo_ads: 0, pis_cofins_debito: 0, credito_pis_cofins: 0,
-                  imposto_simples: 0, icms_debito_valor: 0, difal_reserva: 0,
-                  margem_valor: 0, margem_sem_ads: 0, margem_pct: 0, margem_sem_ads_pct: 0,
-                  grupo: '', apenas_ads: false, tem_custo: false, tem_frete_real: false, tem_ads_real: false
-                };
-              }
-              const a = aggMap[key];
-              a.qtd_vendas++;
-              a.receita += Number(s.receita) || 0;
-              a.comissao += Number(s.comissao) || 0;
-              a.custo_frete += Number(s.custo_frete) || 0;
-              a.custo_produto += Number(s.custo_produto) || 0;
-              a.custo_ads += Number(s.custo_ads_rateado) || 0;
-              a.pis_cofins_debito += Number(s.pis_cofins_debito) || 0;
-              a.credito_pis_cofins += Number(s.credito_pis_cofins) || 0;
-              a.imposto_simples += Number(s.imposto_simples) || 0;
-              a.icms_debito_valor += Number(s.icms_debito_valor) || 0;
-              a.difal_reserva += Number(s.difal_reserva) || 0;
-              a.margem_valor += Number(s.margem_valor) || 0;
-              a.margem_sem_ads = a.margem_valor + a.custo_ads;
-              if (a.receita > 0) {
-                a.margem_pct = Math.round(a.margem_valor / a.receita * 10000) / 100;
-                a.margem_sem_ads_pct = Math.round(a.margem_sem_ads / a.receita * 10000) / 100;
-              }
-              a.grupo = a.margem_sem_ads < 0 ? 'P1' : a.margem_valor < 0 ? 'P2' :
-                a.margem_pct <= 5 ? 'L1' : a.margem_pct <= 10 ? 'L2' : a.margem_pct <= 15 ? 'L3' :
-                a.margem_pct <= 20 ? 'L4' : a.margem_pct <= 25 ? 'L5' : a.margem_pct <= 30 ? 'L6' :
-                a.margem_pct <= 40 ? 'L7' : 'L8';
-              a.tem_custo = a.tem_custo || s.tem_custo;
-              a.tem_frete_real = a.tem_frete_real || s.tem_frete_real;
-              a.tem_ads_real = a.tem_ads_real || s.tem_ads_real;
-            });
-            const data = Object.values(aggMap);
+            if (segRes.error) throw segRes.error;
+            const data = segRes.data || [];
             setRawData(data);
             setSaldoData(saldoRes.data || []);
+
+            // Store raw sales for date-based filtering
+            window.__rawSales = rawSalesRes || [];
+            window.__vendasAll = vendasAllRes || [];
+            // Build conta lookup
+            const contaLookup = {};
+            (saldoRes.data || []).forEach(s => { contaLookup[s.conta_id] = s.conta_nome; });
+            window.__contaLookup = contaLookup;
 
             const ms = [...new Set(data.map(d => d.mes))].sort((a,b) => b.localeCompare(a));
             const cs = [...new Set(data.map(d => d.conta_nome))].sort();
@@ -1325,58 +1282,11 @@
         return opt.label;
       }, [periodoSel, activeMeses]);
 
-      // Filtered data — v2: aggregate raw sales by date range, then apply filters
+      // Filtered data — v3: uses vw_margem_segmentada (all fields) filtered by activeMeses
+      // But groups/charts still use monthly data from segmentada
       const filtered = useMemo(() => {
-        const { from: fromD, to: toD } = dateRange;
-        // Re-aggregate from raw sales within exact date range
-        const sales = (window.__rawSales || []).filter(s => {
-          const dv = (s.data_venda || '').slice(0, 10);
-          return dv >= fromD && dv <= toD;
-        });
-        // Aggregate by mlb_id (no month grouping — all in one period)
-        const aggMap = {};
-        sales.forEach(s => {
-          const key = s.mlb_id;
-          if (!aggMap[key]) {
-            aggMap[key] = {
-              mlb_id: s.mlb_id, conta_nome: s.conta_nome, mes: s.mes_venda,
-              sku_vendedor: s.sku_vendedor, titulo: s.titulo,
-              tipo_listagem: '', catalogo_anuncio: '', kit_produto: '', fornecedor: '',
-              ponto_saida: '', modo_logistica: '', idade_anuncio: '',
-              qtd_vendas: 0, receita: 0, comissao: 0, custo_frete: 0, custo_produto: 0,
-              custo_ads: 0, pis_cofins_debito: 0, credito_pis_cofins: 0,
-              imposto_simples: 0, icms_debito_valor: 0, difal_reserva: 0,
-              margem_valor: 0, margem_sem_ads: 0, margem_pct: 0, margem_sem_ads_pct: 0,
-              grupo: '', apenas_ads: false, tem_custo: false, tem_frete_real: false, tem_ads_real: false
-            };
-          }
-          const a = aggMap[key];
-          a.qtd_vendas++;
-          a.receita += Number(s.receita) || 0;
-          a.comissao += Number(s.comissao) || 0;
-          a.custo_frete += Number(s.custo_frete) || 0;
-          a.custo_produto += Number(s.custo_produto) || 0;
-          a.custo_ads += Number(s.custo_ads_rateado) || 0;
-          a.pis_cofins_debito += Number(s.pis_cofins_debito) || 0;
-          a.credito_pis_cofins += Number(s.credito_pis_cofins) || 0;
-          a.imposto_simples += Number(s.imposto_simples) || 0;
-          a.icms_debito_valor += Number(s.icms_debito_valor) || 0;
-          a.difal_reserva += Number(s.difal_reserva) || 0;
-          a.margem_valor += Number(s.margem_valor) || 0;
-          a.margem_sem_ads = a.margem_valor + a.custo_ads;
-          if (a.receita > 0) {
-            a.margem_pct = Math.round(a.margem_valor / a.receita * 10000) / 100;
-            a.margem_sem_ads_pct = Math.round(a.margem_sem_ads / a.receita * 10000) / 100;
-          }
-          a.grupo = a.margem_sem_ads < 0 ? 'P1' : a.margem_valor < 0 ? 'P2' :
-            a.margem_pct <= 5 ? 'L1' : a.margem_pct <= 10 ? 'L2' : a.margem_pct <= 15 ? 'L3' :
-            a.margem_pct <= 20 ? 'L4' : a.margem_pct <= 25 ? 'L5' : a.margem_pct <= 30 ? 'L6' :
-            a.margem_pct <= 40 ? 'L7' : 'L8';
-          a.tem_custo = a.tem_custo || s.tem_custo;
-          a.tem_frete_real = a.tem_frete_real || s.tem_frete_real;
-          a.tem_ads_real = a.tem_ads_real || s.tem_ads_real;
-        });
-        return Object.values(aggMap).filter(d => {
+        return rawData.filter(d => {
+          if (!activeMeses.includes(d.mes)) return false;
           if (contaSel && d.conta_nome !== contaSel) return false;
           if (tipoSel && d.tipo_listagem !== tipoSel) return false;
           if (modeSel && d.modo_logistica !== modeSel) return false;
@@ -1387,17 +1297,25 @@
           if (idadeSel && d.idade_anuncio !== idadeSel) return false;
           return true;
         });
-      }, [dateRange, contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
+      }, [rawData, activeMeses, contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel, idadeSel]);
 
-      // Totals — MC1 = antes do DIFAL, MC2 = margem final (MC1 - DIFAL)
+      // Totals — v3: uses raw sales filtered by EXACT date range
       const totals = useMemo(() => {
+        const { from: fromD, to: toD } = dateRange;
+        const sales = (window.__rawSales || []).filter(s => {
+          const dv = (s.data_venda || '').slice(0, 10);
+          if (dv < fromD || dv > toD) return false;
+          if (contaSel && s.conta_nome !== contaSel) return false;
+          return true;
+        });
         const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, ads: 0, frete: 0, custo: 0, comissao: 0, difal: 0, prejuizo_count: 0, pis_cofins: 0, icms: 0, simples: 0 };
-        filtered.forEach(d => {
-          t.anuncios++;
-          t.vendas += Number(d.qtd_vendas) || 0;
+        const seenMlb = new Set();
+        sales.forEach(d => {
+          if (!seenMlb.has(d.mlb_id)) { seenMlb.add(d.mlb_id); t.anuncios++; }
+          t.vendas++;
           t.receita += Number(d.receita) || 0;
           t.margem += Number(d.margem_valor) || 0;
-          t.ads += Number(d.custo_ads) || 0;
+          t.ads += Number(d.custo_ads_rateado) || 0;
           t.frete += Number(d.custo_frete) || 0;
           t.custo += Number(d.custo_produto) || 0;
           t.comissao += Number(d.comissao) || 0;
@@ -1429,14 +1347,14 @@
         };
       }, [rawData, activeMeses]);
 
-      // Cancel totals — v2: exact date range from vendas table
+      // Cancel totals — v3: exact date range from vendas table
       const cancelTotals = useMemo(() => {
         const { from: fromD, to: toD } = dateRange;
-        const contaLookup = window.__contaLookup || {};
+        const cl = window.__contaLookup || {};
         const vendas = (window.__vendasAll || []).filter(v => {
           const dv = (v.data_venda || '').slice(0, 10);
           if (dv < fromD || dv > toD) return false;
-          if (contaSel && contaLookup[v.conta_id] !== contaSel) return false;
+          if (contaSel && cl[v.conta_id] !== contaSel) return false;
           return true;
         });
         const t = { bruto: 0, cancelado: 0, liquido: 0, qtd_vendas: 0, qtd_cancel: 0, qtd_refund: 0, refund_valor: 0 };
