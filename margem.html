@@ -1175,6 +1175,9 @@
       const [error, setError] = useState(null);
       const [rawData, setRawData] = useState([]);
       const [saldoData, setSaldoData] = useState([]);
+      const [rawSales, setRawSales] = useState([]);
+      const [vendasAll, setVendasAll] = useState([]);
+      const [contaLookup, setContaLookup] = useState({});
       const [meses, setMeses] = useState([]);
       const [contas, setContas] = useState([]);
 
@@ -1214,13 +1217,12 @@
             setRawData(data);
             setSaldoData(saldoRes.data || []);
 
-            // Store raw sales for date-based filtering
-            window.__rawSales = rawSalesRes || [];
-            window.__vendasAll = vendasAllRes || [];
-            // Build conta lookup
-            const contaLookup = {};
-            (saldoRes.data || []).forEach(s => { contaLookup[s.conta_id] = s.conta_nome; });
-            window.__contaLookup = contaLookup;
+            // Store raw sales for date-based filtering (using state, not window)
+            setRawSales(rawSalesRes || []);
+            setVendasAll(vendasAllRes || []);
+            const cl = {};
+            (saldoRes.data || []).forEach(s => { cl[s.conta_id] = s.conta_nome; });
+            setContaLookup(cl);
 
             const ms = [...new Set(data.map(d => d.mes))].sort((a,b) => b.localeCompare(a));
             const cs = [...new Set(data.map(d => d.conta_nome))].sort();
@@ -1302,7 +1304,7 @@
       // Totals — v3: uses raw sales filtered by EXACT date range
       const totals = useMemo(() => {
         const { from: fromD, to: toD } = dateRange;
-        const sales = (window.__rawSales || []).filter(s => {
+        const sales = rawSales.filter(s => {
           const dv = (s.data_venda || '').slice(0, 10);
           if (dv < fromD || dv > toD) return false;
           if (contaSel && s.conta_nome !== contaSel) return false;
@@ -1331,7 +1333,7 @@
         t.mc2_pct = t.receita > 0 ? (t.mc2 / t.receita * 100) : 0;
         t.ticket = t.vendas > 0 ? (t.receita / t.vendas) : 0;
         return t;
-      }, [filtered]);
+      }, [dateRange, contaSel, rawSales]);
 
       // Unique filter options
       const filterOpts = useMemo(() => {
@@ -1350,8 +1352,8 @@
       // Cancel totals — v3: exact date range from vendas table
       const cancelTotals = useMemo(() => {
         const { from: fromD, to: toD } = dateRange;
-        const cl = window.__contaLookup || {};
-        const vendas = (window.__vendasAll || []).filter(v => {
+        const cl = contaLookup || {};
+        const vendas = (vendasAll || []).filter(v => {
           const dv = (v.data_venda || '').slice(0, 10);
           if (dv < fromD || dv > toD) return false;
           if (contaSel && cl[v.conta_id] !== contaSel) return false;
@@ -1376,7 +1378,7 @@
         t.vendas_brutas = t.bruto + t.cancelado;
         t.pct = t.vendas_brutas > 0 ? (t.cancelado / t.vendas_brutas * 100) : 0;
         return t;
-      }, [dateRange, contaSel]);
+      }, [dateRange, contaSel, vendasAll, contaLookup]);
 
       if (error) {
         return (
