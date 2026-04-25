@@ -18,6 +18,7 @@
     'pos-venda':  svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
     reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
     catalogo:     svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/>'),
+    automacao:    svgIcon('<path d="M12 8V4H8"/><path d="M2 12a10 10 0 0 1 10-10"/><path d="M12 16v4h4"/><path d="M22 12a10 10 0 0 1-10 10"/><circle cx="12" cy="12" r="3"/>'),
     ressarcimentos: svgIcon('<rect x="1" y="5" width="22" height="16" rx="2"/><path d="M16 14h.01"/><path d="M1 10h22"/>'),
   };
 
@@ -30,6 +31,7 @@
     { href: '/pos-venda',    icon: icons['pos-venda'], label: 'P\u00F3s-Venda',      key: 'pos-venda' },
     { href: '/reputacao',    icon: icons.reputacao,     label: 'Reputa\u00E7\u00E3o',      key: 'reputacao' },
     { href: '/catalogo',     icon: icons.catalogo,      label: 'Cat\u00E1logos',           key: 'catalogo' },
+    { href: '/automacao',    icon: icons.automacao,     label: 'Automa\u00E7\u00E3o',      key: 'automacao' },
     { href: '/avaliacao',    icon: icons.avaliacao,     label: 'Avalia\u00E7\u00E3o',      key: 'avaliacao' },
     { href: '/ressarcimentos', icon: icons.ressarcimentos, label: 'Ressarcimentos', key: 'ressarcimentos' },
     { href: '/ads',          icon: icons.ads,           label: 'ADs',            key: 'ads' },
