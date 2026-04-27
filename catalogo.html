@@ -211,6 +211,14 @@
       );
     }
 
+    const PERIODOS = [
+      { value: 3, label: '3d' },
+      { value: 7, label: '7d' },
+      { value: 10, label: '10d' },
+      { value: 14, label: '14d' },
+      { value: 30, label: '30d' },
+    ];
+
     function App() {
       const [data, setData] = useState([]);
       const [loading, setLoading] = useState(true);
@@ -222,12 +230,15 @@
       const [classSel, setClassSel] = useState('');
       const [searchSku, setSearchSku] = useState('');
       const [selectedSku, setSelectedSku] = useState(null);
+      const [periodo, setPeriodo] = useState(30);
 
       useEffect(() => {
         async function load() {
+          setLoading(true);
           try {
-            const rows = await fetchAll(() => sb.from('vw_catalogo_dashboard').select('*'));
-            setData(rows);
+            const { data: rows, error: err } = await sb.rpc('fn_catalogo_dashboard', { p_dias: periodo });
+            if (err) throw err;
+            setData(rows || []);
           } catch (e) {
             console.error(e);
             setError(e.message);
@@ -235,7 +246,7 @@
           setLoading(false);
         }
         load();
-      }, []);
+      }, [periodo]);
 
       const filtered = useMemo(() => {
         return data.filter(d => {
@@ -326,15 +337,23 @@
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold">Catálogos</h1>
-              <p className="text-sm text-gge-muted mt-1">Gestão de anúncios em catálogo do Mercado Livre · Últimos 30 dias · ~ = margem estimada pela média</p>
+              <p className="text-sm text-gge-muted mt-1">Gestão de anúncios em catálogo do Mercado Livre · Últimos {periodo} dias · ~ = margem estimada pela média</p>
+            </div>
+            <div className="flex items-center gap-1 bg-gge-card border border-gge-border rounded-lg p-1">
+              {PERIODOS.map(p => (
+                <button key={p.value} onClick={() => setPeriodo(p.value)}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${periodo === p.value ? 'bg-gge-accent text-white' : 'text-gge-muted hover:text-white hover:bg-white/5'}`}>
+                  {p.label}
+                </button>
+              ))}
             </div>
           </div>
 
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <KpiCard icon="📦" title="Anúncios em Catálogo" value={fmtN(totals.count)} sub={`${fmtN(totals.vendas)} vendas · ${fmtN(totals.criticos)} com problema`} />
-            <KpiCard icon="💰" title="Receita 90d" value={fmtR(totals.receita)} sub={`Ticket médio ${totals.vendas > 0 ? fmtR(totals.receita / totals.vendas) : '—'}`} />
-            <KpiCard icon="📊" title="Lucro 30d" value={fmtR(totals.lucro)} color={totals.lucro >= 0 ? 'text-gge-green' : 'text-gge-red'} sub={`Margem ${totals.receita > 0 ? fmtP(totals.lucro / totals.receita * 100) : '—'}`} />
+            <KpiCard icon="💰" title={`Receita ${periodo}d`} value={fmtR(totals.receita)} sub={`Ticket médio ${totals.vendas > 0 ? fmtR(totals.receita / totals.vendas) : '—'}`} />
+            <KpiCard icon="📊" title={`Lucro ${periodo}d`} value={fmtR(totals.lucro)} color={totals.lucro >= 0 ? 'text-gge-green' : 'text-gge-red'} sub={`Margem ${totals.receita > 0 ? fmtP(totals.lucro / totals.receita * 100) : '—'}`} />
             <KpiCard icon="🩸" title="Sangramento" value={fmtR(totals.sangramento)} color="text-gge-red" sub={`${fmtN(totals.criticos)} anúncios no vermelho`} />
           </div>
 
@@ -365,14 +384,14 @@
           {/* Chart: Top perdas por SKU */}
           {chartData.length > 0 && (
             <div className="bg-gge-card border border-gge-border rounded-xl p-4 mb-6 fade-in">
-              <h3 className="text-sm font-semibold text-white mb-3">Lucro por SKU (90 dias)</h3>
+              <h3 className="text-sm font-semibold text-white mb-3">Lucro por SKU ({periodo} dias)</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={chartData} layout="vertical" margin={{left:100,right:20,top:5,bottom:5}}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" horizontal={false} />
                   <XAxis type="number" tick={{fill:'#94a3b8',fontSize:11}} tickFormatter={v => `R$${v}`} />
                   <YAxis type="category" dataKey="sku" tick={{fill:'#94a3b8',fontSize:10}} width={95} />
                   <Tooltip formatter={v => fmtR(v)} contentStyle={{background:'#1a1d2e',border:'1px solid #2a2d3e',borderRadius:'8px'}} labelStyle={{color:'#fff'}} />
-                  <Bar dataKey="lucro" name="Lucro 30d" radius={[0,4,4,0]}>
+                  <Bar dataKey="lucro" name={`Lucro ${periodo}d`} radius={[0,4,4,0]}>
                     {chartData.map((d, i) => <Cell key={i} fill={d.lucro < 0 ? '#ef4444' : '#22c55e'} />)}
                   </Bar>
                 </BarChart>
@@ -407,7 +426,7 @@
                     <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('preco_atual')}>Preço{sortIcon('preco_atual')}</th>
                     <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('vendas_30d')}>Vendas{sortIcon('vendas_30d')}</th>
                     <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('margem_pct')}>Margem{sortIcon('margem_pct')}</th>
-                    <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('lucro_30d')}>Lucro 30d{sortIcon('lucro_30d')}</th>
+                    <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('lucro_30d')}>Lucro {periodo}d{sortIcon('lucro_30d')}</th>
                     <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('estoque_declarado')}>Estoque{sortIcon('estoque_declarado')}</th>
                     <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('vendas_dia')}>Vendas/dia{sortIcon('vendas_dia')}</th>
                     <th className="text-center py-3 px-2 font-medium">Multi</th>
