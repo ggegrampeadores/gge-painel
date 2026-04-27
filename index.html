@@ -372,21 +372,34 @@
 
         .metric-card.card-custo {
             background-color: #1d1a1a;
+            padding: 10px 8px;
+        }
+
+        .metric-card.card-custo .metric-title {
+            font-size: 9px;
+            margin-bottom: 3px;
+        }
+
+        .metric-card.card-custo .metric-value {
+            font-size: 15px;
         }
 
         .metric-card.card-margem {
             background-color: #1a2a1a;
             border-color: #2d5a2d;
             border-left: 3px solid #3fb950;
+            padding: 10px 8px;
         }
 
         .metric-card.card-margem .metric-value {
             color: #3fb950;
-            font-size: 22px;
+            font-size: 16px;
         }
 
         .metric-card.card-margem .metric-title {
             color: #56d364;
+            font-size: 9px;
+            margin-bottom: 3px;
         }
 
         .metric-card.card-ind-vendas {
@@ -512,6 +525,22 @@
             .projections-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+        }
+
+        /* Custos/Margens compact layout */
+        #custos-margens-row .metric-card .metric-subtitle,
+        #custos-margens-row .metric-card > div[style] {
+            font-size: 9px !important;
+        }
+        #custos-margens-row .metric-trend {
+            font-size: 9px;
+            padding: 1px 4px;
+        }
+        @media (max-width: 1600px) {
+            #custos-margens-row { grid-template-columns: repeat(5, 1fr) !important; }
+        }
+        @media (max-width: 768px) {
+            #custos-margens-row { grid-template-columns: repeat(2, 1fr) !important; }
         }
 
         .projection-card {
@@ -744,7 +773,7 @@
 
             <!-- CUSTOS + MARGENS — 9 cards: 4 custos op + 4 impostos + 1 margem = 100% -->
             <div class="section-title">CUSTOS / MARGENS</div>
-            <div class="cards-grid" style="grid-template-columns: repeat(5, 1fr); gap: 10px;" id="custos-margens-row">
+            <div class="cards-grid" style="grid-template-columns: repeat(10, 1fr); gap: 8px;" id="custos-margens-row">
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
@@ -1307,7 +1336,10 @@
 
                 // Helper: count vendas using Prefer: count=exact (avoids 1000 row limit)
                 async function countVendas(from, to, extraFilter) {
-                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${from}&data_venda=lt.${to}&status=neq.cancelled&limit=1`;
+                    // Append Brazil timezone offset (UTC-3) for correct day boundaries
+                    const fromTz = from.length === 10 ? from + 'T03:00:00Z' : from;
+                    const toTz = to.length === 10 ? to + 'T03:00:00Z' : to;
+                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${fromTz}&data_venda=lt.${toTz}&status=neq.cancelled&limit=1`;
                     if (conta) url += `&conta_id=eq.${conta}`;
                     if (extraFilter) url += extraFilter;
                     const resp = await fetch(url, { headers: {
@@ -1869,8 +1901,8 @@
                     const startDate = new Date(endDate);
                     startDate.setDate(startDate.getDate() - 7);
 
-                    const fromStr = localDate(startDate);
-                    const toStr = localDate(endDate);
+                    const fromStr = localDate(startDate) + 'T03:00:00Z';
+                    const toStr = localDate(endDate) + 'T03:00:00Z';
 
                     let url = `${SUPABASE_URL}/rest/v1/vendas?select=preco_total&data_venda=gte.${fromStr}&data_venda=lt.${toStr}&status=neq.cancelled&limit=10000`;
                     if (currentConta) url += `&conta_id=eq.${currentConta}`;
