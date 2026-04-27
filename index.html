@@ -749,6 +749,15 @@
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
 
+            <!-- Projections — movido para cá (entre Custos/Margens e Indicadores) -->
+            <div class="section-title">PROJEÇÕES</div>
+            <div class="projections-grid" id="projections-grid">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+            </div>
+
             <!-- INDICADORES — 8 cards em linha única (4 Vendas + 4 Visitas) -->
             <div class="section-title">INDICADORES</div>
             <div class="cards-grid" style="grid-template-columns: repeat(8, 1fr); gap: 10px;" id="indicadores-row">
@@ -783,14 +792,7 @@
                 <canvas id="curva-abc-chart"></canvas>
             </div>
 
-            <!-- Projections -->
-            <div class="section-title">PROJEÇÕES</div>
-            <div class="projections-grid" id="projections-grid">
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
-            </div>
+            <!-- Projections movido para cima -->
 
             <!-- Error message placeholder -->
             <div id="errorMessage" class="error-message hidden"></div>
@@ -1279,68 +1281,61 @@
         async function renderIndicadores(conta, dateRange) {
             try {
                 const today = new Date();
-                const todayISO = today.toISOString().split('T')[0];
-                const tomorrowISO = new Date(today.getTime() + 86400000).toISOString().split('T')[0];
+                // Use local date formatting to avoid timezone bugs
+                const pad = (n) => String(n).padStart(2, '0');
+                const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+                const todayISO = localDate(today);
+                const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowISO = localDate(tomorrow);
 
                 // Yesterday for comparison
-                const yesterdayISO = new Date(today.getTime() - 86400000).toISOString().split('T')[0];
-                const twoDaysAgoISO = new Date(today.getTime() - 172800000).toISOString().split('T')[0];
+                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayISO = localDate(yesterday);
 
-                // Get today's sales
-                let url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${todayISO}&data_venda=lt.${tomorrowISO}&status=neq.cancelled`;
-                if (conta) url += `&conta_id=eq.${conta}`;
-                let resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const todayVendas = (await resp.json()).length;
+                // Helper: count vendas using Prefer: count=exact (avoids 1000 row limit)
+                async function countVendas(from, to, extraFilter) {
+                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${from}&data_venda=lt.${to}&status=neq.cancelled&limit=1`;
+                    if (conta) url += `&conta_id=eq.${conta}`;
+                    if (extraFilter) url += extraFilter;
+                    const resp = await fetch(url, { headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Prefer': 'count=exact'
+                    }});
+                    const range = resp.headers.get('content-range');
+                    if (range) {
+                        const total = range.split('/')[1];
+                        return total === '*' ? 0 : parseInt(total);
+                    }
+                    return (await resp.json()).length;
+                }
 
-                // Get yesterday's sales
-                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${yesterdayISO}&data_venda=lt.${todayISO}&status=neq.cancelled`;
-                if (conta) url += `&conta_id=eq.${conta}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const yesterdayVendas = (await resp.json()).length;
+                // Get counts
+                const todayVendas = await countVendas(todayISO, tomorrowISO);
+                const yesterdayVendas = await countVendas(yesterdayISO, todayISO);
 
-                // Get last 7 days
-                const sevenDaysAgoISO = new Date(today.getTime() - 604800000).toISOString().split('T')[0];
-                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${sevenDaysAgoISO}&data_venda=lt.${todayISO}&status=neq.cancelled`;
-                if (conta) url += `&conta_id=eq.${conta}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const last7dVendas = (await resp.json()).length;
+                const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                const sevenDaysAgoISO = localDate(sevenDaysAgo);
+                const last7dVendas = await countVendas(sevenDaysAgoISO, tomorrowISO);
 
-                // Get previous 7 days
-                const fourteenDaysAgoISO = new Date(today.getTime() - 1209600000).toISOString().split('T')[0];
-                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${fourteenDaysAgoISO}&data_venda=lt.${sevenDaysAgoISO}&status=neq.cancelled`;
-                if (conta) url += `&conta_id=eq.${conta}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const prev7dVendas = (await resp.json()).length;
+                const fourteenDaysAgo = new Date(today); fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+                const fourteenDaysAgoISO = localDate(fourteenDaysAgo);
+                const prev7dVendas = await countVendas(fourteenDaysAgoISO, sevenDaysAgoISO);
 
-                // Get last 15 days
-                const fifteenDaysAgoISO = new Date(today.getTime() - 1296000000).toISOString().split('T')[0];
-                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${fifteenDaysAgoISO}&data_venda=lt.${todayISO}&status=neq.cancelled`;
-                if (conta) url += `&conta_id=eq.${conta}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const last15dVendas = (await resp.json()).length;
+                const fifteenDaysAgo = new Date(today); fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+                const fifteenDaysAgoISO = localDate(fifteenDaysAgo);
+                const last15dVendas = await countVendas(fifteenDaysAgoISO, tomorrowISO);
 
-                // Get previous 15 days
-                const thirtyDaysAgoISO = new Date(today.getTime() - 2592000000).toISOString().split('T')[0];
-                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${thirtyDaysAgoISO}&data_venda=lt.${fifteenDaysAgoISO}&status=neq.cancelled`;
-                if (conta) url += `&conta_id=eq.${conta}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const prev15dVendas = (await resp.json()).length;
+                const thirtyDaysAgo = new Date(today); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                const thirtyDaysAgoISO = localDate(thirtyDaysAgo);
+                const prev15dVendas = await countVendas(thirtyDaysAgoISO, fifteenDaysAgoISO);
 
-                // Get current month
-                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${monthStart}&data_venda=lt.${tomorrowISO}&status=neq.cancelled`;
-                if (conta) url += `&conta_id=eq.${conta}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const monthVendas = (await resp.json()).length;
+                const monthStart = `${today.getFullYear()}-${pad(today.getMonth()+1)}-01`;
+                const monthVendas = await countVendas(monthStart, tomorrowISO);
 
-                // Get previous month
-                const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
-                const prevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
-                const nextDayAfterPrevMonth = new Date(new Date(prevMonthEnd).getTime() + 86400000).toISOString().split('T')[0];
-                url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${prevMonthStart}&data_venda=lt.${nextDayAfterPrevMonth}&status=neq.cancelled`;
-                if (conta) url += `&conta_id=eq.${conta}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-                const prevMonthVendas = (await resp.json()).length;
+                const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const prevMonthStart = localDate(prevMonth);
+                const prevMonthVendas = await countVendas(prevMonthStart, monthStart);
 
                 // Calculate trends
                 const trendHoje = yesterdayVendas > 0 ? ((todayVendas - yesterdayVendas) / yesterdayVendas) * 100 : 0;
@@ -1356,46 +1351,40 @@
                 ].join('');
 
                 // Now render visits (desempenho_diario uses data_referencia, no conta_id column)
+                const sbHeaders = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
                 const safeReduce = (arr) => Array.isArray(arr) ? arr.reduce((sum, row) => sum + (row.visitas || 0), 0) : 0;
 
-                // Get today's visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=eq.${todayISO}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                let url, resp;
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=eq.${todayISO}&limit=10000`;
+                resp = await fetch(url, { headers: sbHeaders });
                 const todayVisits = safeReduce(await resp.json());
 
-                // Get yesterday's visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=eq.${yesterdayISO}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=eq.${yesterdayISO}&limit=10000`;
+                resp = await fetch(url, { headers: sbHeaders });
                 const yesterdayVisits = safeReduce(await resp.json());
 
-                // Get last 7 days visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${sevenDaysAgoISO}&data_referencia=lte.${todayISO}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${sevenDaysAgoISO}&data_referencia=lte.${todayISO}&limit=10000`;
+                resp = await fetch(url, { headers: sbHeaders });
                 const last7dVisits = safeReduce(await resp.json());
 
-                // Get previous 7 days visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${fourteenDaysAgoISO}&data_referencia=lt.${sevenDaysAgoISO}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${fourteenDaysAgoISO}&data_referencia=lt.${sevenDaysAgoISO}&limit=10000`;
+                resp = await fetch(url, { headers: sbHeaders });
                 const prev7dVisits = safeReduce(await resp.json());
 
-                // Get last 15 days visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${fifteenDaysAgoISO}&data_referencia=lte.${todayISO}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${fifteenDaysAgoISO}&data_referencia=lte.${todayISO}&limit=10000`;
+                resp = await fetch(url, { headers: sbHeaders });
                 const last15dVisits = safeReduce(await resp.json());
 
-                // Get previous 15 days visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${thirtyDaysAgoISO}&data_referencia=lt.${fifteenDaysAgoISO}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${thirtyDaysAgoISO}&data_referencia=lt.${fifteenDaysAgoISO}&limit=10000`;
+                resp = await fetch(url, { headers: sbHeaders });
                 const prev15dVisits = safeReduce(await resp.json());
 
-                // Get current month visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${monthStart}&data_referencia=lte.${todayISO}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${monthStart}&data_referencia=lte.${todayISO}&limit=10000`;
+                resp = await fetch(url, { headers: sbHeaders });
                 const monthVisits = safeReduce(await resp.json());
 
-                // Get previous month visits
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${prevMonthStart}&data_referencia=lt.${nextDayAfterPrevMonth}`;
-                resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${prevMonthStart}&data_referencia=lt.${monthStart}&limit=10000`;
+                resp = await fetch(url, { headers: sbHeaders });
                 const prevMonthVisits = safeReduce(await resp.json());
 
                 // Calculate visit trends
@@ -1540,9 +1529,10 @@
                 // Fetch last 24 months of data (current 12 + prior 12 for YoY)
                 const today = new Date();
                 const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), 1);
-                const startMonth = twoYearsAgo.toISOString().split('T')[0].substring(0, 7);
+                const smPad = (n) => String(n).padStart(2, '0');
+                const startMonth = `${twoYearsAgo.getFullYear()}-${smPad(twoYearsAgo.getMonth()+1)}`;
 
-                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=mes,receita,margem_valor&order=mes.asc`;
+                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=mes,receita,margem_valor&order=mes.asc&limit=10000`;
                 url += `&mes=gte.${startMonth}-01`;
                 if (conta) url += `&conta_id=eq.${conta}`;
 
@@ -1572,12 +1562,12 @@
                 const currentYear = today.getFullYear();
                 const currentMonth = today.getMonth();
 
-                // Generate 12 month labels (current period)
+                // Generate 12 month labels (current period) — use local dates to avoid timezone shift
+                const pad2 = (n) => String(n).padStart(2, '0');
                 const last12 = [];
                 for (let i = 11; i >= 0; i--) {
                     const d = new Date(currentYear, currentMonth - i, 1);
-                    const key = d.toISOString().split('T')[0].substring(0, 7) + '-01';
-                    // Also try just YYYY-MM-01 format
+                    const key = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-01`;
                     last12.push(key);
                 }
 
