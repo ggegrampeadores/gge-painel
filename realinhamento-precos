@@ -6,78 +6,161 @@
 <title>Realinhamento de Preços — Controle Total GGE</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 <style>
-:root { --bg: #0a0a0f; --card: #12121a; --card2: #1a1a26; --border: #2a2a3a; --text: #e8e8ec; --muted: #7a7a8e; --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --blue: #3b82f6; --purple: #8b5cf6; --teal: #14b8a6; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
-.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-h1 { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
-h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
-.subtitle { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
-.loading { text-align: center; padding: 60px; color: var(--muted); }
-.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #0f1117; color: #c9d1d9; font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar { position:fixed;left:0;top:0;height:100vh;width:48px;background-color:#0a0e14;border-right:1px solid #2a2d3a;padding:20px 0;transition:width .3s ease;z-index:1000;overflow-y:auto;overflow-x:hidden }
+.sidebar:hover { width:250px }
+.sidebar-header { display:flex;align-items:center;padding:0 12px;margin-bottom:30px;min-height:40px }
+.sidebar-logo { display:flex;flex-direction:column;gap:4px }
+.sidebar-logo-text { font-weight:700;font-size:20px;color:#58a6ff }
+.sidebar-logo-sub { font-size:10px;color:#8b949e;line-height:1 }
+.sidebar:not(:hover) .sidebar-logo-sub { display:none }
+.sidebar-nav { display:flex;flex-direction:column;gap:8px;padding:0 8px }
+.nav-item { display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;color:#8b949e;text-decoration:none;cursor:pointer;transition:all .2s;white-space:nowrap;font-size:14px;font-weight:500 }
+.nav-item:hover { background-color:#161b22;color:#c9d1d9 }
+.nav-item.active { background-color:#1a3a5c;color:#58a6ff }
+.nav-item-icon { display:flex;align-items:center;justify-content:center;min-width:20px }
+.nav-item-icon svg { flex-shrink:0 }
+.sidebar:not(:hover) .nav-item-label { display:none }
+
+/* Main */
+.container { margin-left: 48px; min-height: 100vh; padding: 24px; max-width: 1260px; }
+h1 { font-size: 22px; font-weight: 700; margin-bottom: 2px; color: #c9d1d9; }
+h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #c9d1d9; }
+.subtitle { font-size: 13px; color: #8b949e; margin-bottom: 24px; }
+.loading { text-align: center; padding: 60px; color: #8b949e; }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #2a2d3a; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
-.tab { padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); cursor: pointer; font-size: 13px; font-weight: 500; color: var(--muted); transition: all 0.15s; }
-.tab:hover { border-color: var(--blue); color: var(--text); }
-.tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.tab { padding: 8px 18px; border-radius: 8px; border: 1px solid #2a2d3a; background: #1a1d27; cursor: pointer; font-size: 13px; font-weight: 500; color: #8b949e; transition: all 0.15s; }
+.tab:hover { border-color: #58a6ff; color: #c9d1d9; }
+.tab.active { background: #1a3a5c; color: #58a6ff; border-color: #58a6ff; }
 
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
-.metric { background: var(--card); border-radius: 12px; padding: 16px; border: 1px solid var(--border); }
-.metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.metric { background: #1a1d27; border-radius: 12px; padding: 16px; border: 1px solid #2a2d3a; }
+.metric .label { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.6px; }
 .metric .value { font-size: 24px; font-weight: 700; margin-top: 4px; }
-.green { color: var(--green); } .red { color: var(--red); } .amber { color: var(--amber); } .blue { color: var(--blue); } .muted { color: var(--muted); }
+.green { color: #3fb950; } .red { color: #f85149; } .amber { color: #f0883e; } .blue { color: #58a6ff; } .muted { color: #8b949e; }
 
 .cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
-.cat-card { background: var(--card); border-radius: 12px; padding: 16px; border: 1px solid var(--border); }
-.cat-card h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.cat-card { background: #1a1d27; border-radius: 12px; padding: 16px; border: 1px solid #2a2d3a; }
+.cat-card h3 { font-size: 13px; font-weight: 600; color: #8b949e; margin-bottom: 4px; }
 .cat-card .big { font-size: 20px; font-weight: 700; }
 
-.card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 20px; margin-bottom: 20px; }
+.card { background: #1a1d27; border-radius: 12px; border: 1px solid #2a2d3a; padding: 20px; margin-bottom: 20px; }
+.card:hover { border-color: #3a3d4a; }
 .card-scroll { overflow-x: auto; }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { text-align: left; padding: 10px 8px; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+th { text-align: left; padding: 10px 8px; color: #8b949e; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #2a2d3a; }
 td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); }
 tr:hover td { background: rgba(255,255,255,0.02); }
 .r { text-align: right; }
 .bold { font-weight: 600; }
 
 .chip { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.chip-produto { background: rgba(59,130,246,0.15); color: var(--blue); }
-.chip-kit { background: rgba(139,92,246,0.15); color: var(--purple); }
-.chip-acessorio { background: rgba(20,184,166,0.15); color: var(--teal); }
-.chip-below { background: rgba(239,68,68,0.15); color: var(--red); }
-.chip-ok { background: rgba(34,197,94,0.15); color: var(--green); }
-.chip-between { background: rgba(245,158,11,0.15); color: var(--amber); }
-.chip-paused { background: rgba(122,122,142,0.15); color: var(--muted); }
+.chip-produto { background: rgba(88,166,255,0.15); color: #58a6ff; }
+.chip-kit { background: rgba(188,148,255,0.15); color: #bc94ff; }
+.chip-acessorio { background: rgba(63,185,80,0.15); color: #3fb950; }
+.chip-below { background: rgba(248,81,73,0.15); color: #f85149; }
+.chip-ok { background: rgba(63,185,80,0.15); color: #3fb950; }
+.chip-between { background: rgba(240,136,62,0.15); color: #f0883e; }
+.chip-paused { background: rgba(139,148,158,0.15); color: #8b949e; }
 
 .conc-grid { display: grid; gap: 10px; }
-.conc-card { display: flex; justify-content: space-between; align-items: center; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--card2); }
+.conc-card { display: flex; justify-content: space-between; align-items: center; padding: 14px; border-radius: 10px; border: 1px solid #2a2d3a; background: #161b22; }
 .conc-card .info .title { font-weight: 600; font-size: 13px; }
-.conc-card .info .detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.conc-card .info .detail { font-size: 12px; color: #8b949e; margin-top: 2px; }
 .conc-card .price { font-size: 20px; font-weight: 700; }
 
 .chart-wrap { position: relative; height: 240px; }
-.legend { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.legend { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: #8b949e; }
 .legend span { display: flex; align-items: center; gap: 5px; }
 .legend .dot { width: 10px; height: 10px; border-radius: 3px; }
 
-.empty { text-align: center; padding: 30px; color: var(--muted); font-size: 13px; }
-.footer { text-align: center; font-size: 11px; color: var(--muted); margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); }
+.empty { text-align: center; padding: 30px; color: #8b949e; font-size: 13px; }
+.footer { text-align: center; font-size: 11px; color: #6e7681; margin-top: 32px; padding-top: 20px; border-top: 1px solid #2a2d3a; }
 
 @media (max-width: 768px) {
   .cats { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
+  .container { margin-left: 48px; padding: 16px; }
 }
 </style>
 </head>
 <body>
+
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-text">GGE</span>
+      <span class="sidebar-logo-sub">Controle Total</span>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/" class="nav-item" data-page="dashboard">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+    <a href="/margem" class="nav-item" data-page="margem">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+      <span class="nav-item-label">Margem</span>
+    </a>
+    <a href="/precificacao" class="nav-item" data-page="precificacao">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+      <span class="nav-item-label">Precificacao</span>
+    </a>
+    <a href="/preco-mktp" class="nav-item" data-page="preco-mktp">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
+      <span class="nav-item-label">Preco MKTP</span>
+    </a>
+    <a href="/saude" class="nav-item" data-page="saude">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+      <span class="nav-item-label">Saude</span>
+    </a>
+    <a href="/pos-venda" class="nav-item" data-page="pos-venda">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+      <span class="nav-item-label">Pos-Venda</span>
+    </a>
+    <a href="/reputacao" class="nav-item" data-page="reputacao">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></span>
+      <span class="nav-item-label">Reputacao</span>
+    </a>
+    <a href="/catalogo" class="nav-item" data-page="catalogo">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/></svg></span>
+      <span class="nav-item-label">Catalogos</span>
+    </a>
+    <a href="/automacao" class="nav-item" data-page="automacao">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><path d="M2 12a10 10 0 0 1 10-10"/><path d="M12 16v4h4"/><path d="M22 12a10 10 0 0 1-10 10"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <span class="nav-item-label">Automacao</span>
+    </a>
+    <a href="/avaliacao" class="nav-item" data-page="avaliacao">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></span>
+      <span class="nav-item-label">Avaliacao</span>
+    </a>
+    <a href="/ressarcimentos" class="nav-item" data-page="ressarcimentos">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="22" height="16" rx="2"/><path d="M16 14h.01"/><path d="M1 10h22"/></svg></span>
+      <span class="nav-item-label">Ressarcimentos</span>
+    </a>
+    <a href="/ads" class="nav-item" data-page="ads">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span>
+      <span class="nav-item-label">ADs</span>
+    </a>
+    <a href="/realinhamento" class="nav-item active" data-page="realinhamento">
+      <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/><path d="M2 12h4"/><path d="M18 12h4"/><circle cx="12" cy="6" r="2"/></svg></span>
+      <span class="nav-item-label">Realinhamento</span>
+    </a>
+  </nav>
+</div>
+
 <div class="container">
-  <h1>Realinhamento de preços</h1>
-  <p class="subtitle">Análise por grupo de produto — dados live · Controle Total GGE</p>
+  <h1>Realinhamento de precos</h1>
+  <p class="subtitle">Analise por grupo de produto — dados live · Controle Total GGE</p>
   <div id="app"><div class="loading"><span class="spinner"></span> Carregando grupos...</div></div>
-  <div class="footer">Pisos calculados com: comissão 17%, ADs 3,5%, ICMS médio 12%, DIFAL médio 6%, PIS/COFINS 9,25% (com créditos). Dados atualizados ao abrir a página.</div>
+  <div class="footer">Pisos calculados com: comissao 17%, ADs 3,5%, ICMS medio 12%, DIFAL medio 6%, PIS/COFINS 9,25% (com creditos). Dados atualizados ao abrir a pagina.</div>
 </div>
 
 <script>
@@ -148,7 +231,7 @@ async function init() {
       tabsEl.appendChild(tab);
     });
     loadGroup(grupos[0].id);
-  } catch (e) { app.innerHTML = `<div class="empty">Erro ao carregar: ${e.message}</div>`; }
+  } catch (e) { app.innerHTML = '<div class="empty">Erro ao carregar: ' + e.message + '</div>'; }
 }
 
 async function loadGroup(grupoId) {
@@ -186,94 +269,89 @@ async function loadGroup(grupoId) {
 
     let html = '';
 
-    // Metrics
-    html += `<div class="metrics">
-      <div class="metric"><div class="label">Vendas 30d</div><div class="value">${totalVendas}</div></div>
-      <div class="metric"><div class="label">Receita 30d</div><div class="value">R$ ${fmt(totalReceita)}</div></div>
-      <div class="metric"><div class="label">MC2 total</div><div class="value ${totalMC2>=0?'green':'red'}">R$ ${fmt(totalMC2)}</div></div>
-      <div class="metric"><div class="label">Gasto ADs</div><div class="value amber">R$ ${fmt(totalAds)}</div></div>
-      <div class="metric"><div class="label">Saldo (MC2-ADs)</div><div class="value ${saldo>=0?'green':'red'}">R$ ${fmt(saldo)}</div></div>
-    </div>`;
+    html += '<div class="metrics">';
+    html += '<div class="metric"><div class="label">Vendas 30d</div><div class="value">' + totalVendas + '</div></div>';
+    html += '<div class="metric"><div class="label">Receita 30d</div><div class="value">R$ ' + fmt(totalReceita) + '</div></div>';
+    html += '<div class="metric"><div class="label">MC2 total</div><div class="value ' + (totalMC2>=0?'green':'red') + '">R$ ' + fmt(totalMC2) + '</div></div>';
+    html += '<div class="metric"><div class="label">Gasto ADs</div><div class="value amber">R$ ' + fmt(totalAds) + '</div></div>';
+    html += '<div class="metric"><div class="label">Saldo (MC2-ADs)</div><div class="value ' + (saldo>=0?'green':'red') + '">R$ ' + fmt(saldo) + '</div></div>';
+    html += '</div>';
 
-    // Cats
     html += '<div class="cats">';
-    [['produto','Máquinas'],['kit','Kits'],['acessorio','Acessórios']].forEach(([k,label]) => {
-      const c = cats[k]; const pct = c.r > 0 ? c.mc/c.r*100 : 0;
-      html += `<div class="cat-card"><h3>${label}</h3><div class="big">${c.v} vendas</div><div style="font-size:12px;color:var(--muted)">Receita: R$ ${fmt(c.r)}</div><div style="font-size:12px" class="${pct>=10?'green':pct>=0?'amber':'red'}">MC2: ${fmtPct(pct)} — R$ ${fmt(c.mc)}</div></div>`;
+    [['produto','Maquinas'],['kit','Kits'],['acessorio','Acessorios']].forEach(function(pair) {
+      var k = pair[0], label = pair[1];
+      var c = cats[k]; var pct = c.r > 0 ? c.mc/c.r*100 : 0;
+      html += '<div class="cat-card"><h3>' + label + '</h3><div class="big">' + c.v + ' vendas</div><div style="font-size:12px;color:#8b949e">Receita: R$ ' + fmt(c.r) + '</div><div style="font-size:12px" class="' + (pct>=10?'green':pct>=0?'amber':'red') + '">MC2: ' + fmtPct(pct) + ' — R$ ' + fmt(c.mc) + '</div></div>';
     });
     html += '</div>';
 
-    // Pricing table
-    html += `<div class="card"><h2>Pisos de preço vs preço atual</h2><div class="card-scroll"><table>
-      <tr><th>SKU</th><th>Tipo</th><th class="r">Custo</th><th class="r">Peso</th><th class="r">MC10%</th><th class="r">MC15%</th><th class="r">MC20%</th><th class="r">Atual</th><th class="r">MC2% real</th><th class="r">Vendas</th><th>Status</th></tr>`;
-    (skus||[]).forEach(s => {
-      const peso = Number(s.peso||1); const custoGGE = custosMap[s.sku]?.GGE;
-      const mc10 = custoGGE ? calcPiso(custoGGE, peso, 0.10) : null;
-      const mc15 = custoGGE ? calcPiso(custoGGE, peso, 0.15) : null;
-      const mc20 = custoGGE ? calcPiso(custoGGE, peso, 0.20) : null;
-      const atual = bestPrice[s.sku]; const mg = margemBySku[s.sku]; const vd = vendasBySku[s.sku]||{vendas:0};
-      let status='', statusCls='';
+    html += '<div class="card"><h2>Pisos de preco vs preco atual</h2><div class="card-scroll"><table>';
+    html += '<tr><th>SKU</th><th>Tipo</th><th class="r">Custo</th><th class="r">Peso</th><th class="r">MC10%</th><th class="r">MC15%</th><th class="r">MC20%</th><th class="r">Atual</th><th class="r">MC2% real</th><th class="r">Vendas</th><th>Status</th></tr>';
+    (skus||[]).forEach(function(s) {
+      var peso = Number(s.peso||1); var custoGGE = custosMap[s.sku] ? custosMap[s.sku].GGE : null;
+      var mc10 = custoGGE ? calcPiso(custoGGE, peso, 0.10) : null;
+      var mc15 = custoGGE ? calcPiso(custoGGE, peso, 0.15) : null;
+      var mc20 = custoGGE ? calcPiso(custoGGE, peso, 0.20) : null;
+      var atual = bestPrice[s.sku]; var mg = margemBySku[s.sku]; var vd = vendasBySku[s.sku]||{vendas:0};
+      var status='', statusCls='';
       if (atual && mc10) { if (atual<mc10){status='Abaixo MC10';statusCls='chip-below';} else if(atual<mc15){status='MC10-15';statusCls='chip-between';} else {status='MC15+';statusCls='chip-ok';} }
-      const mcClass = mg ? (mg.mc2_pct>=15?'green':mg.mc2_pct>=10?'amber':'red') : 'muted';
-      const tipoCls = s.tipo==='kit'?'chip-kit':s.tipo==='acessorio'?'chip-acessorio':'chip-produto';
-      html += `<tr><td class="bold">${s.sku}</td><td><span class="chip ${tipoCls}">${s.tipo}</span></td><td class="r">${custoGGE?fmt(custoGGE):'—'}</td><td class="r">${fmtDec(peso,1)}kg</td><td class="r">${mc10?fmt(mc10):'—'}</td><td class="r">${mc15?fmt(mc15):'—'}</td><td class="r">${mc20?fmt(mc20):'—'}</td><td class="r bold">${atual?fmt(atual):'—'}</td><td class="r ${mcClass}">${mg?fmtPct(mg.mc2_pct):'s/venda'}</td><td class="r">${vd.vendas}</td><td><span class="chip ${statusCls}">${status}</span></td></tr>`;
+      var mcClass = mg ? (mg.mc2_pct>=15?'green':mg.mc2_pct>=10?'amber':'red') : 'muted';
+      var tipoCls = s.tipo==='kit'?'chip-kit':s.tipo==='acessorio'?'chip-acessorio':'chip-produto';
+      html += '<tr><td class="bold">' + s.sku + '</td><td><span class="chip ' + tipoCls + '">' + s.tipo + '</span></td><td class="r">' + (custoGGE?fmt(custoGGE):'—') + '</td><td class="r">' + fmtDec(peso,1) + 'kg</td><td class="r">' + (mc10?fmt(mc10):'—') + '</td><td class="r">' + (mc15?fmt(mc15):'—') + '</td><td class="r">' + (mc20?fmt(mc20):'—') + '</td><td class="r bold">' + (atual?fmt(atual):'—') + '</td><td class="r ' + mcClass + '">' + (mg?fmtPct(mg.mc2_pct):'s/venda') + '</td><td class="r">' + vd.vendas + '</td><td><span class="chip ' + statusCls + '">' + status + '</span></td></tr>';
     });
     html += '</table></div></div>';
 
-    // Anuncios
-    const activeAnuncios = (anuncios||[]).filter(a=>a.status==='active'||a.status==='paused');
-    html += `<div class="card"><h2>Anúncios ativos (${activeAnuncios.length})</h2><div class="card-scroll"><table>
-      <tr><th>MLB</th><th>SKU</th><th>Conta</th><th>Tipo</th><th>Logística</th><th class="r">Preço</th><th class="r">Vendas 30d</th><th class="r">ADs R$</th><th class="r">Vendas ADs</th></tr>`;
-    activeAnuncios.forEach(a => {
-      const vRow = (vendas_30d||[]).find(v=>v.mlb_id===a.mlb_id)||{}; const aRow = (ads||[]).find(ad=>ad.mlb_id===a.mlb_id)||{};
-      const v30 = Number(vRow.vendas||0); const gasto = Number(aRow.gasto||0); const vAds = Number(aRow.vendas_ads||0);
-      const tipo = a.tipo_listagem==='gold_pro'?'Premium':'Clássico'; const modo = a.modo_logistica==='fulfillment'?'Full':'Coleta';
-      const badge = a.status==='paused'?' <span class="chip chip-paused">pausado</span>':'';
-      html += `<tr><td style="font-size:12px">${a.mlb_id}${badge}</td><td>${a.sku_vendedor}</td><td style="font-size:12px">${a.conta_nome||''}</td><td>${tipo}</td><td>${modo}</td><td class="r bold">${a.preco_atual?fmt(Number(a.preco_atual)):'—'}</td><td class="r ${v30>0?'bold':'muted'}">${v30}</td><td class="r ${gasto>50?(vAds>0?'':'red'):'muted'}">${gasto>0?fmt(gasto):'—'}</td><td class="r ${vAds>0?'green bold':'muted'}">${vAds}</td></tr>`;
+    var activeAnuncios = (anuncios||[]).filter(function(a){return a.status==='active'||a.status==='paused';});
+    html += '<div class="card"><h2>Anuncios ativos (' + activeAnuncios.length + ')</h2><div class="card-scroll"><table>';
+    html += '<tr><th>MLB</th><th>SKU</th><th>Conta</th><th>Tipo</th><th>Logistica</th><th class="r">Preco</th><th class="r">Vendas 30d</th><th class="r">ADs R$</th><th class="r">Vendas ADs</th></tr>';
+    activeAnuncios.forEach(function(a) {
+      var vRow = (vendas_30d||[]).find(function(v){return v.mlb_id===a.mlb_id;})||{}; var aRow = (ads||[]).find(function(ad){return ad.mlb_id===a.mlb_id;})||{};
+      var v30 = Number(vRow.vendas||0); var gasto = Number(aRow.gasto||0); var vAds = Number(aRow.vendas_ads||0);
+      var tipo = a.tipo_listagem==='gold_pro'?'Premium':'Classico'; var modo = a.modo_logistica==='fulfillment'?'Full':'Coleta';
+      var badge = a.status==='paused'?' <span class="chip chip-paused">pausado</span>':'';
+      html += '<tr><td style="font-size:12px">' + a.mlb_id + badge + '</td><td>' + a.sku_vendedor + '</td><td style="font-size:12px">' + (a.conta_nome||'') + '</td><td>' + tipo + '</td><td>' + modo + '</td><td class="r bold">' + (a.preco_atual?fmt(Number(a.preco_atual)):'—') + '</td><td class="r ' + (v30>0?'bold':'muted') + '">' + v30 + '</td><td class="r ' + (gasto>50?(vAds>0?'':'red'):'muted') + '">' + (gasto>0?fmt(gasto):'—') + '</td><td class="r ' + (vAds>0?'green bold':'muted') + '">' + vAds + '</td></tr>';
     });
     html += '</table></div></div>';
 
-    // ADs chart
-    const adsSkus = [...new Set((ads||[]).map(a=>a.sku_vendedor))];
+    var adsSkus = [];
+    var seen = {};
+    (ads||[]).forEach(function(a){ if (!seen[a.sku_vendedor]) { seen[a.sku_vendedor]=true; adsSkus.push(a.sku_vendedor); } });
+
     if (adsSkus.length > 0) {
-      const gastoArr = adsSkus.map(sku => adsBySku[sku]?.gasto||0);
-      const vendasArr = adsSkus.map(sku => adsBySku[sku]?.vendas_ads||0);
-      html += `<div class="card"><h2>Eficiência de ADs por SKU</h2><div class="chart-wrap"><canvas id="adsCanvas"></canvas></div>
-        <div class="legend"><span><span class="dot" style="background:#ef4444"></span>Gasto R$</span><span><span class="dot" style="background:#22c55e"></span>Vendas ADs</span></div></div>`;
+      html += '<div class="card"><h2>Eficiencia de ADs por SKU</h2><div class="chart-wrap"><canvas id="adsCanvas"></canvas></div>';
+      html += '<div class="legend"><span><span class="dot" style="background:#f85149"></span>Gasto R$</span><span><span class="dot" style="background:#3fb950"></span>Vendas ADs</span></div></div>';
     }
 
-    // Concorrentes
-    html += `<div class="card"><h2>Concorrentes registrados (${(concorrentes||[]).length})</h2>`;
+    html += '<div class="card"><h2>Concorrentes registrados (' + (concorrentes||[]).length + ')</h2>';
     if (!concorrentes||!concorrentes.length) { html += '<div class="empty">Nenhum concorrente registrado. Envie MLBs na conversa para adicionar.</div>'; }
-    else { html += '<div class="conc-grid">'; concorrentes.forEach(c => {
-      html += `<div class="conc-card"><div class="info"><div class="title">${c.titulo||c.mlb_id||'Concorrente'}</div><div class="detail">${c.vendedor||''} ${c.diferencial?'— '+c.diferencial:''}</div><div class="detail">${c.observacoes||''}</div><div class="detail muted">${c.mlb_id||''} ${c.catalog_id?'· Catálogo: '+c.catalog_id:''}</div></div><div class="price">${c.preco_observado?'R$ '+fmt(c.preco_observado):'<span class="muted" style="font-size:12px">Preço não coletado</span>'}</div></div>`;
+    else { html += '<div class="conc-grid">'; concorrentes.forEach(function(c) {
+      html += '<div class="conc-card"><div class="info"><div class="title">' + (c.titulo||c.mlb_id||'Concorrente') + '</div><div class="detail">' + (c.vendedor||'') + (c.diferencial?' — '+c.diferencial:'') + '</div><div class="detail">' + (c.observacoes||'') + '</div><div class="detail muted">' + (c.mlb_id||'') + (c.catalog_id?' · Catalogo: '+c.catalog_id:'') + '</div></div><div class="price">' + (c.preco_observado?'R$ '+fmt(c.preco_observado):'<span class="muted" style="font-size:12px">Preco nao coletado</span>') + '</div></div>';
     }); html += '</div>'; }
     html += '</div>';
 
     content.innerHTML = html;
 
-    // Render chart
     if (adsSkus.length > 0) {
-      const gastoArr = adsSkus.map(sku => adsBySku[sku]?.gasto||0);
-      const vendasArr = adsSkus.map(sku => adsBySku[sku]?.vendas_ads||0);
+      var gastoArr = adsSkus.map(function(sku){ return adsBySku[sku] ? adsBySku[sku].gasto : 0; });
+      var vendasArr = adsSkus.map(function(sku){ return adsBySku[sku] ? adsBySku[sku].vendas_ads : 0; });
       if (adsChart) adsChart.destroy();
       adsChart = new Chart(document.getElementById('adsCanvas'), {
         type: 'bar',
         data: { labels: adsSkus, datasets: [
-          { label: 'Gasto', data: gastoArr, backgroundColor: '#ef4444', borderRadius: 4, yAxisID: 'y' },
-          { label: 'Vendas ADs', data: vendasArr, backgroundColor: '#22c55e', borderRadius: 4, yAxisID: 'y1' }
+          { label: 'Gasto', data: gastoArr, backgroundColor: '#f85149', borderRadius: 4, yAxisID: 'y' },
+          { label: 'Vendas ADs', data: vendasArr, backgroundColor: '#3fb950', borderRadius: 4, yAxisID: 'y1' }
         ]},
         options: { responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: '#7a7a8e', font: { size: 11 } }, grid: { display: false } },
-            y: { position: 'left', ticks: { color: '#7a7a8e' }, title: { display: true, text: 'R$', color: '#7a7a8e', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-            y1: { position: 'right', ticks: { color: '#7a7a8e' }, title: { display: true, text: 'Vendas', color: '#7a7a8e', font: { size: 11 } }, grid: { display: false }, min: 0 }
+            x: { ticks: { color: '#8b949e', font: { size: 11 } }, grid: { display: false } },
+            y: { position: 'left', ticks: { color: '#8b949e' }, title: { display: true, text: 'R$', color: '#8b949e', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y1: { position: 'right', ticks: { color: '#8b949e' }, title: { display: true, text: 'Vendas', color: '#8b949e', font: { size: 11 } }, grid: { display: false }, min: 0 }
           }
         }
       });
     }
-  } catch (e) { content.innerHTML = `<div class="empty">Erro: ${e.message}</div>`; }
+  } catch (e) { content.innerHTML = '<div class="empty">Erro: ' + e.message + '</div>'; }
 }
 
 init();
