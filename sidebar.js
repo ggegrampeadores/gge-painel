@@ -1,4 +1,4 @@
-// sidebar.js â Menu compartilhado do Controle Total GGE
+// sidebar.js - Menu compartilhado do Controle Total GGE
 // Importar: <script src="sidebar.js" defer></script>
 
 (function() {
@@ -7,37 +7,40 @@
   };
 
   var icons = {
-    dashboard:      svgIcon('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
-    margem:         svgIcon('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
-    precificacao:   svgIcon('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
-    'preco-mktp':   svgIcon('<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>'),
-    saude:          svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
-    catalogos:      svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'),
-    'dash-catalogo':svgIcon('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>'),
-    catalogo:       svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/>'),
-    automacao:      svgIcon('<path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 4.76 2.83-2.83"/><circle cx="12" cy="12" r="4"/>'),
-    reputacao:      svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
-    ads:            svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
-    chevron:        svgIcon('<polyline points="6 9 12 15 18 9"/>'),
+    dashboard:    svgIcon('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
+    margem:       svgIcon('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
+    tabelavd:     svgIcon('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
+    precomktp:    svgIcon('<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>'),
+    catalogo:     svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'),
+    dashcatalogo: svgIcon('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>'),
+    catalogoitem: svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/>'),
+    automacao:    svgIcon('<path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 4.76 2.83-2.83"/><circle cx="12" cy="12" r="4"/>'),
+    reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
+    ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
+    realinha:     svgIcon('<path d="M2 12h5l3-9 4 18 3-9h5"/>'),
+    saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
+    chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
   };
 
-  // Menu structure â items with `children` are expandable groups
+  // Menu na ordem definitiva do Neco
+  // Catálogo tem sub-menu: Dashboard, Catálogo, Automação
   var pages = [
-    { href: '/',               icon: icons.dashboard,       label: 'Dashboard',        key: 'dashboard' },
-    { href: '/margem',         icon: icons.margem,          label: 'Margem',           key: 'margem' },
-    { href: '/precificacao',   icon: icons.precificacao,    label: 'PrecificaÃ§Ã£o', key: 'precificacao' },
-    { href: '/preco-mktp',     icon: icons['preco-mktp'],   label: 'PreÃ§o MKTP', key: 'preco-mktp' },
-    { href: '/saude',          icon: icons.saude,           label: 'SaÃºde',       key: 'saude' },
+    { href: '/',                     icon: icons.dashboard, label: 'Dashboard',      key: 'dashboard' },
+    { href: '/margem',               icon: icons.margem,    label: 'Margem',         key: 'margem' },
+    { href: '/precificacao',         icon: icons.tabelavd,  label: 'Tabela VD',      key: 'precificacao' },
+    { href: '/preco-mktp',           icon: icons.precomktp, label: 'Preço MKTP',key: 'preco-mktp' },
     {
-      icon: icons.catalogos, label: 'CatÃ¡logos', key: 'catalogos-group',
+      icon: icons.catalogo, label: 'Catálogo', key: 'catalogo-group',
       children: [
-        { href: '/catalogo-dash', icon: icons['dash-catalogo'], label: 'Dashboard',   key: 'catalogo-dash' },
-        { href: '/catalogo',      icon: icons.catalogo,         label: 'CatÃ¡logos', key: 'catalogo' },
-        { href: '/automacao',     icon: icons.automacao,        label: 'AutomaÃ§Ã£o', key: 'automacao' },
+        { href: '/catalogo-dash', icon: icons.dashcatalogo, label: 'Dashboard',            key: 'catalogo-dash' },
+        { href: '/catalogo',      icon: icons.catalogoitem, label: 'Catálogo',   key: 'catalogo' },
+        { href: '/automacao',     icon: icons.automacao,    label: 'Automação', key: 'automacao' }
       ]
     },
-    { href: '/reputacao',      icon: icons.reputacao,       label: 'ReputaÃ§Ã£o', key: 'reputacao' },
-    { href: '/ads',            icon: icons.ads,             label: 'ADs',              key: 'ads' },
+    { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação', key: 'reputacao' },
+    { href: '/ads',                  icon: icons.ads,       label: 'ADs',            key: 'ads' },
+    { href: '/realinhamento-precos', icon: icons.realinha,  label: 'Realinhamento',  key: 'realinhamento' },
+    { href: '/saude',                icon: icons.saude,     label: 'Saúde',     key: 'saude' }
   ];
 
   var path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
@@ -82,7 +85,7 @@
       '.nav-group-chevron.open { transform:rotate(180deg) }',
       '.nav-sub-items { overflow:hidden;transition:max-height .25s ease }',
       '.nav-sub-items .nav-item { padding:8px 12px 8px 44px;font-size:13px }',
-      '.main-with-sidebar { margin-left:48px;min-height:100vh }',
+      '.main-with-sidebar { margin-left:48px;min-height:100vh }'
     ].join('\n');
     document.head.appendChild(style);
   }
@@ -92,7 +95,6 @@
   for (var i = 0; i < pages.length; i++) {
     var p = pages[i];
     if (p.children) {
-      // Group with sub-items
       var groupActive = isGroupActive(p.children);
       var openClass = groupActive ? ' open' : '';
       navHtml += '<div class="nav-group" data-group="' + p.key + '">';
@@ -111,7 +113,6 @@
       }
       navHtml += '</div></div>';
     } else {
-      // Simple item
       var cls = isActive(p.href) ? ' active' : '';
       navHtml += '<a href="' + p.href + '" class="nav-item' + cls + '" data-page="' + p.key + '">';
       navHtml += '<span class="nav-item-icon">' + p.icon + '</span>';
