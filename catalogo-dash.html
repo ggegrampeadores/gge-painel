@@ -1,92 +1,293 @@
-// sidebar.js — Menu compartilhado do Controle Total GGE
-// Importar: <script src="sidebar.js" defer></script>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Catálogos · Controle Total GGE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: {
+        'gge-bg':'#0f1117','gge-card':'#1a1d2e','gge-border':'#2a2d3e',
+        'gge-text':'#e2e8f0','gge-muted':'#94a3b8','gge-accent':'#6366f1',
+        'gge-green':'#22c55e','gge-red':'#ef4444','gge-yellow':'#eab308',
+        'gge-orange':'#f97316','gge-cyan':'#22d3ee',
+      }}}
+    }
+  </script>
+  <style>
+    body { background:#0f1117; color:#e2e8f0; font-family:'Inter',system-ui,sans-serif; }
+    .fade-in { animation: fadeIn .3s ease-out; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+  <script src="auth.js" defer></script>
+  <script src="sidebar.js" defer></script>
+</head>
+<body>
+  <div class="main-with-sidebar">
+    <div id="root"></div>
+  </div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LineChart, Line, Legend, AreaChart, Area } = Recharts;
 
-(function() {
-  // SVG icons — estilo Lucide (stroke-based, 20x20, clean)
-  var svgIcon = function(path, extra) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + (extra || '') + '</svg>';
-  };
+    const SB_URL = window.GGE_SUPABASE_URL;
+    const SB_KEY = window.GGE_SUPABASE_KEY;
+    const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-  var icons = {
-    dashboard:    svgIcon('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
-    margem:       svgIcon('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
-    precificacao: svgIcon('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
-    'preco-mktp': svgIcon('<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>'),
-    saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
-    avaliacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
-    ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
-    'pos-venda':  svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
-    reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
-    catalogo:     svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/>'),
-    automacao:    svgIcon('<path d="M12 8V4H8"/><path d="M2 12a10 10 0 0 1 10-10"/><path d="M12 16v4h4"/><path d="M22 12a10 10 0 0 1-10 10"/><circle cx="12" cy="12" r="3"/>'),
-    ressarcimentos: svgIcon('<rect x="1" y="5" width="22" height="16" rx="2"/><path d="M16 14h.01"/><path d="M1 10h22"/>'),
-  };
+    const fmtN = n => n == null ? '—' : Number(n).toLocaleString('pt-BR');
+    const fmtR = n => n == null ? '—' : 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtP = n => n == null ? '—' : Number(n).toFixed(1) + '%';
 
-  var pages = [
-    { href: '/',             icon: icons.dashboard,    label: 'Dashboard',      key: 'dashboard' },
-    { href: '/margem',       icon: icons.margem,       label: 'Margem',         key: 'margem' },
-    { href: '/precificacao', icon: icons.precificacao, label: 'Precifica\u00E7\u00E3o', key: 'precificacao' },
-    { href: '/preco-mktp',   icon: icons['preco-mktp'],label: 'Pre\u00E7o MKTP',     key: 'preco-mktp' },
-    { href: '/saude',        icon: icons.saude,        label: 'Sa\u00FAde',          key: 'saude' },
-    { href: '/pos-venda',    icon: icons['pos-venda'], label: 'P\u00F3s-Venda',      key: 'pos-venda' },
-    { href: '/reputacao',    icon: icons.reputacao,     label: 'Reputa\u00E7\u00E3o',      key: 'reputacao' },
-    { href: '/catalogo',     icon: icons.catalogo,      label: 'Cat\u00E1logos',           key: 'catalogo', group: 'catalogo' },
-    { href: '/automacao',    icon: icons.automacao,     label: '\u2514 Automa\u00E7\u00E3o',  key: 'automacao', group: 'catalogo', sub: true },
-    { href: '/avaliacao',    icon: icons.avaliacao,     label: 'Avalia\u00E7\u00E3o',      key: 'avaliacao' },
-    { href: '/ressarcimentos', icon: icons.ressarcimentos, label: 'Ressarcimentos', key: 'ressarcimentos' },
-    { href: '/ads',          icon: icons.ads,           label: 'ADs',            key: 'ads' },
-  ];
+    function Delta({ atual, anterior, formato, inverter }) {
+      if (anterior == null || anterior === 0) return <span className="text-xs text-gge-muted">—</span>;
+      const diff = atual - anterior;
+      const pct = (diff / Math.abs(anterior)) * 100;
+      const positivo = inverter ? diff < 0 : diff > 0;
+      const cor = diff === 0 ? 'text-gge-muted' : positivo ? 'text-gge-green' : 'text-gge-red';
+      const seta = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+      return (
+        <span className={`text-xs font-semibold ${cor}`}>
+          {seta} {formato === 'brl' ? fmtR(Math.abs(diff)) : formato === 'pct' ? fmtP(Math.abs(pct)) : fmtN(Math.abs(diff))}
+        </span>
+      );
+    }
 
-  var path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
+    function App() {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
 
-  function isActive(href) {
-    if (href === '/') return path === '/' || path === '' || path === '/index';
-    return path === href;
-  }
+      useEffect(() => {
+        async function load() {
+          try {
+            const { data: result, error: err } = await sb.rpc('fn_catalogo_dash_resumo');
+            if (err) throw err;
+            setData(result);
+          } catch(e) { setError(e.message); }
+          setLoading(false);
+        }
+        load();
+      }, []);
 
-  // CSS do sidebar
-  if (!document.querySelector('#sidebar-shared-styles')) {
-    var style = document.createElement('style');
-    style.id = 'sidebar-shared-styles';
-    style.textContent = [
-      '.sidebar { position:fixed;left:0;top:0;height:100vh;width:48px;background-color:#0a0e14;border-right:1px solid #2a2d3a;padding:20px 0;transition:width .3s ease;z-index:1000;overflow-y:auto;overflow-x:hidden }',
-      '.sidebar:hover { width:250px }',
-      '.sidebar-header { display:flex;align-items:center;padding:0 12px;margin-bottom:30px;min-height:40px }',
-      '.sidebar-logo { display:flex;flex-direction:column;gap:4px }',
-      '.sidebar-logo-text { font-weight:700;font-size:20px;color:#58a6ff }',
-      '.sidebar-logo-sub { font-size:10px;color:#8b949e;line-height:1 }',
-      '.sidebar:not(:hover) .sidebar-logo-sub { display:none }',
-      '.sidebar-nav { display:flex;flex-direction:column;gap:8px;padding:0 8px }',
-      '.nav-item { display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;color:#8b949e;text-decoration:none;cursor:pointer;transition:all .2s;white-space:nowrap;font-size:14px;font-weight:500 }',
-      '.nav-item:hover { background-color:#161b22;color:#c9d1d9 }',
-      '.nav-item.active { background-color:#1a3a5c;color:#58a6ff }',
-      '.nav-item-icon { display:flex;align-items:center;justify-content:center;min-width:20px }',
-      '.nav-item-icon svg { flex-shrink:0 }',
-      '.sidebar:not(:hover) .nav-item-label { display:none }',
-      '.main-with-sidebar { margin-left:48px;min-height:100vh }',
-    ].join('\n');
-    document.head.appendChild(style);
-  }
+      if (loading) return (
+        <div className="max-w-7xl mx-auto p-6">
+          <h1 className="text-2xl font-bold mb-6">Dashboard Catálogos</h1>
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            {[1,2,3,4].map(i => <div key={i} className="bg-gge-card border border-gge-border rounded-xl h-28 animate-pulse" />)}
+          </div>
+          <div className="bg-gge-card border border-gge-border rounded-xl h-64 animate-pulse" />
+        </div>
+      );
 
-  // HTML do sidebar
-  var navHtml = '';
-  for (var i = 0; i < pages.length; i++) {
-    var p = pages[i];
-    var cls = isActive(p.href) ? ' active' : '';
-    var subStyle = p.sub ? ' style="padding-left:20px;font-size:12px;opacity:0.85;"' : '';
-    navHtml += '<a href="' + p.href + '" class="nav-item' + cls + '"' + subStyle + ' data-page="' + p.key + '">' +
-      '<span class="nav-item-icon">' + (p.sub ? '' : p.icon) + '</span>' +
-      '<span class="nav-item-label">' + p.label + '</span></a>';
-  }
+      if (error) return <div className="max-w-7xl mx-auto p-6"><div className="bg-red-900/20 border border-red-700/40 rounded-xl p-4 text-red-400">{error}</div></div>;
 
-  var html = '<div class="sidebar" id="sidebar">' +
-    '<div class="sidebar-header"><div class="sidebar-logo">' +
-    '<span class="sidebar-logo-text">GGE</span>' +
-    '<span class="sidebar-logo-sub">Controle Total</span>' +
-    '</div></div>' +
-    '<nav class="sidebar-nav">' + navHtml + '</nav></div>';
+      const comp = data.competicao || {};
+      const vendas = data.vendas || {};
+      const evolucao = data.evolucao || [];
+      const topCompeting = data.top_competing || [];
 
-  var el = document.getElementById('sidebar-container');
-  if (el) { el.innerHTML = html; }
-  else { document.body.insertAdjacentHTML('afterbegin', html); }
-})();
+      const totalComp = (comp.winning || 0) + (comp.competing || 0) + (comp.sharing || 0);
+      const winPct = totalComp > 0 ? ((comp.winning || 0) / totalComp * 100) : 0;
+
+      // Periodos for comparison table
+      const periodos = ['1d', '3d', '7d', '10d', '15d', '30d'];
+
+      return (
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold">Dashboard Catálogos</h1>
+            <p className="text-sm text-gge-muted mt-1">
+              Visão consolidada da competição e performance dos anúncios em catálogo
+              {comp.data && <span> · Dados de competição: {new Date(comp.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+            </p>
+          </div>
+
+          {/* ═══ Competição: KPIs ═══ */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="text-xs text-gge-muted font-medium mb-1">🏆 Vencendo</div>
+              <div className="text-3xl font-bold text-gge-green">{fmtN(comp.winning)}</div>
+              <div className="text-xs text-gge-muted mt-1">{fmtP(winPct)} do total</div>
+            </div>
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="text-xs text-gge-muted font-medium mb-1">⚔️ Competindo</div>
+              <div className="text-3xl font-bold text-gge-orange">{fmtN(comp.competing)}</div>
+              <div className="text-xs text-gge-muted mt-1">gap médio {fmtP(comp.gap_medio)}</div>
+            </div>
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="text-xs text-gge-muted font-medium mb-1">🤝 Empatados</div>
+              <div className="text-3xl font-bold text-gge-cyan">{fmtN(comp.sharing)}</div>
+              <div className="text-xs text-gge-muted mt-1">dividindo 1º lugar</div>
+            </div>
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="text-xs text-gge-muted font-medium mb-1">💸 Gap Total p/ Vencer</div>
+              <div className="text-3xl font-bold text-gge-red">{fmtR(comp.gap_total)}</div>
+              <div className="text-xs text-gge-muted mt-1">soma dos gaps de preço</div>
+            </div>
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="text-xs text-gge-muted font-medium mb-1">📦 Total em Catálogo</div>
+              <div className="text-3xl font-bold text-white">{fmtN(comp.total)}</div>
+              <div className="text-xs text-gge-muted mt-1">anúncios ativos</div>
+            </div>
+          </div>
+
+          {/* ═══ Barra de progresso visual ═══ */}
+          <div className="bg-gge-card border border-gge-border rounded-xl p-5 mb-6 fade-in">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white">Distribuição Buy Box</h3>
+              <span className="text-xs text-gge-muted">{fmtN(totalComp)} anúncios com dados de competição</span>
+            </div>
+            <div className="h-6 rounded-full overflow-hidden flex bg-white/5">
+              {comp.winning > 0 && (
+                <div className="h-full bg-gge-green flex items-center justify-center transition-all" style={{width: `${(comp.winning / totalComp * 100)}%`}}>
+                  <span className="text-[10px] font-bold text-white">{comp.winning}</span>
+                </div>
+              )}
+              {comp.sharing > 0 && (
+                <div className="h-full bg-gge-cyan flex items-center justify-center transition-all" style={{width: `${(comp.sharing / totalComp * 100)}%`}}>
+                  <span className="text-[10px] font-bold text-white">{comp.sharing}</span>
+                </div>
+              )}
+              {comp.competing > 0 && (
+                <div className="h-full bg-gge-orange flex items-center justify-center transition-all" style={{width: `${(comp.competing / totalComp * 100)}%`}}>
+                  <span className="text-[10px] font-bold text-white">{comp.competing}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-6 mt-2 text-[10px]">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gge-green"></span> Vencendo</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gge-cyan"></span> Empatados</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gge-orange"></span> Competindo</span>
+            </div>
+          </div>
+
+          {/* ═══ Vendas por Período ═══ */}
+          <div className="bg-gge-card border border-gge-border rounded-xl p-5 mb-6 fade-in">
+            <h3 className="text-sm font-semibold text-white mb-4">Vendas por Período (Catálogos)</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gge-border text-xs text-gge-muted">
+                    <th className="text-left py-2 px-3 font-medium">Período</th>
+                    <th className="text-right py-2 px-3 font-medium">Vendas</th>
+                    <th className="text-right py-2 px-3 font-medium">Receita</th>
+                    <th className="text-right py-2 px-3 font-medium">MC2</th>
+                    <th className="text-right py-2 px-3 font-medium">Margem %</th>
+                    <th className="text-right py-2 px-3 font-medium">Ticket Médio</th>
+                    <th className="text-right py-2 px-3 font-medium">MC2/Venda</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periodos.map((p, i) => {
+                    const v = vendas[p] || {};
+                    const vd = Number(v.vendas) || 0;
+                    const rc = Number(v.receita) || 0;
+                    const mc = Number(v.mc2) || 0;
+                    const margem = rc > 0 ? (mc / rc * 100) : 0;
+                    const ticket = vd > 0 ? rc / vd : 0;
+                    const mc_venda = vd > 0 ? mc / vd : 0;
+                    return (
+                      <tr key={p} className={`border-b border-gge-border/30 ${i === periodos.length - 1 ? 'bg-gge-accent/5' : ''}`}>
+                        <td className="py-2.5 px-3 font-semibold text-white">{p}</td>
+                        <td className="py-2.5 px-3 text-right text-white">{fmtN(vd)}</td>
+                        <td className="py-2.5 px-3 text-right text-white">{fmtR(rc)}</td>
+                        <td className={`py-2.5 px-3 text-right font-semibold ${mc >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(mc)}</td>
+                        <td className={`py-2.5 px-3 text-right ${margem >= 5 ? 'text-gge-green' : margem >= 0 ? 'text-gge-yellow' : 'text-gge-red'}`}>{fmtP(margem)}</td>
+                        <td className="py-2.5 px-3 text-right text-gge-muted">{fmtR(ticket)}</td>
+                        <td className={`py-2.5 px-3 text-right ${mc_venda >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(mc_venda)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ═══ Evolução da Competição (gráfico) ═══ */}
+          {evolucao.length > 1 && (
+            <div className="bg-gge-card border border-gge-border rounded-xl p-5 mb-6 fade-in">
+              <h3 className="text-sm font-semibold text-white mb-3">Evolução da Competição</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={evolucao} margin={{left:10,right:10,top:5,bottom:5}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+                  <XAxis dataKey="data" tick={{fill:'#94a3b8',fontSize:11}} />
+                  <YAxis tick={{fill:'#94a3b8',fontSize:11}} />
+                  <Tooltip contentStyle={{background:'#1a1d2e',border:'1px solid #2a2d3e',borderRadius:'8px'}} labelStyle={{color:'#fff'}} />
+                  <Legend wrapperStyle={{fontSize:'11px'}} />
+                  <Area type="monotone" dataKey="winning" name="Vencendo" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.3} />
+                  <Area type="monotone" dataKey="sharing" name="Empatados" stackId="1" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.3} />
+                  <Area type="monotone" dataKey="competing" name="Competindo" stackId="1" stroke="#f97316" fill="#f97316" fillOpacity={0.3} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {evolucao.length <= 1 && (
+            <div className="bg-gge-card border border-gge-yellow/20 rounded-xl p-5 mb-6 fade-in text-center">
+              <div className="text-gge-yellow text-lg mb-1">📊</div>
+              <p className="text-sm text-gge-muted">O gráfico de evolução aparecerá quando houver mais de 1 dia de dados de competição coletados.</p>
+              <p className="text-xs text-gge-muted mt-1">Dados atuais: {evolucao.length} dia(s)</p>
+            </div>
+          )}
+
+          {/* ═══ Top Anúncios Competindo (maior gap) ═══ */}
+          {topCompeting.length > 0 && (
+            <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white">Maiores Gaps de Preço (competindo)</h3>
+                <span className="text-xs text-gge-muted">Quanto falta para vencer cada catálogo</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gge-border text-xs text-gge-muted">
+                      <th className="text-left py-2 px-3 font-medium">Anúncio</th>
+                      <th className="text-left py-2 px-3 font-medium">Conta</th>
+                      <th className="text-center py-2 px-3 font-medium">Modo</th>
+                      <th className="text-right py-2 px-3 font-medium">Nosso Preço</th>
+                      <th className="text-right py-2 px-3 font-medium">Price to Win</th>
+                      <th className="text-right py-2 px-3 font-medium">Gap R$</th>
+                      <th className="text-right py-2 px-3 font-medium">Gap %</th>
+                      <th className="text-center py-2 px-3 font-medium">Competidores</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topCompeting.map((t, i) => (
+                      <tr key={t.mlb_id} className={`border-b border-gge-border/30 ${i < 3 ? 'bg-gge-red/[0.04]' : ''}`}>
+                        <td className="py-2 px-3 max-w-[200px]">
+                          <div className="text-xs text-white truncate">{t.titulo}</div>
+                          <div className="text-[10px] text-gge-muted">{t.sku_vendedor || t.mlb_id}</div>
+                        </td>
+                        <td className="py-2 px-3 text-xs text-gge-muted">{t.conta_nome}</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${t.modo_logistica === 'fulfillment' ? 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50' : 'bg-gge-bg text-gge-muted border-gge-border'}`}>
+                            {t.modo_logistica === 'fulfillment' ? 'Full' : 'Col'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-right text-white">{fmtR(t.nosso_preco)}</td>
+                        <td className="py-2 px-3 text-right text-gge-green font-semibold">{fmtR(t.price_to_win)}</td>
+                        <td className="py-2 px-3 text-right text-gge-red font-bold">{fmtR(t.gap_preco)}</td>
+                        <td className="py-2 px-3 text-right text-gge-orange">{fmtP(t.gap_pct)}</td>
+                        <td className="py-2 px-3 text-center text-gge-muted">{fmtN(t.competitors_sharing)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
