@@ -2,42 +2,39 @@
 // Importar: <script src="sidebar.js" defer></script>
 
 (function() {
+  // SVG icons — estilo Lucide (stroke-based, 20x20, clean)
   var svgIcon = function(path, extra) {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + (extra || '') + '</svg>';
   };
 
   var icons = {
-    dashboard:      svgIcon('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
-    margem:         svgIcon('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
-    precificacao:   svgIcon('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
-    'preco-mktp':   svgIcon('<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>'),
-    saude:          svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
-    catalogos:      svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'),
-    'dash-catalogo':svgIcon('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>'),
-    catalogo:       svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/>'),
-    automacao:      svgIcon('<path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 4.76 2.83-2.83"/><circle cx="12" cy="12" r="4"/>'),
-    reputacao:      svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
-    ads:            svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
-    chevron:        svgIcon('<polyline points="6 9 12 15 18 9"/>'),
+    dashboard:    svgIcon('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
+    margem:       svgIcon('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
+    precificacao: svgIcon('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
+    'preco-mktp': svgIcon('<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>'),
+    saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
+    avaliacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
+    ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
+    'pos-venda':  svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+    reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
+    catalogo:     svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/>'),
+    automacao:    svgIcon('<path d="M12 8V4H8"/><path d="M2 12a10 10 0 0 1 10-10"/><path d="M12 16v4h4"/><path d="M22 12a10 10 0 0 1-10 10"/><circle cx="12" cy="12" r="3"/>'),
+    ressarcimentos: svgIcon('<rect x="1" y="5" width="22" height="16" rx="2"/><path d="M16 14h.01"/><path d="M1 10h22"/>'),
   };
 
-  // Menu structure — items with `children` are expandable groups
   var pages = [
-    { href: '/',               icon: icons.dashboard,       label: 'Dashboard',        key: 'dashboard' },
-    { href: '/margem',         icon: icons.margem,          label: 'Margem',           key: 'margem' },
-    { href: '/precificacao',   icon: icons.precificacao,    label: 'Precificação', key: 'precificacao' },
-    { href: '/preco-mktp',     icon: icons['preco-mktp'],   label: 'Preço MKTP', key: 'preco-mktp' },
-    { href: '/saude',          icon: icons.saude,           label: 'Saúde',       key: 'saude' },
-    {
-      icon: icons.catalogos, label: 'Catálogos', key: 'catalogos-group',
-      children: [
-        { href: '/catalogo-dash', icon: icons['dash-catalogo'], label: 'Dashboard',   key: 'catalogo-dash' },
-        { href: '/catalogo',      icon: icons.catalogo,         label: 'Catálogos', key: 'catalogo' },
-        { href: '/automacao',     icon: icons.automacao,        label: 'Automação', key: 'automacao' },
-      ]
-    },
-    { href: '/reputacao',      icon: icons.reputacao,       label: 'Reputação', key: 'reputacao' },
-    { href: '/ads',            icon: icons.ads,             label: 'ADs',              key: 'ads' },
+    { href: '/',             icon: icons.dashboard,    label: 'Dashboard',      key: 'dashboard' },
+    { href: '/margem',       icon: icons.margem,       label: 'Margem',         key: 'margem' },
+    { href: '/precificacao', icon: icons.precificacao, label: 'Precifica\u00E7\u00E3o', key: 'precificacao' },
+    { href: '/preco-mktp',   icon: icons['preco-mktp'],label: 'Pre\u00E7o MKTP',     key: 'preco-mktp' },
+    { href: '/saude',        icon: icons.saude,        label: 'Sa\u00FAde',          key: 'saude' },
+    { href: '/pos-venda',    icon: icons['pos-venda'], label: 'P\u00F3s-Venda',      key: 'pos-venda' },
+    { href: '/reputacao',    icon: icons.reputacao,     label: 'Reputa\u00E7\u00E3o',      key: 'reputacao' },
+    { href: '/catalogo',     icon: icons.catalogo,      label: 'Cat\u00E1logos',           key: 'catalogo', group: 'catalogo' },
+    { href: '/automacao',    icon: icons.automacao,     label: '\u2514 Automa\u00E7\u00E3o',  key: 'automacao', group: 'catalogo', sub: true },
+    { href: '/avaliacao',    icon: icons.avaliacao,     label: 'Avalia\u00E7\u00E3o',      key: 'avaliacao' },
+    { href: '/ressarcimentos', icon: icons.ressarcimentos, label: 'Ressarcimentos', key: 'ressarcimentos' },
+    { href: '/ads',          icon: icons.ads,           label: 'ADs',            key: 'ads' },
   ];
 
   var path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
@@ -47,14 +44,7 @@
     return path === href;
   }
 
-  function isGroupActive(children) {
-    for (var i = 0; i < children.length; i++) {
-      if (isActive(children[i].href)) return true;
-    }
-    return false;
-  }
-
-  // CSS
+  // CSS do sidebar
   if (!document.querySelector('#sidebar-shared-styles')) {
     var style = document.createElement('style');
     style.id = 'sidebar-shared-styles';
@@ -66,77 +56,35 @@
       '.sidebar-logo-text { font-weight:700;font-size:20px;color:#58a6ff }',
       '.sidebar-logo-sub { font-size:10px;color:#8b949e;line-height:1 }',
       '.sidebar:not(:hover) .sidebar-logo-sub { display:none }',
-      '.sidebar-nav { display:flex;flex-direction:column;gap:4px;padding:0 8px }',
+      '.sidebar-nav { display:flex;flex-direction:column;gap:8px;padding:0 8px }',
       '.nav-item { display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;color:#8b949e;text-decoration:none;cursor:pointer;transition:all .2s;white-space:nowrap;font-size:14px;font-weight:500 }',
       '.nav-item:hover { background-color:#161b22;color:#c9d1d9 }',
       '.nav-item.active { background-color:#1a3a5c;color:#58a6ff }',
       '.nav-item-icon { display:flex;align-items:center;justify-content:center;min-width:20px }',
       '.nav-item-icon svg { flex-shrink:0 }',
       '.sidebar:not(:hover) .nav-item-label { display:none }',
-      '.sidebar:not(:hover) .nav-group-chevron { display:none }',
-      '.sidebar:not(:hover) .nav-sub-items { display:none }',
-      '.nav-group-header { display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;color:#8b949e;cursor:pointer;transition:all .2s;white-space:nowrap;font-size:14px;font-weight:500 }',
-      '.nav-group-header:hover { background-color:#161b22;color:#c9d1d9 }',
-      '.nav-group-header.group-active { color:#58a6ff }',
-      '.nav-group-chevron { margin-left:auto;transition:transform .2s;opacity:.5 }',
-      '.nav-group-chevron.open { transform:rotate(180deg) }',
-      '.nav-sub-items { overflow:hidden;transition:max-height .25s ease }',
-      '.nav-sub-items .nav-item { padding:8px 12px 8px 44px;font-size:13px }',
       '.main-with-sidebar { margin-left:48px;min-height:100vh }',
     ].join('\n');
     document.head.appendChild(style);
   }
 
-  // Build HTML
+  // HTML do sidebar
   var navHtml = '';
   for (var i = 0; i < pages.length; i++) {
     var p = pages[i];
-    if (p.children) {
-      // Group with sub-items
-      var groupActive = isGroupActive(p.children);
-      var openClass = groupActive ? ' open' : '';
-      navHtml += '<div class="nav-group" data-group="' + p.key + '">';
-      navHtml += '<div class="nav-group-header' + (groupActive ? ' group-active' : '') + '" onclick="this.parentElement.classList.toggle(\'expanded\');this.querySelector(\'.nav-group-chevron\').classList.toggle(\'open\')">';
-      navHtml += '<span class="nav-item-icon">' + p.icon + '</span>';
-      navHtml += '<span class="nav-item-label">' + p.label + '</span>';
-      navHtml += '<span class="nav-group-chevron' + openClass + '">' + icons.chevron + '</span>';
-      navHtml += '</div>';
-      var subStyle = groupActive ? 'max-height:200px' : 'max-height:0';
-      navHtml += '<div class="nav-sub-items" style="' + subStyle + '">';
-      for (var j = 0; j < p.children.length; j++) {
-        var c = p.children[j];
-        var cls = isActive(c.href) ? ' active' : '';
-        navHtml += '<a href="' + c.href + '" class="nav-item' + cls + '" data-page="' + c.key + '">';
-        navHtml += '<span class="nav-item-label">' + c.label + '</span></a>';
-      }
-      navHtml += '</div></div>';
-    } else {
-      // Simple item
-      var cls = isActive(p.href) ? ' active' : '';
-      navHtml += '<a href="' + p.href + '" class="nav-item' + cls + '" data-page="' + p.key + '">';
-      navHtml += '<span class="nav-item-icon">' + p.icon + '</span>';
-      navHtml += '<span class="nav-item-label">' + p.label + '</span></a>';
-    }
+    var cls = isActive(p.href) ? ' active' : '';
+    var subStyle = p.sub ? ' style="padding-left:20px;font-size:12px;opacity:0.85;"' : '';
+    navHtml += '<a href="' + p.href + '" class="nav-item' + cls + '"' + subStyle + ' data-page="' + p.key + '">' +
+      '<span class="nav-item-icon">' + (p.sub ? '' : p.icon) + '</span>' +
+      '<span class="nav-item-label">' + p.label + '</span></a>';
   }
-
-  // Toggle expanded groups on hover
-  var expandScript = '<script>' +
-    'document.addEventListener("DOMContentLoaded",function(){' +
-    'var sb=document.getElementById("sidebar");if(!sb)return;' +
-    'var groups=sb.querySelectorAll(".nav-group");' +
-    'sb.addEventListener("mouseenter",function(){groups.forEach(function(g){' +
-    'if(g.classList.contains("expanded")||g.querySelector(".nav-item.active")){' +
-    'g.querySelector(".nav-sub-items").style.maxHeight="200px"}})});' +
-    'sb.addEventListener("mouseleave",function(){groups.forEach(function(g){' +
-    'if(!g.querySelector(".nav-item.active")){g.querySelector(".nav-sub-items").style.maxHeight="0"}})})' +
-    '});<\/script>';
 
   var html = '<div class="sidebar" id="sidebar">' +
     '<div class="sidebar-header"><div class="sidebar-logo">' +
     '<span class="sidebar-logo-text">GGE</span>' +
     '<span class="sidebar-logo-sub">Controle Total</span>' +
     '</div></div>' +
-    '<nav class="sidebar-nav">' + navHtml + '</nav></div>' + expandScript;
+    '<nav class="sidebar-nav">' + navHtml + '</nav></div>';
 
   var el = document.getElementById('sidebar-container');
   if (el) { el.innerHTML = html; }
