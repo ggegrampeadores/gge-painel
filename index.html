@@ -1395,42 +1395,31 @@
                     buildIndicatorCard('Vendas Mês', monthVendas, trendMonth, prevMonthVendas, 'card-ind-vendas')
                 ].join('');
 
-                // Now render visits (desempenho_diario uses data_referencia, no conta_id column)
-                const sbHeaders = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
-                const safeReduce = (arr) => Array.isArray(arr) ? arr.reduce((sum, row) => sum + (row.visitas || 0), 0) : 0;
+                // Now render visits using RPC sum_visitas (avoids 1000-row limit)
+                const rpcHeaders = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+                async function sumVisitas(from, to) {
+                    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/sum_visitas`, {
+                        method: 'POST', headers: rpcHeaders,
+                        body: JSON.stringify({ p_from: from, p_to: to })
+                    });
+                    const val = await r.json();
+                    return typeof val === 'number' ? val : 0;
+                }
 
-                let url, resp;
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=eq.${todayISO}&limit=10000`;
-                resp = await fetch(url, { headers: sbHeaders });
-                const todayVisits = safeReduce(await resp.json());
+                // prev ranges: original used lt (exclusive upper bound), RPC uses <= (inclusive)
+                // So subtract 1 day from upper bound for prev periods
+                const dayBefore = (d) => { const x = new Date(d); x.setDate(x.getDate()-1); return localDate(x); };
 
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=eq.${yesterdayISO}&limit=10000`;
-                resp = await fetch(url, { headers: sbHeaders });
-                const yesterdayVisits = safeReduce(await resp.json());
-
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${sevenDaysAgoISO}&data_referencia=lte.${todayISO}&limit=10000`;
-                resp = await fetch(url, { headers: sbHeaders });
-                const last7dVisits = safeReduce(await resp.json());
-
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${fourteenDaysAgoISO}&data_referencia=lt.${sevenDaysAgoISO}&limit=10000`;
-                resp = await fetch(url, { headers: sbHeaders });
-                const prev7dVisits = safeReduce(await resp.json());
-
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${fifteenDaysAgoISO}&data_referencia=lte.${todayISO}&limit=10000`;
-                resp = await fetch(url, { headers: sbHeaders });
-                const last15dVisits = safeReduce(await resp.json());
-
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${thirtyDaysAgoISO}&data_referencia=lt.${fifteenDaysAgoISO}&limit=10000`;
-                resp = await fetch(url, { headers: sbHeaders });
-                const prev15dVisits = safeReduce(await resp.json());
-
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${monthStart}&data_referencia=lte.${todayISO}&limit=10000`;
-                resp = await fetch(url, { headers: sbHeaders });
-                const monthVisits = safeReduce(await resp.json());
-
-                url = `${SUPABASE_URL}/rest/v1/desempenho_diario?select=visitas&data_referencia=gte.${prevMonthStart}&data_referencia=lt.${monthStart}&limit=10000`;
-                resp = await fetch(url, { headers: sbHeaders });
-                const prevMonthVisits = safeReduce(await resp.json());
+                const [todayVisits, yesterdayVisits, last7dVisits, prev7dVisits, last15dVisits, prev15dVisits, monthVisits, prevMonthVisits] = await Promise.all([
+                    sumVisitas(todayISO, todayISO),
+                    sumVisitas(yesterdayISO, yesterdayISO),
+                    sumVisitas(sevenDaysAgoISO, todayISO),
+                    sumVisitas(fourteenDaysAgoISO, dayBefore(sevenDaysAgo)),
+                    sumVisitas(fifteenDaysAgoISO, todayISO),
+                    sumVisitas(thirtyDaysAgoISO, dayBefore(fifteenDaysAgo)),
+                    sumVisitas(monthStart, todayISO),
+                    sumVisitas(prevMonthStart, dayBefore(new Date(today.getFullYear(), today.getMonth(), 1)))
+                ]);
 
                 // Calculate visit trends
                 const visitTrendHoje = yesterdayVisits > 0 ? ((todayVisits - yesterdayVisits) / yesterdayVisits) * 100 : 0;
