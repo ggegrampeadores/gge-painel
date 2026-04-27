@@ -346,18 +346,17 @@
         }
 
         .metric-card.card-unidade {
-            background-color: #181a20;
-            border-color: #22252e;
-            opacity: 0.75;
+            background-color: #1a1d27;
+            border-color: #2a2d3a;
         }
 
         .metric-card.card-unidade .metric-value {
-            color: #8b949e;
-            font-size: 18px;
+            color: #c9d1d9;
+            font-size: 20px;
         }
 
         .metric-card.card-unidade .metric-title {
-            color: #6e7681;
+            color: #8b949e;
         }
 
         .metric-card.card-valor {
@@ -498,20 +497,20 @@
         /* Projections Grid */
         .projections-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
             margin: 30px 0;
         }
 
-        @media (max-width: 1200px) {
+        @media (max-width: 1400px) {
             .projections-grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(4, 1fr);
             }
         }
 
         @media (max-width: 768px) {
             .projections-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
@@ -519,44 +518,53 @@
             background-color: #1a1d27;
             border: 1px solid #2a2d3a;
             border-radius: 14px;
-            padding: 20px;
+            padding: 16px 14px;
+            text-align: center;
+        }
+
+        .projection-card.current-week {
+            border-color: #3a5a8a;
+            border-left: 3px solid #58a6ff;
         }
 
         .projection-title {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 600;
             color: #8b949e;
-            margin-bottom: 16px;
+            margin-bottom: 6px;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .projection-dates {
+            font-size: 10px;
+            color: #6e7681;
+            margin-bottom: 10px;
         }
 
         .projection-value {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
             color: #c9d1d9;
-            margin-bottom: 12px;
+            margin-bottom: 4px;
         }
 
-        .projection-rows {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .projection-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-            padding: 6px 0;
-        }
-
-        .projection-label {
+        .projection-label-main {
+            font-size: 10px;
             color: #8b949e;
+            margin-bottom: 10px;
         }
 
-        .projection-val {
-            color: #c9d1d9;
+        .projection-proj30 {
+            font-size: 14px;
             font-weight: 600;
+            color: #58a6ff;
+        }
+
+        .projection-label-sub {
+            font-size: 9px;
+            color: #6e7681;
+            margin-top: 2px;
         }
 
         /* Charts */
@@ -749,9 +757,13 @@
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
             </div>
 
-            <!-- Projections — movido para cá (entre Custos/Margens e Indicadores) -->
+            <!-- Projeções — 8 cards semanais -->
             <div class="section-title">PROJEÇÕES</div>
             <div class="projections-grid" id="projections-grid">
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
+                <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
                 <div class="card-skeleton"><div class="skeleton"></div><div class="skeleton"></div></div>
@@ -1022,6 +1034,10 @@
             return num.toFixed(2).replace('.', ',') + '%';
         }
 
+        // Date helpers (global) — avoid timezone bugs with toISOString()
+        const pad = (n) => String(n).padStart(2, '0');
+        const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
         // ========== COMPARISON LOGIC ==========
         function calculateTrend(current, previous, isCost = false) {
             if (!previous || previous === 0) return { trend: '—', pct: 0, className: 'neutral' };
@@ -1281,9 +1297,6 @@
         async function renderIndicadores(conta, dateRange) {
             try {
                 const today = new Date();
-                // Use local date formatting to avoid timezone bugs
-                const pad = (n) => String(n).padStart(2, '0');
-                const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
                 const todayISO = localDate(today);
                 const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
                 const tomorrowISO = localDate(tomorrow);
@@ -1529,8 +1542,7 @@
                 // Fetch last 24 months of data (current 12 + prior 12 for YoY)
                 const today = new Date();
                 const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), 1);
-                const smPad = (n) => String(n).padStart(2, '0');
-                const startMonth = `${twoYearsAgo.getFullYear()}-${smPad(twoYearsAgo.getMonth()+1)}`;
+                const startMonth = `${twoYearsAgo.getFullYear()}-${pad(twoYearsAgo.getMonth()+1)}`;
 
                 let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=mes,receita,margem_valor&order=mes.asc&limit=10000`;
                 url += `&mes=gte.${startMonth}-01`;
@@ -1563,11 +1575,10 @@
                 const currentMonth = today.getMonth();
 
                 // Generate 12 month labels (current period) — use local dates to avoid timezone shift
-                const pad2 = (n) => String(n).padStart(2, '0');
                 const last12 = [];
                 for (let i = 11; i >= 0; i--) {
                     const d = new Date(currentYear, currentMonth - i, 1);
-                    const key = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-01`;
+                    const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-01`;
                     last12.push(key);
                 }
 
@@ -1842,24 +1853,26 @@
             }
         }
 
-        // ========== RENDER PROJECTIONS ==========
+        // ========== RENDER PROJECTIONS (8 semanas) ==========
         async function renderProjections() {
             try {
                 if (!currentData) return;
 
                 const today = new Date();
-                const todayISO = today.toISOString().split('T')[0];
+                const todayStr = localDate(today);
 
-                // Fetch sales data for each projection window (7d, 15d, 21d, 30d)
-                const windows = [7, 15, 21, 30];
-                const projections = [];
+                // 8 janelas de 7 dias: semana 1 = últimos 7 dias, semana 2 = 8-14 dias atrás, etc.
+                const weeks = [];
+                for (let w = 0; w < 8; w++) {
+                    const endDate = new Date(today);
+                    endDate.setDate(endDate.getDate() - (w * 7));
+                    const startDate = new Date(endDate);
+                    startDate.setDate(startDate.getDate() - 7);
 
-                for (const days of windows) {
-                    const fromDate = new Date(today);
-                    fromDate.setDate(fromDate.getDate() - days);
-                    const fromISO = fromDate.toISOString().split('T')[0];
+                    const fromStr = localDate(startDate);
+                    const toStr = localDate(endDate);
 
-                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=preco_total&data_venda=gte.${fromISO}&data_venda=lt.${todayISO}&status=neq.cancelled`;
+                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=preco_total&data_venda=gte.${fromStr}&data_venda=lt.${toStr}&status=neq.cancelled&limit=10000`;
                     if (currentConta) url += `&conta_id=eq.${currentConta}`;
 
                     const resp = await fetch(url, {
@@ -1867,26 +1880,31 @@
                     });
                     const rows = await resp.json();
                     const totalVendas = Array.isArray(rows) ? rows.reduce((s, r) => s + (parseFloat(r.preco_total) || 0), 0) : 0;
-                    const dailyAvg = days > 0 ? totalVendas / days : 0;
-                    const proj30 = dailyAvg * 30;
+                    const proj30 = (totalVendas / 7) * 30;
 
-                    projections.push({ days, totalVendas, dailyAvg, proj30 });
+                    // Formatar datas curtas (dd/mm)
+                    const fmtShort = (d) => `${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
+
+                    weeks.push({
+                        weekNum: w + 1,
+                        totalVendas,
+                        proj30,
+                        dateLabel: `${fmtShort(startDate)} a ${fmtShort(new Date(endDate.getTime() - 86400000))}`,
+                        isCurrent: w === 0
+                    });
                 }
 
-                const html = projections.map(p => `
-                    <div class="projection-card">
-                        <div class="projection-title">${p.days} DIAS PROJETANDO 30 DIAS</div>
-                        <div class="projection-value">${fmt(p.proj30)}</div>
-                        <div class="projection-rows">
-                            <div class="projection-row">
-                                <span class="projection-label">Vendas ${p.days}d</span>
-                                <span class="projection-val">${fmt(p.totalVendas)}</span>
-                            </div>
-                            <div class="projection-row">
-                                <span class="projection-label">Média/dia</span>
-                                <span class="projection-val">${fmt(p.dailyAvg)}</span>
-                            </div>
-                        </div>
+                // Renderizar da mais antiga (semana 8) para a mais recente (semana 1)
+                const reversed = [...weeks].reverse();
+
+                const html = reversed.map(w => `
+                    <div class="projection-card${w.isCurrent ? ' current-week' : ''}">
+                        <div class="projection-title">${w.isCurrent ? 'ESTA SEMANA' : 'SEMANA ' + w.weekNum}</div>
+                        <div class="projection-dates">${w.dateLabel}</div>
+                        <div class="projection-value">${fmt(w.totalVendas)}</div>
+                        <div class="projection-label-main">vendido em 7 dias</div>
+                        <div class="projection-proj30">${fmt(w.proj30)}</div>
+                        <div class="projection-label-sub">projeção 30 dias</div>
                     </div>
                 `).join('');
 
