@@ -83,4 +83,65 @@
       '.nav-group-header { display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;color:#8b949e;cursor:pointer;transition:all .2s;white-space:nowrap;font-size:14px;font-weight:500 }',
       '.nav-group-header:hover { background-color:#161b22;color:#c9d1d9 }',
       '.nav-group-header.group-active { color:#58a6ff }',
-      '.nav
+      '.nav-group-chevron { margin-left:auto;transition:transform .2s; opacity:.5 }',
+      '.nav-group-chevron.open { transform:rotate(180deg) }',
+      '.nav-sub-items { overflow:hidden;transition:max-height .25s ease }',
+      '.nav-sub-items .nav-item { padding:8px 12px 8px 44px;font-size:13px }',
+      '.main-with-sidebar { margin-left:48px;min-height:100vh }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  // Build HTML
+  var navHtml = '';
+  for (var i = 0; i < pages.length; i++) {
+    var p = pages[i];
+    if (p.children) {
+      var groupActive = isGroupActive(p.children);
+      var openClass = groupActive ? ' open' : '';
+      navHtml += '<div class="nav-group" data-group="' + p.key + '">';
+      navHtml += '<div class="nav-group-header' + (groupActive ? ' group-active' : '') + '" onclick="var g=this.parentElement;g.classList.toggle(\'expanded\');this.querySelector(\'.nav-group-chevron\').classList.toggle(\'open\');var sub=g.querySelector(\'.nav-sub-items\');sub.style.maxHeight=g.classList.contains(\'expanded\')?\'200px\':\'0\'">';
+      navHtml += '<span class="nav-item-icon">' + p.icon + '</span>';
+      navHtml += '<span class="nav-item-label">' + p.label + '</span>';
+      navHtml += '<span class="nav-group-chevron' + openClass + '">' + icons.chevron + '</span>';
+      navHtml += '</div>';
+      var subStyle = groupActive ? 'max-height:200px' : 'max-height:0';
+      navHtml += '<div class="nav-sub-items" style="' + subStyle + '">';
+      for (var j = 0; j < p.children.length; j++) {
+        var c = p.children[j];
+        var cls = isActive(c.href) ? ' active' : '';
+        navHtml += '<a href="' + c.href + '" class="nav-item' + cls + '" data-page="' + c.key + '">';
+        navHtml += '<span class="nav-item-label">' + c.label + '</span></a>';
+      }
+      navHtml += '</div></div>';
+    } else {
+      var cls = isActive(p.href) ? ' active' : '';
+      navHtml += '<a href="' + p.href + '" class="nav-item' + cls + '" data-page="' + p.key + '">';
+      navHtml += '<span class="nav-item-icon">' + p.icon + '</span>';
+      navHtml += '<span class="nav-item-label">' + p.label + '</span></a>';
+    }
+  }
+
+  // Toggle expanded groups on hover
+  var expandScript = '<script>' +
+    'document.addEventListener("DOMContentLoaded",function(){' +
+    'var sb=document.getElementById("sidebar");if(!sb)return;' +
+    'var groups=sb.querySelectorAll(".nav-group");' +
+    'sb.addEventListener("mouseenter",function(){groups.forEach(function(g){' +
+    'if(g.classList.contains("expanded")||g.querySelector(".nav-item.active")){' +
+    'g.querySelector(".nav-sub-items").style.maxHeight="200px"}})});' +
+    'sb.addEventListener("mouseleave",function(){groups.forEach(function(g){' +
+    'if(!g.querySelector(".nav-item.active")){g.querySelector(".nav-sub-items").style.maxHeight="0"}})})' +
+    '});<\/script>';
+
+  var html = '<div class="sidebar" id="sidebar">' +
+    '<div class="sidebar-header"><div class="sidebar-logo">' +
+    '<span class="sidebar-logo-text">GGE</span>' +
+    '<span class="sidebar-logo-sub">Controle Total</span>' +
+    '</div></div>' +
+    '<nav class="sidebar-nav">' + navHtml + '</nav></div>' + expandScript;
+
+  var el = document.getElementById('sidebar-container');
+  if (el) { el.innerHTML = html; }
+  else { document.body.insertAdjacentHTML('afterbegin', html); }
+})();
