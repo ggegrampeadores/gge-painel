@@ -320,7 +320,7 @@
       // Sorting
       const [sortCol, setSortCol] = useState('score');
       const [sortDir, setSortDir] = useState('desc');
-      const [freteSortCol, setFreteSortCol] = useState('diferenca');
+      const [freteSortCol, setFreteSortCol] = useState('dias_para_reclamar');
       const [freteSortDir, setFreteSortDir] = useState('asc');
 
       // Load parameters once
@@ -360,16 +360,13 @@
         async function loadFrete() {
           setFreteLoading(true);
           try {
-            const range = getRange(periodoSel);
-            const allFrete = await fetchAll(() => sb.from('vw_frete_desacordo').select('*').gte('data_venda', range.from).lte('data_venda', range.to));
+            const allFrete = await fetchAll(() => sb.from('vw_frete_desacordo').select('*'));
             setFreteData(allFrete);
           } catch (e) { console.error('Erro frete:', e); }
           setFreteLoading(false);
         }
         loadFrete();
-      }, [tab, periodoSel]);
-
-      useEffect(() => { setFreteData([]); }, [periodoSel]);
+      }, [tab]);
 
       // Load devoluções when switching tab
       useEffect(() => {
@@ -427,7 +424,10 @@
       }, [contaSel, tipoSel, modeSel, kitSel, catSel, fornSel, pontoSel]);
 
       const filteredVendas = useMemo(() => vendasData.filter(applyFilter), [vendasData, applyFilter]);
-      const filteredFrete = useMemo(() => freteData.filter(applyFilter), [freteData, applyFilter]);
+      const filteredFrete = useMemo(() => {
+        if (!contaSel) return freteData;
+        return freteData.filter(f => f.conta_nome === contaSel);
+      }, [freteData, contaSel]);
 
       // Claims grouped by mlb_id
       const claimsByMlb = useMemo(() => {
@@ -557,36 +557,53 @@
         return { criticos, ruins, atencao };
       }, [repData, params]);
 
-      // Frete totals
+      // Frete totals — focused on refund claims
       const freteTotals = useMemo(() => {
-        const t = { total: filteredFrete.length, impacto: 0, ml_mais: 0, ml_menos: 0, impacto_mais: 0, impacto_menos: 0 };
+        const t = { total: filteredFrete.length, total_estorno: 0,
+          urgente: 0, est_urgente: 0,   // 1-5 dias
+          atencao: 0, est_atencao: 0,   // 6-15 dias
+          ok: 0, est_ok: 0,             // 16-30 dias
+          expirado: 0, est_expirado: 0  // 0 dias
+        };
         filteredFrete.forEach(f => {
-          const d = Number(f.diferenca) || 0;
-          t.impacto += d;
-          if (d < 0) { t.ml_mais++; t.impacto_mais += d; }
-          else { t.ml_menos++; t.impacto_menos += d; }
+          const val = Number(f.valor_estorno) || 0;
+          const dias = Number(f.dias_para_reclamar) || 0;
+          t.total_estorno += val;
+          if (dias === 0) { t.expirado++; t.est_expirado += val; }
+          else if (dias <= 5) { t.urgente++; t.est_urgente += val; }
+          else if (dias <= 15) { t.atencao++; t.est_atencao += val; }
+          else { t.ok++; t.est_ok += val; }
         });
+        t.reclamavel = t.est_urgente + t.est_atencao + t.est_ok;
+        t.qtd_reclamavel = t.urgente + t.atencao + t.ok;
         return t;
       }, [filteredFrete]);
 
       const sortedFrete = useMemo(() => {
         return [...filteredFrete].sort((a, b) => {
           let va = a[freteSortCol], vb = b[freteSortCol];
-          if (['diferenca', 'diferenca_pct', 'frete_real_ml', 'frete_previsto', 'preco_total'].includes(freteSortCol)) {
+          if (['valor_estorno', 'excesso_pct', 'frete_cobrado_ml', 'frete_previsto', 'preco_total', 'dias_para_reclamar'].includes(freteSortCol)) {
             va = Number(va) || 0; vb = Number(vb) || 0;
           }
           return freteSortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
         });
       }, [filteredFrete, freteSortCol, freteSortDir]);
 
-      const freteByAnuncio = useMemo(() => {
-        const map = {};
-        filteredFrete.forEach(f => {
-          if (!map[f.mlb_id]) map[f.mlb_id] = { mlb_id: f.mlb_id, titulo: f.titulo || '—', impacto: 0, count: 0 };
-          map[f.mlb_id].count++;
-          map[f.mlb_id].impacto += Number(f.diferenca) || 0;
+      // Copy refund list to clipboard
+      const copyRefundList = useCallback((filter) => {
+        const items = filteredFrete.filter(f => {
+          const dias = Number(f.dias_para_reclamar) || 0;
+          if (filter === 'all') return dias > 0;
+          if (filter === 'urgente') return dias > 0 && dias <= 5;
+          return dias > 0;
         });
-        return Object.values(map).sort((a, b) => a.impacto - b.impacto).slice(0, 15);
+        if (items.length === 0) return;
+        const lines = items.map(f =>
+          `${f.ordem_id}\tR$ ${Number(f.valor_estorno).toFixed(2)}\t${f.dias_para_reclamar}d restantes\t${f.conta_nome}`
+        );
+        const header = 'Ordem\tValor Estorno\tPrazo\tConta';
+        navigator.clipboard.writeText(header + '\n' + lines.join('\n'));
+        alert(`${items.length} ordens copiadas para a área de transferência!`);
       }, [filteredFrete]);
 
       // Weekly evolution
@@ -663,7 +680,7 @@
                 Reputação por Anúncio
               </button>
               <button onClick={() => setTab('frete')} className={`pb-3 px-1 text-sm font-semibold transition-colors ${tab === 'frete' ? 'tab-active' : 'tab-inactive'}`}>
-                Fretes em Desacordo
+                Estornos de Frete
               </button>
               <button onClick={() => setTab('devolucoes')} className={`pb-3 px-1 text-sm font-semibold transition-colors ${tab === 'devolucoes' ? 'tab-active' : 'tab-inactive'}`}>
                 Devoluções sem Fotos
@@ -830,7 +847,7 @@
                 </div>
               </>
             ) : tab === 'frete' ? (
-              /* ── Tab: Fretes em Desacordo ── */
+              /* ── Tab: Estornos de Frete ── */
               <>
                 {freteLoading ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -838,113 +855,118 @@
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      <KpiCard title="Envios em Desacordo" value={fmtN(freteTotals.total)} icon="📊" color="text-white" />
-                      <KpiCard title="ML Cobrou Mais" value={fmtN(freteTotals.ml_mais)} icon="📈" color="text-gge-red" sub={fmtR(freteTotals.impacto_mais)} />
-                      <KpiCard title="ML Cobrou Menos" value={fmtN(freteTotals.ml_menos)} icon="📉" color="text-gge-green" sub={fmtR(freteTotals.impacto_menos)} />
-                      <KpiCard title="Impacto Total" value={fmtR(freteTotals.impacto)} icon="💰" color={freteTotals.impacto < 0 ? 'text-gge-red' : 'text-gge-green'} sub="Previsto − Real ML" />
-                      <KpiCard title="Média por Envio" value={fmtR(freteTotals.total > 0 ? freteTotals.impacto / freteTotals.total : 0)} icon="📐" color="text-gge-orange" />
-                      <KpiCard title="Tolerância" value="> R$ 1,00" icon="⚙️" color="text-gge-muted" sub="Diferenças ≤ R$1 ignoradas" />
+                    {/* KPIs de estorno */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                      <KpiCard title="Total a Reclamar" value={fmtR(freteTotals.reclamavel)} icon="💰"
+                               color="text-gge-green" sub={`${fmtN(freteTotals.qtd_reclamavel)} vendas dentro do prazo`} />
+                      <KpiCard title="URGENTE (1-5 dias)" value={fmtR(freteTotals.est_urgente)} icon="🚨"
+                               color={freteTotals.urgente > 0 ? 'text-gge-red' : 'text-gge-muted'}
+                               sub={freteTotals.urgente > 0 ? `${freteTotals.urgente} vendas — agir AGORA` : 'Nenhuma'} />
+                      <KpiCard title="ATENÇÃO (6-15 dias)" value={fmtR(freteTotals.est_atencao)} icon="⚠️"
+                               color={freteTotals.atencao > 0 ? 'text-gge-yellow' : 'text-gge-muted'}
+                               sub={`${freteTotals.atencao} vendas`} />
+                      <KpiCard title="OK (16-30 dias)" value={fmtR(freteTotals.est_ok)} icon="✅"
+                               color="text-gge-green" sub={`${freteTotals.ok} vendas`} />
+                      <KpiCard title="Já Expirado" value={fmtR(freteTotals.est_expirado)} icon="⏰"
+                               color="text-gge-muted" sub={`${freteTotals.expirado} vendas perdidas`} />
+                      <KpiCard title="Total Histórico" value={fmtR(freteTotals.total_estorno)} icon="📊"
+                               color="text-white" sub={`${fmtN(freteTotals.total)} cobranças acima da tabela`} />
                     </div>
 
-                    {freteByAnuncio.length > 0 && (
-                      <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
-                        <h3 className="text-sm font-semibold text-white mb-4">Top 15 Anúncios — Maior Impacto de Frete</h3>
-                        <div style={{ height: 350 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={freteByAnuncio} layout="vertical" margin={{ left: 200 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
-                              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => `R$ ${v.toFixed(0)}`} />
-                              <YAxis type="category" dataKey="titulo" tick={{ fill: '#94a3b8', fontSize: 10 }} width={190} tickFormatter={v => v.length > 30 ? v.slice(0, 30) + '…' : v} />
-                              <Tooltip contentStyle={{ background: '#1a1d2e', border: '1px solid #2a2d3e', borderRadius: 8 }}
-                                       formatter={(v) => [fmtR(v), 'Impacto']} />
-                              <Bar dataKey="impacto" name="Impacto">
-                                {freteByAnuncio.map((d, i) => (
-                                  <Cell key={i} fill={d.impacto < 0 ? '#ef4444' : '#22c55e'} />
-                                ))}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
+                    {/* Alerta urgente */}
+                    {freteTotals.urgente > 0 && (
+                      <div className="bg-red-900/20 border border-red-700/30 rounded-xl p-4 fade-in flex items-center justify-between">
+                        <div className="flex items-start gap-3">
+                          <span className="text-lg">🚨</span>
+                          <div>
+                            <p className="text-sm font-semibold text-red-400">{freteTotals.urgente} venda(s) expiram em até 5 dias — {fmtR(freteTotals.est_urgente)}</p>
+                            <p className="text-xs text-gge-muted mt-1">Copie a lista e solicite estorno no ML antes que expire!</p>
+                          </div>
                         </div>
+                        <button onClick={() => copyRefundList('urgente')}
+                                className="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-bold rounded-lg transition-colors">
+                          Copiar Urgentes
+                        </button>
                       </div>
                     )}
 
-                    {/* Alerta: fretes acionáveis */}
-                    {(() => {
-                      const now = new Date();
-                      const acionar = sortedFrete.filter(f => {
-                        const dias = Math.floor((now - new Date(f.data_venda)) / 864e5);
-                        return dias <= 30 && (Number(f.diferenca) || 0) < -1;
-                      });
-                      if (acionar.length > 0) return (
-                        <div className="bg-red-900/20 border border-red-700/30 rounded-xl p-4 fade-in flex items-start gap-3">
-                          <span className="text-lg">🚨</span>
+                    {/* Botão copiar todas reclamáveis */}
+                    {freteTotals.qtd_reclamavel > 0 && (
+                      <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in flex items-center justify-between">
+                        <div className="flex items-start gap-3">
+                          <span className="text-lg">📋</span>
                           <div>
-                            <p className="text-sm font-semibold text-red-400">{acionar.length} frete(s) podem ser reclamados agora</p>
-                            <p className="text-xs text-gge-muted mt-1">Estes envios estão dentro do prazo de 30 dias e o ML cobrou mais que o previsto. Reclame antes que expire!</p>
+                            <p className="text-sm font-semibold text-white">{fmtN(freteTotals.qtd_reclamavel)} vendas dentro do prazo de reclamação</p>
+                            <p className="text-xs text-gge-muted mt-1">Copia: Nº da Ordem | Valor do Estorno | Prazo Restante | Conta</p>
                           </div>
                         </div>
-                      );
-                      return null;
-                    })()}
+                        <button onClick={() => copyRefundList('all')}
+                                className="shrink-0 px-4 py-2 bg-gge-accent hover:bg-gge-accent/80 text-white text-sm font-bold rounded-lg transition-colors">
+                          Copiar Lista Completa
+                        </button>
+                      </div>
+                    )}
 
+                    {/* Tabela de estornos */}
                     <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
-                      <div className="p-5 border-b border-gge-border">
-                        <h3 className="text-sm font-semibold text-white">Detalhamento — Fretes em Desacordo</h3>
-                        <p className="text-xs text-gge-muted mt-1">Vermelho = ML cobrou mais. <span className="text-gge-green font-medium">Verde</span> = ainda dentro do prazo de 30 dias para reclamar.</p>
+                      <div className="p-5 border-b border-gge-border flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-semibold text-white">Cobranças de Frete Acima da Tabela ML</h3>
+                          <p className="text-xs text-gge-muted mt-1">Apenas envios onde o ML cobrou mais que a tabela oficial. Ordenado por urgência.</p>
+                        </div>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-gge-border text-xs text-gge-muted">
-                              <th className="text-left py-3 px-4 font-medium">Anúncio</th>
+                              <th className="text-left py-3 px-4 font-medium">Nº Ordem (para estorno)</th>
+                              <th className="text-left py-3 px-2 font-medium">Anúncio</th>
                               <th className="text-left py-3 px-2 font-medium">Conta</th>
+                              <th className="text-center py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('dias_para_reclamar')}>Prazo{sortIcon('dias_para_reclamar', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_previsto')}>Tabela ML{sortIcon('frete_previsto', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_cobrado_ml')}>Cobrado{sortIcon('frete_cobrado_ml', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('valor_estorno')}>Estorno{sortIcon('valor_estorno', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('excesso_pct')}>Excesso{sortIcon('excesso_pct', freteSortCol, freteSortDir)}</th>
                               <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('data_venda')}>Data{sortIcon('data_venda', freteSortCol, freteSortDir)}</th>
-                              <th className="text-center py-3 px-2 font-medium">Prazo</th>
-                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('preco_total')}>Venda{sortIcon('preco_total', freteSortCol, freteSortDir)}</th>
-                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_previsto')}>Previsto{sortIcon('frete_previsto', freteSortCol, freteSortDir)}</th>
-                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_real_ml')}>Real ML{sortIcon('frete_real_ml', freteSortCol, freteSortDir)}</th>
-                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('diferenca')}>Diferença{sortIcon('diferenca', freteSortCol, freteSortDir)}</th>
-                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('diferenca_pct')}>%{sortIcon('diferenca_pct', freteSortCol, freteSortDir)}</th>
-                              <th className="text-left py-3 px-2 font-medium">Origem</th>
+                              <th className="text-left py-3 px-2 font-medium">Modo</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {sortedFrete.slice(0, 300).map((d, i) => {
-                              const diff = Number(d.diferenca) || 0;
-                              const diasPassados = Math.floor((new Date() - new Date(d.data_venda)) / 864e5);
-                              const diasRestantes = 30 - diasPassados;
-                              const podeReclamar = diasRestantes > 0 && diff < -1;
+                            {sortedFrete.slice(0, 500).map((d, i) => {
+                              const dias = Number(d.dias_para_reclamar) || 0;
+                              const val = Number(d.valor_estorno) || 0;
                               return (
-                                <tr key={d.ordem_id} className={`border-b border-gge-border/50 row-hover ${podeReclamar ? 'bg-green-900/10' : ''} ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
-                                  <td className="py-2 px-4 max-w-[250px]">
-                                    <div className="text-sm text-white truncate">{d.titulo || '—'}</div>
-                                    <div className="text-xs text-gge-muted">{d.mlb_id}</div>
+                                <tr key={d.ordem_id + '_' + i} className={`border-b border-gge-border/50 row-hover ${dias > 0 ? 'bg-green-900/5' : ''} ${dias > 0 && dias <= 5 ? 'bg-red-900/10' : ''}`}>
+                                  <td className="py-2 px-4">
+                                    <div className="text-sm text-white font-mono font-medium">{d.ordem_id}</div>
+                                  </td>
+                                  <td className="py-2 px-2 max-w-[200px]">
+                                    <div className="text-xs text-gge-muted truncate">{d.titulo || '—'}</div>
+                                    <div className="text-[10px] text-gge-muted/60">{d.mlb_id}</div>
                                   </td>
                                   <td className="py-2 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
-                                  <td className="py-2 px-2 text-right text-xs text-gge-muted">{fmtDate(d.data_venda)}</td>
                                   <td className="py-2 px-2 text-center">
-                                    {diasRestantes > 0 ? (
-                                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold ${diasRestantes <= 5 ? 'bg-red-900/40 text-red-400 border-red-700/50' : diasRestantes <= 15 ? 'bg-yellow-900/40 text-yellow-400 border-yellow-700/50' : 'bg-green-900/40 text-green-400 border-green-700/50'}`}>
-                                        {diasRestantes}d
+                                    {dias > 0 ? (
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold ${dias <= 5 ? 'bg-red-900/40 text-red-400 border-red-700/50' : dias <= 15 ? 'bg-yellow-900/40 text-yellow-400 border-yellow-700/50' : 'bg-green-900/40 text-green-400 border-green-700/50'}`}>
+                                        {dias}d
                                       </span>
                                     ) : (
                                       <span className="text-[10px] px-1.5 py-0.5 rounded border bg-gge-bg text-gge-muted border-gge-border">Expirado</span>
                                     )}
                                   </td>
-                                  <td className="py-2 px-2 text-right text-white">{fmtR(d.preco_total)}</td>
                                   <td className="py-2 px-2 text-right text-gge-cyan">{fmtR(d.frete_previsto)}</td>
-                                  <td className="py-2 px-2 text-right text-gge-yellow">{fmtR(d.frete_real_ml)}</td>
-                                  <td className={`py-2 px-2 text-right font-bold ${diff < -5 ? 'text-gge-red' : diff > 5 ? 'text-gge-green' : 'text-gge-muted'}`}>{fmtR(diff)}</td>
-                                  <td className={`py-2 px-2 text-right text-xs ${diff < -10 ? 'text-gge-red' : 'text-gge-muted'}`}>{fmtP(Number(d.diferenca_pct))}</td>
-                                  <td className="py-2 px-2 text-xs text-gge-muted">{d.frete_origem}</td>
+                                  <td className="py-2 px-2 text-right text-gge-red">{fmtR(d.frete_cobrado_ml)}</td>
+                                  <td className="py-2 px-2 text-right font-bold text-gge-green">{fmtR(val)}</td>
+                                  <td className="py-2 px-2 text-right text-xs text-gge-orange">{fmtP(Number(d.excesso_pct))}</td>
+                                  <td className="py-2 px-2 text-right text-xs text-gge-muted">{fmtDate(d.data_venda)}</td>
+                                  <td className="py-2 px-2 text-xs text-gge-muted">{d.modo_logistica}</td>
                                 </tr>
                               );
                             })}
                           </tbody>
                         </table>
-                        {sortedFrete.length > 300 && (
-                          <div className="text-center py-3 text-xs text-gge-muted">Mostrando 300 de {fmtN(sortedFrete.length)} envios</div>
+                        {sortedFrete.length > 500 && (
+                          <div className="text-center py-3 text-xs text-gge-muted">Mostrando 500 de {fmtN(sortedFrete.length)} envios</div>
                         )}
                       </div>
                     </div>
