@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="/config.js"></script>
+  <script src="dados.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
@@ -307,7 +308,7 @@
       const [showParams, setShowParams] = useState(false);
 
       // Filters
-      const [periodoSel, setPeriodoSel] = useState('60d');
+      const [periodoSel, setPeriodoSel] = useState('30d');
       const [contaSel, setContaSel] = useState('');
       const [tipoSel, setTipoSel] = useState('');
       const [modeSel, setModeSel] = useState('');
@@ -619,7 +620,7 @@
       }
       const sortIcon = (col, active, dir) => col === active ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
 
-      const clearFilters = () => { setPeriodoSel('60d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); };
+      const clearFilters = () => { setPeriodoSel('30d'); setContaSel(''); setTipoSel(''); setModeSel(''); setKitSel(''); setCatSel(''); setFornSel(''); setPontoSel(''); };
 
       const periodoLabel = PERIODOS.find(p => p.v === periodoSel)?.l || '';
 
@@ -681,7 +682,7 @@
                 <FilterSelect label="Período" value={periodoSel} onChange={setPeriodoSel}
                               options={PERIODOS.map(p => p.v)} allLabel="Todo período"
                               labelFn={v => PERIODOS.find(p => p.v === v)?.l || v}
-                              isActive={periodoSel !== '60d'} />
+                              isActive={periodoSel !== '30d'} />
                 <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={filterOpts.contas} isActive={!!contaSel} />
                 <FilterSelect label="Listagem" value={tipoSel} onChange={setTipoSel} options={filterOpts.tipos} labelFn={labelTipo} isActive={!!tipoSel} />
                 <FilterSelect label="Logística" value={modeSel} onChange={setModeSel} options={filterOpts.modos} isActive={!!modeSel} />
