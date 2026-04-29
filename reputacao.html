@@ -582,7 +582,7 @@
       const sortedFrete = useMemo(() => {
         return [...filteredFrete].sort((a, b) => {
           let va = a[freteSortCol], vb = b[freteSortCol];
-          if (['valor_estorno', 'excesso_pct', 'frete_cobrado_ml', 'frete_previsto', 'preco_total', 'dias_para_reclamar'].includes(freteSortCol)) {
+          if (['valor_estorno', 'excesso_pct', 'frete_cobrado', 'frete_tabela', 'valor_total_envio', 'dias_para_reclamar'].includes(freteSortCol)) {
             va = Number(va) || 0; vb = Number(vb) || 0;
           }
           return freteSortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
@@ -599,11 +599,11 @@
         });
         if (items.length === 0) return;
         const lines = items.map(f =>
-          `${f.ordem_id}\tR$ ${Number(f.valor_estorno).toFixed(2)}\t${f.dias_para_reclamar}d restantes\t${f.conta_nome}`
+          `${f.ordens}\tR$ ${Number(f.valor_estorno).toFixed(2)}\tR$ ${Number(f.frete_tabela).toFixed(2)}\tR$ ${Number(f.frete_cobrado).toFixed(2)}\t${f.dias_para_reclamar}d restantes\t${f.conta_nome}`
         );
-        const header = 'Ordem\tValor Estorno\tPrazo\tConta';
+        const header = 'Ordem(ns)\tValor Estorno\tTabela ML\tCobrado\tPrazo\tConta';
         navigator.clipboard.writeText(header + '\n' + lines.join('\n'));
-        alert(`${items.length} ordens copiadas para a área de transferência!`);
+        alert(`${items.length} envios copiados para a área de transferência!`);
       }, [filteredFrete]);
 
       // Weekly evolution
@@ -858,17 +858,17 @@
                     {/* KPIs de estorno */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                       <KpiCard title="Total a Reclamar" value={fmtR(freteTotals.reclamavel)} icon="💰"
-                               color="text-gge-green" sub={`${fmtN(freteTotals.qtd_reclamavel)} vendas dentro do prazo`} />
+                               color="text-gge-green" sub={`${fmtN(freteTotals.qtd_reclamavel)} envios dentro do prazo`} />
                       <KpiCard title="URGENTE (1-5 dias)" value={fmtR(freteTotals.est_urgente)} icon="🚨"
                                color={freteTotals.urgente > 0 ? 'text-gge-red' : 'text-gge-muted'}
-                               sub={freteTotals.urgente > 0 ? `${freteTotals.urgente} vendas — agir AGORA` : 'Nenhuma'} />
+                               sub={freteTotals.urgente > 0 ? `${freteTotals.urgente} envios — agir AGORA` : 'Nenhum'} />
                       <KpiCard title="ATENÇÃO (6-15 dias)" value={fmtR(freteTotals.est_atencao)} icon="⚠️"
                                color={freteTotals.atencao > 0 ? 'text-gge-yellow' : 'text-gge-muted'}
-                               sub={`${freteTotals.atencao} vendas`} />
+                               sub={`${freteTotals.atencao} envios`} />
                       <KpiCard title="OK (16-30 dias)" value={fmtR(freteTotals.est_ok)} icon="✅"
-                               color="text-gge-green" sub={`${freteTotals.ok} vendas`} />
+                               color="text-gge-green" sub={`${freteTotals.ok} envios`} />
                       <KpiCard title="Já Expirado" value={fmtR(freteTotals.est_expirado)} icon="⏰"
-                               color="text-gge-muted" sub={`${freteTotals.expirado} vendas perdidas`} />
+                               color="text-gge-muted" sub={`${freteTotals.expirado} envios perdidos`} />
                       <KpiCard title="Total Histórico" value={fmtR(freteTotals.total_estorno)} icon="📊"
                                color="text-white" sub={`${fmtN(freteTotals.total)} cobranças acima da tabela`} />
                     </div>
@@ -879,7 +879,7 @@
                         <div className="flex items-start gap-3">
                           <span className="text-lg">🚨</span>
                           <div>
-                            <p className="text-sm font-semibold text-red-400">{freteTotals.urgente} venda(s) expiram em até 5 dias — {fmtR(freteTotals.est_urgente)}</p>
+                            <p className="text-sm font-semibold text-red-400">{freteTotals.urgente} envio(s) expiram em até 5 dias — {fmtR(freteTotals.est_urgente)}</p>
                             <p className="text-xs text-gge-muted mt-1">Copie a lista e solicite estorno no ML antes que expire!</p>
                           </div>
                         </div>
@@ -896,7 +896,7 @@
                         <div className="flex items-start gap-3">
                           <span className="text-lg">📋</span>
                           <div>
-                            <p className="text-sm font-semibold text-white">{fmtN(freteTotals.qtd_reclamavel)} vendas dentro do prazo de reclamação</p>
+                            <p className="text-sm font-semibold text-white">{fmtN(freteTotals.qtd_reclamavel)} envios dentro do prazo de reclamação</p>
                             <p className="text-xs text-gge-muted mt-1">Copia: Nº da Ordem | Valor do Estorno | Prazo Restante | Conta</p>
                           </div>
                         </div>
@@ -919,12 +919,12 @@
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-gge-border text-xs text-gge-muted">
-                              <th className="text-left py-3 px-4 font-medium">Nº Ordem (para estorno)</th>
-                              <th className="text-left py-3 px-2 font-medium">Anúncio</th>
+                              <th className="text-left py-3 px-4 font-medium">Nº Ordem(ns)</th>
                               <th className="text-left py-3 px-2 font-medium">Conta</th>
                               <th className="text-center py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('dias_para_reclamar')}>Prazo{sortIcon('dias_para_reclamar', freteSortCol, freteSortDir)}</th>
-                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_previsto')}>Tabela ML{sortIcon('frete_previsto', freteSortCol, freteSortDir)}</th>
-                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_cobrado_ml')}>Cobrado{sortIcon('frete_cobrado_ml', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('valor_total_envio')}>Valor Envio{sortIcon('valor_total_envio', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_tabela')}>Tabela ML{sortIcon('frete_tabela', freteSortCol, freteSortDir)}</th>
+                              <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('frete_cobrado')}>Cobrado{sortIcon('frete_cobrado', freteSortCol, freteSortDir)}</th>
                               <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('valor_estorno')}>Estorno{sortIcon('valor_estorno', freteSortCol, freteSortDir)}</th>
                               <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('excesso_pct')}>Excesso{sortIcon('excesso_pct', freteSortCol, freteSortDir)}</th>
                               <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleFreteSort('data_venda')}>Data{sortIcon('data_venda', freteSortCol, freteSortDir)}</th>
@@ -936,13 +936,10 @@
                               const dias = Number(d.dias_para_reclamar) || 0;
                               const val = Number(d.valor_estorno) || 0;
                               return (
-                                <tr key={d.ordem_id + '_' + i} className={`border-b border-gge-border/50 row-hover ${dias > 0 ? 'bg-green-900/5' : ''} ${dias > 0 && dias <= 5 ? 'bg-red-900/10' : ''}`}>
+                                <tr key={d.shipment_id + '_' + i} className={`border-b border-gge-border/50 row-hover ${dias > 0 ? 'bg-green-900/5' : ''} ${dias > 0 && dias <= 5 ? 'bg-red-900/10' : ''}`}>
                                   <td className="py-2 px-4">
-                                    <div className="text-sm text-white font-mono font-medium">{d.ordem_id}</div>
-                                  </td>
-                                  <td className="py-2 px-2 max-w-[200px]">
-                                    <div className="text-xs text-gge-muted truncate">{d.titulo || '—'}</div>
-                                    <div className="text-[10px] text-gge-muted/60">{d.mlb_id}</div>
+                                    <div className="text-sm text-white font-mono font-medium">{d.ordens}</div>
+                                    {d.qtd_ordens > 1 && <div className="text-[10px] text-gge-muted/60">Carrinho ({d.qtd_ordens} itens)</div>}
                                   </td>
                                   <td className="py-2 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
                                   <td className="py-2 px-2 text-center">
@@ -954,12 +951,13 @@
                                       <span className="text-[10px] px-1.5 py-0.5 rounded border bg-gge-bg text-gge-muted border-gge-border">Expirado</span>
                                     )}
                                   </td>
-                                  <td className="py-2 px-2 text-right text-gge-cyan">{fmtR(d.frete_previsto)}</td>
-                                  <td className="py-2 px-2 text-right text-gge-red">{fmtR(d.frete_cobrado_ml)}</td>
+                                  <td className="py-2 px-2 text-right text-xs text-gge-muted">{fmtR(d.valor_total_envio)}</td>
+                                  <td className="py-2 px-2 text-right text-gge-cyan">{fmtR(d.frete_tabela)}</td>
+                                  <td className="py-2 px-2 text-right text-gge-red">{fmtR(d.frete_cobrado)}</td>
                                   <td className="py-2 px-2 text-right font-bold text-gge-green">{fmtR(val)}</td>
                                   <td className="py-2 px-2 text-right text-xs text-gge-orange">{fmtP(Number(d.excesso_pct))}</td>
                                   <td className="py-2 px-2 text-right text-xs text-gge-muted">{fmtDate(d.data_venda)}</td>
-                                  <td className="py-2 px-2 text-xs text-gge-muted">{d.modo_logistica}</td>
+                                  <td className="py-2 px-2 text-xs text-gge-muted">{d.modo}</td>
                                 </tr>
                               );
                             })}
