@@ -556,11 +556,18 @@
             border-left: 3px solid #58a6ff;
         }
 
+        .projection-header {
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
         .projection-title {
             font-size: 11px;
             font-weight: 600;
             color: #8b949e;
-            margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
@@ -568,32 +575,39 @@
         .projection-dates {
             font-size: 10px;
             color: #6e7681;
-            margin-bottom: 10px;
         }
 
         .projection-value {
             font-size: 20px;
             font-weight: 700;
             color: #c9d1d9;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
-        .projection-label-main {
-            font-size: 10px;
-            color: #8b949e;
-            margin-bottom: 10px;
+        .projection-mc2 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
         }
 
-        .projection-proj30 {
-            font-size: 14px;
+        .projection-mc2.positive { color: #3fb950; }
+        .projection-mc2.negative { color: #f85149; }
+
+        .projection-proj30-line {
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
+            gap: 4px;
+            font-size: 11px;
+        }
+
+        .projection-proj30-label {
+            color: #6e7681;
+        }
+
+        .projection-proj30-value {
             font-weight: 600;
             color: #58a6ff;
-        }
-
-        .projection-label-sub {
-            font-size: 9px;
-            color: #6e7681;
-            margin-top: 2px;
         }
 
         /* Charts */
@@ -1562,48 +1576,34 @@
         // ========== RENDER EVOLUÇÃO MENSAL ==========
         async function renderEvolucaoMensal(conta, dateRange) {
             try {
-                // Determine how many months to show based on the selected period
+                // SEMPRE mostra 12 meses, independente do filtro de período
                 const today = new Date();
-                let monthsToShow = 12; // default
-                if (dateRange && dateRange.from) {
-                    const fromDate = new Date(dateRange.from);
-                    const diffMs = today - fromDate;
-                    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-                    if (diffDays <= 31) monthsToShow = 1;
-                    else if (diffDays <= 62) monthsToShow = 2;
-                    else if (diffDays <= 93) monthsToShow = 3;
-                    else if (diffDays <= 186) monthsToShow = 6;
-                    else if (diffDays <= 366) monthsToShow = 12;
-                    else monthsToShow = Math.min(24, Math.ceil(diffDays / 30));
-                }
-                // Always fetch enough data for YoY comparison (monthsToShow + 12 prior months)
-                const fetchMonths = monthsToShow + 12;
-                const fetchStart = new Date(today.getFullYear(), today.getMonth() - fetchMonths, 1);
-                const startMonth = `${fetchStart.getFullYear()}-${pad(fetchStart.getMonth()+1)}`;
+                const monthsToShow = 12;
 
-                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=mes,receita,margem_valor&order=mes.asc&limit=10000`;
-                url += `&mes=gte.${startMonth}-01`;
+                // Fetch monthly aggregates from vw_evolucao_mensal (já agrupado no servidor)
+                let url = `${SUPABASE_URL}/rest/v1/vw_evolucao_mensal?select=mes_venda,receita,margem_valor&order=mes_venda.asc`;
                 if (conta) url += `&conta_id=eq.${conta}`;
 
                 const response = await fetch(url, {
                     headers: {
                         'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json'
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
                     }
                 });
-
                 if (!response.ok) throw new Error(`Query error: ${response.status}`);
                 const rawData = await response.json();
+                console.log(`[Evolução] ${rawData.length} meses carregados`);
 
-                // Aggregate by mes
+                // Aggregate by mes_venda (caso filtro por conta não seja usado, agrupa todas as contas)
                 const aggregated = {};
                 rawData.forEach(row => {
-                    if (!aggregated[row.mes]) {
-                        aggregated[row.mes] = { receita: 0, margem_valor: 0 };
+                    const mes = row.mes_venda;
+                    if (!mes) return;
+                    if (!aggregated[mes]) {
+                        aggregated[mes] = { receita: 0, margem_valor: 0 };
                     }
-                    aggregated[row.mes].receita += row.receita || 0;
-                    aggregated[row.mes].margem_valor += row.margem_valor || 0;
+                    aggregated[mes].receita += Number(row.receita) || 0;
+                    aggregated[mes].margem_valor += Number(row.margem_valor) || 0;
                 });
 
                 // Build months to display based on selected period
@@ -1751,22 +1751,31 @@
         // ========== RENDER CURVA ABC ==========
         async function renderCurvaABC(conta, dateRange) {
             try {
-                let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=sku_vendedor,receita`;
+                let baseUrl = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=sku_vendedor,receita`;
 
                 if (conta) {
-                    url += `&conta_id=eq.${conta}`;
+                    baseUrl += `&conta_id=eq.${conta}`;
                 }
 
-                const response = await fetch(url, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) throw new Error(`Query error: ${response.status}`);
-                const rawData = await response.json();
+                // Paginação: Supabase REST limita a 1000 rows
+                const rawData = [];
+                const PG = 1000;
+                let off = 0;
+                while (true) {
+                    const resp = await fetch(baseUrl, {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Range': `${off}-${off + PG - 1}`
+                        }
+                    });
+                    if (!resp.ok && resp.status !== 206) throw new Error(`Query error: ${resp.status}`);
+                    const page = await resp.json();
+                    if (!page || page.length === 0) break;
+                    rawData.push(...page);
+                    if (page.length < PG) break;
+                    off += PG;
+                }
 
                 // Aggregate by sku_vendedor
                 const skuMap = {};
@@ -1896,7 +1905,7 @@
                 if (!currentData) return;
 
                 const today = new Date();
-                const todayStr = localDate(today);
+                const fmtShort = (d) => `${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
 
                 // 8 janelas de 7 dias: semana 1 = últimos 7 dias, semana 2 = 8-14 dias atrás, etc.
                 const weeks = [];
@@ -1909,22 +1918,32 @@
                     const fromStr = localDate(startDate);
                     const toStr = localDate(endDate);
 
-                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=preco_total&data_venda=gte.${fromStr}&data_venda=lt.${toStr}&status=neq.cancelled&limit=10000`;
-                    if (currentConta) url += `&conta_id=eq.${currentConta}`;
+                    // Buscar faturamento de vendas
+                    let urlVendas = `${SUPABASE_URL}/rest/v1/vendas?select=preco_total&data_venda=gte.${fromStr}&data_venda=lt.${toStr}&status=neq.cancelled&limit=10000`;
+                    if (currentConta) urlVendas += `&conta_id=eq.${currentConta}`;
 
-                    const resp = await fetch(url, {
-                        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-                    });
-                    const rows = await resp.json();
-                    const totalVendas = Array.isArray(rows) ? rows.reduce((s, r) => s + (parseFloat(r.preco_total) || 0), 0) : 0;
+                    // Buscar MC2 de mat_margem_canonica
+                    let urlMC2 = `${SUPABASE_URL}/rest/v1/mat_margem_canonica?select=margem_valor&data_venda=gte.${fromStr}&data_venda=lt.${toStr}&limit=10000`;
+                    if (currentConta) urlMC2 += `&conta_id=eq.${currentConta}`;
+
+                    const hdrs = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+
+                    const [respV, respM] = await Promise.all([
+                        fetch(urlVendas, { headers: hdrs }),
+                        fetch(urlMC2, { headers: hdrs })
+                    ]);
+
+                    const rowsV = await respV.json();
+                    const rowsM = await respM.json();
+
+                    const totalVendas = Array.isArray(rowsV) ? rowsV.reduce((s, r) => s + (parseFloat(r.preco_total) || 0), 0) : 0;
+                    const totalMC2 = Array.isArray(rowsM) ? rowsM.reduce((s, r) => s + (parseFloat(r.margem_valor) || 0), 0) : 0;
                     const proj30 = (totalVendas / 7) * 30;
-
-                    // Formatar datas curtas (dd/mm)
-                    const fmtShort = (d) => `${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
 
                     weeks.push({
                         weekNum: w + 1,
                         totalVendas,
+                        totalMC2,
                         proj30,
                         dateLabel: `${fmtShort(startDate)} a ${fmtShort(new Date(endDate.getTime() - 86400000))}`,
                         isCurrent: w === 0
@@ -1934,16 +1953,22 @@
                 // Renderizar da mais antiga (semana 8) para a mais recente (semana 1)
                 const reversed = [...weeks].reverse();
 
-                const html = reversed.map(w => `
+                const html = reversed.map(w => {
+                    const mc2Class = w.totalMC2 >= 0 ? 'positive' : 'negative';
+                    return `
                     <div class="projection-card${w.isCurrent ? ' current-week' : ''}">
-                        <div class="projection-title">${w.isCurrent ? 'ESTA SEMANA' : 'SEMANA ' + w.weekNum}</div>
-                        <div class="projection-dates">${w.dateLabel}</div>
+                        <div class="projection-header">
+                            <span class="projection-title">${w.isCurrent ? 'ESTA SEMANA' : 'SEMANA ' + w.weekNum}</span>
+                            <span class="projection-dates">${w.dateLabel}</span>
+                        </div>
                         <div class="projection-value">${fmt(w.totalVendas)}</div>
-                        <div class="projection-label-main">vendido em 7 dias</div>
-                        <div class="projection-proj30">${fmt(w.proj30)}</div>
-                        <div class="projection-label-sub">projeção 30 dias</div>
+                        <div class="projection-mc2 ${mc2Class}">MC2 ${fmt(w.totalMC2)}</div>
+                        <div class="projection-proj30-line">
+                            <span class="projection-proj30-label">proj 30 d.</span>
+                            <span class="projection-proj30-value">${fmt(w.proj30)}</span>
+                        </div>
                     </div>
-                `).join('');
+                `}).join('');
 
                 document.getElementById('projections-grid').innerHTML = html;
             } catch (error) {
