@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Automação · Controle Total GGE</title>
+  <title>Automacao · Controle Total GGE</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="/config.js"></script>
+  <script src="dados.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = { theme: { extend: { colors: {
@@ -47,6 +48,21 @@
     const STATUS_LABEL = { winning:'Winning', competing:'Competing', sharing_first_place:'Dividindo 1º', not_listed:'Não listado', unknown:'—' };
     const STATUS_COLOR = { winning:'text-gge-green', competing:'text-gge-orange', sharing_first_place:'text-gge-cyan', not_listed:'text-gge-red' };
 
+    // Calcula margem estimada no Price to Win
+    function calcMargemPTW(anuncio, comp) {
+      if (!comp || !comp.price_to_win || !anuncio.custo_unitario) return null;
+      const ptw = Number(comp.price_to_win);
+      const custo = Number(anuncio.custo_unitario);
+      const frete = Number(anuncio.frete_medio) || 0;
+      // Estima taxa de comissao a partir dos dados atuais
+      const precoAtual = Number(anuncio.preco_atual) || 1;
+      const comissaoAtual = Number(anuncio.comissao_media) || 0;
+      const taxaComissao = comissaoAtual > 0 ? (comissaoAtual / precoAtual) : 0.12;
+      const comissaoPTW = ptw * taxaComissao;
+      const mc = ptw - custo - comissaoPTW - frete;
+      return ptw > 0 ? (mc / ptw * 100) : null;
+    }
+
     function App() {
       const [params, setParams] = useState([]);
       const [anuncios, setAnuncios] = useState([]);
@@ -54,30 +70,42 @@
       const [loading, setLoading] = useState(true);
       const [saving, setSaving] = useState(null);
       const [tab, setTab] = useState('parametros');
+      const [compDate, setCompDate] = useState(null);
 
       useEffect(() => {
         async function load() {
           const [pRes, aRes, lRes] = await Promise.all([
             sb.from('parametros_catalogo').select('*').order('parametro'),
-            sb.from('vw_catalogo_dashboard').select('mlb_id, titulo, sku_vendedor, preco_atual, conta_nome, modo_logistica, margem_pct, vendas_30d, classificacao')
+            sb.from('vw_catalogo_dashboard').select('mlb_id, titulo, sku_vendedor, preco_atual, conta_nome, modo_logistica, margem_pct, vendas_30d, classificacao, custo_unitario, comissao_media, frete_medio')
               .order('vendas_30d', {ascending: false}),
             sb.from('log_automacao').select('*').order('criado_em', {ascending: false}).limit(50),
           ]);
           setParams(pRes.data || []);
+
           // Get modo_auto from anuncios
           const { data: autoFlags } = await sb.from('anuncios').select('mlb_id, modo_auto').eq('em_catalogo', true).eq('status', 'active');
           const autoMap = {};
           (autoFlags || []).forEach(a => { autoMap[a.mlb_id] = a.modo_auto || false; });
-          // Get competition data
-          const today = new Date().toISOString().slice(0,10);
-          const { data: compData } = await sb.from('catalogo_competicao').select('*').eq('data_coleta', today);
-          const compMap = {};
-          (compData || []).forEach(c => { compMap[c.mlb_id] = c; });
+
+          // CORRECAO: Buscar data mais recente de competicao (nao apenas "hoje")
+          const { data: latestDateRows } = await sb.from('catalogo_competicao')
+            .select('data_coleta')
+            .order('data_coleta', { ascending: false })
+            .limit(1);
+          const latestDate = latestDateRows && latestDateRows.length > 0 ? latestDateRows[0].data_coleta : null;
+          setCompDate(latestDate);
+
+          let compMap = {};
+          if (latestDate) {
+            const { data: compData } = await sb.from('catalogo_competicao').select('*').eq('data_coleta', latestDate);
+            (compData || []).forEach(c => { compMap[c.mlb_id] = c; });
+          }
 
           const enriched = (aRes.data || []).map(a => ({
             ...a,
             modo_auto: autoMap[a.mlb_id] || false,
             comp: compMap[a.mlb_id] || null,
+            margem_ptw: calcMargemPTW(a, compMap[a.mlb_id]),
           }));
           setAnuncios(enriched);
           setLogs(lRes.data || []);
@@ -111,7 +139,7 @@
 
       if (loading) return (
         <div className="max-w-6xl mx-auto p-6">
-          <h1 className="text-2xl font-bold mb-6">Automação</h1>
+          <h1 className="text-2xl font-bold mb-6">Automacao</h1>
           <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="bg-gge-card border border-gge-border rounded-xl h-32 animate-pulse" />)}</div>
         </div>
       );
@@ -120,14 +148,17 @@
         <div className="max-w-6xl mx-auto p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold">Automação de Catálogos</h1>
-              <p className="text-sm text-gge-muted mt-1">{autoCount} de {anuncios.length} anúncios no automático</p>
+              <h1 className="text-2xl font-bold">Automacao de Catalogos</h1>
+              <p className="text-sm text-gge-muted mt-1">
+                {autoCount} de {anuncios.length} anuncios no automatico
+                {compDate && <span> · Dados de competicao: {new Date(compDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+              </p>
             </div>
             <div className="flex gap-2">
               {['parametros','anuncios','log'].map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
-                  {t === 'parametros' ? 'Parâmetros' : t === 'anuncios' ? 'Anúncios' : 'Log de Ações'}
+                  {t === 'parametros' ? 'Parametros' : t === 'anuncios' ? 'Anuncios' : 'Log de Acoes'}
                 </button>
               ))}
             </div>
@@ -136,8 +167,8 @@
           {tab === 'parametros' && (
             <div className="space-y-4 fade-in">
               <div className="bg-gge-card border border-gge-border rounded-xl p-5">
-                <h2 className="text-lg font-semibold text-white mb-4">Parâmetros de Decisão</h2>
-                <p className="text-xs text-gge-muted mb-4">Estes valores controlam quando o sistema sobe, desce ou mantém preços. Altere e o próximo ciclo já usa os novos valores.</p>
+                <h2 className="text-lg font-semibold text-white mb-4">Parametros de Decisao</h2>
+                <p className="text-xs text-gge-muted mb-4">Estes valores controlam quando o sistema sobe, desce ou mantem precos. Altere e o proximo ciclo ja usa os novos valores.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {params.map(p => (
                     <div key={p.parametro} className="bg-gge-bg border border-gge-border/50 rounded-lg p-4">
@@ -164,7 +195,7 @@
             <div className="space-y-4 fade-in">
               <div className="bg-gge-card border border-gge-border rounded-xl p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-white">Controle por Anúncio</h2>
+                  <h2 className="text-lg font-semibold text-white">Controle por Anuncio</h2>
                   <div className="flex gap-2">
                     <button onClick={() => toggleAllAuto(true)} className="px-3 py-1.5 text-xs bg-gge-green/20 text-gge-green border border-gge-green/30 rounded-lg hover:bg-gge-green/30">
                       Ligar todos
@@ -179,13 +210,14 @@
                     <thead>
                       <tr className="border-b border-gge-border text-xs text-gge-muted">
                         <th className="text-center py-3 px-2 w-16">Auto</th>
-                        <th className="text-left py-3 px-2">Anúncio</th>
+                        <th className="text-left py-3 px-2">Anuncio</th>
                         <th className="text-left py-3 px-2">Conta</th>
                         <th className="text-center py-3 px-2">Status</th>
-                        <th className="text-right py-3 px-2">Preço</th>
                         <th className="text-right py-3 px-2">Price to Win</th>
+                        <th className="text-right py-3 px-2">Margem PTW</th>
+                        <th className="text-right py-3 px-2">Nosso PV</th>
+                        <th className="text-right py-3 px-2">Margem PV</th>
                         <th className="text-right py-3 px-2">Gap</th>
-                        <th className="text-right py-3 px-2">Margem</th>
                         <th className="text-right py-3 px-2">Vendas</th>
                       </tr>
                     </thead>
@@ -193,6 +225,7 @@
                       {anuncios.map((a, i) => {
                         const comp = a.comp;
                         const gap = comp?.gap_preco || 0;
+                        const margemPTW = a.margem_ptw;
                         return (
                           <tr key={a.mlb_id} className={`border-b border-gge-border/50 ${i % 2 ? 'bg-white/[0.02]' : ''}`}>
                             <td className="py-2 px-2 text-center">
@@ -209,13 +242,16 @@
                                 {STATUS_LABEL[comp?.status_competicao] || '—'}
                               </span>
                             </td>
-                            <td className="py-2 px-2 text-right text-white">{fmtR(a.preco_atual)}</td>
                             <td className="py-2 px-2 text-right text-gge-cyan">{comp?.price_to_win ? fmtR(comp.price_to_win) : '—'}</td>
-                            <td className={`py-2 px-2 text-right font-bold ${gap > 0 ? 'text-gge-red' : gap < 0 ? 'text-gge-green' : 'text-gge-muted'}`}>
-                              {gap ? fmtR(gap) : '—'}
+                            <td className={`py-2 px-2 text-right font-semibold ${margemPTW != null ? (margemPTW >= 5 ? 'text-gge-green' : margemPTW >= 0 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
+                              {margemPTW != null ? fmtP(margemPTW) : '—'}
                             </td>
+                            <td className="py-2 px-2 text-right text-white">{fmtR(a.preco_atual)}</td>
                             <td className={`py-2 px-2 text-right ${Number(a.margem_pct) >= 5 ? 'text-gge-green' : Number(a.margem_pct) < 0 ? 'text-gge-red' : 'text-gge-yellow'}`}>
                               {fmtP(a.margem_pct)}
+                            </td>
+                            <td className={`py-2 px-2 text-right font-bold ${gap > 0 ? 'text-gge-red' : gap < 0 ? 'text-gge-green' : 'text-gge-muted'}`}>
+                              {gap ? fmtR(gap) : '—'}
                             </td>
                             <td className="py-2 px-2 text-right text-gge-muted">{fmtN(a.vendas_30d)}</td>
                           </tr>
@@ -224,6 +260,11 @@
                     </tbody>
                   </table>
                 </div>
+                {!compDate && (
+                  <div className="mt-3 p-3 bg-gge-yellow/10 border border-gge-yellow/20 rounded-lg text-xs text-gge-yellow">
+                    Sem dados de competicao disponveis. Verifique se a coleta de catalogo esta rodando.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -231,9 +272,9 @@
           {tab === 'log' && (
             <div className="space-y-4 fade-in">
               <div className="bg-gge-card border border-gge-border rounded-xl p-4">
-                <h2 className="text-lg font-semibold text-white mb-4">Log de Ações</h2>
+                <h2 className="text-lg font-semibold text-white mb-4">Log de Acoes</h2>
                 {logs.length === 0 ? (
-                  <p className="text-gge-muted text-sm py-8 text-center">Nenhuma ação registrada ainda. O motor de automação roda diariamente às 7h.</p>
+                  <p className="text-gge-muted text-sm py-8 text-center">Nenhuma acao registrada ainda. O motor de automacao roda diariamente as 7h.</p>
                 ) : (
                   <div className="space-y-2">
                     {logs.map(l => (
@@ -241,9 +282,9 @@
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${l.executado ? 'bg-gge-green/20 text-gge-green' : 'bg-gge-accent/20 text-gge-accent'}`}>
-                              {l.executado ? 'EXECUTADO' : 'RECOMENDAÇÃO'}
+                              {l.executado ? 'EXECUTADO' : 'RECOMENDACAO'}
                             </span>
-                            <span className="text-xs text-gge-muted">{l.modo === 'auto' ? 'Automático' : 'Manual'}</span>
+                            <span className="text-xs text-gge-muted">{l.modo === 'auto' ? 'Automatico' : 'Manual'}</span>
                             <span className="text-xs font-bold text-white">{l.acao?.replace(/_/g, ' ')}</span>
                           </div>
                           <span className="text-xs text-gge-muted">{fmtDate(l.criado_em)}</span>
@@ -252,7 +293,7 @@
                         <div className="text-sm text-gge-text">{l.motivo}</div>
                         {l.preco_anterior && l.preco_novo && (
                           <div className="text-xs text-gge-muted mt-1">
-                            Preço: {fmtR(l.preco_anterior)} → {fmtR(l.preco_novo)}
+                            Preco: {fmtR(l.preco_anterior)} &rarr; {fmtR(l.preco_novo)}
                             {l.margem_estimada && ` · Margem estimada: ${fmtP(l.margem_estimada)}`}
                           </div>
                         )}
