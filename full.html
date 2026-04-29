@@ -162,6 +162,7 @@
       const [sortCol, setSortCol] = useState('cobertura');
       const [sortDir, setSortDir] = useState('asc');
       const [erroMsg, setErroMsg] = useState(null);
+      const [stockQuality, setStockQuality] = useState(null);
 
       // Fetch data
       useEffect(() => {
@@ -208,6 +209,20 @@
               .select('*')
               .order('id', { ascending: false })
               .limit(1000);
+
+            // 6. Stock Quality metrics (sistema em camadas: site > calculado)
+            const { data: sqData } = await sb.from('stock_quality_metrics')
+              .select('*')
+              .eq('conta_id', 'e761652f-07fa-49d2-a6c7-1b738862ab08')
+              .order('coletado_em', { ascending: false })
+              .limit(10);
+
+            if (sqData && sqData.length > 0) {
+              // Preferir fonte='site', senão usar 'calculado'
+              const siteRow = sqData.find(r => r.fonte === 'site');
+              const calcRow = sqData.find(r => r.fonte === 'calculado');
+              setStockQuality(siteRow || calcRow);
+            }
 
             setAnuncios(anunciosData || []);
             setFullMlbs(fullSet);
@@ -496,6 +511,83 @@
             {/* Tab: Visao Geral */}
             {tab === 'visao' && (
               <div className="space-y-6 fade-in">
+
+                {/* Qualidade de Estoque ML */}
+                {stockQuality && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-sm font-semibold text-white">Qualidade de Estoque</h3>
+                      <Badge text={stockQuality.fonte === 'site' ? 'DADOS ML' : 'ESTIMATIVA'} color={stockQuality.fonte === 'site' ? 'green' : 'yellow'} />
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {/* Pontuação */}
+                      <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">&#9733;</span>
+                          <span className="text-xs text-gge-muted font-medium">Pontuação</span>
+                        </div>
+                        <div className={`text-2xl font-bold ${stockQuality.pontuacao != null ? (stockQuality.pontuacao >= 80 ? 'text-gge-green' : stockQuality.pontuacao >= 60 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
+                          {stockQuality.pontuacao != null ? stockQuality.pontuacao + ' pts' : '--'}
+                        </div>
+                        <div className="text-[10px] text-gge-muted mt-1">
+                          {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
+                        </div>
+                      </div>
+                      {/* Fora de venda */}
+                      <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">&#10060;</span>
+                          <span className="text-xs text-gge-muted font-medium">Fora de venda</span>
+                        </div>
+                        <div className={`text-2xl font-bold ${stockQuality.fora_de_venda_pct != null ? (Number(stockQuality.fora_de_venda_pct) <= 2 ? 'text-gge-green' : Number(stockQuality.fora_de_venda_pct) <= 5 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
+                          {stockQuality.fora_de_venda_pct != null ? Number(stockQuality.fora_de_venda_pct).toFixed(1).replace('.',',') + '%' : '--'}
+                        </div>
+                        <div className="text-[10px] text-gge-muted mt-1">
+                          {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
+                        </div>
+                      </div>
+                      {/* Sem vendas 30d */}
+                      <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">&#128164;</span>
+                          <span className="text-xs text-gge-muted font-medium">Sem vendas 30d</span>
+                        </div>
+                        <div className={`text-2xl font-bold ${stockQuality.sem_vendas_30d_pct != null ? (Number(stockQuality.sem_vendas_30d_pct) <= 2 ? 'text-gge-green' : Number(stockQuality.sem_vendas_30d_pct) <= 5 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
+                          {stockQuality.sem_vendas_30d_pct != null ? Number(stockQuality.sem_vendas_30d_pct).toFixed(1).replace('.',',') + '%' : '--'}
+                        </div>
+                        <div className="text-[10px] text-gge-muted mt-1">
+                          {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
+                        </div>
+                      </div>
+                      {/* Com tempo de estoque */}
+                      <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">&#9203;</span>
+                          <span className="text-xs text-gge-muted font-medium">Com tempo estoque</span>
+                        </div>
+                        <div className={`text-2xl font-bold ${stockQuality.com_tempo_estoque_pct != null ? (Number(stockQuality.com_tempo_estoque_pct) <= 5 ? 'text-gge-green' : Number(stockQuality.com_tempo_estoque_pct) <= 10 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
+                          {stockQuality.com_tempo_estoque_pct != null ? Number(stockQuality.com_tempo_estoque_pct).toFixed(1).replace('.',',') + '%' : '--'}
+                        </div>
+                        <div className="text-[10px] text-gge-muted mt-1">
+                          {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
+                        </div>
+                      </div>
+                      {/* Excede projeção */}
+                      <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">&#128200;</span>
+                          <span className="text-xs text-gge-muted font-medium">Excede projeção</span>
+                        </div>
+                        <div className={`text-2xl font-bold ${stockQuality.excede_projecao_pct != null ? (Number(stockQuality.excede_projecao_pct) <= 2 ? 'text-gge-green' : Number(stockQuality.excede_projecao_pct) <= 5 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
+                          {stockQuality.excede_projecao_pct != null ? Number(stockQuality.excede_projecao_pct).toFixed(1).replace('.',',') + '%' : '--'}
+                        </div>
+                        <div className="text-[10px] text-gge-muted mt-1">
+                          {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
