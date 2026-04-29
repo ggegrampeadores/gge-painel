@@ -983,7 +983,7 @@
         async function fetchVendas() {
           setLoadingVendas(true);
           const { data: rows, error } = await supabase
-            .from('vw_margem_canonica')
+            .from('mat_margem_canonica')
             .select('ordem_id,data_venda,quantidade,receita,comissao,custo_frete,frete_origem,custo_produto,custo_origem,custo_ads_rateado,ads_origem,pis_cofins_debito,credito_pis_cofins,imposto_simples,difal_reserva,margem_valor,margem_pct,comprador_uf,icms_debito_valor,pis_cofins_liq_valor,impostos_total,icms_aliq_nf')
             .eq('mlb_id', mlbId)
             .order('data_venda', { ascending: false })
@@ -1207,19 +1207,19 @@
             // 2) mat_margem_canonica for exact date filtering in totals
             // 3) vendas for cancel totals
             const [segRes, saldoRes, rawSalesRes, vendasAllRes] = await Promise.all([
-              supabase.from('vw_margem_segmentada').select('*').order('mes', { ascending: false }),
+              fetchAll(() => supabase.from('vw_margem_segmentada').select('*').order('mes', { ascending: false })),
               supabase.from('vw_saldo_vendas').select('*').order('mes', { ascending: false }),
               fetchAll(() => supabase.from('mat_margem_canonica').select('ordem_id,mlb_id,conta_nome,data_venda,receita,comissao,custo_frete,custo_produto,custo_ads_rateado,pis_cofins_debito,credito_pis_cofins,imposto_simples,icms_debito_valor,difal_reserva,margem_valor,margem_pct,tem_custo,tem_frete_real,tem_ads_real,sku_vendedor,titulo').order('data_venda', { ascending: false })),
-              fetchAll(() => supabase.from('vendas').select('ordem_id,conta_id,data_venda,preco_total,status').order('data_venda', { ascending: false }))
+              supabase.from('vw_vendas_resumo_diario').select('dia,conta_id,status,qtd,valor_total').order('dia', { ascending: false }).limit(5000)
             ]);
-            if (segRes.error) throw segRes.error;
-            const data = segRes.data || [];
+            // segRes is array from fetchAll, saldoRes/vendasAllRes have .data
+            const data = segRes || [];
             setRawData(data);
             setSaldoData(saldoRes.data || []);
 
             // Store raw sales for date-based filtering (using state, not window)
             setRawSales(rawSalesRes || []);
-            setVendasAll(vendasAllRes || []);
+            setVendasAll(vendasAllRes.data || []);
             const cl = {};
             (saldoRes.data || []).forEach(s => { cl[s.conta_id] = s.conta_nome; });
             setContaLookup(cl);
@@ -1349,28 +1349,29 @@
         };
       }, [rawData, activeMeses]);
 
-      // Cancel totals — v3: exact date range from vendas table
+      // Cancel totals — v4: aggregated daily data (1.3k rows instead of 24k)
       const cancelTotals = useMemo(() => {
         const { from: fromD, to: toD } = dateRange;
         const cl = contaLookup || {};
-        const vendas = (vendasAll || []).filter(v => {
-          const dv = (v.data_venda || '').slice(0, 10);
+        const rows = (vendasAll || []).filter(v => {
+          const dv = v.dia || '';
           if (dv < fromD || dv > toD) return false;
           if (contaSel && cl[v.conta_id] !== contaSel) return false;
           return true;
         });
         const t = { bruto: 0, cancelado: 0, liquido: 0, qtd_vendas: 0, qtd_cancel: 0, qtd_refund: 0, refund_valor: 0 };
-        vendas.forEach(v => {
-          const preco = Number(v.preco_total) || 0;
-          if (v.status === 'cancelled') {
-            t.cancelado += preco;
-            t.qtd_cancel++;
+        rows.forEach(r => {
+          const valor = Number(r.valor_total) || 0;
+          const qtd = Number(r.qtd) || 0;
+          if (r.status === 'cancelled') {
+            t.cancelado += valor;
+            t.qtd_cancel += qtd;
           } else {
-            t.bruto += preco;
-            t.qtd_vendas++;
-            if (v.status === 'partially_refunded') {
-              t.qtd_refund++;
-              t.refund_valor += preco;
+            t.bruto += valor;
+            t.qtd_vendas += qtd;
+            if (r.status === 'partially_refunded') {
+              t.qtd_refund += qtd;
+              t.refund_valor += valor;
             }
           }
         });
