@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="/config.js"></script>
+  <script src="dados.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
@@ -308,7 +309,7 @@
         return data.filter(d => d.sku_vendedor === selectedSku);
       }, [data, selectedSku]);
 
-      // Chart data: top SKUs by loss
+      // Chart data: top 6 worst AND top 6 best SKUs by lucro
       const chartData = useMemo(() => {
         const bysku = {};
         filtered.forEach(d => {
@@ -317,7 +318,13 @@
           bysku[k].lucro += Number(d.lucro_30d) || 0;
           bysku[k].vendas += Number(d.vendas_30d) || 0;
         });
-        return Object.values(bysku).filter(d => d.vendas > 0).sort((a, b) => a.lucro - b.lucro).slice(0, 12);
+        const all = Object.values(bysku).filter(d => d.vendas > 0);
+        const worst = all.sort((a, b) => a.lucro - b.lucro).slice(0, 6);
+        const best = [...all].sort((a, b) => b.lucro - a.lucro).slice(0, 6).reverse();
+        // Merge: worst first, then best (avoid duplicates)
+        const worstSet = new Set(worst.map(w => w.sku));
+        const bestFiltered = best.filter(b => !worstSet.has(b.sku));
+        return [...worst, ...bestFiltered];
       }, [filtered]);
 
       if (loading) return (
@@ -381,10 +388,10 @@
             </div>
           </div>
 
-          {/* Chart: Top perdas por SKU */}
+          {/* Chart: Top perdas e ganhos por SKU */}
           {chartData.length > 0 && (
             <div className="bg-gge-card border border-gge-border rounded-xl p-4 mb-6 fade-in">
-              <h3 className="text-sm font-semibold text-white mb-3">Lucro por SKU ({periodo} dias)</h3>
+              <h3 className="text-sm font-semibold text-white mb-3">Lucro por SKU ({periodo}d) — piores e melhores</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={chartData} layout="vertical" margin={{left:100,right:20,top:5,bottom:5}}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" horizontal={false} />
@@ -401,7 +408,14 @@
 
           {/* Filters */}
           <div className="bg-gge-card border border-gge-border rounded-xl p-4 mb-4 fade-in">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gge-muted font-medium">Período</label>
+                <select value={periodo} onChange={e => setPeriodo(Number(e.target.value))}
+                        className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
+                  {PERIODOS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
               <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={filterOpts.contas} isActive={!!contaSel} />
               <FilterSelect label="Modo" value={modoSel} onChange={setModoSel} options={filterOpts.modos} isActive={!!modoSel} />
               <FilterSelect label="Classificação" value={classSel} onChange={setClassSel} options={filterOpts.classifs} isActive={!!classSel} />
