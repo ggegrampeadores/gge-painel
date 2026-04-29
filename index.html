@@ -846,6 +846,7 @@
     </div>
 
     <script src="/config.js"></script>
+    <script src="dados.js"></script>
     <script>
         // ========== CONFIGURATION ==========
         const SUPABASE_URL = window.GGE_SUPABASE_URL;
@@ -958,8 +959,8 @@
             }
 
             return {
-                from: from.toISOString(),
-                to: to.toISOString()
+                from: from.toLocaleDateString('en-CA', {timeZone: 'America/Sao_Paulo'}),
+                to: to.toLocaleDateString('en-CA', {timeZone: 'America/Sao_Paulo'})
             };
         }
 
@@ -1024,8 +1025,8 @@
             }
 
             return {
-                from: from.toISOString(),
-                to: to.toISOString()
+                from: from.toLocaleDateString('en-CA', {timeZone: 'America/Sao_Paulo'}),
+                to: to.toLocaleDateString('en-CA', {timeZone: 'America/Sao_Paulo'})
             };
         }
 
@@ -1336,10 +1337,7 @@
 
                 // Helper: count vendas using Prefer: count=exact (avoids 1000 row limit)
                 async function countVendas(from, to, extraFilter) {
-                    // Append Brazil timezone offset (UTC-3) for correct day boundaries
-                    const fromTz = from.length === 10 ? from + 'T03:00:00Z' : from;
-                    const toTz = to.length === 10 ? to + 'T03:00:00Z' : to;
-                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${fromTz}&data_venda=lt.${toTz}&status=neq.cancelled&limit=1`;
+                    let url = `${SUPABASE_URL}/rest/v1/vendas?select=ordem_id&data_venda=gte.${from}&data_venda=lt.${to}&status=neq.cancelled&limit=1`;
                     if (conta) url += `&conta_id=eq.${conta}`;
                     if (extraFilter) url += extraFilter;
                     const resp = await fetch(url, { headers: {
@@ -1398,9 +1396,13 @@
                 // Now render visits using RPC sum_visitas (avoids 1000-row limit)
                 const rpcHeaders = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
                 async function sumVisitas(from, to) {
+                    // NOTE: p_conta_id is passed but the RPC may not yet support it server-side.
+                    // Until the RPC is updated, visits will show all-account totals.
+                    const params = { p_from: from, p_to: to };
+                    if (conta) params.p_conta_id = conta;
                     const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/sum_visitas`, {
                         method: 'POST', headers: rpcHeaders,
-                        body: JSON.stringify({ p_from: from, p_to: to })
+                        body: JSON.stringify(params)
                     });
                     const val = await r.json();
                     return typeof val === 'number' ? val : 0;
@@ -1560,10 +1562,24 @@
         // ========== RENDER EVOLUÇÃO MENSAL ==========
         async function renderEvolucaoMensal(conta, dateRange) {
             try {
-                // Fetch last 24 months of data (current 12 + prior 12 for YoY)
+                // Determine how many months to show based on the selected period
                 const today = new Date();
-                const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), 1);
-                const startMonth = `${twoYearsAgo.getFullYear()}-${pad(twoYearsAgo.getMonth()+1)}`;
+                let monthsToShow = 12; // default
+                if (dateRange && dateRange.from) {
+                    const fromDate = new Date(dateRange.from);
+                    const diffMs = today - fromDate;
+                    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                    if (diffDays <= 31) monthsToShow = 1;
+                    else if (diffDays <= 62) monthsToShow = 2;
+                    else if (diffDays <= 93) monthsToShow = 3;
+                    else if (diffDays <= 186) monthsToShow = 6;
+                    else if (diffDays <= 366) monthsToShow = 12;
+                    else monthsToShow = Math.min(24, Math.ceil(diffDays / 30));
+                }
+                // Always fetch enough data for YoY comparison (monthsToShow + 12 prior months)
+                const fetchMonths = monthsToShow + 12;
+                const fetchStart = new Date(today.getFullYear(), today.getMonth() - fetchMonths, 1);
+                const startMonth = `${fetchStart.getFullYear()}-${pad(fetchStart.getMonth()+1)}`;
 
                 let url = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=mes,receita,margem_valor&order=mes.asc&limit=10000`;
                 url += `&mes=gte.${startMonth}-01`;
@@ -1590,14 +1606,14 @@
                     aggregated[row.mes].margem_valor += row.margem_valor || 0;
                 });
 
-                // Build last 12 months as the main display
+                // Build months to display based on selected period
                 const allMonths = Object.keys(aggregated).sort();
                 const currentYear = today.getFullYear();
                 const currentMonth = today.getMonth();
 
-                // Generate 12 month labels (current period) — use local dates to avoid timezone shift
+                // Generate month labels for the selected period
                 const last12 = [];
-                for (let i = 11; i >= 0; i--) {
+                for (let i = monthsToShow - 1; i >= 0; i--) {
                     const d = new Date(currentYear, currentMonth - i, 1);
                     const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-01`;
                     last12.push(key);
@@ -1890,8 +1906,8 @@
                     const startDate = new Date(endDate);
                     startDate.setDate(startDate.getDate() - 7);
 
-                    const fromStr = localDate(startDate) + 'T03:00:00Z';
-                    const toStr = localDate(endDate) + 'T03:00:00Z';
+                    const fromStr = localDate(startDate);
+                    const toStr = localDate(endDate);
 
                     let url = `${SUPABASE_URL}/rest/v1/vendas?select=preco_total&data_venda=gte.${fromStr}&data_venda=lt.${toStr}&status=neq.cancelled&limit=10000`;
                     if (currentConta) url += `&conta_id=eq.${currentConta}`;
