@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="config.js"></script>
+  <script src="dados.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
@@ -318,7 +319,7 @@
             supabase.from('anuncios').select('mlb_id,conta_id,titulo,sku_vendedor,status,tipo_listagem,preco_atual,data_criacao,modo_logistica,em_catalogo,estoque_declarado,permalink'),
             supabase.from('vendas').select('mlb_id,quantidade,preco_total,data_venda,conta_id').eq('status', 'paid').gte('data_venda', range.start).lte('data_venda', range.end),
             supabase.from('contas').select('id,nome'),
-            supabase.from('vw_mc_por_anuncio').select('*').gte('mes', range.start.slice(0,7) + '-01'),
+            supabase.from('vw_mc_por_anuncio').select('*').gte('mes', range.start.slice(0,7) + '-01').lte('mes', range.end.slice(0,7) + '-01'),
             supabase.from('campanhas_ads').select('*'),
           ]);
           if (adsR.error) throw adsR.error;
