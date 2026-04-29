@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle Full · Controle Total GGE</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/dados.js"></script>
   <script>
     tailwind.config = {
       theme: { extend: { colors: {
@@ -38,11 +38,20 @@
 </head>
 <body>
   <div class="main-with-sidebar">
-    <div id="root"></div>
+    <div id="sidebar-container"></div>
+    <div id="root">
+      <div style="display:flex;justify-content:center;align-items:center;height:80vh;color:#94a3b8;">
+        <div style="text-align:center">
+          <div style="font-size:2rem;margin-bottom:1rem;">&#9881;</div>
+          <div>Carregando Controle Full...</div>
+        </div>
+      </div>
+    </div>
   </div>
+
   <script type="text/babel">
     const { useState, useEffect, useMemo, useCallback } = React;
-    const { ComposedChart, BarChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, Legend } = Recharts;
+    const { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } = Recharts;
 
     const SB_URL = window.GGE_SUPABASE_URL;
     const SB_KEY = window.GGE_SUPABASE_KEY;
@@ -68,29 +77,27 @@
     const fmtN = n => n == null ? '--' : Number(n).toLocaleString('pt-BR');
     const fmtP = n => n == null ? '--' : Number(n).toFixed(1).replace('.', ',') + '%';
     const fmtR = n => n == null ? '--' : 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtDate = d => d ? new Date(d).toLocaleDateString('pt-BR') : '--';
 
     const PERIODOS = [
       { v: '7d', l: '7 dias' },
       { v: '15d', l: '15 dias' },
       { v: '30d', l: '30 dias' },
-      { v: 'mes_atual', l: 'Mes atual' },
-      { v: 'mes_passado', l: 'Mes passado' },
+      { v: 'mes_atual', l: 'Mês atual' },
+      { v: 'mes_passado', l: 'Mês passado' },
       { v: '90d', l: '90 dias' },
     ];
 
     function getRange(p) {
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      let from, to;
-      to = today.toISOString().slice(0, 10);
+      const today = new Date(now.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + 'T12:00:00');
+      const todayStr = today.toISOString().slice(0, 10);
+      let from, to = todayStr;
       switch (p) {
         case '7d': from = new Date(today - 7 * 864e5); break;
         case '15d': from = new Date(today - 15 * 864e5); break;
         case '30d': from = new Date(today - 30 * 864e5); break;
         case 'mes_atual':
-          from = new Date(today.getFullYear(), today.getMonth(), 1);
-          break;
+          from = new Date(today.getFullYear(), today.getMonth(), 1); break;
         case 'mes_passado':
           from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
           to = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().slice(0, 10);
@@ -133,15 +140,11 @@
 
     // ── Week grouping helper ──
     function getWeekKey(dateStr) {
-      const d = new Date(dateStr + 'T00:00:00');
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(d.setDate(diff));
+      const d = new Date(dateStr);
+      const day = d.getUTCDay();
+      const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff));
       return monday.toISOString().slice(0, 10);
-    }
-
-    function isFull(modo) {
-      return modo && modo.toLowerCase().includes('fulfillment');
     }
 
     // ── Main App ──
@@ -151,102 +154,148 @@
       const [loading, setLoading] = useState(true);
       const [vendas, setVendas] = useState([]);
       const [anuncios, setAnuncios] = useState([]);
-      const [inventario, setInventario] = useState([]);
+      const [estoqueDiario, setEstoqueDiario] = useState([]);
       const [vendasLong, setVendasLong] = useState([]);
+      const [fullMlbs, setFullMlbs] = useState(new Set());
       const [ruptExpanded, setRuptExpanded] = useState(false);
       const [sortCol, setSortCol] = useState('cobertura');
       const [sortDir, setSortDir] = useState('asc');
+      const [erroMsg, setErroMsg] = useState(null);
 
       // Fetch data
       useEffect(() => {
         (async () => {
           setLoading(true);
+          setErroMsg(null);
           try {
             const { from, to } = getRange(periodo);
-            const range60 = getRange('90d');
+            const range90 = getRange('90d');
 
-            const [v, a, inv, vLong] = await Promise.all([
-              fetchAll(() => sb.from('vw_margem_canonica').select('*').gte('data_venda', from).lte('data_venda', to)),
-              fetchAll(() => sb.from('anuncios').select('mlb_id, titulo, sku_vendedor, modo_logistica, preco, status').eq('status', 'active')),
-              fetchAll(() => sb.from('inventario_full').select('*')),
-              fetchAll(() => sb.from('vw_margem_canonica').select('mlb_id, receita_total, mc2, data_venda, modo_logistica').gte('data_venda', range60.from).lte('data_venda', range60.to)),
-            ]);
+            // 1. Buscar anúncios ativos (inclui modo_logistica)
+            const anunciosData = await fetchAll(() =>
+              sb.from('anuncios').select('mlb_id, titulo, sku_vendedor, modo_logistica, preco_atual, status, estoque_declarado')
+                .eq('status', 'active')
+            );
 
-            setVendas(v || []);
-            setAnuncios(a || []);
-            setInventario(inv || []);
-            setVendasLong(vLong || []);
+            // 2. Identificar MLBs Full
+            const fullSet = new Set();
+            anunciosData.forEach(a => {
+              if (a.modo_logistica && a.modo_logistica.toLowerCase().includes('fulfillment')) {
+                fullSet.add(a.mlb_id);
+              }
+            });
+
+            // 3. Buscar vendas do período (mat_margem_canonica tem dados históricos)
+            //    Colunas corretas: receita, margem_valor (NÃO receita_total, mc2)
+            const vendasData = await fetchAll(() =>
+              sb.from('mat_margem_canonica')
+                .select('mlb_id, receita, margem_valor, data_venda, quantidade')
+                .gte('data_venda', from)
+                .lte('data_venda', to + 'T23:59:59')
+            );
+
+            // 4. Vendas 90d para rupturas
+            const vendasLongData = await fetchAll(() =>
+              sb.from('mat_margem_canonica')
+                .select('mlb_id, receita, margem_valor, data_venda, quantidade')
+                .gte('data_venda', range90.from)
+                .lte('data_venda', range90.to + 'T23:59:59')
+            );
+
+            // 5. Estoque diário (último snapshot)
+            const { data: estoqueData } = await sb.from('estoque_diario')
+              .select('*')
+              .order('id', { ascending: false })
+              .limit(1000);
+
+            setAnuncios(anunciosData || []);
+            setFullMlbs(fullSet);
+            setVendas(vendasData || []);
+            setVendasLong(vendasLongData || []);
+            setEstoqueDiario(estoqueData || []);
+            console.log(`[Full] ${fullSet.size} MLBs Full, ${(vendasData||[]).length} vendas no período, ${(estoqueData||[]).length} estoque registros`);
           } catch (e) {
             console.error('Erro ao carregar dados:', e);
+            setErroMsg('Erro ao carregar dados: ' + e.message);
           }
           setLoading(false);
         })();
       }, [periodo]);
 
-      // ── Computed data ──
-      const vendasFull = useMemo(() => vendas.filter(v => isFull(v.modo_logistica)), [vendas]);
-      const vendasColeta = useMemo(() => vendas.filter(v => !isFull(v.modo_logistica)), [vendas]);
+      // ── Filtrar vendas Full vs Coleta ──
+      const vendasFull = useMemo(() => vendas.filter(v => fullMlbs.has(v.mlb_id)), [vendas, fullMlbs]);
+      const vendasColeta = useMemo(() => vendas.filter(v => !fullMlbs.has(v.mlb_id)), [vendas, fullMlbs]);
+      const anunciosFull = useMemo(() => anuncios.filter(a => fullMlbs.has(a.mlb_id)), [anuncios, fullMlbs]);
 
-      const anunciosFull = useMemo(() => anuncios.filter(a => isFull(a.modo_logistica)), [anuncios]);
+      // Estoque dos itens Full
+      const estoqueFull = useMemo(() => {
+        // Pegar ultimo registro por mlb_id
+        const latest = {};
+        estoqueDiario.forEach(e => {
+          if (fullMlbs.has(e.mlb_id)) {
+            if (!latest[e.mlb_id] || e.id > latest[e.mlb_id].id) {
+              latest[e.mlb_id] = e;
+            }
+          }
+        });
+        return Object.values(latest);
+      }, [estoqueDiario, fullMlbs]);
 
       // KPIs
       const kpis = useMemo(() => {
-        const receita = vendasFull.reduce((s, v) => s + (Number(v.receita_total) || 0), 0);
-        const mc2 = vendasFull.reduce((s, v) => s + (Number(v.mc2) || 0), 0);
-        const mc2pct = receita > 0 ? (mc2 / receita) * 100 : 0;
+        const receita = vendasFull.reduce((s, v) => s + (Number(v.receita) || 0), 0);
+        const margem = vendasFull.reduce((s, v) => s + (Number(v.margem_valor) || 0), 0);
+        const margemPct = receita > 0 ? (margem / receita) * 100 : 0;
         const ativos = anunciosFull.length;
         const venderam = new Set(vendasFull.map(v => v.mlb_id)).size;
-        const estoqueTotal = inventario.reduce((s, i) => s + (Number(i.available_quantity) || 0), 0);
-        const zerados = inventario.filter(i => (Number(i.available_quantity) || 0) === 0).length;
-        const ticket = vendasFull.length > 0 ? receita / vendasFull.length : 0;
-        return { receita, mc2, mc2pct, ativos, venderam, estoqueTotal, zerados, ticket };
-      }, [vendasFull, anunciosFull, inventario]);
+        const estoqueTotal = estoqueFull.reduce((s, i) => s + (Number(i.qty_disponivel_full) || 0) + (Number(i.qty_disponivel_proprio) || 0), 0);
+        const zerados = estoqueFull.filter(i => ((Number(i.qty_disponivel_full) || 0) + (Number(i.qty_disponivel_proprio) || 0)) === 0).length;
+        const qtdVendas = vendasFull.reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
+        const ticket = qtdVendas > 0 ? receita / qtdVendas : 0;
+        return { receita, margem, margemPct, ativos, venderam, estoqueTotal, zerados, ticket, qtdVendas };
+      }, [vendasFull, anunciosFull, estoqueFull]);
 
       // Rupturas
       const rupturas = useMemo(() => {
-        const invMap = {};
-        inventario.forEach(i => { invMap[i.mlb_id] = Number(i.available_quantity) || 0; });
-
-        const fullAnunciosSet = new Set(anunciosFull.map(a => a.mlb_id));
-        const zeradosSet = new Set(inventario.filter(i => (Number(i.available_quantity) || 0) === 0).map(i => i.mlb_id));
-
-        // Vendas nos ultimos 60d por mlb
+        const vendasFullLong = vendasLong.filter(v => fullMlbs.has(v.mlb_id));
         const vendasPorMlb = {};
-        vendasLong.forEach(v => {
-          if (!isFull(v.modo_logistica)) return;
+        vendasFullLong.forEach(v => {
           const mlb = v.mlb_id;
           if (!vendasPorMlb[mlb]) vendasPorMlb[mlb] = { qty: 0, receita: 0, lastSale: null };
-          vendasPorMlb[mlb].qty++;
-          vendasPorMlb[mlb].receita += Number(v.receita_total) || 0;
-          const d = v.data_venda;
-          if (!vendasPorMlb[mlb].lastSale || d > vendasPorMlb[mlb].lastSale) vendasPorMlb[mlb].lastSale = d;
+          vendasPorMlb[mlb].qty += Number(v.quantidade) || 1;
+          vendasPorMlb[mlb].receita += Number(v.receita) || 0;
+          if (!vendasPorMlb[mlb].lastSale || v.data_venda > vendasPorMlb[mlb].lastSale) {
+            vendasPorMlb[mlb].lastSale = v.data_venda;
+          }
         });
 
         const result = [];
-        zeradosSet.forEach(mlb => {
-          if (!fullAnunciosSet.has(mlb)) return;
-          const vs = vendasPorMlb[mlb];
-          if (!vs || vs.qty === 0) return;
+        estoqueFull.forEach(item => {
+          const qtd = (Number(item.qty_disponivel_full) || 0) + (Number(item.qty_disponivel_proprio) || 0);
+          if (qtd > 0) return; // Não está em ruptura
 
-          const anuncio = anuncios.find(a => a.mlb_id === mlb) || {};
-          const lastSaleDate = new Date(vs.lastSale + 'T00:00:00');
+          const vs = vendasPorMlb[item.mlb_id];
+          if (!vs || vs.qty === 0) return; // Nunca vendeu, não é ruptura relevante
+
+          const anuncio = anuncios.find(a => a.mlb_id === item.mlb_id) || {};
+          const lastSaleDate = new Date(vs.lastSale);
           const today = new Date();
-          const diasParado = Math.floor((today - lastSaleDate) / 864e5);
-          const perdaDia = vs.qty > 0 ? vs.receita / 60 : 0;
+          const diasParado = Math.max(0, Math.floor((today - lastSaleDate) / 864e5));
+          const perdaDia = vs.receita / 90;
 
           result.push({
-            mlb_id: mlb,
+            mlb_id: item.mlb_id,
             sku: anuncio.sku_vendedor || '--',
-            titulo: anuncio.titulo || mlb,
-            vendas30: vs.qty,
-            receita30: vs.receita,
+            titulo: anuncio.titulo || item.mlb_id,
+            vendas90: vs.qty,
+            receita90: vs.receita,
             diasParado,
             perdaDia,
           });
         });
 
         return result.sort((a, b) => b.perdaDia - a.perdaDia);
-      }, [inventario, anunciosFull, anuncios, vendasLong]);
+      }, [estoqueFull, anuncios, vendasLong, fullMlbs]);
 
       const perdaRupturaTotal = useMemo(() => rupturas.reduce((s, r) => s + r.perdaDia * r.diasParado, 0), [rupturas]);
 
@@ -255,73 +304,101 @@
         const weeks = {};
         vendasFull.forEach(v => {
           const wk = getWeekKey(v.data_venda);
-          if (!weeks[wk]) weeks[wk] = { semana: wk, receita: 0, mc2: 0 };
-          weeks[wk].receita += Number(v.receita_total) || 0;
-          weeks[wk].mc2 += Number(v.mc2) || 0;
+          if (!weeks[wk]) weeks[wk] = { semana: wk, receita: 0, margem: 0 };
+          weeks[wk].receita += Number(v.receita) || 0;
+          weeks[wk].margem += Number(v.margem_valor) || 0;
         });
         return Object.values(weeks)
           .sort((a, b) => a.semana.localeCompare(b.semana))
-          .map(w => ({ ...w, mc2pct: w.receita > 0 ? (w.mc2 / w.receita) * 100 : 0 }));
+          .map(w => ({ ...w, margemPct: w.receita > 0 ? (w.margem / w.receita) * 100 : 0 }));
       }, [vendasFull]);
 
-      // Full vs Coleta
+      // Full vs Coleta comparison
       const comparison = useMemo(() => {
         const calc = (arr, label) => {
-          const receita = arr.reduce((s, v) => s + (Number(v.receita_total) || 0), 0);
-          const mc2 = arr.reduce((s, v) => s + (Number(v.mc2) || 0), 0);
-          const mc2pct = receita > 0 ? (mc2 / receita) * 100 : 0;
-          const ticket = arr.length > 0 ? receita / arr.length : 0;
-          return { label, vendas: arr.length, receita, mc2, mc2pct, ticket };
+          const receita = arr.reduce((s, v) => s + (Number(v.receita) || 0), 0);
+          const margem = arr.reduce((s, v) => s + (Number(v.margem_valor) || 0), 0);
+          const margemPct = receita > 0 ? (margem / receita) * 100 : 0;
+          const qtd = arr.reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
+          const ticket = qtd > 0 ? receita / qtd : 0;
+          return { label, vendas: qtd, receita, margem, margemPct, ticket };
         };
         return [calc(vendasFull, 'Full'), calc(vendasColeta, 'Coleta')];
       }, [vendasFull, vendasColeta]);
 
-      // Estoque & Reposicao
+      // Estoque & Reposição tab
       const estoqueData = useMemo(() => {
         const { from, to } = getRange(periodo);
         const dias = Math.max(1, Math.round((new Date(to) - new Date(from)) / 864e5));
 
         const vendasPorMlb = {};
         vendasFull.forEach(v => {
-          if (!vendasPorMlb[v.mlb_id]) vendasPorMlb[v.mlb_id] = { qty: 0, receita: 0, mc2: 0 };
-          vendasPorMlb[v.mlb_id].qty++;
-          vendasPorMlb[v.mlb_id].receita += Number(v.receita_total) || 0;
-          vendasPorMlb[v.mlb_id].mc2 += Number(v.mc2) || 0;
+          if (!vendasPorMlb[v.mlb_id]) vendasPorMlb[v.mlb_id] = { qty: 0, receita: 0, margem: 0 };
+          vendasPorMlb[v.mlb_id].qty += Number(v.quantidade) || 1;
+          vendasPorMlb[v.mlb_id].receita += Number(v.receita) || 0;
+          vendasPorMlb[v.mlb_id].margem += Number(v.margem_valor) || 0;
         });
 
-        return inventario.map(item => {
+        // Usar anúncios Full como base (garante que itens sem estoque registrado apareçam)
+        const items = [];
+        const processed = new Set();
+
+        // Primeiro: itens com estoque registrado
+        estoqueFull.forEach(item => {
           const mlb = item.mlb_id;
+          processed.add(mlb);
           const anuncio = anuncios.find(a => a.mlb_id === mlb) || {};
-          const vs = vendasPorMlb[mlb] || { qty: 0, receita: 0, mc2: 0 };
-          const estoque = Number(item.available_quantity) || 0;
+          const vs = vendasPorMlb[mlb] || { qty: 0, receita: 0, margem: 0 };
+          const estoque = (Number(item.qty_disponivel_full) || 0) + (Number(item.qty_disponivel_proprio) || 0);
           const velDia = vs.qty / dias;
           const cobertura = velDia > 0 ? estoque / velDia : estoque > 0 ? 999 : 0;
           const necessario30 = Math.ceil(velDia * 30);
-          const mc2pct = vs.receita > 0 ? (vs.mc2 / vs.receita) * 100 : 0;
+          const margemPct = vs.receita > 0 ? (vs.margem / vs.receita) * 100 : 0;
 
           let alerta, alertaCor;
           if (cobertura <= 0) { alerta = 'Zerado'; alertaCor = 'red'; }
-          else if (cobertura <= 7) { alerta = 'Critico'; alertaCor = 'red'; }
+          else if (cobertura <= 7) { alerta = 'Crítico'; alertaCor = 'red'; }
           else if (cobertura <= 15) { alerta = 'Urgente'; alertaCor = 'orange'; }
-          else if (cobertura <= 30) { alerta = 'Atencao'; alertaCor = 'yellow'; }
+          else if (cobertura <= 30) { alerta = 'Atenção'; alertaCor = 'yellow'; }
           else { alerta = 'OK'; alertaCor = 'green'; }
 
-          return {
-            mlb_id: mlb,
-            sku: anuncio.sku_vendedor || item.seller_sku || '--',
-            titulo: anuncio.titulo || item.title || mlb,
-            estoque,
-            vendas: vs.qty,
-            cobertura: Math.round(cobertura),
-            necessario30,
-            mc2pct,
-            alerta,
-            alertaCor,
-          };
-        }).sort((a, b) => a.cobertura - b.cobertura);
-      }, [inventario, anuncios, vendasFull, periodo]);
+          items.push({
+            mlb_id: mlb, sku: anuncio.sku_vendedor || '--',
+            titulo: anuncio.titulo || mlb, estoque,
+            vendas: vs.qty, cobertura: Math.round(cobertura),
+            necessario30, margemPct, alerta, alertaCor,
+          });
+        });
 
-      // Sort handler for estoque table
+        // Segundo: anúncios Full sem registro de estoque (usar estoque_declarado do anúncio)
+        anunciosFull.forEach(a => {
+          if (processed.has(a.mlb_id)) return;
+          const vs = vendasPorMlb[a.mlb_id] || { qty: 0, receita: 0, margem: 0 };
+          const estoque = Number(a.estoque_declarado) || 0;
+          const velDia = vs.qty / dias;
+          const cobertura = velDia > 0 ? estoque / velDia : estoque > 0 ? 999 : 0;
+          const necessario30 = Math.ceil(velDia * 30);
+          const margemPct = vs.receita > 0 ? (vs.margem / vs.receita) * 100 : 0;
+
+          let alerta, alertaCor;
+          if (cobertura <= 0) { alerta = 'Zerado'; alertaCor = 'red'; }
+          else if (cobertura <= 7) { alerta = 'Crítico'; alertaCor = 'red'; }
+          else if (cobertura <= 15) { alerta = 'Urgente'; alertaCor = 'orange'; }
+          else if (cobertura <= 30) { alerta = 'Atenção'; alertaCor = 'yellow'; }
+          else { alerta = 'OK'; alertaCor = 'green'; }
+
+          items.push({
+            mlb_id: a.mlb_id, sku: a.sku_vendedor || '--',
+            titulo: a.titulo || a.mlb_id, estoque,
+            vendas: vs.qty, cobertura: Math.round(cobertura),
+            necessario30, margemPct, alerta, alertaCor,
+          });
+        });
+
+        return items.sort((a, b) => a.cobertura - b.cobertura);
+      }, [estoqueFull, anunciosFull, anuncios, vendasFull, periodo]);
+
+      // Sort
       const sortedEstoque = useMemo(() => {
         const arr = [...estoqueData];
         arr.sort((a, b) => {
@@ -342,7 +419,7 @@
 
       const SortIcon = ({ col }) => {
         if (sortCol !== col) return <span className="text-gge-muted/40 ml-1">&#8597;</span>;
-        return <span className="text-gge-accent ml-1">{sortDir === 'asc' ? '&#9650;' : '&#9660;'}</span>;
+        return <span className="text-gge-accent ml-1">{sortDir === 'asc' ? '▲' : '▼'}</span>;
       };
 
       // ── Custom Tooltip for chart ──
@@ -355,7 +432,7 @@
               <div key={i} className="flex justify-between gap-4">
                 <span style={{ color: p.color }}>{p.name}</span>
                 <span className="font-bold text-white">
-                  {p.name === 'MC2%' ? fmtP(p.value) : fmtR(p.value)}
+                  {p.name === 'MC%' ? fmtP(p.value) : fmtR(p.value)}
                 </span>
               </div>
             ))}
@@ -391,7 +468,7 @@
                 <Badge text="MERCADO ENVIOS FULL" color="yellow" />
               </div>
               <div className="flex items-center gap-3">
-                <label className="text-xs text-gge-muted font-medium">Periodo</label>
+                <label className="text-xs text-gge-muted font-medium">Período</label>
                 <select value={periodo} onChange={e => setPeriodo(e.target.value)}
                         className="bg-gge-bg border border-gge-border rounded-lg px-3 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
                   {PERIODOS.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
@@ -399,15 +476,19 @@
               </div>
             </div>
 
+            {erroMsg && (
+              <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-4 mb-6 text-sm text-red-400">{erroMsg}</div>
+            )}
+
             {/* Tabs */}
             <div className="flex gap-6 mb-6 border-b border-gge-border">
               <button onClick={() => setTab('visao')}
                       className={`pb-3 text-sm font-medium ${tab === 'visao' ? 'tab-active' : 'tab-inactive'}`}>
-                Visao Geral
+                Visão Geral
               </button>
               <button onClick={() => setTab('estoque')}
                       className={`pb-3 text-sm font-medium ${tab === 'estoque' ? 'tab-active' : 'tab-inactive'}`}>
-                Estoque & Reposicao
+                Estoque & Reposição
               </button>
             </div>
 
@@ -418,33 +499,42 @@
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                   <KpiCard icon="$" title="Receita Full" value={fmtR(kpis.receita)} color="text-gge-green" />
-                  <KpiCard icon="%" title="MC2 Total" value={fmtR(kpis.mc2)} sub={fmtP(kpis.mc2pct) + ' da receita'} color="text-gge-green" />
-                  <KpiCard icon="#" title="Anuncios Ativos" value={fmtN(kpis.ativos)} sub={fmtN(kpis.venderam) + ' venderam'} />
+                  <KpiCard icon="%" title="Margem Total" value={fmtR(kpis.margem)} sub={fmtP(kpis.margemPct) + ' da receita'} color="text-gge-green" />
+                  <KpiCard icon="#" title="Anúncios Ativos" value={fmtN(kpis.ativos)} sub={fmtN(kpis.venderam) + ' venderam'} />
                   <KpiCard icon="B" title="Estoque Total" value={fmtN(kpis.estoqueTotal)} sub={fmtN(kpis.zerados) + ' zerados'} />
                   <KpiCard icon="!" title="Em Ruptura" value={fmtN(rupturas.length)} sub={'Perda est. ' + fmtR(perdaRupturaTotal)} color={rupturas.length > 0 ? 'text-gge-red' : 'text-white'} />
-                  <KpiCard icon="T" title="Ticket Medio" value={fmtR(kpis.ticket)} />
+                  <KpiCard icon="T" title="Ticket Médio" value={fmtR(kpis.ticket)} />
+                </div>
+
+                {/* Debug info */}
+                <div className="text-xs text-gge-muted bg-gge-bg/50 rounded px-3 py-2">
+                  {fullMlbs.size} MLBs Full | {vendasFull.length} vendas Full no período | {estoqueFull.length} registros estoque | {vendas.length} vendas totais
                 </div>
 
                 {/* Charts row */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Weekly chart */}
                   <div className="bg-gge-card border border-gge-border rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-white mb-4">Receita & MC2 Semanal (Full)</h3>
-                    <ResponsiveContainer width="100%" height={280}>
-                      <ComposedChart data={weeklyData}>
-                        <CartesianGrid stroke="#2a2d3e" strokeDasharray="3 3" />
-                        <XAxis dataKey="semana" tick={{ fill: '#94a3b8', fontSize: 10 }}
-                               tickFormatter={v => new Date(v + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} />
-                        <YAxis yAxisId="left" tick={{ fill: '#94a3b8', fontSize: 10 }}
-                               tickFormatter={v => 'R$' + (v / 1000).toFixed(0) + 'k'} />
-                        <YAxis yAxisId="right" orientation="right" tick={{ fill: '#94a3b8', fontSize: 10 }}
-                               tickFormatter={v => v.toFixed(0) + '%'} domain={[0, 'auto']} />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Bar yAxisId="left" dataKey="receita" name="Receita" fill="#eab308" radius={[4, 4, 0, 0]} barSize={20} />
-                        <Bar yAxisId="left" dataKey="mc2" name="MC2" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={20} />
-                        <Line yAxisId="right" dataKey="mc2pct" name="MC2%" stroke="#6366f1" strokeWidth={2} dot={{ r: 3, fill: '#6366f1' }} />
-                      </ComposedChart>
-                    </ResponsiveContainer>
+                    <h3 className="text-sm font-semibold text-white mb-4">Receita & Margem Semanal (Full)</h3>
+                    {weeklyData.length === 0 ? (
+                      <div className="flex items-center justify-center h-[280px] text-gge-muted text-sm">Sem dados de vendas Full no período</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <ComposedChart data={weeklyData}>
+                          <CartesianGrid stroke="#2a2d3e" strokeDasharray="3 3" />
+                          <XAxis dataKey="semana" tick={{ fill: '#94a3b8', fontSize: 10 }}
+                                 tickFormatter={v => new Date(v + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} />
+                          <YAxis yAxisId="left" tick={{ fill: '#94a3b8', fontSize: 10 }}
+                                 tickFormatter={v => 'R$' + (v / 1000).toFixed(0) + 'k'} />
+                          <YAxis yAxisId="right" orientation="right" tick={{ fill: '#94a3b8', fontSize: 10 }}
+                                 tickFormatter={v => v.toFixed(0) + '%'} domain={[0, 'auto']} />
+                          <Tooltip content={<ChartTooltip />} />
+                          <Bar yAxisId="left" dataKey="receita" name="Receita" fill="#eab308" radius={[4, 4, 0, 0]} barSize={20} />
+                          <Bar yAxisId="left" dataKey="margem" name="Margem" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={20} />
+                          <Line yAxisId="right" dataKey="margemPct" name="MC%" stroke="#6366f1" strokeWidth={2} dot={{ r: 3, fill: '#6366f1' }} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
 
                   {/* Full vs Coleta */}
@@ -453,7 +543,7 @@
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-gge-muted text-xs border-b border-gge-border">
-                          <th className="text-left py-2 px-2">Metrica</th>
+                          <th className="text-left py-2 px-2">Métrica</th>
                           {comparison.map(c => (
                             <th key={c.label} className="text-right py-2 px-2">
                               {c.label === 'Full' ? <Badge text="FULL" color="yellow" /> : <Badge text="COLETA" color="muted" />}
@@ -471,15 +561,15 @@
                           {comparison.map(c => <td key={c.label} className="text-right py-2 px-2 font-medium">{fmtR(c.receita)}</td>)}
                         </tr>
                         <tr className="row-hover border-b border-gge-border/50">
-                          <td className="py-2 px-2 text-gge-muted">MC2</td>
-                          {comparison.map(c => <td key={c.label} className="text-right py-2 px-2 font-medium">{fmtR(c.mc2)}</td>)}
+                          <td className="py-2 px-2 text-gge-muted">Margem</td>
+                          {comparison.map(c => <td key={c.label} className="text-right py-2 px-2 font-medium">{fmtR(c.margem)}</td>)}
                         </tr>
                         <tr className="row-hover border-b border-gge-border/50">
-                          <td className="py-2 px-2 text-gge-muted">MC2%</td>
-                          {comparison.map(c => <td key={c.label} className={`text-right py-2 px-2 font-medium ${c.mc2pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtP(c.mc2pct)}</td>)}
+                          <td className="py-2 px-2 text-gge-muted">MC%</td>
+                          {comparison.map(c => <td key={c.label} className={`text-right py-2 px-2 font-medium ${c.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtP(c.margemPct)}</td>)}
                         </tr>
                         <tr className="row-hover">
-                          <td className="py-2 px-2 text-gge-muted">Ticket Medio</td>
+                          <td className="py-2 px-2 text-gge-muted">Ticket Médio</td>
                           {comparison.map(c => <td key={c.label} className="text-right py-2 px-2 font-medium">{fmtR(c.ticket)}</td>)}
                         </tr>
                       </tbody>
@@ -507,7 +597,7 @@
                   <div className="flex items-center justify-between mb-3 cursor-pointer" onClick={() => setRuptExpanded(!ruptExpanded)}>
                     <div className="flex items-center gap-3">
                       <h3 className="text-sm font-semibold text-white">Rupturas de Estoque</h3>
-                      <Badge text={rupturas.length + ' anuncios'} color={rupturas.length > 0 ? 'red' : 'green'} />
+                      <Badge text={rupturas.length + ' anúncios'} color={rupturas.length > 0 ? 'red' : 'green'} />
                     </div>
                     <span className="text-gge-muted text-sm">{ruptExpanded ? '▲ Recolher' : '▼ Expandir'}</span>
                   </div>
@@ -515,15 +605,15 @@
                   {ruptExpanded && (
                     <div className="overflow-x-auto">
                       {rupturas.length === 0 ? (
-                        <div className="text-center text-gge-muted py-8 text-sm">Nenhuma ruptura detectada. Bom trabalho!</div>
+                        <div className="text-center text-gge-muted py-8 text-sm">Nenhuma ruptura detectada.</div>
                       ) : (
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="text-gge-muted text-xs border-b border-gge-border">
                               <th className="text-left py-2 px-2">SKU</th>
-                              <th className="text-left py-2 px-2">Titulo</th>
-                              <th className="text-right py-2 px-2">Vendas/60d</th>
-                              <th className="text-right py-2 px-2">Receita/60d</th>
+                              <th className="text-left py-2 px-2">Título</th>
+                              <th className="text-right py-2 px-2">Vendas/90d</th>
+                              <th className="text-right py-2 px-2">Receita/90d</th>
                               <th className="text-right py-2 px-2">Dias Parado</th>
                               <th className="text-right py-2 px-2">Perda/Dia</th>
                             </tr>
@@ -533,8 +623,8 @@
                               <tr key={r.mlb_id} className="row-hover border-b border-gge-border/30">
                                 <td className="py-2 px-2 text-gge-accent font-mono text-xs">{r.sku}</td>
                                 <td className="py-2 px-2 max-w-[300px] truncate">{r.titulo}</td>
-                                <td className="text-right py-2 px-2">{fmtN(r.vendas30)}</td>
-                                <td className="text-right py-2 px-2">{fmtR(r.receita30)}</td>
+                                <td className="text-right py-2 px-2">{fmtN(r.vendas90)}</td>
+                                <td className="text-right py-2 px-2">{fmtR(r.receita90)}</td>
                                 <td className="text-right py-2 px-2">
                                   <span className={r.diasParado > 7 ? 'text-gge-red' : 'text-gge-yellow'}>{r.diasParado}d</span>
                                 </td>
@@ -555,9 +645,9 @@
               <div className="fade-in">
                 {/* Summary badges */}
                 <div className="flex flex-wrap gap-3 mb-4">
-                  {['Zerado', 'Critico', 'Urgente', 'Atencao', 'OK'].map(al => {
+                  {['Zerado', 'Crítico', 'Urgente', 'Atenção', 'OK'].map(al => {
                     const count = estoqueData.filter(e => e.alerta === al).length;
-                    const colorMap = { Zerado: 'red', Critico: 'red', Urgente: 'orange', Atencao: 'yellow', OK: 'green' };
+                    const colorMap = { Zerado: 'red', 'Crítico': 'red', Urgente: 'orange', 'Atenção': 'yellow', OK: 'green' };
                     return <Badge key={al} text={`${al}: ${count}`} color={colorMap[al]} />;
                   })}
                   <span className="text-xs text-gge-muted ml-2">{estoqueData.length} itens no Full</span>
@@ -569,12 +659,12 @@
                       <thead>
                         <tr className="text-gge-muted text-xs border-b border-gge-border bg-gge-bg/50">
                           <th className="text-left py-3 px-3 sortable" onClick={() => handleSort('sku')}>SKU<SortIcon col="sku" /></th>
-                          <th className="text-left py-3 px-3">Titulo</th>
+                          <th className="text-left py-3 px-3">Título</th>
                           <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('estoque')}>Estoque<SortIcon col="estoque" /></th>
                           <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('vendas')}>Vendas/{periodo}<SortIcon col="vendas" /></th>
                           <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('cobertura')}>Cobertura (d)<SortIcon col="cobertura" /></th>
                           <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('necessario30')}>Nec. 30d<SortIcon col="necessario30" /></th>
-                          <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('mc2pct')}>MC2%<SortIcon col="mc2pct" /></th>
+                          <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('margemPct')}>MC%<SortIcon col="margemPct" /></th>
                           <th className="text-center py-3 px-3 sortable" onClick={() => handleSort('alerta')}>Alerta<SortIcon col="alerta" /></th>
                         </tr>
                       </thead>
@@ -596,13 +686,13 @@
                               </span>
                             </td>
                             <td className="text-right py-2 px-3">{fmtN(item.necessario30)}</td>
-                            <td className={`text-right py-2 px-3 ${item.mc2pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtP(item.mc2pct)}</td>
+                            <td className={`text-right py-2 px-3 ${item.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtP(item.margemPct)}</td>
                             <td className="text-center py-2 px-3"><Badge text={item.alerta} color={item.alertaCor} /></td>
                           </tr>
                         ))}
                         {sortedEstoque.length === 0 && (
                           <tr>
-                            <td colSpan={8} className="text-center text-gge-muted py-8">Nenhum item encontrado no inventario Full.</td>
+                            <td colSpan={8} className="text-center text-gge-muted py-8">Nenhum item encontrado no inventário Full.</td>
                           </tr>
                         )}
                       </tbody>
