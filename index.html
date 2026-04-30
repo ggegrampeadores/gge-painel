@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle Total GGE - Dashboard</title>
-    <script src="auth.js" defer></script>
     <script src="sidebar.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
@@ -688,8 +687,7 @@
     </style>
 </head>
 <body>
-    <!-- Sidebar (injetado por sidebar.js) -->
-
+    <div id="sidebar-container"></div>
     <!-- Main container -->
     <div class="container main-with-sidebar" id="container">
         <!-- Header -->
@@ -1059,7 +1057,7 @@
 
         // ========== FORMAT HELPERS ==========
         function fmt(num) {
-            if (!num) return 'R$ 0,00';
+            if (num == null || isNaN(num)) return 'R$ 0,00';
             return new Intl.NumberFormat('pt-BR', {
                 style: 'currency',
                 currency: 'BRL',
@@ -1069,13 +1067,13 @@
         }
 
         function fmtNum(num) {
-            if (!num) return '0';
+            if (num == null || isNaN(num)) return '0';
             return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
 
         function fmtPct(num) {
-            if (!num) return '0,00%';
-            return num.toFixed(2).replace('.', ',') + '%';
+            if (num == null || isNaN(num)) return '0,00%';
+            return Number(num).toFixed(2).replace('.', ',') + '%';
         }
 
         // Date helpers (global) — avoid timezone bugs with toISOString()
@@ -1270,19 +1268,19 @@
             const valoresCards = [
                 {
                     title: 'Pedidos (R$)',
-                    value: (data.receita + data.valor_cancelamentos).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                    value: fmt((data.receita || 0) + (data.valor_cancelamentos || 0)),
                     subtitle: 'total bruto',
-                    trend: calculateTrend(data.receita + data.valor_cancelamentos, prev.receita + prev.valor_cancelamentos)
+                    trend: calculateTrend((data.receita || 0) + (data.valor_cancelamentos || 0), (prev.receita || 0) + (prev.valor_cancelamentos || 0))
                 },
                 {
                     title: 'Cancelado (R$)',
-                    value: data.valor_cancelamentos.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                    value: fmt(data.valor_cancelamentos || 0),
                     subtitle: 'valor perdido',
                     trend: calculateTrend(data.valor_cancelamentos, prev.valor_cancelamentos, true)
                 },
                 {
                     title: 'Vendas (R$)',
-                    value: data.receita.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                    value: fmt(data.receita || 0),
                     subtitle: 'efetivas',
                     trend: calculateTrend(data.receita, prev.receita)
                 }
@@ -1291,7 +1289,7 @@
             // TICKET MÉDIO card
             const ticketCard = {
                 title: 'Ticket Médio (R$)',
-                value: data.ticket_medio.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                value: fmt(data.ticket_medio || 0),
                 subtitle: 'por venda',
                 trend: calculateTrend(data.ticket_medio, prev.ticket_medio)
             };
@@ -1751,10 +1749,14 @@
         // ========== RENDER CURVA ABC ==========
         async function renderCurvaABC(conta, dateRange) {
             try {
-                let baseUrl = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=sku_vendedor,receita`;
+                let baseUrl = `${SUPABASE_URL}/rest/v1/vw_margem_segmentada?select=sku_vendedor,receita&order=sku_vendedor`;
 
                 if (conta) {
                     baseUrl += `&conta_id=eq.${conta}`;
+                }
+                if (dateRange) {
+                    baseUrl += `&mes=gte.${dateRange.from.substring(0, 7)}-01`;
+                    baseUrl += `&mes=lte.${dateRange.to.substring(0, 7)}-01`;
                 }
 
                 // Paginação: Supabase REST limita a 1000 rows
