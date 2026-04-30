@@ -40,10 +40,16 @@
     .badge-sem_vendas { background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.2); }
     .filter-active select { border-color:#6366f1 !important; color:#fff !important; font-weight:600; }
   </style>
-  <script src="auth.js" defer></script>
   <script src="sidebar.js" defer></script>
 </head>
 <body>
+<script>
+  (function() {
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+  })();
+</script>
+  <div id="sidebar-container"></div>
   <div class="main-with-sidebar">
     <div id="root"></div>
   </div>
@@ -143,7 +149,7 @@
                 <div className="text-xl font-bold text-white">{fmtN(totalVendas)}</div>
               </div>
               <div className="bg-gge-bg rounded-lg p-3 text-center">
-                <div className="text-xs text-gge-muted">Receita 90d</div>
+                <div className="text-xs text-gge-muted">Receita 30d</div>
                 <div className="text-xl font-bold text-white">{fmtR(totalReceita)}</div>
               </div>
               <div className="bg-gge-bg rounded-lg p-3 text-center">
@@ -310,7 +316,8 @@
       };
 
       const totals = useMemo(() => {
-        const t = { count: filtered.length, vendas: 0, receita: 0, lucro: 0, criticos: 0, sem_vendas: 0, full: 0, coleta: 0, lucro_full: 0, lucro_coleta: 0, sangramento: 0 };
+        const t = { count: filtered.length, vendas: 0, receita: 0, lucro: 0, criticos: 0, sem_vendas: 0, full: 0, coleta: 0, lucro_full: 0, lucro_coleta: 0, sangramento: 0,
+          gge: { count: 0, vendas: 0, receita: 0, lucro: 0 }, toow: { count: 0, vendas: 0, receita: 0, lucro: 0 }, ggesp: { count: 0, vendas: 0, receita: 0, lucro: 0 } };
         filtered.forEach(d => {
           t.vendas += Number(d.vendas_30d) || 0;
           t.receita += Number(d.receita_30d) || 0;
@@ -320,6 +327,10 @@
           if (d.modo_logistica === 'fulfillment') { t.full++; t.lucro_full += Number(d.lucro_30d) || 0; }
           else { t.coleta++; t.lucro_coleta += Number(d.lucro_30d) || 0; }
           if (Number(d.lucro_30d) < 0) t.sangramento += Number(d.lucro_30d);
+          const cn = (d.conta_nome || '').toLowerCase();
+          const bucket = cn.includes('toow') ? t.toow : cn.includes('sp') ? t.ggesp : t.gge;
+          bucket.count++; bucket.vendas += Number(d.vendas_30d) || 0;
+          bucket.receita += Number(d.receita_30d) || 0; bucket.lucro += Number(d.lucro_30d) || 0;
         });
         return t;
       }, [filtered]);
@@ -336,8 +347,8 @@
         return data.filter(d => d.sku_vendedor === selectedSku);
       }, [data, selectedSku]);
 
-      // Chart data: top 6 worst AND top 6 best SKUs by lucro
-      const chartData = useMemo(() => {
+      // Chart data: top 8 worst AND top 8 best SKUs by lucro
+      const chartWorst = useMemo(() => {
         const bysku = {};
         filtered.forEach(d => {
           const k = d.sku_vendedor || d.mlb_id;
@@ -346,12 +357,18 @@
           bysku[k].vendas += Number(d.vendas_30d) || 0;
         });
         const all = Object.values(bysku).filter(d => d.vendas > 0);
-        const worst = all.sort((a, b) => a.lucro - b.lucro).slice(0, 6);
-        const best = [...all].sort((a, b) => b.lucro - a.lucro).slice(0, 6).reverse();
-        // Merge: worst first, then best (avoid duplicates)
-        const worstSet = new Set(worst.map(w => w.sku));
-        const bestFiltered = best.filter(b => !worstSet.has(b.sku));
-        return [...worst, ...bestFiltered];
+        return [...all].sort((a, b) => a.lucro - b.lucro).filter(d => d.lucro < 0).slice(0, 8);
+      }, [filtered]);
+      const chartBest = useMemo(() => {
+        const bysku = {};
+        filtered.forEach(d => {
+          const k = d.sku_vendedor || d.mlb_id;
+          if (!bysku[k]) bysku[k] = { sku: k, lucro: 0, vendas: 0 };
+          bysku[k].lucro += Number(d.lucro_30d) || 0;
+          bysku[k].vendas += Number(d.vendas_30d) || 0;
+        });
+        const all = Object.values(bysku).filter(d => d.vendas > 0);
+        return [...all].sort((a, b) => b.lucro - a.lucro).filter(d => d.lucro > 0).slice(0, 8).reverse();
       }, [filtered]);
 
       if (loading) return (
@@ -391,47 +408,75 @@
             <KpiCard icon="🩸" title="Sangramento" value={fmtR(totals.sangramento)} color="text-gge-red" sub={`${fmtN(totals.criticos)} anúncios no vermelho`} />
           </div>
 
-          {/* Full vs Coleta summary */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          {/* Comparativo por Conta */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-cyan-900/40 text-cyan-400 border border-cyan-700/50">FULL</span>
-                <span className="text-xs text-gge-muted">{totals.full} anúncios</span>
+                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-yellow-900/40 text-yellow-400 border border-yellow-700/50">GGE RJ</span>
+                <span className="text-xs text-gge-muted">{totals.gge.count} anúncios · {fmtN(totals.gge.vendas)} vendas</span>
               </div>
-              <div className={`text-xl font-bold ${totals.lucro_full >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(totals.lucro_full)}</div>
+              <div className={`text-xl font-bold ${totals.gge.lucro >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(totals.gge.lucro)}</div>
               <div className="text-xs text-gge-muted mt-1">
-                {totals.lucro > 0 ? `${Math.round(totals.lucro_full / totals.lucro * 100)}% do lucro total` : '—'}
+                Receita {fmtR(totals.gge.receita)} · Margem {totals.gge.receita > 0 ? fmtP(totals.gge.lucro / totals.gge.receita * 100) : '—'}
               </div>
             </div>
             <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-gge-bg text-gge-muted border border-gge-border">COLETA</span>
-                <span className="text-xs text-gge-muted">{totals.coleta} anúncios</span>
+                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-green-900/40 text-green-400 border border-green-700/50">TOOW</span>
+                <span className="text-xs text-gge-muted">{totals.toow.count} anúncios · {fmtN(totals.toow.vendas)} vendas</span>
               </div>
-              <div className={`text-xl font-bold ${totals.lucro_coleta >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(totals.lucro_coleta)}</div>
+              <div className={`text-xl font-bold ${totals.toow.lucro >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(totals.toow.lucro)}</div>
               <div className="text-xs text-gge-muted mt-1">
-                {totals.lucro > 0 ? `${Math.round(totals.lucro_coleta / totals.lucro * 100)}% do lucro total` : '—'}
+                Receita {fmtR(totals.toow.receita)} · Margem {totals.toow.receita > 0 ? fmtP(totals.toow.lucro / totals.toow.receita * 100) : '—'}
+              </div>
+            </div>
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-orange-900/40 text-orange-400 border border-orange-700/50">GGE SP</span>
+                <span className="text-xs text-gge-muted">{totals.ggesp.count} anúncios · {fmtN(totals.ggesp.vendas)} vendas</span>
+              </div>
+              <div className={`text-xl font-bold ${totals.ggesp.lucro >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(totals.ggesp.lucro)}</div>
+              <div className="text-xs text-gge-muted mt-1">
+                Receita {fmtR(totals.ggesp.receita)} · Margem {totals.ggesp.receita > 0 ? fmtP(totals.ggesp.lucro / totals.ggesp.receita * 100) : '—'}
               </div>
             </div>
           </div>
 
-          {/* Chart: Top perdas e ganhos por SKU */}
-          {chartData.length > 0 && (
-            <div className="bg-gge-card border border-gge-border rounded-xl p-4 mb-6 fade-in">
-              <h3 className="text-sm font-semibold text-white mb-3">Lucro por SKU ({periodo}d) — piores e melhores</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData} layout="vertical" margin={{left:100,right:20,top:5,bottom:5}}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" horizontal={false} />
-                  <XAxis type="number" tick={{fill:'#94a3b8',fontSize:11}} tickFormatter={v => `R$${v}`} />
-                  <YAxis type="category" dataKey="sku" tick={{fill:'#94a3b8',fontSize:10}} width={95} />
-                  <Tooltip formatter={v => fmtR(v)} contentStyle={{background:'#1a1d2e',border:'1px solid #2a2d3e',borderRadius:'8px'}} labelStyle={{color:'#fff'}} />
-                  <Bar dataKey="lucro" name={`Lucro ${periodo}d`} radius={[0,4,4,0]}>
-                    {chartData.map((d, i) => <Cell key={i} fill={d.lucro < 0 ? '#ef4444' : '#22c55e'} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+          {/* Charts: Piores e Melhores por SKU */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {chartWorst.length > 0 && (
+              <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                <h3 className="text-sm font-semibold text-gge-red mb-3">Piores SKUs ({periodo}d)</h3>
+                <ResponsiveContainer width="100%" height={Math.max(160, chartWorst.length * 28)}>
+                  <BarChart data={chartWorst} layout="vertical" margin={{left:100,right:20,top:5,bottom:5}}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" horizontal={false} />
+                    <XAxis type="number" tick={{fill:'#94a3b8',fontSize:11}} tickFormatter={v => `R$${v}`} />
+                    <YAxis type="category" dataKey="sku" tick={{fill:'#94a3b8',fontSize:10}} width={95} />
+                    <Tooltip formatter={v => fmtR(v)} contentStyle={{background:'#1a1d2e',border:'1px solid #2a2d3e',borderRadius:'8px'}} labelStyle={{color:'#fff'}} />
+                    <Bar dataKey="lucro" name="Prejuízo" radius={[0,4,4,0]}>
+                      {chartWorst.map((d, i) => <Cell key={i} fill="#ef4444" />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {chartBest.length > 0 && (
+              <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                <h3 className="text-sm font-semibold text-gge-green mb-3">Melhores SKUs ({periodo}d)</h3>
+                <ResponsiveContainer width="100%" height={Math.max(160, chartBest.length * 28)}>
+                  <BarChart data={chartBest} layout="vertical" margin={{left:100,right:20,top:5,bottom:5}}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" horizontal={false} />
+                    <XAxis type="number" tick={{fill:'#94a3b8',fontSize:11}} tickFormatter={v => `R$${v}`} />
+                    <YAxis type="category" dataKey="sku" tick={{fill:'#94a3b8',fontSize:10}} width={95} />
+                    <Tooltip formatter={v => fmtR(v)} contentStyle={{background:'#1a1d2e',border:'1px solid #2a2d3e',borderRadius:'8px'}} labelStyle={{color:'#fff'}} />
+                    <Bar dataKey="lucro" name="Lucro" radius={[0,4,4,0]}>
+                      {chartBest.map((d, i) => <Cell key={i} fill="#22c55e" />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
 
           {/* Filters */}
           <div className="bg-gge-card border border-gge-border rounded-xl p-4 mb-4 fade-in">
@@ -504,48 +549,6 @@
                           <div className="text-sm text-white truncate">{d.titulo || '—'}</div>
                           <div className="text-xs text-gge-muted">{d.sku_vendedor || d.mlb_id}</div>
                         </td>
-                        <td className="py-2 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
-                        <td className="py-2 px-2 text-center">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${d.modo_logistica === 'fulfillment' ? 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50' : 'bg-gge-bg text-gge-muted border-gge-border'}`}>
-                            {d.modo_logistica === 'fulfillment' ? 'Full' : 'Col'}
-                          </span>
-                        </td>
-                        <td className="py-2 px-2 text-right text-white">{fmtR(d.preco_atual)}</td>
-                        <td className="py-2 px-2 text-right text-white">{fmtN(d.vendas_30d)}</td>
-                        <td className="py-2 px-2 text-right"><MargemBadge valor={margem} fonte={d.margem_fonte} /></td>
-                        <td className={`py-2 px-2 text-right font-bold ${lucro >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(lucro)}</td>
-                        <td className="py-2 px-2 text-right text-gge-muted">{d.modo_logistica === 'fulfillment' ? fmtN(d.estoque_declarado) : <span className="text-gge-muted/50" title="Estoque declarado (não confiável em Coleta)">—</span>}</td>
-                        <td className="py-2 px-2 text-right text-gge-muted">{d.vendas_dia > 0 ? d.vendas_dia : '—'}</td>
-                        <td className="py-2 px-2 text-center">
-                          {hasSku ? (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gge-accent/20 text-gge-accent border border-gge-accent/30 font-bold">
-                              {d.qtd_anuncios_sku}
-                            </span>
-                          ) : ''}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-4 py-3 text-xs text-gge-muted border-t border-gge-border">
-              {fmtN(sorted.length)} anúncios · Clique em uma linha para ver todos os catálogos desse SKU
-            </div>
-          </div>
-
-          {/* SKU Detail Modal */}
-          {selectedSku && skuItems.length > 0 && (
-            <SkuModal sku={selectedSku} items={skuItems} onClose={() => setSelectedSku(null)} />
-          )}
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
-</body>
-</html>/td>
                         <td className="py-2 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
                         <td className="py-2 px-2 text-center">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${d.modo_logistica === 'fulfillment' ? 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50' : 'bg-gge-bg text-gge-muted border-gge-border'}`}>
