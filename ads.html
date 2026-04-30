@@ -10,8 +10,8 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
-  <script src="config.js"></script>
-  <script src="dados.js"></script>
+  <script src="/config.js"></script>
+  <script src="/dados.js" onerror="console.warn('dados.js not found, continuing without it')"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
@@ -46,13 +46,19 @@
     ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
   </style>
-  <script src="auth.js" defer></script>
   <script src="sidebar.js" defer></script>
 </head>
 <body>
+  <div id="sidebar-container"></div>
   <div class="main-with-sidebar">
     <div id="root"></div>
   </div>
+  <script>
+    (function() {
+      var auth = sessionStorage.getItem('gge_auth');
+      if (auth !== 'gge2026') { window.location.href = '/'; return; }
+    })();
+  </script>
   <script type="text/babel">
     const { useState, useEffect, useMemo, useCallback } = React;
     const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ComposedChart, Area, Legend, ScatterChart, Scatter, ZAxis } = Recharts;
@@ -314,17 +320,21 @@
         try {
           const range = getDateRange(periodo);
           const [adsR, prevR, anR, vendasR, contasR, mcR, campR] = await Promise.all([
-            supabase.from('ads_diario').select('*').gte('data_referencia', range.start).lte('data_referencia', range.end),
-            supabase.from('ads_diario').select('*').gte('data_referencia', range.prevStart).lte('data_referencia', range.prevEnd),
-            supabase.from('anuncios').select('mlb_id,conta_id,titulo,sku_vendedor,status,tipo_listagem,preco_atual,data_criacao,modo_logistica,em_catalogo,estoque_declarado,permalink'),
-            supabase.from('vendas').select('mlb_id,quantidade,preco_total,data_venda,conta_id').eq('status', 'paid').gte('data_venda', range.start).lte('data_venda', range.end),
+            supabase.from('ads_diario').select('*').gte('data_referencia', range.start).lte('data_referencia', range.end).limit(10000),
+            supabase.from('ads_diario').select('*').gte('data_referencia', range.prevStart).lte('data_referencia', range.prevEnd).limit(10000),
+            supabase.from('anuncios').select('mlb_id,conta_id,titulo,sku_vendedor,status,tipo_listagem,preco_atual,data_criacao,modo_logistica,em_catalogo,estoque_declarado,permalink').limit(5000),
+            supabase.from('vendas').select('mlb_id,quantidade,preco_total,data_venda,conta_id').eq('status', 'paid').gte('data_venda', range.start).lte('data_venda', range.end).limit(10000),
             supabase.from('contas').select('id,nome'),
-            supabase.from('vw_mc_por_anuncio').select('*').gte('mes', range.start.slice(0,7) + '-01').lte('mes', range.end.slice(0,7) + '-01'),
+            supabase.from('vw_mc_por_anuncio').select('*').gte('mes', range.start.slice(0,7) + '-01').lte('mes', range.end.slice(0,7) + '-01').limit(5000),
             supabase.from('campanhas_ads').select('*'),
           ]);
           if (adsR.error) throw adsR.error;
           if (prevR.error) throw prevR.error;
           if (anR.error) throw anR.error;
+          if (vendasR.error) throw vendasR.error;
+          if (contasR.error) throw contasR.error;
+          if (mcR.error) throw mcR.error;
+          if (campR.error) throw campR.error;
           setAdsData(adsR.data || []);
           setPrevAdsData(prevR.data || []);
           setAnunciosRaw(anR.data || []);
