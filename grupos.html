@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grupos - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#e6edf3}
+    .main-with-sidebar{margin-left:48px;min-height:100vh}
+    .container{max-width:1200px;margin:0 auto;padding:24px}
+    h1{font-size:22px;font-weight:600;margin-bottom:4px}
+    h2{font-size:17px;font-weight:600;margin-bottom:12px}
+    .sub{color:#8b949e;font-size:13px;margin-bottom:20px}
+    .btn{padding:8px 16px;border-radius:6px;border:1px solid #30363d;background:transparent;color:#e6edf3;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+    .btn:hover{background:#21262d;border-color:#8b949e}
+    .btn-primary{background:#238636;border-color:#238636;color:#fff}
+    .btn-primary:hover{background:#2ea043}
+    .btn-sm{padding:5px 12px;font-size:12px}
+    .btn-danger{border-color:#f85149;color:#f85149}
+    .btn-danger:hover{background:#f8514920}
+    .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}
+    .metric{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;text-align:center}
+    .metric .val{font-size:20px;font-weight:600}
+    .metric .lbl{font-size:11px;color:#8b949e;margin-top:2px}
+    .metric .delta-pos{color:#3fb950;font-size:11px}
+    .metric .delta-neg{color:#f85149;font-size:11px}
+    .grid-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+
+    /* Grupos list */
+    .grupos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:24px}
+    .grupo-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;cursor:pointer;transition:all .15s}
+    .grupo-card:hover{border-color:#58a6ff}
+    .grupo-card.active{border-color:#58a6ff;background:#1a2332}
+    .grupo-card.archived{opacity:.5}
+    .grupo-card .num{font-size:12px;color:#8b949e}
+    .grupo-card .nome{font-weight:600;font-size:15px;margin:2px 0}
+    .grupo-card .info{font-size:12px;color:#8b949e}
+    .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500}
+    .badge-rep{background:#1a3a5c;color:#58a6ff}
+    .badge-obs{background:#2d1f4e;color:#bc8cff}
+    .badge-arch{background:#21262d;color:#8b949e}
+    .badge-st{font-size:10px;padding:2px 6px;border-radius:3px}
+    .st-pendente{background:#21262d;color:#8b949e}
+    .st-testando{background:#3d2e00;color:#d29922}
+    .st-confirmado{background:#0d3117;color:#3fb950}
+    .st-revertido{background:#3d1117;color:#f85149}
+
+    /* Tabs */
+    .tabs{display:flex;gap:0;border-bottom:1px solid #30363d;margin-bottom:16px}
+    .tab{padding:10px 18px;font-size:13px;color:#8b949e;cursor:pointer;border-bottom:2px solid transparent;font-weight:500;transition:all .15s}
+    .tab:hover{color:#e6edf3}
+    .tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+
+    /* Table */
+    .tbl{width:100%;border-collapse:collapse;font-size:13px}
+    .tbl th{text-align:left;padding:8px 10px;border-bottom:1px solid #30363d;color:#8b949e;font-weight:500;font-size:12px;white-space:nowrap}
+    .tbl td{padding:8px 10px;border-bottom:1px solid #21262d;white-space:nowrap}
+    .tbl tr:hover td{background:#1a2332}
+    .tbl .right{text-align:right}
+    .chk{width:16px;height:16px;border:1.5px solid #484f58;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .chk.on{background:#58a6ff;border-color:#58a6ff}
+    .chk.on::after{content:'';display:block;width:6px;height:3px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translateY(-1px)}
+
+    /* Notes */
+    .notes-area{width:100%;min-height:120px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;color:#e6edf3;font-size:13px;font-family:inherit;resize:vertical}
+    .notes-area:focus{outline:none;border-color:#58a6ff}
+    .notes-saved{color:#3fb950;font-size:12px;opacity:0;transition:opacity .3s}
+    .notes-saved.show{opacity:1}
+
+    /* Rules */
+    .rule-row{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;color:#8b949e;border-bottom:1px solid #21262d}
+    .rule-row:last-child{border-bottom:none}
+    .tag{display:inline-block;padding:2px 8px;background:#21262d;border-radius:4px;font-size:11px;color:#58a6ff;font-weight:500}
+
+    /* Timeline */
+    .tl-entry{display:flex;gap:10px;padding:8px 0;font-size:12px}
+    .tl-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+    .tl-dot.info{background:#58a6ff}
+    .tl-dot.action{background:#d29922}
+    .tl-dot.alert{background:#f85149}
+    .tl-dot.ok{background:#3fb950}
+
+    /* Modal */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center}
+    .modal-overlay.show{display:flex}
+    .modal{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:24px;width:90%;max-width:800px;max-height:85vh;overflow-y:auto}
+    .modal h2{margin-bottom:16px}
+    .modal .search-box{width:100%;padding:10px 14px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:14px;margin-bottom:12px}
+    .modal .search-box:focus{outline:none;border-color:#58a6ff}
+    .modal .filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .modal .filter-btn{padding:4px 10px;font-size:12px;border-radius:4px;border:1px solid #30363d;background:transparent;color:#8b949e;cursor:pointer}
+    .modal .filter-btn.active{background:#1a3a5c;color:#58a6ff;border-color:#58a6ff}
+
+    /* Input */
+    input[type=text],input[type=number],select{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#e6edf3;font-size:13px}
+    input:focus,select:focus{outline:none;border-color:#58a6ff}
+    label{font-size:13px;color:#8b949e;display:block;margin-bottom:4px}
+
+    .empty{text-align:center;padding:40px;color:#8b949e;font-size:14px}
+    .loading{text-align:center;padding:20px;color:#8b949e}
+    .flex{display:flex;align-items:center}
+    .gap-8{gap:8px}
+    .gap-12{gap:12px}
+    .gap-16{gap:16px}
+    .between{justify-content:space-between}
+    .mb-8{margin-bottom:8px}
+    .mb-16{margin-bottom:16px}
+    .mb-24{margin-bottom:24px}
+    .mt-8{margin-top:8px}
+    .mt-16{margin-top:16px}
+    .text-green{color:#3fb950}
+    .text-red{color:#f85149}
+    .text-yellow{color:#d29922}
+    .text-blue{color:#58a6ff}
+    .text-muted{color:#8b949e}
+    .text-sm{font-size:12px}
+    .divider{border:none;border-top:1px solid #30363d;margin:24px 0}
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <div class="container">
+      <!-- HEADER -->
+      <div class="flex between mb-8">
+        <div>
+          <h1>Grupos</h1>
+          <p class="sub">Agrupe anúncios para acompanhar desempenho e gerenciar preços</p>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalCriar()">+ Novo grupo</button>
+      </div>
+
+      <!-- LISTA DE GRUPOS -->
+      <div id="grupos-list" class="grupos-grid">
+        <div class="loading">Carregando grupos...</div>
+      </div>
+
+      <!-- DETALHE DO GRUPO -->
+      <div id="grupo-detalhe" style="display:none">
+        <hr class="divider">
+        <div class="flex between mb-8">
+          <div>
+            <div class="flex gap-8">
+              <span class="text-muted text-sm" id="det-num"></span>
+              <h2 id="det-nome" style="margin-bottom:0"></h2>
+              <span id="det-badge"></span>
+            </div>
+            <p class="text-muted text-sm" id="det-info"></p>
+          </div>
+          <div class="flex gap-8">
+            <button class="btn btn-sm" onclick="arquivarGrupo()" id="btn-arquivar">Arquivar</button>
+          </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="tabs" id="tabs-bar">
+          <div class="tab active" data-tab="visao">Visão geral</div>
+          <div class="tab" data-tab="mlbs">MLBs <span id="tab-mlb-count"></span></div>
+          <div class="tab" data-tab="regras">Regras</div>
+          <div class="tab" data-tab="historico">Histórico</div>
+          <div class="tab" data-tab="notas">Notas</div>
+        </div>
+
+        <!-- TAB: VISAO GERAL -->
+        <div class="tab-content active" id="tab-visao">
+          <div class="grid-metrics" id="metricas-grupo"></div>
+          <!-- Investimento (só observação) -->
+          <div id="investimento-section" style="display:none">
+            <h2 style="font-size:15px">Investimento</h2>
+            <div class="grid-metrics" id="metricas-investimento"></div>
+          </div>
+        </div>
+
+        <!-- TAB: MLBs -->
+        <div class="tab-content" id="tab-mlbs">
+          <div class="flex between mb-16">
+            <span class="text-muted text-sm" id="mlbs-resumo"></span>
+            <button class="btn btn-sm" onclick="abrirModalMLBs()">+ Adicionar MLBs</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl" id="tbl-mlbs">
+              <thead>
+                <tr>
+                  <th style="width:30px"></th>
+                  <th>MLB</th>
+                  <th>Produto</th>
+                  <th class="right">Preço atual</th>
+                  <th class="right">Baseline</th>
+                  <th class="right">Margem %</th>
+                  <th class="right">Receita 30d</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-mlbs"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: REGRAS -->
+        <div class="tab-content" id="tab-regras">
+          <div id="regras-container"></div>
+          <div class="mt-16">
+            <button class="btn btn-sm" onclick="abrirModalRegra()">+ Adicionar regra</button>
+          </div>
+        </div>
+
+        <!-- TAB: HISTORICO -->
+        <div class="tab-content" id="tab-historico">
+          <div id="historico-container"></div>
+        </div>
+
+        <!-- TAB: NOTAS -->
+        <div class="tab-content" id="tab-notas">
+          <textarea class="notes-area" id="notas-text" placeholder="Anotações sobre este grupo..."></textarea>
+          <div class="flex between mt-8">
+            <span class="notes-saved" id="notas-saved">Salvo!</span>
+            <button class="btn btn-sm" onclick="salvarNotas()">Salvar notas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CRIAR GRUPO -->
+  <div class="modal-overlay" id="modal-criar">
+    <div class="modal" style="max-width:500px">
+      <h2>Novo grupo</h2>
+      <div class="mb-16">
+        <label>Apelido (opcional)</label>
+        <input type="text" id="criar-apelido" placeholder="Ex: Pinos alta margem" style="width:100%">
+      </div>
+      <div class="mb-16">
+        <label>Tipo</label>
+        <div class="flex gap-8">
+          <button class="btn btn-sm tipo-btn active" data-tipo="observacao" onclick="selTipo(this)">Observação</button>
+          <button class="btn btn-sm tipo-btn" data-tipo="repricing" onclick="selTipo(this)">Repricing</button>
+        </div>
+      </div>
+      <div id="criar-investimento-div" class="mb-16">
+        <label>Investimento (R$) — opcional</label>
+        <input type="number" id="criar-investimento" placeholder="0.00" step="0.01" style="width:100%">
+      </div>
+      <div id="criar-margem-div" class="mb-16" style="display:none">
+        <label>Margem-alvo (%)</label>
+        <input type="number" id="criar-margem-alvo" placeholder="15" step="0.1" style="width:100%">
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end">
+        <button class="btn btn-sm" onclick="fecharModal('modal-criar')">Cancelar</button>
+        <button class="btn btn-sm btn-primary" onclick="criarGrupo()">Criar grupo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADICIONAR MLBs -->
+  <div class="modal-overlay" id="modal-mlbs">
+    <div class="modal">
+      <h2>Adicionar MLBs ao grupo</h2>
+      <input type="text" class="search-box" id="mlb-search" placeholder="Buscar por título, SKU ou MLB..." oninput="buscarMLBs()">
+      <div class="filter-row">
+        <button class="filter-btn active" data-conta="" onclick="filtrarConta(this)">Todas</button>
+        <button class="filter-btn" data-conta="GGE" onclick="filtrarConta(this)">GGE</button>
+        <button class="filter-btn" data-conta="TOOW" onclick="filtrarConta(this)">TOOW</button>
+        <button class="filter-btn" data-conta="GGESP" onclick="filtrarConta(this)">GGESP</button>
+      </div>
+      <div style="max-height:400px;overflow-y:auto">
+        <table class="tbl" id="tbl-disponiveis">
+          <thead>
+            <tr>
+              <th style="width:30px"></th>
+              <th>Produto</th>
+              <th>Conta</th>
+              <th class="right">Preço</th>
+              <th class="right">Margem</th>
+              <th class="right">Receita 30d</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-disponiveis"></tbody>
+        </table>
+      </div>
+      <div class="flex between mt-16">
+        <span class="text-muted text-sm"><span id="selecionados-count">0</span> selecionados</span>
+        <div class="flex gap-8">
+          <button class="btn btn-sm" onclick="fecharModal('modal-mlbs')">Cancelar</button>
+          <button class="btn btn-sm btn-primary" onclick="adicionarMLBsSelecionados()">Adicionar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REGRA -->
+  <div class="modal-overlay" id="modal-regra">
+    <div class="modal" style="max-width:500px">
+      <h2>Adicionar regra</h2>
+      <div class="mb-16">
+        <label>Tipo de regra</label>
+        <select id="regra-tipo" style="width:100%" onchange="onRegraTipoChange()">
+          <option value="ritmo_aumento">Ritmo de aumento</option>
+          <option value="gatilho_reverter">Gatilho para reverter</option>
+          <option value="gatilho_confirmar">Gatilho para confirmar</option>
+          <option value="meta_margem">Meta de margem</option>
+          <option value="periodo_espera">Período de espera</option>
+        </select>
+      </div>
+      <div class="mb-16">
+        <label id="regra-param-label">Percentual de aumento por rodada</label>
+        <input type="text" id="regra-param" style="width:100%" placeholder="3%">
+      </div>
+      <div class="mb-16">
+        <label id="regra-valor-label">Valor</label>
+        <input type="text" id="regra-valor" style="width:100%" placeholder="3">
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end">
+        <button class="btn btn-sm" onclick="fecharModal('modal-regra')">Cancelar</button>
+        <button class="btn btn-sm btn-primary" onclick="salvarRegra()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+    (function(){
+      var auth = sessionStorage.getItem('gge_auth');
+      if (auth !== 'gge2026') { window.location.href = '/'; return; }
+    })();
+    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+
+    // ========== STATE ==========
+    var grupoAtual = null;
+    var gruposList = [];
+    var mlbsDisponiveis = [];
+    var mlbsSelecionados = new Set();
+    var contaFiltro = '';
+    var tipoSel = 'observacao';
+    var debounceTimer = null;
+
+    // ========== INIT ==========
+    carregarGrupos();
+
+    // ========== TABS ==========
+    document.querySelectorAll('.tab').forEach(function(t){
+      t.addEventListener('click', function(){
+        document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+        document.querySelectorAll('.tab-content').forEach(function(x){x.classList.remove('active')});
+        t.classList.add('active');
+        document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ========== GRUPOS ==========
+    async function carregarGrupos(){
+      var {data, error} = await sb.from('grupos').select('*').order('id', {ascending: true});
+      if(error){console.error(error); return;}
+      gruposList = data || [];
+      renderGrupos();
+    }
+
+    function renderGrupos(){
+      var el = document.getElementById('grupos-list');
+      if(!gruposList.length){
+        el.innerHTML = '<div class="empty">Nenhum grupo criado ainda.<br>Clique em "+ Novo grupo" para começar.</div>';
+        return;
+      }
+      var html = '';
+      gruposList.forEach(function(g){
+        var cls = g.status === 'arquivado' ? 'grupo-card archived' : 'grupo-card';
+        if(grupoAtual && grupoAtual.id === g.id) cls += ' active';
+        var badge = g.tipo === 'repricing' ? '<span class="badge badge-rep">Repricing</span>' : '<span class="badge badge-obs">Observação</span>';
+        if(g.status === 'arquivado') badge = '<span class="badge badge-arch">Arquivado</span>';
+        var info = 'Criado em ' + formatDate(g.criado_em);
+        if(g.investimento > 0) info += ' · Investido R$ ' + fmtNum(g.investimento);
+        html += '<div class="'+cls+'" onclick="selecionarGrupo('+g.id+')">';
+        html += '<div class="flex between mb-8"><div><span class="num">#'+String(g.id).padStart(3,'0')+'</span>';
+        html += '<div class="nome">'+(g.apelido || 'Grupo #'+g.id)+'</div></div>'+badge+'</div>';
+        html += '<div class="info">'+info+'</div>';
+        html += '</div>';
+      });
+      el.innerHTML = html;
+    }
+
+    async function selecionarGrupo(id){
+      grupoAtual = gruposList.find(function(g){return g.id === id});
+      if(!grupoAtual) return;
+      renderGrupos();
+      document.getElementById('grupo-detalhe').style.display = 'block';
+
+      // Header
+      document.getElementById('det-num').textContent = '#'+String(grupoAtual.id).padStart(3,'0');
+      document.getElementById('det-nome').textContent = grupoAtual.apelido || 'Grupo #'+grupoAtual.id;
+      var badgeClass = grupoAtual.tipo === 'repricing' ? 'badge-rep' : 'badge-obs';
+      if(grupoAtual.status === 'arquivado') badgeClass = 'badge-arch';
+      var badgeLabel = grupoAtual.tipo === 'repricing' ? 'Repricing' : 'Observação';
+      if(grupoAtual.status === 'arquivado') badgeLabel = 'Arquivado';
+      document.getElementById('det-badge').innerHTML = '<span class="badge '+badgeClass+'">'+badgeLabel+'</span>';
+
+      var dias = Math.floor((Date.now() - new Date(grupoAtual.criado_em).getTime()) / 86400000);
+      document.getElementById('det-info').textContent = 'Criado em '+formatDate(grupoAtual.criado_em)+' · Observando há '+dias+' dias';
+
+      document.getElementById('btn-arquivar').textContent = grupoAtual.status === 'arquivado' ? 'Reativar' : 'Arquivar';
+
+      // Show/hide regras tab for repricing
+      var regrasTab = document.querySelector('[data-tab="regras"]');
+      regrasTab.style.display = grupoAtual.tipo === 'repricing' ? '' : 'none';
+
+      // Load all data
+      await Promise.all([carregarMetricas(), carregarMLBs(), carregarRegras(), carregarHistorico(), carregarNotas()]);
+
+      // Scroll to detail
+      document.getElementById('grupo-detalhe').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    // ========== METRICAS ==========
+    async function carregarMetricas(){
+      var {data, error} = await sb.rpc('rpc_grupo_metricas', {p_grupo_id: grupoAtual.id, p_dias: 30});
+      if(error){console.error(error); return;}
+      var m = data.metricas;
+      var b = data.baseline;
+      var inv = data.investimento;
+
+      var html = '';
+      html += metricCard('Receita 30d', 'R$ '+fmtNum(m.receita_periodo), deltaText(m.receita_periodo, b.receita_30d, 'R$'));
+      html += metricCard('Margem 30d', 'R$ '+fmtNum(m.margem_periodo), deltaText(m.margem_periodo, b.receita_30d * b.margem_pct_media / 100, 'R$'));
+      html += metricCard('Margem %', fmtNum(m.margem_pct)+'%', b.margem_pct_media > 0 ? 'era '+fmtNum(b.margem_pct_media)+'%' : '');
+      html += metricCard('Volume', m.volume_periodo, deltaText(m.volume_periodo, b.volume_30d, ''));
+      html += metricCard('MLBs ativos', m.mlbs_ativos, '');
+      html += metricCard('Pedidos', m.num_pedidos, '');
+      document.getElementById('metricas-grupo').innerHTML = html;
+
+      // Investimento
+      var invSection = document.getElementById('investimento-section');
+      if(grupoAtual.investimento > 0){
+        invSection.style.display = 'block';
+        var margGerada = inv.margem_gerada;
+        var falta = Math.max(0, grupoAtual.investimento - margGerada);
+        var pctRecup = grupoAtual.investimento > 0 ? Math.round(margGerada / grupoAtual.investimento * 100) : 0;
+        var diasGrupo = Math.max(1, Math.floor((Date.now() - new Date(grupoAtual.criado_em).getTime()) / 86400000));
+        var ritmo = margGerada / diasGrupo;
+        var diasPayback = ritmo > 0 ? Math.ceil(falta / ritmo) : 999;
+
+        var ihtml = '';
+        ihtml += metricCard('Investido', 'R$ '+fmtNum(grupoAtual.investimento), '');
+        ihtml += metricCard('Margem gerada', 'R$ '+fmtNum(margGerada), pctRecup+'% recuperado', pctRecup >= 100);
+        ihtml += metricCard('Falta recuperar', 'R$ '+fmtNum(falta), '');
+        ihtml += metricCard('Payback estimado', diasPayback < 999 ? '~'+diasPayback+' dias' : '—', '');
+        ihtml += metricCard('Receita gerada', 'R$ '+fmtNum(inv.receita_gerada), '');
+        document.getElementById('metricas-investimento').innerHTML = ihtml;
+      } else {
+        invSection.style.display = 'none';
+      }
+    }
+
+    function metricCard(label, value, delta, forceGreen){
+      var deltaHtml = '';
+      if(delta){
+        var cls = forceGreen || delta.indexOf('+') === 0 ? 'delta-pos' : (delta.indexOf('-') === 0 ? 'delta-neg' : 'text-muted');
+        deltaHtml = '<div class="'+cls+'" style="font-size:11px">'+delta+'</div>';
+      }
+      return '<div class="metric"><div class="val">'+value+'</div><div class="lbl">'+label+'</div>'+deltaHtml+'</div>';
+    }
+
+    function deltaText(atual, baseline, prefix){
+      if(!baseline || baseline === 0) return '';
+      var diff = atual - baseline;
+      var sign = diff >= 0 ? '+' : '';
+      if(prefix === 'R$') return sign+'R$ '+fmtNum(Math.abs(diff))+' vs baseline';
+      return sign+Math.round(diff)+' vs baseline';
+    }
+
+    // ========== MLBs DO GRUPO ==========
+    async function carregarMLBs(){
+      var {data: metricas} = await sb.rpc('rpc_grupo_metricas', {p_grupo_id: grupoAtual.id, p_dias: 30});
+      var mlbs = metricas ? metricas.por_mlb : [];
+      var tbody = document.getElementById('tbody-mlbs');
+      document.getElementById('tab-mlb-count').textContent = '('+mlbs.length+')';
+
+      var ativos = mlbs.filter(function(m){return m.ativo}).length;
+      document.getElementById('mlbs-resumo').textContent = ativos+' ativos de '+mlbs.length+' no grupo';
+
+      if(!mlbs.length){
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhum MLB neste grupo ainda</td></tr>';
+        return;
+      }
+
+      var html = '';
+      mlbs.forEach(function(m){
+        var stCls = 'st-'+m.status_mlb;
+        var stLabel = m.status_mlb.charAt(0).toUpperCase()+m.status_mlb.slice(1);
+        var deltaPreco = '';
+        if(m.baseline_preco && m.preco_atual && m.preco_atual !== m.baseline_preco){
+          var diff = ((m.preco_atual - m.baseline_preco)/m.baseline_preco*100).toFixed(1);
+          deltaPreco = '<span class="'+(diff>0?'text-green':'text-red')+'" style="font-size:11px"> ('+(diff>0?'+':'')+diff+'%)</span>';
+        }
+        html += '<tr>';
+        html += '<td><div class="chk'+(m.ativo?' on':'')+'" onclick="toggleMLB(\''+m.mlb_id+'\','+m.ativo+')"></div></td>';
+        html += '<td class="text-muted text-sm">...'+m.mlb_id.slice(-6)+'</td>';
+        html += '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+m.titulo+(m.em_catalogo?' <span class="text-blue text-sm">CAT</span>':'')+'</td>';
+        html += '<td class="right">R$ '+fmtNum(m.preco_atual)+deltaPreco+'</td>';
+        html += '<td class="right text-muted">R$ '+fmtNum(m.baseline_preco)+'</td>';
+        html += '<td class="right"><span class="'+(m.margem_pct_periodo>0?'text-green':'text-red')+'">'+fmtNum(m.margem_pct_periodo)+'%</span></td>';
+        html += '<td class="right">R$ '+fmtNum(m.receita_periodo)+'</td>';
+        html += '<td><span class="badge-st '+stCls+'">'+stLabel+'</span></td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    async function toggleMLB(mlb_id, atualAtivo){
+      await sb.from('grupo_mlbs').update({ativo: !atualAtivo}).eq('grupo_id', grupoAtual.id).eq('mlb_id', mlb_id);
+      await registrarAcao(mlb_id, 'status_alterado', (atualAtivo?'Desativado':'Reativado')+' no grupo', atualAtivo?'ativo':'inativo', atualAtivo?'inativo':'ativo');
+      await carregarMLBs();
+      await carregarMetricas();
+    }
+
+    // ========== MODAL ADICIONAR MLBs ==========
+    async function abrirModalMLBs(){
+      mlbsSelecionados.clear();
+      document.getElementById('selecionados-count').textContent = '0';
+      document.getElementById('modal-mlbs').classList.add('show');
+      document.getElementById('mlb-search').value = '';
+      contaFiltro = '';
+      document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});
+      document.querySelector('.filter-btn[data-conta=""]').classList.add('active');
+      await buscarMLBs();
+    }
+
+    function filtrarConta(btn){
+      document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});
+      btn.classList.add('active');
+      contaFiltro = btn.dataset.conta;
+      buscarMLBs();
+    }
+
+    async function buscarMLBs(){
+      if(debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async function(){
+        var busca = document.getElementById('mlb-search').value.trim();
+        var {data, error} = await sb.rpc('rpc_mlbs_disponiveis', {p_busca: busca, p_conta: contaFiltro});
+        if(error){console.error(error); return;}
+        mlbsDisponiveis = data || [];
+
+        // Filtrar os que já estão no grupo
+        var {data: jaNoGrupo} = await sb.from('grupo_mlbs').select('mlb_id').eq('grupo_id', grupoAtual.id);
+        var jaSet = new Set((jaNoGrupo||[]).map(function(r){return r.mlb_id}));
+
+        var tbody = document.getElementById('tbody-disponiveis');
+        var html = '';
+        mlbsDisponiveis.forEach(function(m){
+          if(jaSet.has(m.mlb_id)) return;
+          var sel = mlbsSelecionados.has(m.mlb_id);
+          html += '<tr onclick="toggleSel(\''+m.mlb_id+'\')" style="cursor:pointer">';
+          html += '<td><div class="chk'+(sel?' on':'')+'"></div></td>';
+          html += '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis">'+m.titulo+'</td>';
+          html += '<td class="text-sm text-muted">'+m.conta_nome+'</td>';
+          html += '<td class="right">R$ '+fmtNum(m.preco_atual)+'</td>';
+          html += '<td class="right"><span class="'+(m.margem_pct>0?'text-green':'text-red')+'">'+fmtNum(m.margem_pct)+'%</span></td>';
+          html += '<td class="right">R$ '+fmtNum(m.receita_30d)+'</td>';
+          html += '</tr>';
+        });
+        if(!html) html = '<tr><td colspan="6" class="empty">Nenhum MLB encontrado</td></tr>';
+        tbody.innerHTML = html;
+      }, 300);
+    }
+
+    function toggleSel(mlb_id){
+      if(mlbsSelecionados.has(mlb_id)) mlbsSelecionados.delete(mlb_id);
+      else mlbsSelecionados.add(mlb_id);
+      document.getElementById('selecionados-count').textContent = mlbsSelecionados.size;
+      // Re-render checkboxes
+      buscarMLBs();
+    }
+
+    async function adicionarMLBsSelecionados(){
+      if(!mlbsSelecionados.size) return;
+      var inserts = [];
+      mlbsSelecionados.forEach(function(mlb_id){
+        var m = mlbsDisponiveis.find(function(x){return x.mlb_id === mlb_id});
+        if(m){
+          inserts.push({
+            grupo_id: grupoAtual.id,
+            mlb_id: mlb_id,
+            baseline_preco: m.preco_atual,
+            baseline_margem_pct: m.margem_pct,
+            baseline_receita_30d: m.receita_30d,
+            baseline_volume_30d: m.volume_30d,
+            baseline_visitas_30d: m.visitas_30d,
+            baseline_conversao_30d: m.conversao_30d
+          });
+        }
+      });
+      var {error} = await sb.from('grupo_mlbs').insert(inserts);
+      if(error){alert('Erro: '+error.message); return;}
+
+      // Log
+      for(var ins of inserts){
+        await registrarAcao(ins.mlb_id, 'mlb_adicionado', 'MLB adicionado ao grupo (preço R$ '+fmtNum(ins.baseline_preco)+', margem '+fmtNum(ins.baseline_margem_pct)+'%)', null, null);
+      }
+
+      fecharModal('modal-mlbs');
+      await carregarMLBs();
+      await carregarMetricas();
+      await carregarHistorico();
+    }
+
+    // ========== REGRAS ==========
+    async function carregarRegras(){
+      var {data} = await sb.from('grupo_regras').select('*').eq('grupo_id', grupoAtual.id).order('criado_em');
+      var el = document.getElementById('regras-container');
+      if(!data || !data.length){
+        el.innerHTML = '<div class="empty" style="padding:20px">Nenhuma regra definida</div>';
+        return;
+      }
+      var html = '';
+      var tipoLabels = {ritmo_aumento:'RITMO', gatilho_reverter:'SE REVERTER', gatilho_confirmar:'SE CONFIRMAR', meta_margem:'META', periodo_espera:'ESPERA'};
+      data.forEach(function(r){
+        html += '<div class="rule-row">';
+        html += '<span class="tag">'+(tipoLabels[r.tipo_regra]||r.tipo_regra)+'</span> ';
+        html += r.parametro+': <strong>'+r.valor+'</strong>';
+        html += ' <span class="text-muted text-sm" style="margin-left:auto;cursor:pointer" onclick="excluirRegra('+r.id+')">&times;</span>';
+        html += '</div>';
+      });
+      el.innerHTML = html;
+    }
+
+    function abrirModalRegra(){
+      document.getElementById('modal-regra').classList.add('show');
+      onRegraTipoChange();
+    }
+
+    function onRegraTipoChange(){
+      var tipo = document.getElementById('regra-tipo').value;
+      var labels = {
+        ritmo_aumento: ['Descrição', 'Ex: +3% a cada 14 dias', 'Valor', '3'],
+        gatilho_reverter: ['Condição', 'Ex: volume cair > 20% em 10 dias', 'Threshold', '20'],
+        gatilho_confirmar: ['Condição', 'Ex: margem total subir', 'Valor', ''],
+        meta_margem: ['Descrição', 'Ex: margem-alvo do grupo', 'Margem % alvo', '15'],
+        periodo_espera: ['Descrição', 'Ex: dias entre ajustes', 'Dias', '14']
+      };
+      var l = labels[tipo] || ['Parâmetro','','Valor',''];
+      document.getElementById('regra-param-label').textContent = l[0];
+      document.getElementById('regra-param').placeholder = l[1];
+      document.getElementById('regra-valor-label').textContent = l[2];
+      document.getElementById('regra-valor').placeholder = l[3];
+    }
+
+    async function salvarRegra(){
+      var tipo = document.getElementById('regra-tipo').value;
+      var param = document.getElementById('regra-param').value.trim();
+      var valor = document.getElementById('regra-valor').value.trim();
+      if(!param || !valor){alert('Preencha os campos'); return;}
+      await sb.from('grupo_regras').insert({grupo_id: grupoAtual.id, tipo_regra: tipo, parametro: param, valor: valor});
+      await registrarAcao(null, 'regra_alterada', 'Regra adicionada: '+param+' = '+valor, null, null);
+      fecharModal('modal-regra');
+      await carregarRegras();
+      await carregarHistorico();
+    }
+
+    async function excluirRegra(id){
+      if(!confirm('Excluir esta regra?')) return;
+      await sb.from('grupo_regras').delete().eq('id', id);
+      await carregarRegras();
+    }
+
+    // ========== HISTORICO ==========
+    async function carregarHistorico(){
+      var {data} = await sb.from('grupo_acoes').select('*').eq('grupo_id', grupoAtual.id).order('criado_em', {ascending: false}).limit(50);
+      var el = document.getElementById('historico-container');
+      if(!data || !data.length){
+        el.innerHTML = '<div class="empty" style="padding:20px">Nenhuma ação registrada</div>';
+        return;
+      }
+      var dotClass = {preco_alterado:'action', mlb_adicionado:'info', mlb_removido:'alert', alerta:'alert', grupo_criado:'info', status_alterado:'ok', regra_alterada:'info', observacao:'info', grupo_arquivado:'action'};
+      var html = '';
+      data.forEach(function(a){
+        html += '<div class="tl-entry">';
+        html += '<div class="tl-dot '+(dotClass[a.tipo_acao]||'info')+'"></div>';
+        html += '<div><div style="color:#e6edf3;font-size:13px">'+a.descricao+'</div>';
+        html += '<div class="text-muted" style="font-size:11px">'+formatDateTime(a.criado_em)+' · '+a.autor+'</div>';
+        html += '</div></div>';
+      });
+      el.innerHTML = html;
+    }
+
+    async function registrarAcao(mlb_id, tipo, desc, val_ant, val_novo){
+      await sb.from('grupo_acoes').insert({
+        grupo_id: grupoAtual.id,
+        mlb_id: mlb_id,
+        tipo_acao: tipo,
+        descricao: desc,
+        valor_anterior: val_ant,
+        valor_novo: val_novo,
+        autor: 'Neco'
+      });
+    }
+
+    // ========== NOTAS ==========
+    async function carregarNotas(){
+      var {data} = await sb.from('grupo_notas').select('*').eq('grupo_id', grupoAtual.id).limit(1);
+      var text = data && data.length ? data[0].conteudo : '';
+      document.getElementById('notas-text').value = text;
+    }
+
+    async function salvarNotas(){
+      var texto = document.getElementById('notas-text').value;
+      var {data: existing} = await sb.from('grupo_notas').select('id').eq('grupo_id', grupoAtual.id).limit(1);
+      if(existing && existing.length){
+        await sb.from('grupo_notas').update({conteudo: texto}).eq('grupo_id', grupoAtual.id);
+      } else {
+        await sb.from('grupo_notas').insert({grupo_id: grupoAtual.id, conteudo: texto});
+      }
+      var saved = document.getElementById('notas-saved');
+      saved.classList.add('show');
+      setTimeout(function(){saved.classList.remove('show')}, 2000);
+    }
+
+    // ========== CRIAR GRUPO ==========
+    function abrirModalCriar(){
+      document.getElementById('modal-criar').classList.add('show');
+      document.getElementById('criar-apelido').value = '';
+      document.getElementById('criar-investimento').value = '';
+      document.getElementById('criar-margem-alvo').value = '';
+      tipoSel = 'observacao';
+      document.querySelectorAll('.tipo-btn').forEach(function(b){b.classList.toggle('active', b.dataset.tipo==='observacao')});
+      document.getElementById('criar-investimento-div').style.display = '';
+      document.getElementById('criar-margem-div').style.display = 'none';
+    }
+
+    function selTipo(btn){
+      tipoSel = btn.dataset.tipo;
+      document.querySelectorAll('.tipo-btn').forEach(function(b){b.classList.remove('active')});
+      btn.classList.add('active');
+      document.getElementById('criar-investimento-div').style.display = tipoSel === 'observacao' ? '' : 'none';
+      document.getElementById('criar-margem-div').style.display = tipoSel === 'repricing' ? '' : 'none';
+    }
+
+    async function criarGrupo(){
+      var apelido = document.getElementById('criar-apelido').value.trim();
+      var inv = parseFloat(document.getElementById('criar-investimento').value) || 0;
+      var margem = parseFloat(document.getElementById('criar-margem-alvo').value) || null;
+
+      var {data, error} = await sb.from('grupos').insert({
+        apelido: apelido || null,
+        tipo: tipoSel,
+        investimento: tipoSel === 'observacao' ? inv : 0,
+        margem_alvo_pct: tipoSel === 'repricing' ? margem : null
+      }).select().single();
+
+      if(error){alert('Erro: '+error.message); return;}
+
+      // Log
+      grupoAtual = data;
+      await registrarAcao(null, 'grupo_criado', 'Grupo criado: '+(apelido||'#'+data.id)+' ('+tipoSel+')', null, null);
+
+      fecharModal('modal-criar');
+      await carregarGrupos();
+      await selecionarGrupo(data.id);
+    }
+
+    // ========== ARQUIVAR ==========
+    async function arquivarGrupo(){
+      if(!grupoAtual) return;
+      var novoStatus = grupoAtual.status === 'arquivado' ? 'ativo' : 'arquivado';
+      await sb.from('grupos').update({
+        status: novoStatus,
+        arquivado_em: novoStatus === 'arquivado' ? new Date().toISOString() : null
+      }).eq('id', grupoAtual.id);
+      await registrarAcao(null, 'grupo_arquivado', 'Grupo '+(novoStatus==='arquivado'?'arquivado':'reativado'), grupoAtual.status, novoStatus);
+      await carregarGrupos();
+      await selecionarGrupo(grupoAtual.id);
+    }
+
+    // ========== UTILS ==========
+    function fecharModal(id){document.getElementById(id).classList.remove('show')}
+
+    // Fechar modais com ESC ou clicando fora
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){
+        document.querySelectorAll('.modal-overlay.show').forEach(function(m){m.classList.remove('show')});
+      }
+    });
+    document.querySelectorAll('.modal-overlay').forEach(function(m){
+      m.addEventListener('click', function(e){
+        if(e.target === m) m.classList.remove('show');
+      });
+    });
+
+    function fmtNum(n){
+      if(n === null || n === undefined) return '0';
+      var num = parseFloat(n);
+      if(isNaN(num)) return '0';
+      if(Math.abs(num) >= 1000) return num.toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0});
+      if(Number.isInteger(num)) return String(num);
+      return num.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    function formatDate(d){
+      if(!d) return '';
+      var dt = new Date(d);
+      return dt.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'});
+    }
+
+    function formatDateTime(d){
+      if(!d) return '';
+      var dt = new Date(d);
+      return dt.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})+' '+dt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    }
+  </script>
+</body>
+</html>
