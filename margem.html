@@ -61,10 +61,16 @@
     .filter-active select { border-color: #6366f1 !important; color: #fff !important; font-weight: 600; }
 
   </style>
-<script src="auth.js" defer></script>
   <script src="sidebar.js" defer></script>
 </head>
 <body>
+<script>
+  (function() {
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+  })();
+</script>
+  <div id="sidebar-container"></div>
   <!-- Sidebar (injetado por sidebar.js) -->
 
   <!-- Main content with sidebar offset -->
@@ -198,10 +204,12 @@
     // ── Get date range for period ──
     function getDateRangeForPeriodo(periodo) {
       const today = new Date();
-      const toDate = new Date(today);
+      let toDate = new Date(today);
       let fromDate = new Date(today);
 
-      if (periodo === '7d') fromDate.setDate(fromDate.getDate() - 7);
+      if (periodo === 'mes_atual') {
+        fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      } else if (periodo === '7d') fromDate.setDate(fromDate.getDate() - 7);
       else if (periodo === '15d') fromDate.setDate(fromDate.getDate() - 15);
       else if (periodo === '30d') fromDate.setDate(fromDate.getDate() - 30);
       else if (periodo === '90d') fromDate.setDate(fromDate.getDate() - 90);
@@ -210,7 +218,7 @@
       else if (periodo === 'mes_passado') {
         const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         fromDate = new Date(d);
-        toDate.setDate(0);
+        toDate = new Date(today.getFullYear(), today.getMonth(), 0);
       } else if (periodo === '2m_atras') {
         const d = new Date(today.getFullYear(), today.getMonth() - 2, 1);
         fromDate = new Date(d);
@@ -314,18 +322,18 @@
         });
         return GRUPO_ORDER.filter(g => map[g]).map(g => ({
           ...map[g],
-          mc1: map[g].margem,
-          mc1_pct: map[g].receita > 0 ? (map[g].margem / map[g].receita * 100) : 0,
-          mc2: map[g].margem + map[g].difal,
-          mc2_pct: map[g].receita > 0 ? ((map[g].margem + map[g].difal) / map[g].receita * 100) : 0
+          mc2: map[g].margem,
+          mc2_pct: map[g].receita > 0 ? (map[g].margem / map[g].receita * 100) : 0,
+          mc1: map[g].margem + map[g].difal,
+          mc1_pct: map[g].receita > 0 ? ((map[g].margem + map[g].difal) / map[g].receita * 100) : 0
         }));
       }, [data]);
 
       const totG = useMemo(() => {
         const t = { anuncios: 0, vendas: 0, receita: 0, margem: 0, custo_ads: 0, difal: 0 };
         groups.forEach(g => { t.anuncios += g.anuncios; t.vendas += g.vendas; t.receita += g.receita; t.margem += g.margem; t.custo_ads += g.custo_ads; t.difal += g.difal; });
-        t.mc1 = t.margem;
-        t.mc2 = t.margem + t.difal;
+        t.mc2 = t.margem;
+        t.mc1 = t.margem + t.difal;
         return t;
       }, [groups]);
 
@@ -391,26 +399,26 @@
                       <td className="text-right px-3 py-3 text-gge-text">{fmtInt(g.vendas)}</td>
                       <td className="text-right px-3 py-3 text-white font-medium">R$ {fmt(g.receita)}</td>
                       <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(g.custo_ads)}</td>
-                      <td className={`text-right px-3 py-3 font-medium border-l border-gge-border/50 ${g.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                        R$ {fmt(g.mc2)}
+                      <td className={`text-right px-3 py-3 font-medium border-l border-gge-border/50 ${g.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        R$ {fmt(g.mc1)}
                       </td>
-                      <td className={`text-right px-3 py-3 ${g.mc2_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                        {fmtPct(g.mc2_pct)}
+                      <td className={`text-right px-3 py-3 ${g.mc1_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        {fmtPct(g.mc1_pct)}
                       </td>
                       <td className="text-right px-3 py-3 text-gge-cyan">
-                        {totG.mc2 !== 0 ? fmtPct(g.mc2 / totG.mc2 * 100) : '—'}
+                        {totG.mc1 !== 0 ? fmtPct(g.mc1 / totG.mc1 * 100) : '—'}
                       </td>
                       <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">
                         R$ {fmt(g.difal)}
                       </td>
-                      <td className={`text-right px-3 py-3 font-bold border-l border-gge-border/50 ${g.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                        R$ {fmt(g.mc1)}
+                      <td className={`text-right px-3 py-3 font-bold border-l border-gge-border/50 ${g.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        R$ {fmt(g.mc2)}
                       </td>
-                      <td className={`text-right px-3 py-3 font-bold ${g.mc1_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                        {fmtPct(g.mc1_pct)}
+                      <td className={`text-right px-3 py-3 font-bold ${g.mc2_pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        {fmtPct(g.mc2_pct)}
                       </td>
                       <td className="text-right px-5 py-3 text-gge-cyan">
-                        {totG.mc1 !== 0 ? fmtPct(g.mc1 / totG.mc1 * 100) : '—'}
+                        {totG.mc2 !== 0 ? fmtPct(g.mc2 / totG.mc2 * 100) : '—'}
                       </td>
                     </tr>
 
@@ -486,19 +494,19 @@
                   <td className="text-right px-3 py-3 text-white">{fmtInt(totG.vendas)}</td>
                   <td className="text-right px-3 py-3 text-white">R$ {fmt(totG.receita)}</td>
                   <td className="text-right px-3 py-3 text-gge-yellow">R$ {fmt(totG.custo_ads)}</td>
-                  <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                    R$ {fmt(totG.mc2)}
-                  </td>
-                  <td className={`text-right px-3 py-3 ${totG.receita > 0 && totG.mc2/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                    {fmtPct(totG.receita > 0 ? totG.mc2/totG.receita*100 : 0)}
-                  </td>
-                  <td className="text-right px-3 py-3 text-gge-cyan">100%</td>
-                  <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">R$ {fmt(totG.difal)}</td>
                   <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
                     R$ {fmt(totG.mc1)}
                   </td>
                   <td className={`text-right px-3 py-3 ${totG.receita > 0 && totG.mc1/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
                     {fmtPct(totG.receita > 0 ? totG.mc1/totG.receita*100 : 0)}
+                  </td>
+                  <td className="text-right px-3 py-3 text-gge-cyan">100%</td>
+                  <td className="text-right px-3 py-3 text-gge-orange border-l border-gge-border/50">R$ {fmt(totG.difal)}</td>
+                  <td className={`text-right px-3 py-3 border-l border-gge-border/50 ${totG.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                    R$ {fmt(totG.mc2)}
+                  </td>
+                  <td className={`text-right px-3 py-3 ${totG.receita > 0 && totG.mc2/totG.receita*100 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                    {fmtPct(totG.receita > 0 ? totG.mc2/totG.receita*100 : 0)}
                   </td>
                   <td className="text-right px-5 py-3 text-gge-cyan">100%</td>
                 </tr>
@@ -516,14 +524,14 @@
         const map = {};
         data.forEach(row => {
           const g = row.grupo;
-          if (!map[g]) map[g] = { grupo: g, receita: 0, mc1: 0, mc2: 0, difal: 0 };
+          if (!map[g]) map[g] = { grupo: g, receita: 0, mc2: 0, difal: 0 };
           map[g].receita += Number(row.receita) || 0;
-          map[g].mc1 += Number(row.margem_valor) || 0;
+          map[g].mc2 += Number(row.margem_valor) || 0;
           map[g].difal += Number(row.difal_reserva) || 0;
         });
         return GRUPO_ORDER.filter(g => map[g]).map(g => ({
           ...map[g],
-          mc2: map[g].mc1 + map[g].difal
+          mc1: map[g].mc2 + map[g].difal
         }));
       }, [data]);
 
@@ -534,9 +542,9 @@
           <div className="bg-gge-card border border-gge-border rounded-lg p-3 shadow-xl">
             <p className="font-semibold text-white mb-1">{GRUPO_LABELS[d.grupo] || d.grupo}</p>
             <p className="text-sm text-gge-muted">Receita: <span className="text-white">R$ {fmt(d.receita)}</span></p>
-            <p className="text-sm text-gge-muted">MC1 (s/ DIFAL): <span className={d.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc2)}</span></p>
+            <p className="text-sm text-gge-muted">MC1 (s/ DIFAL): <span className={d.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc1)}</span></p>
             <p className="text-sm text-gge-muted">DIFAL: <span className="text-gge-orange">R$ {fmt(d.difal)}</span></p>
-            <p className="text-sm text-gge-muted">MC2 (c/ DIFAL): <span className={d.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc1)}</span></p>
+            <p className="text-sm text-gge-muted">MC2 (c/ DIFAL): <span className={d.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc2)}</span></p>
           </div>
         );
       };
@@ -696,11 +704,11 @@
               </thead>
               <tbody>
                {sorted.map((row, i) => {
-                  const mc1 = Number(row.margem_valor) || 0;
-                  const mc1pct = Number(row.receita) > 0 ? mc1/Number(row.receita)*100 : 0;
+                  const mc2 = Number(row.margem_valor) || 0;
+                  const mc2pct = Number(row.receita) > 0 ? mc2/Number(row.receita)*100 : 0;
                   const difal = Number(row.difal_reserva) || 0;
                   const shareRec = totals && totals.receita > 0 ? (Number(row.receita) / totals.receita * 100) : 0;
-                  const shareMC1 = totals && totals.mc2 !== 0 ? (mc1 / totals.mc2 * 100) : 0;
+                  const shareMC2 = totals && totals.mc2 !== 0 ? (mc2 / totals.mc2 * 100) : 0;
                   return (
                     <tr key={row.mlb_id + '-' + i} className="border-t border-gge-border/50 hover:bg-white/5 transition-colors row-clickable"
                         onClick={() => onDrill && onDrill(row.mlb_id, row.titulo)}>
@@ -734,12 +742,12 @@
                       <td className="text-right px-4 py-2.5 text-gge-text">{fmtInt(row.qtd_vendas)}</td>
                       <td className="text-right px-4 py-2.5 text-white">R$ {fmt(row.receita)}</td>
                       <td className="text-right px-4 py-2.5 text-gge-orange">{difal > 0 ? `R$ ${fmt(difal)}` : '—'}</td>
-                      <td className={`text-right px-4 py-2.5 font-medium ${mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                        R$ {fmt(mc1)}
+                      <td className={`text-right px-4 py-2.5 font-medium ${mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                        R$ {fmt(mc2)}
                       </td>
-                      <td className={`text-right px-4 py-2.5 font-bold ${mc1pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(mc1pct)}</td>
+                      <td className={`text-right px-4 py-2.5 font-bold ${mc2pct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtPct(mc2pct)}</td>
                       <td className="text-right px-4 py-2.5 text-gge-cyan border-l border-gge-border/50">{fmtPct(shareRec)}</td>
-                      <td className={`text-right px-4 py-2.5 font-medium ${shareMC1 >= 0 ? 'text-gge-cyan' : 'text-gge-red'}`}>{fmtPct(shareMC1)}</td>
+                      <td className={`text-right px-4 py-2.5 font-medium ${shareMC2 >= 0 ? 'text-gge-cyan' : 'text-gge-red'}`}>{fmtPct(shareMC2)}</td>
                       <td className="text-center px-4 py-2.5"><GrupoBadge grupo={row.grupo} /></td>
                     </tr>
                   );
@@ -834,15 +842,15 @@
         return sorted.map(m => {
           const rows = rawData.filter(d => d.mes === m);
           const receita = rows.reduce((s, d) => s + (Number(d.receita) || 0), 0);
-          const mc1 = rows.reduce((s, d) => s + (Number(d.margem_valor) || 0), 0);
+          const mc2 = rows.reduce((s, d) => s + (Number(d.margem_valor) || 0), 0);
           const difal = rows.reduce((s, d) => s + (Number(d.difal_reserva) || 0), 0);
           const ads = rows.reduce((s, d) => s + (Number(d.custo_ads) || 0), 0);
-          const mc2 = mc1 + difal;
+          const mc1 = mc2 + difal;
           return {
             mes: fmtMes(m),
             receita: Math.round(receita),
-            mc2: Math.round(mc2),
             mc1: Math.round(mc1),
+            mc2: Math.round(mc2),
             ads: Math.round(ads),
             mc1_pct: receita > 0 ? Math.round(mc1 / receita * 1000) / 10 : 0,
             mc2_pct: receita > 0 ? Math.round(mc2 / receita * 1000) / 10 : 0,
@@ -859,8 +867,8 @@
           <div className="bg-gge-card border border-gge-border rounded-lg p-3 shadow-xl text-sm">
             <p className="font-semibold text-white mb-1">{d.mes}</p>
             <p className="text-gge-muted">Receita: <span className="text-white">R$ {fmt(d.receita)}</span></p>
-            <p className="text-gge-muted">MC1: <span className="text-gge-cyan">R$ {fmt(d.mc2)} ({fmtPct(d.mc2_pct)})</span></p>
-            <p className="text-gge-muted">MC2: <span className={d.mc1 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc1)} ({fmtPct(d.mc1_pct)})</span></p>
+            <p className="text-gge-muted">MC1: <span className="text-gge-cyan">R$ {fmt(d.mc1)} ({fmtPct(d.mc1_pct)})</span></p>
+            <p className="text-gge-muted">MC2: <span className={d.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}>R$ {fmt(d.mc2)} ({fmtPct(d.mc2_pct)})</span></p>
             <p className="text-gge-muted">ADs: <span className="text-gge-yellow">R$ {fmt(d.ads)}</span></p>
           </div>
         );
