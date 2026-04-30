@@ -20,6 +20,7 @@
     ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
     realinha:     svgIcon('<path d="M2 12h5l3-9 4 18 3-9h5"/>'),
     saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
+    grupos:       svgIcon('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
     chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
   };
 
@@ -41,6 +42,7 @@
     },
     { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação', key: 'reputacao' },
     { href: '/ads',                  icon: icons.ads,       label: 'ADs',            key: 'ads' },
+    { href: '/grupos',               icon: icons.grupos,    label: 'Grupos',         key: 'grupos' },
     { href: '/realinhamento-precos', icon: icons.realinha,  label: 'Realinhamento',  key: 'realinhamento' },
     { href: '/saude',                icon: icons.saude,     label: 'Saúde',     key: 'saude' }
   ];
