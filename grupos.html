@@ -325,7 +325,7 @@
   <script>
     (function(){
       var auth = sessionStorage.getItem('gge_auth');
-      if (auth !== 'gge2026') { window.location.href = '/'; return; }
+      if (auth !== 'owner') { window.location.href = '/'; return; }
     })();
     var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
