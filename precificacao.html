@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Precificação B2B — Venda Direta | Controle Total</title>
-    <script src="auth.js" defer></script>
     <script src="sidebar.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -482,6 +481,13 @@
     </style>
 </head>
 <body>
+<script>
+  (function() {
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+  })();
+</script>
+    <div id="sidebar-container"></div>
     <!-- Sidebar (injetado por sidebar.js) -->
 
     <!-- Main Content -->
@@ -541,7 +547,7 @@
         </div>
     </main>
 
-    <script src="config.js"></script>
+    <script src="/config.js"></script>
     <script>
         // Configuration
         const SUPABASE_URL = window.GGE_SUPABASE_URL;
