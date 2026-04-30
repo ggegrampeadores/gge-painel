@@ -12,7 +12,7 @@
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <script src="/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/dados.js"></script>
+  <script src="/dados.js" onerror="console.warn('dados.js not found, continuing without it')"></script>
   <script>
     tailwind.config = {
       theme: { extend: { colors: {
@@ -34,12 +34,17 @@
     .sortable { cursor:pointer; user-select:none; }
     .sortable:hover { color:#6366f1; }
   </style>
-  <script src="auth.js" defer></script>
   <script src="sidebar.js" defer></script>
 </head>
 <body>
+<script>
+  (function() {
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+  })();
+</script>
+  <div id="sidebar-container"></div>
   <div class="main-with-sidebar">
-    <div id="sidebar-container"></div>
     <div id="root">
       <div style="display:flex;justify-content:center;align-items:center;height:80vh;color:#94a3b8;">
         <div style="text-align:center">
