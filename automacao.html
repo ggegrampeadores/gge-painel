@@ -9,8 +9,8 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="/config.js"></script>
-  <script src="dados.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/dados.js" onerror="console.warn('dados.js not found, continuing without it')"></script>
   <script>
     tailwind.config = { theme: { extend: { colors: {
       'gge-bg':'#0f1117','gge-card':'#1a1d2e','gge-border':'#2a2d3e',
@@ -29,12 +29,18 @@
     .toggle::after { content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s; }
     .toggle.on::after { transform:translateX(20px); }
   </style>
-  <script src="auth.js" defer></script>
   <script src="sidebar.js" defer></script>
 </head>
 <body>
+<script>
+  (function() {
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+  })();
+</script>
+  <div id="sidebar-container"></div>
   <div class="main-with-sidebar">
-    <div id="root"></div>
+    <div id="root"><div style="display:flex;align-items:center;justify-content:center;height:60vh;color:#94a3b8;font-size:14px"><span style="margin-right:8px" class="spinner"></span>Carregando Automação...</div></div>
   </div>
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
@@ -68,18 +74,23 @@
       const [anuncios, setAnuncios] = useState([]);
       const [logs, setLogs] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
       const [saving, setSaving] = useState(null);
       const [tab, setTab] = useState('parametros');
       const [compDate, setCompDate] = useState(null);
 
       useEffect(() => {
         async function load() {
+          try {
           const [pRes, aRes, lRes] = await Promise.all([
             sb.from('parametros_catalogo').select('*').order('parametro'),
             sb.from('vw_catalogo_dashboard').select('mlb_id, titulo, sku_vendedor, preco_atual, conta_nome, modo_logistica, margem_pct, vendas_30d, classificacao, custo_unitario, comissao_media, frete_medio')
               .order('vendas_30d', {ascending: false}),
             sb.from('log_automacao').select('*').order('criado_em', {ascending: false}).limit(50),
           ]);
+          if (pRes.error) throw pRes.error;
+          if (aRes.error) throw aRes.error;
+          if (lRes.error) throw lRes.error;
           setParams(pRes.data || []);
 
           // Get modo_auto from anuncios
@@ -109,6 +120,10 @@
           }));
           setAnuncios(enriched);
           setLogs(lRes.data || []);
+          } catch(e) {
+            console.error('Erro ao carregar automacao:', e);
+            setError(e.message || 'Erro ao carregar dados');
+          }
           setLoading(false);
         }
         load();
@@ -129,9 +144,7 @@
 
       async function toggleAllAuto(on) {
         const mlbs = anuncios.map(a => a.mlb_id);
-        for (const mlb of mlbs) {
-          await sb.from('anuncios').update({ modo_auto: on }).eq('mlb_id', mlb);
-        }
+        await sb.from('anuncios').update({ modo_auto: on }).in('mlb_id', mlbs);
         setAnuncios(a => a.map(aa => ({...aa, modo_auto: on})));
       }
 
@@ -141,6 +154,18 @@
         <div className="max-w-6xl mx-auto p-6">
           <h1 className="text-2xl font-bold mb-6">Automacao</h1>
           <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="bg-gge-card border border-gge-border rounded-xl h-32 animate-pulse" />)}</div>
+        </div>
+      );
+
+      if (error) return (
+        <div className="max-w-6xl mx-auto p-6">
+          <h1 className="text-2xl font-bold mb-6">Automacao</h1>
+          <div className="bg-red-900/30 border border-red-700 rounded-xl p-6 text-center">
+            <div className="text-red-400 text-lg font-bold mb-2">Erro ao carregar dados</div>
+            <div className="text-gge-muted text-sm mb-4">{error}</div>
+            <button onClick={() => { setError(null); setLoading(true); window.location.reload(); }}
+              className="px-4 py-2 bg-gge-accent text-white rounded-lg text-sm">Tentar novamente</button>
+          </div>
         </div>
       );
 
