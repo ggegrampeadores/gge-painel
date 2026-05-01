@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central de Analise - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#e6edf3;overflow-x:hidden}
+    .main-with-sidebar{margin-left:48px;min-height:100vh}
+    .container{max-width:1600px;margin:0 auto;padding:24px}
+
+    /* Header */
+    .page-header{margin-bottom:24px}
+    .page-header h1{font-size:22px;font-weight:600;margin-bottom:4px}
+    .page-header .sub{color:#8b949e;font-size:13px}
+
+    /* Account filter */
+    .account-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:10px 16px;background:#161b22;border:1px solid #30363d;border-radius:8px}
+    .account-bar label{font-size:13px;color:#8b949e;font-weight:500}
+    .account-bar select{background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer}
+    .account-bar select:focus{outline:none;border-color:#58a6ff}
+
+    /* Quadrant cards */
+    .quad-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+    .quad-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+    .quad-card:hover{border-color:#484f58;transform:translateY(-1px)}
+    .quad-card.active{border-width:2px}
+    .quad-card .q-icon{font-size:20px;margin-bottom:6px}
+    .quad-card .q-name{font-size:14px;font-weight:600;margin-bottom:2px}
+    .quad-card .q-count{font-size:28px;font-weight:700;margin-bottom:4px}
+    .quad-card .q-desc{font-size:11px;color:#8b949e}
+    .quad-card.q-proteger{border-color:#3fb950}
+    .quad-card.q-proteger.active{background:#0d3117;border-color:#3fb950}
+    .quad-card.q-proteger .q-count{color:#3fb950}
+    .quad-card.q-repricing{border-color:#d29922}
+    .quad-card.q-repricing.active{background:#3d2e00;border-color:#d29922}
+    .quad-card.q-repricing .q-count{color:#d29922}
+    .quad-card.q-ads{border-color:#58a6ff}
+    .quad-card.q-ads.active{background:#1a2332;border-color:#58a6ff}
+    .quad-card.q-ads .q-count{color:#58a6ff}
+    .quad-card.q-avaliar{border-color:#484f58}
+    .quad-card.q-avaliar.active{background:#21262d;border-color:#8b949e}
+    .quad-card.q-avaliar .q-count{color:#8b949e}
+
+    /* Alert badges */
+    .alert-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+    .alert-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:default}
+    .alert-badge .ab-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .ab-blue{background:#1a2332;color:#58a6ff;border:1px solid #1f4068}
+    .ab-blue .ab-dot{background:#58a6ff}
+    .ab-yellow{background:#3d2e00;color:#d29922;border:1px solid #5c4500}
+    .ab-yellow .ab-dot{background:#d29922}
+    .ab-red{background:#3d1117;color:#f85149;border:1px solid #6e2020}
+    .ab-red .ab-dot{background:#f85149}
+    .ab-purple{background:#2d1f4e;color:#bc8cff;border:1px solid #4a3370}
+    .ab-purple .ab-dot{background:#bc8cff}
+
+    /* Filter bar */
+    .filter-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px;padding:12px 16px;background:#161b22;border:1px solid #30363d;border-radius:8px}
+    .filter-group{display:flex;align-items:center;gap:4px}
+    .filter-group label{font-size:11px;color:#8b949e;font-weight:500;margin-right:4px;white-space:nowrap}
+    .filter-btn{padding:4px 10px;border-radius:4px;border:1px solid #30363d;background:transparent;color:#8b949e;cursor:pointer;font-size:12px;transition:all .15s;white-space:nowrap}
+    .filter-btn:hover{color:#e6edf3;border-color:#484f58}
+    .filter-btn.active{background:#1a2332;color:#58a6ff;border-color:#58a6ff}
+    .search-box{flex:1;min-width:180px;margin-left:auto}
+    .search-box input{width:100%;padding:6px 12px 6px 32px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:13px}
+    .search-box input:focus{outline:none;border-color:#58a6ff}
+    .search-box{position:relative}
+    .search-box::before{content:'';position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;border:2px solid #484f58;border-radius:50%;pointer-events:none}
+    .search-box::after{content:'';position:absolute;left:22px;top:60%;width:5px;height:2px;background:#484f58;transform:rotate(45deg);pointer-events:none}
+
+    /* Table summary */
+    .table-info{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:12px;color:#8b949e}
+    .table-info .selected-info{color:#58a6ff;font-weight:500}
+
+    /* Table */
+    .table-wrap{overflow-x:auto;border:1px solid #30363d;border-radius:8px;background:#161b22;max-height:70vh;overflow-y:auto;position:relative}
+    .tbl{width:100%;border-collapse:collapse;font-size:13px}
+    .tbl thead{position:sticky;top:0;z-index:10;background:#161b22}
+    .tbl th{text-align:left;padding:10px 10px;border-bottom:2px solid #30363d;color:#8b949e;font-weight:500;font-size:12px;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s}
+    .tbl th:hover{color:#e6edf3}
+    .tbl th .sort-arrow{font-size:10px;margin-left:2px;opacity:.4}
+    .tbl th.sorted .sort-arrow{opacity:1;color:#58a6ff}
+    .tbl td{padding:8px 10px;border-bottom:1px solid #21262d;white-space:nowrap}
+    .tbl tr:hover td{background:#1c2333}
+    .tbl tr.selected td{background:#1a2332}
+    .tbl .right{text-align:right}
+    .tbl .center{text-align:center}
+
+    /* Checkbox */
+    .chk{width:16px;height:16px;border:1.5px solid #484f58;border-radius:3px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .1s}
+    .chk:hover{border-color:#8b949e}
+    .chk.on{background:#58a6ff;border-color:#58a6ff}
+    .chk.on::after{content:'';display:block;width:6px;height:3px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translateY(-1px)}
+
+    /* Badges */
+    .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;white-space:nowrap}
+    .badge-full{background:#1a2332;color:#58a6ff}
+    .badge-coleta{background:#21262d;color:#8b949e}
+    .badge-premium{background:#3d2e00;color:#d29922}
+    .badge-classico{background:#21262d;color:#8b949e}
+    .badge-proteger{background:#0d3117;color:#3fb950}
+    .badge-repricing{background:#3d2e00;color:#d29922}
+    .badge-ads{background:#1a2332;color:#58a6ff}
+    .badge-avaliar{background:#21262d;color:#8b949e}
+    .dot-green{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3fb950}
+    .dot-gray{display:inline-block;width:8px;height:8px;border-radius:50%;background:#484f58}
+
+    /* Titulo truncated */
+    .titulo-cell{max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .titulo-cell:hover{overflow:visible;white-space:normal;word-break:break-word}
+
+    /* MLB link style */
+    .mlb-link{color:#58a6ff;text-decoration:none;font-size:12px;font-family:monospace}
+    .mlb-link:hover{text-decoration:underline}
+
+    /* Colored values */
+    .val-green{color:#3fb950}
+    .val-yellow{color:#d29922}
+    .val-red{color:#f85149}
+
+    /* Group panel */
+    .group-panel{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-top:24px;overflow:hidden}
+    .group-panel-header{display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;user-select:none}
+    .group-panel-header h2{font-size:16px;font-weight:600}
+    .group-panel-header .toggle{color:#8b949e;font-size:18px;transition:transform .2s}
+    .group-panel-header .toggle.open{transform:rotate(180deg)}
+    .group-panel-body{padding:0 16px 16px;display:none}
+    .group-panel-body.open{display:block}
+
+    /* Create group form */
+    .create-group-form{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:20px}
+    .form-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+    .form-row label{font-size:13px;color:#8b949e;min-width:140px;font-weight:500}
+    .form-row input[type=text],.form-row input[type=number],.form-row select{background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:6px;font-size:13px}
+    .form-row input[type=text]:focus,.form-row input[type=number]:focus,.form-row select:focus{outline:none;border-color:#58a6ff}
+    .form-row input[type=number]{width:80px}
+    .form-info{font-size:12px;color:#8b949e;padding:10px 14px;background:#21262d;border-radius:6px;margin-bottom:12px;line-height:1.5;border-left:3px solid #d29922}
+    .form-warning{font-size:12px;color:#d29922;padding:8px 12px;background:#3d2e0020;border:1px solid #5c450040;border-radius:6px;margin-bottom:8px}
+    .form-danger{font-size:12px;color:#f85149;padding:8px 12px;background:#3d111720;border:1px solid #6e202040;border-radius:6px;margin-bottom:8px}
+
+    .btn{padding:8px 16px;border-radius:6px;border:1px solid #30363d;background:transparent;color:#e6edf3;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+    .btn:hover{background:#21262d;border-color:#8b949e}
+    .btn-primary{background:#238636;border-color:#238636;color:#fff}
+    .btn-primary:hover{background:#2ea043}
+    .btn-sm{padding:5px 12px;font-size:12px}
+    .btn-blue{background:#1f6feb;border-color:#1f6feb;color:#fff}
+    .btn-blue:hover{background:#388bfd}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+
+    /* Existing groups */
+    .existing-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+    .eg-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:16px}
+    .eg-card .eg-name{font-weight:600;font-size:15px;margin-bottom:4px}
+    .eg-card .eg-meta{font-size:12px;color:#8b949e;margin-bottom:8px}
+    .eg-card .eg-rules{font-size:12px;color:#8b949e;margin-bottom:8px}
+    .eg-card .eg-mlbs{font-size:11px;color:#8b949e;display:flex;flex-wrap:wrap;gap:4px}
+    .eg-card .eg-mlb-tag{background:#21262d;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px}
+    .tag{display:inline-block;padding:2px 8px;background:#21262d;border-radius:4px;font-size:11px;font-weight:500}
+    .tag-rep{color:#58a6ff;background:#1a2332}
+    .tag-obs{color:#bc8cff;background:#2d1f4e}
+
+    /* Loading */
+    .loading{text-align:center;padding:60px;color:#8b949e;font-size:14px}
+    .loading::after{content:'';display:block;width:32px;height:32px;margin:16px auto 0;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Toast */
+    .toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:500;z-index:999;transform:translateY(100px);opacity:0;transition:all .3s}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast-success{background:#0d3117;color:#3fb950;border:1px solid #238636}
+    .toast-error{background:#3d1117;color:#f85149;border:1px solid #6e2020}
+
+    /* Responsive */
+    @media(max-width:900px){
+      .quad-grid{grid-template-columns:repeat(2,1fr)}
+      .filter-bar{flex-direction:column;align-items:flex-start}
+      .search-box{width:100%;min-width:unset;margin-left:0}
+    }
+    @media(max-width:600px){
+      .quad-grid{grid-template-columns:1fr 1fr}
+      .container{padding:12px}
+    }
+
+    /* Checkbox label */
+    .chk-label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#e6edf3}
+    .chk-label input[type=checkbox]{display:none}
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <div class="container" id="app">
+      <div class="loading" id="loading">Carregando dados...</div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="sidebar.js" defer></script>
+  <script>
+  (function() {
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+  })();
+
+  var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+
+  // ── State ──
+  var allData = [];
+  var grupos = [];
+  var grupoRegras = [];
+  var grupoMlbs = [];
+  var selectedAccount = 'Todas';
+  var activeQuadrant = null;
+  var filters = { logistica: 'all', tipo: 'all', catalogo: 'all', preco: 'all', grupo: 'all' };
+  var searchTerm = '';
+  var sortCol = 'visitas_30d';
+  var sortDir = 'desc';
+  var selectedMlbIds = new Set();
+  var groupPanelOpen = false;
+  var showCreateForm = false;
+
+  // ── Formatters ──
+  function fmtBRL(v) {
+    if (v == null || isNaN(v)) return '-';
+    return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtNum(v) {
+    if (v == null || isNaN(v)) return '-';
+    var n = Number(v);
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.', ',') + 'K';
+    return n.toLocaleString('pt-BR');
+  }
+  function fmtInt(v) {
+    if (v == null || isNaN(v)) return '-';
+    return Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  }
+  function fmtPct(v) {
+    if (v == null || isNaN(v)) return '-';
+    return Number(v).toFixed(1).replace('.', ',') + '%';
+  }
+  function fmtPct2(v) {
+    if (v == null || isNaN(v)) return '-';
+    return Number(v).toFixed(2).replace('.', ',') + '%';
+  }
+  function fmtR$(v) {
+    if (v == null || isNaN(v)) return '-';
+    return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // ── Toast ──
+  function showToast(msg, type) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast toast-' + (type || 'success') + ' show';
+    setTimeout(function() { t.classList.remove('show'); }, 3000);
+  }
+
+  // ── Load data ──
+  async function loadData() {
+    try {
+      var [r1, r2, r3, r4] = await Promise.all([
+        sb.from('vw_central_analise').select('*'),
+        sb.from('grupos').select('*').eq('status', 'ativo'),
+        sb.from('grupo_regras').select('*'),
+        sb.from('grupo_mlbs').select('*')
+      ]);
+      if (r1.error) throw r1.error;
+      allData = r1.data || [];
+      grupos = r2.data || [];
+      grupoRegras = r3.data || [];
+      grupoMlbs = r4.data || [];
+      render();
+    } catch(e) {
+      console.error('Load error:', e);
+      document.getElementById('loading').innerHTML = '<span style="color:#f85149">Erro ao carregar dados: ' + (e.message || e) + '</span>';
+    }
+  }
+
+  // ── Filter logic ──
+  function getFilteredData() {
+    var d = allData;
+    // Account filter
+    if (selectedAccount !== 'Todas') {
+      d = d.filter(function(r) { return r.conta_nome === selectedAccount; });
+    }
+    // Quadrant filter
+    if (activeQuadrant) {
+      d = d.filter(function(r) { return r.quadrante === activeQuadrant; });
+    }
+    // Logistica
+    if (filters.logistica !== 'all') {
+      d = d.filter(function(r) { return r.logistica_display === filters.logistica; });
+    }
+    // Tipo
+    if (filters.tipo !== 'all') {
+      d = d.filter(function(r) { return r.tipo_display === filters.tipo; });
+    }
+    // Catalogo
+    if (filters.catalogo === 'em') {
+      d = d.filter(function(r) { return r.em_catalogo === true; });
+    } else if (filters.catalogo === 'fora') {
+      d = d.filter(function(r) { return r.em_catalogo !== true; });
+    }
+    // Preco
+    if (filters.preco === '<79') {
+      d = d.filter(function(r) { return r.preco_atual < 79; });
+    } else if (filters.preco === '79-199') {
+      d = d.filter(function(r) { return r.preco_atual >= 79 && r.preco_atual < 200; });
+    } else if (filters.preco === '200-499') {
+      d = d.filter(function(r) { return r.preco_atual >= 200 && r.preco_atual < 500; });
+    } else if (filters.preco === '500-999') {
+      d = d.filter(function(r) { return r.preco_atual >= 500 && r.preco_atual < 1000; });
+    } else if (filters.preco === '1000+') {
+      d = d.filter(function(r) { return r.preco_atual >= 1000; });
+    }
+    // Grupo
+    if (filters.grupo === 'em') {
+      d = d.filter(function(r) { return r.grupo_id != null; });
+    } else if (filters.grupo === 'sem') {
+      d = d.filter(function(r) { return r.grupo_id == null; });
+    }
+    // Search
+    if (searchTerm) {
+      var q = searchTerm.toLowerCase();
+      d = d.filter(function(r) {
+        return (r.titulo && r.titulo.toLowerCase().indexOf(q) !== -1) ||
+               (r.mlb_id && r.mlb_id.toLowerCase().indexOf(q) !== -1);
+      });
+    }
+    // Sort
+    d = d.slice().sort(function(a, b) {
+      var va = a[sortCol], vb = b[sortCol];
+      if (va == null) va = -Infinity;
+      if (vb == null) vb = -Infinity;
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return d;
+  }
+
+  // ── Counts (use account-filtered but not quadrant/filter filtered) ──
+  function getAccountData() {
+    if (selectedAccount === 'Todas') return allData;
+    return allData.filter(function(r) { return r.conta_nome === selectedAccount; });
+  }
+
+  // ── Get unique accounts ──
+  function getAccounts() {
+    var set = {};
+    allData.forEach(function(r) { if (r.conta_nome) set[r.conta_nome] = true; });
+    return Object.keys(set).sort();
+  }
+
+  // ── Column definitions ──
+  var columns = [
+    { key: '_chk', label: '', width: '40px', sortable: false },
+    { key: 'mlb_id', label: 'MLB', width: '130px', sortable: true },
+    { key: 'titulo', label: 'Titulo', width: null, sortable: true },
+    { key: 'conta_nome', label: 'Conta', width: '80px', sortable: true },
+    { key: 'preco_atual', label: 'Preco', width: '80px', sortable: true, align: 'right' },
+    { key: 'margem_mc2_pct', label: 'MC2 %', width: '70px', sortable: true, align: 'right' },
+    { key: 'visitas_30d', label: 'Visitas', width: '80px', sortable: true, align: 'right' },
+    { key: 'vendas_30d', label: 'Vendas', width: '60px', sortable: true, align: 'right' },
+    { key: 'conversao_pct', label: 'Conv %', width: '70px', sortable: true, align: 'right' },
+    { key: 'roas', label: 'ROAS', width: '60px', sortable: true, align: 'right' },
+    { key: 'gasto_ads_30d', label: 'Ads R$', width: '70px', sortable: true, align: 'right' },
+    { key: 'logistica_display', label: 'Logistica', width: '70px', sortable: true },
+    { key: 'tipo_display', label: 'Tipo', width: '80px', sortable: true },
+    { key: '_catalogo', label: 'Cat', width: '30px', sortable: false, align: 'center' },
+    { key: 'quadrante', label: 'Quadrante', width: '80px', sortable: true },
+    { key: 'grupo_nome', label: 'Grupo', width: '90px', sortable: true }
+  ];
+
+  // ── Render ──
+  function render() {
+    var acctData = getAccountData();
+    var filtered = getFilteredData();
+
+    // Quadrant counts from account-filtered data
+    var qCounts = { proteger: 0, repricing: 0, ads: 0, avaliar: 0 };
+    acctData.forEach(function(r) {
+      if (r.quadrante && qCounts.hasOwnProperty(r.quadrante)) qCounts[r.quadrante]++;
+    });
+
+    // Alert counts
+    var alertAutoCat = acctData.filter(function(r) { return r.em_automacao_catalogo; }).length;
+    var alertTeto = acctData.filter(function(r) { return r.no_teto_7890; }).length;
+    var alertQueima = acctData.filter(function(r) { return r.alerta_queima_ads; }).length;
+    var alertGrupo = acctData.filter(function(r) { return r.grupo_id != null; }).length;
+
+    var html = '';
+
+    // Header
+    html += '<div class="page-header">';
+    html += '<h1>Central de Analise</h1>';
+    html += '<div class="sub">Visao 360 dos anuncios -- Margem, Trafego, ADs e Repricing</div>';
+    html += '</div>';
+
+    // Account filter
+    html += '<div class="account-bar">';
+    html += '<label>Conta:</label>';
+    html += '<select id="accountFilter" onchange="setAccount(this.value)">';
+    html += '<option value="Todas"' + (selectedAccount === 'Todas' ? ' selected' : '') + '>Todas (' + allData.length + ')</option>';
+    getAccounts().forEach(function(a) {
+      var cnt = allData.filter(function(r) { return r.conta_nome === a; }).length;
+      html += '<option value="' + a + '"' + (selectedAccount === a ? ' selected' : '') + '>' + a + ' (' + cnt + ')</option>';
+    });
+    html += '</select>';
+    html += '<span style="margin-left:auto;font-size:12px;color:#8b949e">' + acctData.length + ' anuncios ativos</span>';
+    html += '</div>';
+
+    // Quadrant cards
+    html += '<div class="quad-grid">';
+    html += renderQuadCard('proteger', 'PROTEGER', qCounts.proteger, 'Alta visita + boa margem');
+    html += renderQuadCard('repricing', 'REPRICING', qCounts.repricing, 'Alta visita + margem baixa');
+    html += renderQuadCard('ads', 'ADS', qCounts.ads, 'Baixa visita + boa margem');
+    html += renderQuadCard('avaliar', 'AVALIAR', qCounts.avaliar, 'Baixa visita + margem baixa');
+    html += '</div>';
+
+    // Alert badges
+    html += '<div class="alert-badges">';
+    if (alertAutoCat > 0) html += '<div class="alert-badge ab-blue"><span class="ab-dot"></span>' + alertAutoCat + ' em automacao de catalogo</div>';
+    if (alertTeto > 0) html += '<div class="alert-badge ab-yellow"><span class="ab-dot"></span>' + alertTeto + ' no teto R$78,90</div>';
+    if (alertQueima > 0) html += '<div class="alert-badge ab-red"><span class="ab-dot"></span>' + alertQueima + ' queimando ads (ROAS&lt;2)</div>';
+    if (alertGrupo > 0) html += '<div class="alert-badge ab-purple"><span class="ab-dot"></span>' + alertGrupo + ' em grupo de repricing</div>';
+    html += '</div>';
+
+    // Filter bar
+    html += '<div class="filter-bar">';
+    html += renderFilterGroup('Logistica', 'logistica', [
+      { val: 'all', label: 'Todos' }, { val: 'Full', label: 'Full' }, { val: 'Coleta', label: 'Coleta' }
+    ]);
+    html += renderFilterGroup('Tipo', 'tipo', [
+      { val: 'all', label: 'Todos' }, { val: 'Premium', label: 'Premium' }, { val: 'Classico', label: 'Classico' }
+    ]);
+    html += renderFilterGroup('Catalogo', 'catalogo', [
+      { val: 'all', label: 'Todos' }, { val: 'em', label: 'Em catalogo' }, { val: 'fora', label: 'Fora' }
+    ]);
+    html += renderFilterGroup('Preco', 'preco', [
+      { val: 'all', label: 'Todos' }, { val: '<79', label: '< R$79' }, { val: '79-199', label: 'R$79-199' },
+      { val: '200-499', label: 'R$200-499' }, { val: '500-999', label: 'R$500-999' }, { val: '1000+', label: 'R$1000+' }
+    ]);
+    html += renderFilterGroup('Grupo', 'grupo', [
+      { val: 'all', label: 'Todos' }, { val: 'em', label: 'Em grupo' }, { val: 'sem', label: 'Sem grupo' }
+    ]);
+    html += '<div class="search-box"><input type="text" id="searchInput" placeholder="Buscar titulo ou MLB..." value="' + escHtml(searchTerm) + '" oninput="setSearch(this.value)"></div>';
+    html += '</div>';
+
+    // Table info
+    html += '<div class="table-info">';
+    html += '<span>Mostrando ' + filtered.length + ' de ' + acctData.length + ' anuncios</span>';
+    if (selectedMlbIds.size > 0) {
+      html += '<span class="selected-info">' + selectedMlbIds.size + ' selecionado(s)</span>';
+    }
+    html += '</div>';
+
+    // Table
+    html += '<div class="table-wrap">';
+    html += '<table class="tbl">';
+    html += '<thead><tr>';
+    // Select all checkbox
+    html += '<th style="width:40px"><div class="chk' + (selectedMlbIds.size > 0 && selectedMlbIds.size === filtered.length ? ' on' : '') + '" onclick="toggleSelectAll()"></div></th>';
+    columns.forEach(function(c) {
+      if (c.key === '_chk') return;
+      var w = c.width ? ' style="width:' + c.width + (c.align ? ';text-align:' + c.align : '') + '"' : (c.align ? ' style="text-align:' + c.align + '"' : '');
+      var sorted = sortCol === c.key;
+      var arrow = '';
+      if (c.sortable) {
+        arrow = '<span class="sort-arrow">' + (sorted ? (sortDir === 'asc' ? ' &#9650;' : ' &#9660;') : ' &#9650;&#9660;') + '</span>';
+      }
+      var cls = sorted ? ' class="sorted"' : '';
+      var click = c.sortable ? ' onclick="setSort(\'' + c.key + '\')"' : '';
+      html += '<th' + w + cls + click + '>' + c.label + arrow + '</th>';
+    });
+    html += '</tr></thead>';
+    html += '<tbody>';
+    filtered.forEach(function(row) {
+      var isSelected = selectedMlbIds.has(row.mlb_id);
+      html += '<tr class="' + (isSelected ? 'selected' : '') + '">';
+      // Checkbox
+      html += '<td><div class="chk' + (isSelected ? ' on' : '') + '" onclick="toggleSelect(\'' + row.mlb_id + '\')"></div></td>';
+      // MLB
+      html += '<td><a class="mlb-link" href="https://www.mercadolivre.com.br/p/' + row.mlb_id + '" target="_blank" rel="noopener">' + (row.mlb_id || '-') + '</a></td>';
+      // Titulo
+      html += '<td><div class="titulo-cell" title="' + escHtml(row.titulo || '') + '">' + escHtml(row.titulo || '-') + '</div></td>';
+      // Conta
+      html += '<td style="font-size:11px">' + shortAccount(row.conta_nome) + '</td>';
+      // Preco
+      html += '<td class="right">' + fmtR$(row.preco_atual) + '</td>';
+      // MC2 %
+      var mc2Class = row.margem_mc2_pct >= 15 ? 'val-green' : (row.margem_mc2_pct >= 0 ? 'val-yellow' : 'val-red');
+      html += '<td class="right ' + mc2Class + '">' + fmtPct(row.margem_mc2_pct) + '</td>';
+      // Visitas
+      html += '<td class="right">' + fmtNum(row.visitas_30d) + '</td>';
+      // Vendas
+      html += '<td class="right">' + fmtInt(row.vendas_30d) + '</td>';
+      // Conv %
+      html += '<td class="right">' + fmtPct2(row.conversao_pct) + '</td>';
+      // ROAS
+      var roasClass = row.roas > 5 ? 'val-green' : (row.roas >= 2 ? 'val-yellow' : 'val-red');
+      html += '<td class="right ' + (row.roas != null ? roasClass : '') + '">' + (row.roas != null ? Number(row.roas).toFixed(1) : '-') + '</td>';
+      // Ads R$
+      html += '<td class="right">' + (row.gasto_ads_30d != null ? fmtR$(row.gasto_ads_30d) : '-') + '</td>';
+      // Logistica
+      html += '<td>' + (row.logistica_display === 'Full' ? '<span class="badge badge-full">Full</span>' : '<span class="badge badge-coleta">Coleta</span>') + '</td>';
+      // Tipo
+      html += '<td>' + (row.tipo_display === 'Premium' ? '<span class="badge badge-premium">Premium</span>' : '<span class="badge badge-classico">Classico</span>') + '</td>';
+      // Catalogo
+      var catHtml = row.em_catalogo ? '<span class="dot-green"></span>' : '<span class="dot-gray"></span>';
+      if (row.em_automacao_catalogo) catHtml += ' <span title="Em automacao de catalogo" style="cursor:help">&#9888;</span>';
+      html += '<td class="center">' + catHtml + '</td>';
+      // Quadrante
+      var qBadge = row.quadrante ? '<span class="badge badge-' + row.quadrante + '">' + capitalize(row.quadrante) + '</span>' : '-';
+      html += '<td>' + qBadge + '</td>';
+      // Grupo
+      html += '<td style="font-size:11px">' + (row.grupo_nome || '-') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // Selection warnings
+    if (selectedMlbIds.size > 0) {
+      html += renderSelectionWarnings();
+    }
+
+    // Group management panel
+    html += '<div class="group-panel">';
+    html += '<div class="group-panel-header" onclick="toggleGroupPanel()">';
+    html += '<h2>Gestao de Grupos</h2>';
+    html += '<span class="toggle' + (groupPanelOpen ? ' open' : '') + '">&#9660;</span>';
+    html += '</div>';
+    html += '<div class="group-panel-body' + (groupPanelOpen ? ' open' : '') + '">';
+
+    // Create group button / form
+    if (!showCreateForm) {
+      html += '<button class="btn btn-blue" onclick="toggleCreateForm()" style="margin-bottom:16px"' + (selectedMlbIds.size === 0 ? ' disabled title="Selecione MLBs na tabela primeiro"' : '') + '>+ Criar Grupo (' + selectedMlbIds.size + ' MLBs selecionados)</button>';
+    } else {
+      html += renderCreateForm();
+    }
+
+    // Existing groups
+    html += '<h3 style="font-size:14px;font-weight:600;margin:16px 0 12px;color:#8b949e">Grupos ativos (' + grupos.length + ')</h3>';
+    if (grupos.length === 0) {
+      html += '<div style="font-size:13px;color:#484f58;padding:20px 0">Nenhum grupo ativo</div>';
+    } else {
+      html += '<div class="existing-groups">';
+      grupos.forEach(function(g) {
+        var gRules = grupoRegras.filter(function(r) { return r.grupo_id === g.id; });
+        var gMlbs = grupoMlbs.filter(function(m) { return m.grupo_id === g.id; });
+        html += '<div class="eg-card">';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+        html += '<span class="eg-name">' + escHtml(g.apelido || 'Grupo ' + g.id) + '</span>';
+        html += '<span class="tag ' + (g.tipo === 'repricing' ? 'tag-rep' : 'tag-obs') + '">' + (g.tipo || 'repricing') + '</span>';
+        html += '</div>';
+        html += '<div class="eg-meta">' + gMlbs.length + ' MLBs | Margem alvo: ' + (g.margem_alvo_pct || 15) + '%</div>';
+        if (gRules.length > 0) {
+          html += '<div class="eg-rules">';
+          gRules.forEach(function(r) {
+            html += '<div style="font-size:11px;color:#484f58;margin-bottom:2px">' + escHtml(r.tipo_regra) + ': ' + escHtml(r.parametro || r.valor) + '</div>';
+          });
+          html += '</div>';
+        }
+        if (gMlbs.length > 0) {
+          html += '<div class="eg-mlbs">';
+          gMlbs.slice(0, 10).forEach(function(m) {
+            html += '<span class="eg-mlb-tag">' + m.mlb_id + '</span>';
+          });
+          if (gMlbs.length > 10) html += '<span style="font-size:10px;color:#484f58">+' + (gMlbs.length - 10) + '</span>';
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div></div>';
+
+    document.getElementById('app').innerHTML = html;
+    // Focus search if it had focus
+    var si = document.getElementById('searchInput');
+    if (si && document.activeElement && document.activeElement.tagName === 'BODY') {
+      // Don't auto-focus
+    }
+  }
+
+  // ── Render helpers ──
+  function renderQuadCard(q, name, count, desc) {
+    var icons = { proteger: '&#128737;&#65039;', repricing: '&#128200;', ads: '&#128226;', avaliar: '&#128269;' };
+    var active = activeQuadrant === q ? ' active' : '';
+    return '<div class="quad-card q-' + q + active + '" onclick="toggleQuadrant(\'' + q + '\')">' +
+      '<div class="q-icon">' + icons[q] + '</div>' +
+      '<div class="q-name">' + name + '</div>' +
+      '<div class="q-count">' + count + '</div>' +
+      '<div class="q-desc">' + desc + '</div>' +
+      '</div>';
+  }
+
+  function renderFilterGroup(label, filterKey, options) {
+    var html = '<div class="filter-group"><label>' + label + ':</label>';
+    options.forEach(function(o) {
+      var active = filters[filterKey] === o.val ? ' active' : '';
+      html += '<button class="filter-btn' + active + '" onclick="setFilter(\'' + filterKey + '\',\'' + o.val + '\')">' + o.label + '</button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderSelectionWarnings() {
+    var html = '<div style="margin-top:12px">';
+    var selRows = allData.filter(function(r) { return selectedMlbIds.has(r.mlb_id); });
+    var warnAutoCat = selRows.filter(function(r) { return r.em_automacao_catalogo; });
+    var warnTeto = selRows.filter(function(r) { return r.no_teto_7890; });
+    var warnGrupo = selRows.filter(function(r) { return r.grupo_id != null; });
+
+    if (warnAutoCat.length > 0) {
+      html += '<div class="form-danger">&#9888;&#65039; ' + warnAutoCat.length + ' MLB(s) selecionado(s) em automacao de catalogo. Adicionar a um grupo de repricing pode gerar conflito de preco.</div>';
+    }
+    if (warnTeto.length > 0) {
+      html += '<div class="form-warning">' + warnTeto.length + ' MLB(s) selecionado(s) ja no teto R$78,90.</div>';
+    }
+    if (warnGrupo.length > 0) {
+      html += '<div class="form-warning">&#9888;&#65039; ' + warnGrupo.length + ' MLB(s) selecionado(s) ja pertencem a um grupo: ' +
+        warnGrupo.map(function(r) { return r.mlb_id + ' (' + (r.grupo_nome || '?') + ')'; }).join(', ') + '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderCreateForm() {
+    var html = '<div class="create-group-form">';
+    html += '<h3 style="font-size:15px;font-weight:600;margin-bottom:16px">Criar novo grupo</h3>';
+
+    html += '<div class="form-row">';
+    html += '<label>Nome do grupo:</label>';
+    html += '<input type="text" id="fg_nome" placeholder="Ex: Grampos Teste 3%" style="width:260px">';
+    html += '</div>';
+
+    html += '<div class="form-row">';
+    html += '<label>Tipo:</label>';
+    html += '<select id="fg_tipo"><option value="repricing" selected>Repricing</option><option value="observacao">Observacao</option></select>';
+    html += '</div>';
+
+    html += '<h4 style="font-size:13px;font-weight:500;color:#8b949e;margin:16px 0 10px">Parametros (ja configurados com defaults)</h4>';
+
+    html += '<div class="form-row">';
+    html += '<label>Meta de margem:</label>';
+    html += '<input type="number" id="fg_margem" value="15" min="0" max="100" step="0.5"> %';
+    html += '</div>';
+
+    html += '<div class="form-row">';
+    html += '<label>Ritmo de aumento:</label>';
+    html += '<input type="number" id="fg_ritmo" value="3" min="0.5" max="20" step="0.5"> % a cada <input type="number" id="fg_dias_ritmo" value="14" min="1" max="90" step="1"> dias';
+    html += '</div>';
+
+    html += '<div class="form-row">';
+    html += '<label>Periodo de espera:</label>';
+    html += '<input type="number" id="fg_espera" value="10" min="1" max="90" step="1"> dias';
+    html += '</div>';
+
+    html += '<div class="form-row">';
+    html += '<label>Gatilho de reversao:</label>';
+    html += '<label class="chk-label"><input type="checkbox" id="fg_gatilho" checked> Visitas diminuindo</label>';
+    html += '</div>';
+
+    html += '<div class="form-info">Teto R$78,90: Produtos abaixo de R$79 tem teto automatico de R$78,90. Ao atingir, a automacao para.</div>';
+
+    html += '<div style="display:flex;align-items:center;gap:12px;margin-top:16px">';
+    html += '<span style="font-size:13px;color:#58a6ff;font-weight:500">MLBs selecionados: ' + selectedMlbIds.size + '</span>';
+    html += '<button class="btn btn-primary" onclick="criarGrupo()"' + (selectedMlbIds.size === 0 ? ' disabled' : '') + '>Criar grupo</button>';
+    html += '<button class="btn" onclick="toggleCreateForm()">Cancelar</button>';
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  function shortAccount(name) {
+    if (!name) return '-';
+    if (name === 'GGE-GRAMPEADORES') return 'GGE';
+    if (name === 'TOOWCOMERCIAL') return 'TOOW';
+    return name;
+  }
+
+  function capitalize(s) {
+    if (!s) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Event handlers ──
+  window.setAccount = function(v) {
+    selectedAccount = v;
+    selectedMlbIds.clear();
+    render();
+  };
+
+  window.toggleQuadrant = function(q) {
+    activeQuadrant = activeQuadrant === q ? null : q;
+    render();
+  };
+
+  window.setFilter = function(key, val) {
+    filters[key] = val;
+    render();
+  };
+
+  window.setSearch = function(val) {
+    searchTerm = val;
+    render();
+    // Restore cursor position
+    var si = document.getElementById('searchInput');
+    if (si) { si.focus(); si.setSelectionRange(val.length, val.length); }
+  };
+
+  window.setSort = function(col) {
+    if (sortCol === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = col;
+      sortDir = col === 'titulo' || col === 'mlb_id' || col === 'conta_nome' || col === 'logistica_display' || col === 'tipo_display' || col === 'quadrante' || col === 'grupo_nome' ? 'asc' : 'desc';
+    }
+    render();
+  };
+
+  window.toggleSelect = function(mlbId) {
+    if (selectedMlbIds.has(mlbId)) {
+      selectedMlbIds.delete(mlbId);
+    } else {
+      selectedMlbIds.add(mlbId);
+    }
+    render();
+  };
+
+  window.toggleSelectAll = function() {
+    var filtered = getFilteredData();
+    if (selectedMlbIds.size === filtered.length && filtered.length > 0) {
+      selectedMlbIds.clear();
+    } else {
+      filtered.forEach(function(r) { selectedMlbIds.add(r.mlb_id); });
+    }
+    render();
+  };
+
+  window.toggleGroupPanel = function() {
+    groupPanelOpen = !groupPanelOpen;
+    render();
+  };
+
+  window.toggleCreateForm = function() {
+    showCreateForm = !showCreateForm;
+    if (showCreateForm) groupPanelOpen = true;
+    render();
+  };
+
+  // ── Create group ──
+  window.criarGrupo = async function() {
+    var nomeEl = document.getElementById('fg_nome');
+    var tipoEl = document.getElementById('fg_tipo');
+    var margemEl = document.getElementById('fg_margem');
+    var ritmoEl = document.getElementById('fg_ritmo');
+    var diasEl = document.getElementById('fg_dias_ritmo');
+    var esperaEl = document.getElementById('fg_espera');
+    var gatilhoEl = document.getElementById('fg_gatilho');
+
+    if (!nomeEl || !nomeEl.value.trim()) {
+      showToast('Preencha o nome do grupo', 'error');
+      return;
+    }
+    if (selectedMlbIds.size === 0) {
+      showToast('Selecione pelo menos um MLB', 'error');
+      return;
+    }
+
+    var nomeGrupo = nomeEl.value.trim();
+    var tipoGrupo = tipoEl.value;
+    var metaMargem = parseFloat(margemEl.value) || 15;
+    var ritmo = parseFloat(ritmoEl.value) || 3;
+    var dias = parseInt(diasEl.value) || 14;
+    var periodoEspera = parseInt(esperaEl.value) || 10;
+    var gatilhoReverter = gatilhoEl.checked;
+
+    try {
+      // 1. Insert grupo
+      var { data: newGrupo, error: e1 } = await sb.from('grupos').insert({
+        apelido: nomeGrupo,
+        tipo: tipoGrupo,
+        status: 'ativo',
+        margem_alvo_pct: metaMargem,
+        periodo_observacao_dias: periodoEspera
+      }).select().single();
+      if (e1) throw e1;
+
+      // 2. Insert regras
+      var { error: e2 } = await sb.from('grupo_regras').insert([
+        { grupo_id: newGrupo.id, tipo_regra: 'meta_margem', parametro: 'margem alvo do grupo', valor: String(metaMargem), ativo: true },
+        { grupo_id: newGrupo.id, tipo_regra: 'ritmo_aumento', parametro: ritmo + '% a cada ' + dias + ' dias', valor: String(ritmo), ativo: true },
+        { grupo_id: newGrupo.id, tipo_regra: 'periodo_espera', parametro: 'apenas aguardar e observar', valor: String(periodoEspera), ativo: true },
+        { grupo_id: newGrupo.id, tipo_regra: 'gatilho_reverter', parametro: 'visitas diminuindo', valor: '1', ativo: gatilhoReverter }
+      ]);
+      if (e2) throw e2;
+
+      // 3. Insert grupo_mlbs
+      var selectedRows = allData.filter(function(r) { return selectedMlbIds.has(r.mlb_id); });
+      var mlbsToInsert = selectedRows.map(function(mlb) {
+        return {
+          grupo_id: newGrupo.id,
+          mlb_id: mlb.mlb_id,
+          ativo: true,
+          status_mlb: 'ativo',
+          baseline_preco: mlb.preco_atual,
+          baseline_margem_pct: mlb.margem_mc2_pct,
+          baseline_receita_30d: mlb.receita_30d,
+          baseline_volume_30d: mlb.vendas_30d,
+          baseline_visitas_30d: mlb.visitas_30d,
+          baseline_conversao_30d: mlb.conversao_pct,
+          baseline_data: new Date().toISOString(),
+          preco_alvo: mlb.preco_atual < 79 ? 78.90 : null
+        };
+      });
+      var { error: e3 } = await sb.from('grupo_mlbs').insert(mlbsToInsert);
+      if (e3) throw e3;
+
+      // 4. Log action
+      await sb.from('grupo_acoes').insert({
+        grupo_id: newGrupo.id,
+        tipo_acao: 'grupo_criado',
+        detalhes: {
+          mlbs: selectedRows.map(function(m) { return m.mlb_id; }),
+          parametros: { metaMargem: metaMargem, ritmo: ritmo, dias: dias, periodoEspera: periodoEspera }
+        }
+      });
+
+      showToast('Grupo "' + nomeGrupo + '" criado com ' + selectedRows.length + ' MLBs!', 'success');
+      selectedMlbIds.clear();
+      showCreateForm = false;
+      await loadData();
+    } catch(e) {
+      console.error('Erro ao criar grupo:', e);
+      showToast('Erro ao criar grupo: ' + (e.message || e), 'error');
+    }
+  };
+
+  // ── Init ──
+  loadData();
+  </script>
+</body>
+</html>
