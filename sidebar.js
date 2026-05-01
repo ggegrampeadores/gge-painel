@@ -42,8 +42,7 @@
     },
     { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação', key: 'reputacao' },
     { href: '/ads',                  icon: icons.ads,       label: 'ADs',            key: 'ads' },
-    { href: '/grupos',               icon: icons.grupos,    label: 'Grupos',         key: 'grupos' },
-    { href: '/realinhamento-precos', icon: icons.realinha,  label: 'Realinhamento',  key: 'realinhamento' },
+    { href: '/central-analise',       icon: icons.grupos,    label: 'Central de Análise', key: 'central-analise' },
     { href: '/saude',                icon: icons.saude,     label: 'Saúde',     key: 'saude' }
   ];
 
@@ -146,4 +145,175 @@
   var el = document.getElementById('sidebar-container');
   if (el) { el.innerHTML = html; }
   else { document.body.insertAdjacentHTML('afterbegin', html); }
+
+  // ═══════════════════════════════════════════════════════════
+  // DATA QUALITY ALERT SYSTEM
+  // Consulta vw_data_quality e mostra banners de alerta
+  // ═══════════════════════════════════════════════════════════
+
+  // CSS dos banners
+  var alertStyle = document.createElement('style');
+  alertStyle.id = 'data-quality-alert-styles';
+  alertStyle.textContent = [
+    '#dq-alert-container { position:fixed;top:0;left:48px;right:0;z-index:999;display:flex;flex-direction:column;gap:0 }',
+    '.dq-alert { display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13px;font-weight:500;border-bottom:1px solid rgba(0,0,0,.2);animation:dqSlideIn .3s ease }',
+    '.dq-alert-warning { background:#2d1b00;color:#f0ad4e;border-left:3px solid #f0ad4e }',
+    '.dq-alert-danger { background:#2d0000;color:#f85149;border-left:3px solid #f85149 }',
+    '.dq-alert-info { background:#0d1b2a;color:#58a6ff;border-left:3px solid #58a6ff }',
+    '.dq-alert svg { flex-shrink:0;width:16px;height:16px }',
+    '.dq-alert-text { flex:1 }',
+    '.dq-alert-close { cursor:pointer;opacity:.6;padding:4px;border:none;background:none;color:inherit;font-size:16px;line-height:1 }',
+    '.dq-alert-close:hover { opacity:1 }',
+    '.dq-alert-detail { font-weight:400;opacity:.8;margin-left:4px }',
+    '@keyframes dqSlideIn { from{transform:translateY(-100%);opacity:0} to{transform:translateY(0);opacity:1} }',
+    '.main-with-sidebar.has-alerts { padding-top:var(--dq-alerts-height, 0px) }'
+  ].join('\n');
+  document.head.appendChild(alertStyle);
+
+  // Ícones de alerta
+  var alertIcons = {
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+
+  function checkDataQuality() {
+    if (!window.GGE_SUPABASE_URL || !window.GGE_SUPABASE_KEY) {
+      // Supabase não configurado, tentar de novo em 2s
+      setTimeout(checkDataQuality, 2000);
+      return;
+    }
+
+    var url = window.GGE_SUPABASE_URL + '/rest/v1/vw_data_quality?select=*&limit=1';
+    fetch(url, {
+      headers: {
+        'apikey': window.GGE_SUPABASE_KEY,
+        'Authorization': 'Bearer ' + window.GGE_SUPABASE_KEY
+      }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+      if (!rows || !rows.length) return;
+      var d = rows[0];
+      var alerts = [];
+
+      // 1. Token expirado — CRÍTICO
+      if (d.tokens_expirados > 0) {
+        alerts.push({
+          type: 'danger',
+          text: 'Token ML expirado!',
+          detail: d.tokens_expirados + ' conta(s) com token vencido. Coletas paradas.'
+        });
+      }
+
+      // 2. Frete com muitos zeros (>20% do total)
+      if (d.alerta_frete && d.frete_zero > 0) {
+        var pctRecente = d.total_envios_30d > 0
+          ? Math.round(100 * d.frete_zero_30d / d.total_envios_30d)
+          : 0;
+        // Só alertar se últimos 30d também tem problema OU se o histórico é muito ruim
+        if (pctRecente > 5 || d.frete_zero_pct > 40) {
+          alerts.push({
+            type: pctRecente > 10 ? 'danger' : 'warning',
+            text: 'Dados de frete incompletos',
+            detail: d.frete_zero.toLocaleString('pt-BR') + ' envios sem custo real (' + d.frete_zero_pct + '% do total). Backfill em andamento.'
+          });
+        }
+      }
+
+      // 3. Vendas sem custo nos últimos 30d
+      if (d.vendas_sem_custo_30d > 10) {
+        alerts.push({
+          type: 'warning',
+          text: 'Vendas sem custo de produto',
+          detail: d.vendas_sem_custo_30d + ' vendas nos últimos 30 dias sem custo cadastrado. Margem usa estimativa 50%.'
+        });
+      }
+
+      // 4. Anúncios ativos sem SKU
+      if (d.ativos_sem_sku > 5) {
+        alerts.push({
+          type: 'info',
+          text: 'Anúncios sem SKU',
+          detail: d.ativos_sem_sku + ' anúncio(s) ativo(s) sem sku_vendedor. Sem vínculo com custo.'
+        });
+      }
+
+      renderAlerts(alerts);
+    })
+    .catch(function(err) {
+      console.warn('[DataQuality] Erro ao consultar:', err);
+    });
+  }
+
+  function renderAlerts(alerts) {
+    // Remover container antigo se existir
+    var old = document.getElementById('dq-alert-container');
+    if (old) old.remove();
+
+    if (!alerts.length) return;
+
+    // Checar se o usuário já dispensou algum alerta nesta sessão
+    var dismissed = {};
+    try { dismissed = JSON.parse(sessionStorage.getItem('dq_dismissed') || '{}'); } catch(e) {}
+
+    var visibleAlerts = alerts.filter(function(a) { return !dismissed[a.text]; });
+    if (!visibleAlerts.length) return;
+
+    var container = document.createElement('div');
+    container.id = 'dq-alert-container';
+
+    visibleAlerts.forEach(function(a) {
+      var div = document.createElement('div');
+      div.className = 'dq-alert dq-alert-' + a.type;
+      div.innerHTML = alertIcons[a.type] +
+        '<span class="dq-alert-text">' + a.text +
+        (a.detail ? '<span class="dq-alert-detail">— ' + a.detail + '</span>' : '') +
+        '</span>' +
+        '<button class="dq-alert-close" title="Dispensar">&times;</button>';
+
+      div.querySelector('.dq-alert-close').addEventListener('click', function() {
+        dismissed[a.text] = true;
+        try { sessionStorage.setItem('dq_dismissed', JSON.stringify(dismissed)); } catch(e) {}
+        div.style.animation = 'none';
+        div.style.transition = 'all .2s';
+        div.style.maxHeight = '0';
+        div.style.opacity = '0';
+        div.style.padding = '0 16px';
+        setTimeout(function() {
+          div.remove();
+          updateMainPadding();
+        }, 200);
+      });
+
+      container.appendChild(div);
+    });
+
+    document.body.appendChild(container);
+
+    // Ajustar padding do main content
+    requestAnimationFrame(function() { updateMainPadding(); });
+  }
+
+  function updateMainPadding() {
+    var container = document.getElementById('dq-alert-container');
+    var main = document.querySelector('.main-with-sidebar') || document.querySelector('main') || document.querySelector('.dashboard');
+    if (!main) return;
+    if (container && container.children.length > 0) {
+      var h = container.offsetHeight;
+      main.style.paddingTop = h + 'px';
+      main.classList.add('has-alerts');
+    } else {
+      main.style.paddingTop = '';
+      main.classList.remove('has-alerts');
+    }
+  }
+
+  // Iniciar verificação após o DOM carregar e configs estarem prontas
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(checkDataQuality, 1000); });
+  } else {
+    setTimeout(checkDataQuality, 1000);
+  }
+
 })();
