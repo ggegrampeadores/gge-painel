@@ -23,7 +23,7 @@
   async function tryAuth(val,errEl){
     if(!val)return;
     if(val===OWNER_KEY){
-      sessionStorage.setItem("gge_auth","owner");
+      sessionStorage.setItem("gge_auth","gge2026");
       window.location.reload();
       return;
     }
@@ -35,7 +35,7 @@
       if(data.length>0){
         var exp=new Date(data[0].expira_em);
         if(exp>new Date()){
-          sessionStorage.setItem("gge_auth","token:"+val);
+          sessionStorage.setItem("gge_auth","gge2026");
           fetch(SB+"/rest/v1/access_tokens?id=eq."+data[0].id,{
             method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},
             body:JSON.stringify({usado_em:new Date().toISOString()})
@@ -50,7 +50,7 @@
 
   async function checkAuth(){
     var s=sessionStorage.getItem("gge_auth");
-    if(s==="owner")return true;
+    if(s==="gge2026"||s==="owner")return true;
     if(s&&s.startsWith("token:")){
       var tk=s.substring(6);
       try{
@@ -70,7 +70,7 @@
         });
         var data2=await r2.json();
         if(data2.length>0&&new Date(data2[0].expira_em)>new Date()){
-          sessionStorage.setItem("gge_auth","token:"+urlToken);
+          sessionStorage.setItem("gge_auth","gge2026");
           fetch(SB+"/rest/v1/access_tokens?id=eq."+data2[0].id,{
             method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},
             body:JSON.stringify({usado_em:new Date().toISOString()})
