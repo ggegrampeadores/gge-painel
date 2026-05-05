@@ -95,6 +95,8 @@
         /* Table Styles */
         .table-wrapper {
             overflow-x: auto;
+            overflow-y: auto;
+            max-height: calc(100vh - 220px);
             border-radius: 8px;
             border: 1px solid #2a2d3a;
         }
@@ -105,6 +107,10 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        thead th {
+            background-color: #1a1d27;
         }
         th {
             padding: 12px;
@@ -133,6 +139,13 @@
             border-top: 2px solid #f0883e;
             border-bottom: 1px solid #2a2d3a;
             letter-spacing: 0.5px;
+        }
+
+        /* Separador (linha vazia visual) */
+        .separator-row td {
+            background-color: #0f1117;
+            padding: 6px 0;
+            border-bottom: none;
         }
 
         /* Product Rows */
@@ -539,8 +552,13 @@
             }
 
             for (const item of tabelaVdItens) {
+                if (item.tipo === 'separador') {
+                    if (query) continue;
+                    tableBody.innerHTML += `<tr class="separator-row"><td colspan="10"></td></tr>`;
+                    continue;
+                }
                 if (item.tipo === 'titulo') {
-                    if (query) continue; // Ocultar títulos ao filtrar
+                    if (query) continue;
                     totalTitulos++;
                     tableBody.innerHTML += `<tr class="section-header-row"><td colspan="10">${item.descricao_titulo || '—'}</td></tr>`;
                     continue;
@@ -707,6 +725,10 @@
                 data.push(['Tipo', 'SKU', 'Descrição', 'Custo CIF', 'MC 50%', 'MC 45%', 'MC 40%', 'MC 35%', 'MC 30%']);
 
                 for (const item of tabelaVdItens) {
+                    if (item.tipo === 'separador') {
+                        data.push(['separador', '', '', '', '', '', '', '', '']);
+                        continue;
+                    }
                     if (item.tipo === 'titulo') {
                         data.push(['titulo', '', item.descricao_titulo || '', '', '', '', '', '', '']);
                         continue;
@@ -771,8 +793,9 @@
                     ['- Para cálculo exato por venda realizada, usar página Margem'],
                     [],
                     ['INSTRUÇÕES DE EDIÇÃO:'],
-                    ['- Coluna "Tipo": "produto" para SKU, "titulo" para cabeçalho de seção'],
+                    ['- Coluna "Tipo": "produto" para SKU, "titulo" para cabeçalho de seção, "separador" para espaço vazio'],
                     ['- Para TÍTULO: preencha só Tipo e Descrição. SKU fica vazio.'],
+                    ['- Para SEPARADOR: preencha só Tipo = "separador" (ou deixe a linha toda vazia).'],
                     ['- Para PRODUTO: preencha Tipo, SKU e opcionalmente Custo CIF.'],
                     ['- Se Custo CIF ficar vazio, usa o valor do banco Supabase.'],
                     ['- Se Custo CIF for preenchido, atualiza o banco ao importar.'],
@@ -820,7 +843,9 @@
                         const custoRaw = row['Custo CIF'] || row['custo_cif'] || '';
                         const custoNum = custoRaw !== '' ? parseFloat(custoRaw) : null;
 
-                        if (tipo === 'titulo') {
+                        if (tipo === 'separador' || (tipo === '' && !sku && !desc)) {
+                            itens.push({ ordem: ordem++, tipo: 'separador', sku: null, descricao_titulo: null, custo_cif_override: null });
+                        } else if (tipo === 'titulo') {
                             itens.push({ ordem: ordem++, tipo: 'titulo', sku: null, descricao_titulo: desc || 'Sem título', custo_cif_override: null });
                         } else if (sku) {
                             const override = (custoNum !== null && custoNum > 0) ? custoNum : null;
