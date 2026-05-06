@@ -436,6 +436,49 @@
             return custo / den;
         }
 
+        // Precificação Venda Direta (B2B) — trata GGE e TOOW
+        // GGE: PV = Custo / (1 - ICMS_interestadual% - PIS/COFINS 9,25% - DIFAL% - MC%)
+        // TOOW: PV = Custo / (1 - Simples 8,65% - MC%)
+        function calcPV_VD(custo, mcPct, empresa, importado, ufDestino, consumidorFinal) {
+            if (custo <= 0) return 0;
+            let den;
+            if (empresa === 'TOOW') {
+                den = 1 - 0.0865 - (mcPct / 100);
+            } else {
+                const icmsNF = icmsInterestadual(importado || false, ufDestino || 'SP') / 100;
+                const pisCofins = 0.0925;
+                let difal = 0;
+                if (consumidorFinal && ufDestino && ICMS_UF[ufDestino]) {
+                    difal = Math.max(0, (ICMS_UF[ufDestino] / 100) - icmsNF);
+                }
+                den = 1 - icmsNF - pisCofins - difal - (mcPct / 100);
+            }
+            if (den <= 0) return 0;
+            return custo / den;
+        }
+
+        // Decomposição da venda VD — retorna objeto com cada componente em R$
+        function decomporVendaVD(custo, mcPct, empresa, importado, ufDestino, consumidorFinal) {
+            const pv = calcPV_VD(custo, mcPct, empresa, importado, ufDestino, consumidorFinal);
+            if (pv <= 0) return null;
+            if (empresa === 'TOOW') {
+                const simples = pv * 0.0865;
+                const mc = pv * (mcPct / 100);
+                return { pv, custo, simples, icms: 0, pisCofins: 0, difal: 0, mc, conferencia: pv - custo - simples - mc };
+            } else {
+                const icmsRate = icmsInterestadual(importado || false, ufDestino || 'SP') / 100;
+                const icms = pv * icmsRate;
+                const pisCofins = pv * 0.0925;
+                let difal = 0;
+                if (consumidorFinal && ufDestino && ICMS_UF[ufDestino]) {
+                    const difalRate = Math.max(0, (ICMS_UF[ufDestino] / 100) - icmsRate);
+                    difal = pv * difalRate;
+                }
+                const mc = pv * (mcPct / 100);
+                return { pv, custo, icms, icmsRate, pisCofins, difal, simples: 0, mc, conferencia: pv - custo - icms - pisCofins - difal - mc };
+            }
+        }
+
         // ══════════════════════════════════════════════════════════
         // STATE
         // ══════════════════════════════════════════════════════════
@@ -594,7 +637,7 @@
                 let pricesCells = '';
                 if (custo > 0) {
                     margins.forEach(m => {
-                        const pv = calcPV(custo, m, currentEmpresa);
+                        const pv = calcPV_VD(custo, m, currentEmpresa, false, 'SP', false);
                         pricesCells += `<td class="price">${pv > 0 ? 'R$ ' + fmtR$(pv) : '—'}</td>`;
                     });
                 } else {
@@ -667,28 +710,42 @@
             const hist = custoHistPorSku[histKey] || custoHistPorSku[sku + '|GGE'] || null;
             let card2Content = '';
             if (hist) {
-                const fob = hist.preco_fob || 0, ipi = hist.ipi_valor || 0, st = hist.st_valor || 0;
-                const freteC = hist.frete || 0, icmsC = hist.icms_credito || 0, pisCofC = hist.pis_cofins_credito || 0;
-                const outros = hist.outros_custos || 0;
-                const cifRJ = hist.custo_cif_rj || 0, cifSP = hist.custo_cif_sp || 0;
-                const cifFinal = empresa === 'TOOW' ? cifSP : (cifSP || cifRJ);
+                const fob = parseFloat(hist.preco_fob) || 0, ipi = parseFloat(hist.ipi_valor) || 0, st = parseFloat(hist.st_valor) || 0;
+                const freteC = parseFloat(hist.frete) || 0;
+                let icmsC = parseFloat(hist.icms_credito) || 0, pisCofC = parseFloat(hist.pis_cofins_credito) || 0;
+                const outros = parseFloat(hist.outros_custos) || 0;
+                const cifRJ = parseFloat(hist.custo_cif_rj) || 0, cifSP = parseFloat(hist.custo_cif_sp) || 0;
+                const cifFinal = empresa === 'TOOW' ? cifSP : cifRJ;
                 const nf = hist.nota_fiscal || '—';
                 const dataVig = hist.data_vigencia ? new Date(hist.data_vigencia + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+
+                // Back-calculate créditos quando estão zerados mas CIF < bruto (migração legada)
+                let creditosEstimados = false;
+                if (empresa !== 'TOOW' && icmsC === 0 && pisCofC === 0 && fob > 0) {
+                    const bruto = fob + ipi + st + freteC + outros;
+                    if (cifFinal < bruto && cifFinal > 0) {
+                        // Estimar créditos: ICMS 18% × FOB, PIS/COFINS 9,25% × (FOB + IPI)
+                        icmsC = fob * 0.18;
+                        pisCofC = (fob + ipi) * 0.0925;
+                        creditosEstimados = true;
+                    }
+                }
+
                 card2Content = `
                     <div class="detail-row-item"><span class="detail-label">FOB</span><span class="detail-value">R$ ${fmtR$(fob)}</span></div>
-                    <div class="detail-row-item"><span class="detail-label">(+) IPI</span><span class="detail-value">R$ ${fmtR$(ipi)}</span></div>
-                    <div class="detail-row-item"><span class="detail-label">(+) ST</span><span class="detail-value">R$ ${fmtR$(st)}</span></div>
-                    <div class="detail-row-item"><span class="detail-label">(+) Frete compra</span><span class="detail-value">R$ ${fmtR$(freteC)}</span></div>
+                    ${ipi > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) IPI</span><span class="detail-value">R$ ${fmtR$(ipi)}</span></div>` : ''}
+                    ${st > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) ST</span><span class="detail-value">R$ ${fmtR$(st)}</span></div>` : ''}
+                    ${freteC > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) Frete compra</span><span class="detail-value">R$ ${fmtR$(freteC)}</span></div>` : ''}
                     ${empresa !== 'TOOW' ? `
                     <div style="border-top:1px solid #2a2d3a;margin-top:4px;padding-top:4px;">
-                        <div class="detail-row-item"><span class="detail-label">(-) ICMS cred.</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(icmsC)}</span></div>
-                        <div class="detail-row-item"><span class="detail-label">(-) PIS/COF cred.</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(pisCofC)}</span></div>
+                        <div class="detail-row-item"><span class="detail-label">(-) ICMS cred.${creditosEstimados ? ' *' : ''}</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(icmsC)}</span></div>
+                        <div class="detail-row-item"><span class="detail-label">(-) PIS/COF cred.${creditosEstimados ? ' *' : ''}</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(pisCofC)}</span></div>
                     </div>` : ''}
                     <div class="detail-row-item" style="border-top:1px solid #f0883e40;margin-top:6px;padding-top:6px;">
                         <span class="detail-label" style="font-weight:700;">= CIF Final</span>
                         <span class="detail-value highlight" style="font-size:14px;">R$ ${fmtR$(cifFinal)}</span>
                     </div>
-                    <div class="detail-formula">NF ${nf} · ${dataVig}</div>`;
+                    <div class="detail-formula">NF ${nf} · ${dataVig}${creditosEstimados ? '<br>* Créditos estimados (ICMS 18%, PIS/COF 9,25%)' : ''}</div>`;
             } else {
                 card2Content = `
                     <div class="detail-row-item"><span class="detail-label">CIF RJ (fixo)</span><span class="detail-value">${item.custo_cif_rj > 0 ? 'R$ ' + fmtR$(item.custo_cif_rj) : '—'}</span></div>
@@ -699,18 +756,50 @@
 
             // Card 3: Preços por margem (resumo)
             let card3Lines = '';
+            const isToow = empresa === 'TOOW';
+            const icmsLabel = isToow ? 'Simples 8,65%' : 'ICMS 12% + PIS/COF 9,25%';
             if (custo > 0) {
                 [50, 45, 40, 35, 30, 25, 20].forEach(mc => {
-                    const pv = calcPV_B2B(custo, mc, false, 'SP', false);
+                    const pv = calcPV_VD(custo, mc, empresa, false, 'SP', false);
                     const lucro = pv > 0 ? (pv * (mc / 100)) : 0;
                     card3Lines += `<div class="detail-row-item"><span class="detail-label">MC ${mc}%</span><span class="detail-value green">R$ ${pv > 0 ? fmtR$(pv) : '—'} <span style="color:#8b949e;font-size:10px;">lucro R$ ${fmtR$(lucro)}</span></span></div>`;
                 });
             } else {
                 card3Lines = '<div class="detail-row-item"><span class="detail-label" style="color:#f85149;">Sem custo</span></div>';
             }
-            const card3 = `<div class="detail-section"><h4>Preços B2B (Ind/Rev · Nac · SP)</h4>${card3Lines}<div class="detail-formula">PV = Custo / (1 - ICMS% - PIS/COF% - MC%)</div></div>`;
+            const formulaLabel = isToow
+                ? 'PV = Custo / (1 - Simples 8,65% - MC%)'
+                : 'PV = Custo / (1 - ICMS 12% - PIS/COF 9,25% - MC%)';
+            const card3 = `<div class="detail-section"><h4>Preços VD (Nac · Fora Estado)</h4>${card3Lines}<div class="detail-formula">${formulaLabel}</div></div>`;
 
-            return `<div class="detail-panel" data-sku="${sku}" data-custo="${custo}" data-empresa="${empresa}" id="${panelId}"><div class="detail-grid">${card1}${card2}${card3}</div></div>`;
+            // Card 4: Memória de cálculo da VENDA (decomposição para MC 30%)
+            let card4Content = '';
+            if (custo > 0) {
+                const d = decomporVendaVD(custo, 30, empresa, false, 'SP', false);
+                if (d) {
+                    card4Content = `
+                        <div class="detail-row-item"><span class="detail-label" style="font-weight:700;">Preço de Venda</span><span class="detail-value green" style="font-size:14px;">R$ ${fmtR$(d.pv)}</span></div>
+                        <div style="border-top:1px solid #2a2d3a;margin-top:4px;padding-top:4px;">
+                        <div class="detail-row-item"><span class="detail-label">(-) Custo produto</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(d.custo)}</span></div>
+                        ${isToow ? `
+                        <div class="detail-row-item"><span class="detail-label">(-) Simples 8,65%</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(d.simples)}</span></div>
+                        ` : `
+                        <div class="detail-row-item"><span class="detail-label">(-) ICMS 12%</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(d.icms)}</span></div>
+                        <div class="detail-row-item"><span class="detail-label">(-) PIS/COFINS 9,25%</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(d.pisCofins)}</span></div>
+                        `}
+                        </div>
+                        <div class="detail-row-item" style="border-top:1px solid #3fb95040;margin-top:6px;padding-top:6px;">
+                            <span class="detail-label" style="font-weight:700;">= MC 30%</span>
+                            <span class="detail-value" style="color:#3fb950;font-size:14px;">R$ ${fmtR$(d.mc)}</span>
+                        </div>
+                        <div class="detail-row-item"><span class="detail-label" style="color:#8b949e;">Conferência</span><span class="detail-value" style="color:#8b949e;">R$ ${fmtR$(Math.abs(d.conferencia))} ${Math.abs(d.conferencia) < 0.02 ? '✓' : '⚠'}</span></div>`;
+                }
+            } else {
+                card4Content = '<div class="detail-row-item"><span class="detail-label" style="color:#f85149;">Sem custo</span></div>';
+            }
+            const card4 = `<div class="detail-section"><h4>Memória da Venda (MC 30%)</h4>${card4Content}<div class="detail-formula">Cenário: Nacional · Fora do Estado · Ind/Rev (CNPJ)</div></div>`;
+
+            return `<div class="detail-panel" data-sku="${sku}" data-custo="${custo}" data-empresa="${empresa}" id="${panelId}"><div class="detail-grid">${card1}${card2}${card3}${card4}</div></div>`;
         }
 
         // ══════════════════════════════════════════════════════════
@@ -740,7 +829,7 @@
                     const custoDB = skuInfo ? (currentEmpresa === 'TOOW' ? skuInfo.custo_cif_sp : skuInfo.custo_cif_rj) : 0;
                     const custo = custoOverride || custoDB;
 
-                    const precos = margins.map(m => custo > 0 ? Math.round(calcPV(custo, m, currentEmpresa) * 100) / 100 : 0);
+                    const precos = margins.map(m => custo > 0 ? Math.round(calcPV_VD(custo, m, currentEmpresa, false, 'SP', false) * 100) / 100 : 0);
                     data.push([
                         'produto',
                         sku,
