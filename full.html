@@ -269,8 +269,15 @@
         const margemPct = receita > 0 ? (margem / receita) * 100 : 0;
         const ativos = anunciosFull.length;
         const venderam = new Set(vendasFull.map(v => v.mlb_id)).size;
-        const estoqueTotal = estoqueFull.reduce((s, i) => s + (Number(i.qty_disponivel_full) || 0) + (Number(i.qty_disponivel_proprio) || 0), 0);
-        const zerados = estoqueFull.filter(i => ((Number(i.qty_disponivel_full) || 0) + (Number(i.qty_disponivel_proprio) || 0)) === 0).length;
+        // Para Full: usar SOMENTE qty_disponivel_full (qty_disponivel_proprio é inflado)
+        const getEstoqueFull = (i) => {
+          const qf = Number(i.qty_disponivel_full) || 0;
+          if (qf > 0) return qf;
+          const an = anunciosFull.find(a => a.mlb_id === i.mlb_id);
+          return an ? (Number(an.estoque_declarado) || 0) : 0;
+        };
+        const estoqueTotal = estoqueFull.reduce((s, i) => s + getEstoqueFull(i), 0);
+        const zerados = estoqueFull.filter(i => getEstoqueFull(i) === 0).length;
         const qtdVendas = vendasFull.reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
         const ticket = qtdVendas > 0 ? receita / qtdVendas : 0;
         return { receita, margem, margemPct, ativos, venderam, estoqueTotal, zerados, ticket, qtdVendas };
@@ -292,7 +299,10 @@
 
         const result = [];
         estoqueFull.forEach(item => {
-          const qtd = (Number(item.qty_disponivel_full) || 0) + (Number(item.qty_disponivel_proprio) || 0);
+          // Para Full: usar SOMENTE qty_disponivel_full
+          const qf = Number(item.qty_disponivel_full) || 0;
+          const an = anuncios.find(a => a.mlb_id === item.mlb_id);
+          const qtd = qf > 0 ? qf : (an ? (Number(an.estoque_declarado) || 0) : 0);
           if (qtd > 0) return; // Não está em ruptura
 
           const vs = vendasPorMlb[item.mlb_id];
@@ -350,9 +360,16 @@
       // Espaço Full atribuído
       const LIMITE_FULL = 18020;
       const espacoFull = useMemo(() => {
-        const emUso = estoqueFull.reduce((s, i) => s + (Number(i.qty_disponivel_full) || 0) + (Number(i.qty_disponivel_proprio) || 0), 0);
+        // Para Full: usar SOMENTE qty_disponivel_full (qty_disponivel_proprio é inflado)
+        const getQty = (i) => {
+          const qf = Number(i.qty_disponivel_full) || 0;
+          if (qf > 0) return qf;
+          const an = anunciosFull.find(a => a.mlb_id === i.mlb_id);
+          return an ? (Number(an.estoque_declarado) || 0) : 0;
+        };
+        const emUso = estoqueFull.reduce((s, i) => s + getQty(i), 0);
         return { limite: LIMITE_FULL, emUso, pctUsado: LIMITE_FULL > 0 ? (emUso / LIMITE_FULL) * 100 : 0 };
-      }, [estoqueFull]);
+      }, [estoqueFull, anunciosFull]);
 
       // Estoque & Reposição tab
       const estoqueData = useMemo(() => {
@@ -404,11 +421,14 @@
         const processed = new Set();
 
         // Primeiro: itens com estoque registrado
+        // Para Full: usar SOMENTE qty_disponivel_full (qty_disponivel_proprio é inflado para algoritmo ML)
+        // Se qty_disponivel_full = 0, usar estoque_declarado do anúncio como fallback
         estoqueFull.forEach(item => {
           const mlb = item.mlb_id;
           processed.add(mlb);
           const anuncio = anuncios.find(a => a.mlb_id === mlb);
-          const estoque = (Number(item.qty_disponivel_full) || 0) + (Number(item.qty_disponivel_proprio) || 0);
+          const qtyFull = Number(item.qty_disponivel_full) || 0;
+          const estoque = qtyFull > 0 ? qtyFull : (anuncio ? (Number(anuncio.estoque_declarado) || 0) : 0);
           items.push(calcItem(mlb, estoque, anuncio));
         });
 
