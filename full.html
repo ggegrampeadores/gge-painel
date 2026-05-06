@@ -164,8 +164,8 @@
       const [vendasLong, setVendasLong] = useState([]);
       const [fullMlbs, setFullMlbs] = useState(new Set());
       const [ruptExpanded, setRuptExpanded] = useState(false);
-      const [sortCol, setSortCol] = useState('cobertura');
-      const [sortDir, setSortDir] = useState('asc');
+      const [sortCol, setSortCol] = useState('falta7');
+      const [sortDir, setSortDir] = useState('desc');
       const [erroMsg, setErroMsg] = useState(null);
       const [stockQuality, setStockQuality] = useState(null);
 
@@ -347,20 +347,59 @@
         return [calc(vendasFull, 'Full'), calc(vendasColeta, 'Coleta')];
       }, [vendasFull, vendasColeta]);
 
+      // Espaço Full atribuído
+      const LIMITE_FULL = 18020;
+      const espacoFull = useMemo(() => {
+        const emUso = estoqueFull.reduce((s, i) => s + (Number(i.qty_disponivel_full) || 0) + (Number(i.qty_disponivel_proprio) || 0), 0);
+        return { limite: LIMITE_FULL, emUso, pctUsado: LIMITE_FULL > 0 ? (emUso / LIMITE_FULL) * 100 : 0 };
+      }, [estoqueFull]);
+
       // Estoque & Reposição tab
       const estoqueData = useMemo(() => {
-        const { from, to } = getRange(periodo);
-        const dias = Math.max(1, Math.round((new Date(to) - new Date(from)) / 864e5));
+        // Usar 30d fixo para velocidade de venda (independente do período selecionado)
+        const range30 = getRange('30d');
+        const dias30 = Math.max(1, Math.round((new Date(range30.to) - new Date(range30.from)) / 864e5));
 
+        // Vendas 30d para cálculo de velocidade (usa vendasLong que tem 90d)
         const vendasPorMlb = {};
-        vendasFull.forEach(v => {
-          if (!vendasPorMlb[v.mlb_id]) vendasPorMlb[v.mlb_id] = { qty: 0, receita: 0, margem: 0 };
-          vendasPorMlb[v.mlb_id].qty += Number(v.quantidade) || 1;
-          vendasPorMlb[v.mlb_id].receita += Number(v.receita) || 0;
-          vendasPorMlb[v.mlb_id].margem += Number(v.margem_valor) || 0;
+        vendasLong.filter(v => fullMlbs.has(v.mlb_id)).forEach(v => {
+          const dv = v.data_venda ? v.data_venda.slice(0, 10) : '';
+          if (dv >= range30.from && dv <= range30.to) {
+            if (!vendasPorMlb[v.mlb_id]) vendasPorMlb[v.mlb_id] = { qty: 0, receita: 0, margem: 0 };
+            vendasPorMlb[v.mlb_id].qty += Number(v.quantidade) || 1;
+            vendasPorMlb[v.mlb_id].receita += Number(v.receita) || 0;
+            vendasPorMlb[v.mlb_id].margem += Number(v.margem_valor) || 0;
+          }
         });
 
-        // Usar anúncios Full como base (garante que itens sem estoque registrado apareçam)
+        function calcItem(mlb, estoque, anuncio) {
+          const vs = vendasPorMlb[mlb] || { qty: 0, receita: 0, margem: 0 };
+          const velDia = vs.qty / dias30;
+          const emTransito = 0; // TODO: dados de envio inbound ainda não coletados
+          const hojeTransito = estoque + emTransito;
+          const falta7 = Math.max(0, Math.ceil(velDia * 7) - hojeTransito);
+          const falta14 = Math.max(0, Math.ceil(velDia * 14) - hojeTransito);
+          const falta21 = Math.max(0, Math.ceil(velDia * 21) - hojeTransito);
+          const falta28 = Math.max(0, Math.ceil(velDia * 28) - hojeTransito);
+          const margemPct = vs.receita > 0 ? (vs.margem / vs.receita) * 100 : 0;
+
+          let alerta, alertaCor;
+          if (estoque <= 0) { alerta = 'Zerado'; alertaCor = 'red'; }
+          else if (falta7 > 0) { alerta = 'Crítico'; alertaCor = 'red'; }
+          else if (falta14 > 0) { alerta = 'Urgente'; alertaCor = 'orange'; }
+          else if (falta28 > 0) { alerta = 'Atenção'; alertaCor = 'yellow'; }
+          else { alerta = 'OK'; alertaCor = 'green'; }
+
+          return {
+            mlb_id: mlb, sku: (anuncio && anuncio.sku_vendedor) || '--',
+            titulo: (anuncio && anuncio.titulo) || mlb,
+            estoque, emTransito, hojeTransito,
+            vendas30: vs.qty,
+            falta7, falta14, falta21, falta28,
+            margemPct, alerta, alertaCor,
+          };
+        }
+
         const items = [];
         const processed = new Set();
 
@@ -368,56 +407,20 @@
         estoqueFull.forEach(item => {
           const mlb = item.mlb_id;
           processed.add(mlb);
-          const anuncio = anuncios.find(a => a.mlb_id === mlb) || {};
-          const vs = vendasPorMlb[mlb] || { qty: 0, receita: 0, margem: 0 };
+          const anuncio = anuncios.find(a => a.mlb_id === mlb);
           const estoque = (Number(item.qty_disponivel_full) || 0) + (Number(item.qty_disponivel_proprio) || 0);
-          const velDia = vs.qty / dias;
-          const cobertura = velDia > 0 ? estoque / velDia : estoque > 0 ? 999 : 0;
-          const necessario30 = Math.ceil(velDia * 30);
-          const margemPct = vs.receita > 0 ? (vs.margem / vs.receita) * 100 : 0;
-
-          let alerta, alertaCor;
-          if (cobertura <= 0) { alerta = 'Zerado'; alertaCor = 'red'; }
-          else if (cobertura <= 7) { alerta = 'Crítico'; alertaCor = 'red'; }
-          else if (cobertura <= 15) { alerta = 'Urgente'; alertaCor = 'orange'; }
-          else if (cobertura <= 30) { alerta = 'Atenção'; alertaCor = 'yellow'; }
-          else { alerta = 'OK'; alertaCor = 'green'; }
-
-          items.push({
-            mlb_id: mlb, sku: anuncio.sku_vendedor || '--',
-            titulo: anuncio.titulo || mlb, estoque,
-            vendas: vs.qty, cobertura: Math.round(cobertura),
-            necessario30, margemPct, alerta, alertaCor,
-          });
+          items.push(calcItem(mlb, estoque, anuncio));
         });
 
-        // Segundo: anúncios Full sem registro de estoque (usar estoque_declarado do anúncio)
+        // Segundo: anúncios Full sem registro de estoque
         anunciosFull.forEach(a => {
           if (processed.has(a.mlb_id)) return;
-          const vs = vendasPorMlb[a.mlb_id] || { qty: 0, receita: 0, margem: 0 };
           const estoque = Number(a.estoque_declarado) || 0;
-          const velDia = vs.qty / dias;
-          const cobertura = velDia > 0 ? estoque / velDia : estoque > 0 ? 999 : 0;
-          const necessario30 = Math.ceil(velDia * 30);
-          const margemPct = vs.receita > 0 ? (vs.margem / vs.receita) * 100 : 0;
-
-          let alerta, alertaCor;
-          if (cobertura <= 0) { alerta = 'Zerado'; alertaCor = 'red'; }
-          else if (cobertura <= 7) { alerta = 'Crítico'; alertaCor = 'red'; }
-          else if (cobertura <= 15) { alerta = 'Urgente'; alertaCor = 'orange'; }
-          else if (cobertura <= 30) { alerta = 'Atenção'; alertaCor = 'yellow'; }
-          else { alerta = 'OK'; alertaCor = 'green'; }
-
-          items.push({
-            mlb_id: a.mlb_id, sku: a.sku_vendedor || '--',
-            titulo: a.titulo || a.mlb_id, estoque,
-            vendas: vs.qty, cobertura: Math.round(cobertura),
-            necessario30, margemPct, alerta, alertaCor,
-          });
+          items.push(calcItem(a.mlb_id, estoque, a));
         });
 
-        return items.sort((a, b) => a.cobertura - b.cobertura);
-      }, [estoqueFull, anunciosFull, anuncios, vendasFull, periodo]);
+        return items.sort((a, b) => b.falta7 - a.falta7);
+      }, [estoqueFull, anunciosFull, anuncios, vendasLong, fullMlbs, periodo]);
 
       // Sort
       const sortedEstoque = useMemo(() => {
@@ -594,6 +597,38 @@
                   </div>
                 )}
 
+                {/* Espaço Full Atribuído */}
+                <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">&#128230;</span>
+                      <h3 className="text-sm font-semibold text-white">Espaço Full Atribuído</h3>
+                    </div>
+                    <Badge text={espacoFull.pctUsado.toFixed(1).replace('.',',') + '% usado'} color={espacoFull.pctUsado >= 90 ? 'red' : espacoFull.pctUsado >= 70 ? 'yellow' : 'green'} />
+                  </div>
+                  <div className="flex items-end gap-6">
+                    <div>
+                      <div className="text-xs text-gge-muted mb-1">Em uso</div>
+                      <div className="text-2xl font-bold text-white">{fmtN(espacoFull.emUso)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gge-muted mb-1">Limite</div>
+                      <div className="text-2xl font-bold text-gge-muted">{fmtN(espacoFull.limite)}</div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="h-3 bg-gge-bg rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${espacoFull.pctUsado >= 90 ? 'bg-gge-red' : espacoFull.pctUsado >= 70 ? 'bg-gge-yellow' : 'bg-gge-green'}`}
+                             style={{ width: `${Math.min(100, espacoFull.pctUsado)}%` }} />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-gge-muted mt-1">
+                        <span>0</span>
+                        <span>Disponível: {fmtN(espacoFull.limite - espacoFull.emUso)}</span>
+                        <span>{fmtN(espacoFull.limite)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                   <KpiCard icon="$" title="Receita Full" value={fmtR(kpis.receita)} color="text-gge-green" />
@@ -756,41 +791,52 @@
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-gge-muted text-xs border-b border-gge-border bg-gge-bg/50">
-                          <th className="text-left py-3 px-3 sortable" onClick={() => handleSort('sku')}>SKU<SortIcon col="sku" /></th>
-                          <th className="text-left py-3 px-3">Título</th>
-                          <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('estoque')}>Estoque<SortIcon col="estoque" /></th>
-                          <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('vendas')}>Vendas/{periodo}<SortIcon col="vendas" /></th>
-                          <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('cobertura')}>Cobertura (d)<SortIcon col="cobertura" /></th>
-                          <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('necessario30')}>Nec. 30d<SortIcon col="necessario30" /></th>
-                          <th className="text-right py-3 px-3 sortable" onClick={() => handleSort('margemPct')}>MC%<SortIcon col="margemPct" /></th>
-                          <th className="text-center py-3 px-3 sortable" onClick={() => handleSort('alerta')}>Alerta<SortIcon col="alerta" /></th>
+                          <th className="text-left py-3 px-2 sortable" onClick={() => handleSort('sku')}>SKU<SortIcon col="sku" /></th>
+                          <th className="text-left py-3 px-2">Título</th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('estoque')}>Hoje<SortIcon col="estoque" /></th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('emTransito')}>Trânsito<SortIcon col="emTransito" /></th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('hojeTransito')}>Hoje+Tr.<SortIcon col="hojeTransito" /></th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('vendas30')}>V/30d<SortIcon col="vendas30" /></th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('falta7')}>
+                            <span title="Unidades que faltam para cobrir 7 dias">Falta 7d</span><SortIcon col="falta7" /></th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('falta14')}>
+                            <span title="Unidades que faltam para cobrir 14 dias">Falta 14d</span><SortIcon col="falta14" /></th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('falta21')}>
+                            <span title="Unidades que faltam para cobrir 21 dias">Falta 21d</span><SortIcon col="falta21" /></th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('falta28')}>
+                            <span title="Unidades que faltam para cobrir 28 dias">Falta 28d</span><SortIcon col="falta28" /></th>
+                          <th className="text-right py-3 px-2 sortable" onClick={() => handleSort('margemPct')}>MC%<SortIcon col="margemPct" /></th>
+                          <th className="text-center py-3 px-2 sortable" onClick={() => handleSort('alerta')}>Alerta<SortIcon col="alerta" /></th>
                         </tr>
                       </thead>
                       <tbody>
                         {sortedEstoque.map(item => (
                           <tr key={item.mlb_id} className="row-hover border-b border-gge-border/30">
-                            <td className="py-2 px-3 text-gge-accent font-mono text-xs">{item.sku}</td>
-                            <td className="py-2 px-3 max-w-[280px] truncate">{item.titulo}</td>
-                            <td className={`text-right py-2 px-3 font-medium ${item.estoque === 0 ? 'text-gge-red' : ''}`}>{fmtN(item.estoque)}</td>
-                            <td className="text-right py-2 px-3">{fmtN(item.vendas)}</td>
-                            <td className="text-right py-2 px-3">
-                              <span className={
-                                item.cobertura <= 0 ? 'text-gge-red font-bold' :
-                                item.cobertura <= 7 ? 'text-gge-red' :
-                                item.cobertura <= 15 ? 'text-gge-orange' :
-                                item.cobertura <= 30 ? 'text-gge-yellow' : 'text-gge-green'
-                              }>
-                                {item.cobertura >= 999 ? '∞' : item.cobertura + 'd'}
-                              </span>
+                            <td className="py-2 px-2 text-gge-accent font-mono text-xs">{item.sku}</td>
+                            <td className="py-2 px-2 max-w-[220px] truncate">{item.titulo}</td>
+                            <td className={`text-right py-2 px-2 font-medium ${item.estoque === 0 ? 'text-gge-red' : ''}`}>{fmtN(item.estoque)}</td>
+                            <td className="text-right py-2 px-2 text-gge-muted">{item.emTransito > 0 ? fmtN(item.emTransito) : '-'}</td>
+                            <td className={`text-right py-2 px-2 font-medium ${item.hojeTransito === 0 ? 'text-gge-red' : ''}`}>{fmtN(item.hojeTransito)}</td>
+                            <td className="text-right py-2 px-2">{fmtN(item.vendas30)}</td>
+                            <td className={`text-right py-2 px-2 font-medium ${item.falta7 > 0 ? 'text-gge-red font-bold' : 'text-gge-green'}`}>
+                              {item.falta7 > 0 ? fmtN(item.falta7) : '-'}
                             </td>
-                            <td className="text-right py-2 px-3">{fmtN(item.necessario30)}</td>
-                            <td className={`text-right py-2 px-3 ${item.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtP(item.margemPct)}</td>
-                            <td className="text-center py-2 px-3"><Badge text={item.alerta} color={item.alertaCor} /></td>
+                            <td className={`text-right py-2 px-2 ${item.falta14 > 0 ? 'text-gge-orange' : 'text-gge-green'}`}>
+                              {item.falta14 > 0 ? fmtN(item.falta14) : '-'}
+                            </td>
+                            <td className={`text-right py-2 px-2 ${item.falta21 > 0 ? 'text-gge-yellow' : 'text-gge-green'}`}>
+                              {item.falta21 > 0 ? fmtN(item.falta21) : '-'}
+                            </td>
+                            <td className={`text-right py-2 px-2 ${item.falta28 > 0 ? 'text-gge-yellow' : 'text-gge-green'}`}>
+                              {item.falta28 > 0 ? fmtN(item.falta28) : '-'}
+                            </td>
+                            <td className={`text-right py-2 px-2 ${item.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtP(item.margemPct)}</td>
+                            <td className="text-center py-2 px-2"><Badge text={item.alerta} color={item.alertaCor} /></td>
                           </tr>
                         ))}
                         {sortedEstoque.length === 0 && (
                           <tr>
-                            <td colSpan={8} className="text-center text-gge-muted py-8">Nenhum item encontrado no inventário Full.</td>
+                            <td colSpan={12} className="text-center text-gge-muted py-8">Nenhum item encontrado no inventário Full.</td>
                           </tr>
                         )}
                       </tbody>
