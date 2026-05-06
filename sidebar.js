@@ -21,29 +21,32 @@
     realinha:     svgIcon('<path d="M2 12h5l3-9 4 18 3-9h5"/>'),
     saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     grupos:       svgIcon('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
+    auditoria:    svgIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
     chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
   };
 
-  // Menu na ordem definitiva do Neco
+  // Menu na ordem definida pelo Neco (06/05/2026)
   // Catálogo tem sub-menu: Dashboard, Catálogo, Automação
   var pages = [
-    { href: '/',                     icon: icons.dashboard, label: 'Dashboard',      key: 'dashboard' },
-    { href: '/full',                 icon: icons.full,      label: 'Controle Full',  key: 'full' },
-    { href: '/margem',               icon: icons.margem,    label: 'Margem',         key: 'margem' },
-    { href: '/precificacao',         icon: icons.tabelavd,  label: 'Tabela VD',      key: 'precificacao' },
-    { href: '/preco-mktp',           icon: icons.precomktp, label: 'Preço MKTP',key: 'preco-mktp' },
+    { href: '/',                     icon: icons.dashboard, label: 'Dashboard',           key: 'dashboard' },
+    { href: '/central-analise',      icon: icons.grupos,    label: 'Central de Análise',  key: 'central-analise' },
+    { href: '/margem',               icon: icons.margem,    label: 'Margem',              key: 'margem' },
+    { href: '/preco-mktp',           icon: icons.precomktp, label: 'Preço MKTP',          key: 'preco-mktp' },
+    { href: '/full',                 icon: icons.full,      label: 'Controle Full',       key: 'full' },
     {
       icon: icons.catalogo, label: 'Catálogo', key: 'catalogo-group',
       children: [
-        { href: '/catalogo-dash', icon: icons.dashcatalogo, label: 'Dashboard',            key: 'catalogo-dash' },
+        { href: '/catalogo-dash', icon: icons.dashcatalogo, label: 'Dashboard',  key: 'catalogo-dash' },
         { href: '/catalogo',      icon: icons.catalogoitem, label: 'Catálogo',   key: 'catalogo' },
-        { href: '/automacao',     icon: icons.automacao,    label: 'Automação', key: 'automacao' }
+        { href: '/automacao',     icon: icons.automacao,    label: 'Automação',  key: 'automacao' }
       ]
     },
-    { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação', key: 'reputacao' },
-    { href: '/ads',                  icon: icons.ads,       label: 'ADs',            key: 'ads' },
-    { href: '/central-analise',       icon: icons.grupos,    label: 'Central de Análise', key: 'central-analise' },
-    { href: '/saude',                icon: icons.saude,     label: 'Saúde',     key: 'saude' }
+    { href: '/ads',                  icon: icons.ads,       label: 'ADs',                 key: 'ads' },
+    { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação',           key: 'reputacao' },
+    { href: '/auditoria',           icon: icons.auditoria, label: 'Auditoria',           key: 'auditoria' },
+    { href: '/saude',                icon: icons.saude,     label: 'Saúde',               key: 'saude' },
+    { type: 'separator' },
+    { href: '/precificacao',         icon: icons.tabelavd,  label: 'Tabela VD',           key: 'precificacao' }
   ];
 
   var path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
@@ -88,6 +91,7 @@
       '.nav-group-chevron.open { transform:rotate(180deg) }',
       '.nav-sub-items { overflow:hidden;transition:max-height .25s ease }',
       '.nav-sub-items .nav-item { padding:8px 12px 8px 44px;font-size:13px }',
+      '.nav-separator { height:1px;background:#2a2d3a;margin:12px 12px }',
       '.main-with-sidebar { margin-left:48px;min-height:100vh }'
     ].join('\n');
     document.head.appendChild(style);
@@ -97,6 +101,10 @@
   var navHtml = '';
   for (var i = 0; i < pages.length; i++) {
     var p = pages[i];
+    if (p.type === 'separator') {
+      navHtml += '<div class="nav-separator"></div>';
+      continue;
+    }
     if (p.children) {
       var groupActive = isGroupActive(p.children);
       var openClass = groupActive ? ' open' : '';
