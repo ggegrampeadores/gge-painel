@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoria - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#e6edf3}
+    .main-with-sidebar{margin-left:48px;min-height:100vh;padding:24px}
+    h1{font-size:22px;font-weight:700;margin-bottom:4px}
+    .subtitle{color:#8b949e;font-size:13px;margin-bottom:20px}
+
+    /* Cards resumo */
+    .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+    .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px}
+    .card-label{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .card-value{font-size:24px;font-weight:700}
+    .card-sub{font-size:11px;color:#8b949e;margin-top:2px}
+    .green{color:#3fb950}.red{color:#f85149}.blue{color:#58a6ff}.yellow{color:#d29922}.white{color:#e6edf3}
+
+    /* Filtros */
+    .filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;padding:12px 16px;background:#161b22;border:1px solid #30363d;border-radius:8px}
+    .filter-group{display:flex;flex-direction:column;gap:3px}
+    .filter-group label{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:.3px}
+    .filter-group input,.filter-group select{background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 10px;border-radius:6px;font-size:13px;min-width:130px}
+    .filter-group input:focus,.filter-group select:focus{outline:none;border-color:#58a6ff}
+    .btn-filter{background:#238636;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;align-self:flex-end}
+    .btn-filter:hover{background:#2ea043}
+    .btn-reset{background:transparent;color:#8b949e;border:1px solid #30363d;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13px;align-self:flex-end}
+    .btn-reset:hover{color:#e6edf3;border-color:#8b949e}
+
+    /* Tabela */
+    .table-wrap{overflow-x:auto;background:#161b22;border:1px solid #30363d;border-radius:8px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    thead th{background:#0d1117;padding:10px 12px;text-align:left;font-weight:600;color:#8b949e;font-size:11px;text-transform:uppercase;letter-spacing:.3px;position:sticky;top:0;border-bottom:1px solid #30363d}
+    tbody td{padding:8px 12px;border-bottom:1px solid #21262d;vertical-align:top}
+    tbody tr:hover{background:#1c2128}
+    tbody tr:last-child td{border-bottom:none}
+
+    /* Badges */
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+    .badge-catalogo{background:#1a3a5c;color:#58a6ff}
+    .badge-ads{background:#2d1b2d;color:#bc8cff}
+    .badge-reprecificacao{background:#2d1b00;color:#f0ad4e}
+    .badge-reajuste{background:#1b2d1b;color:#3fb950}
+    .badge-exec{background:#1b2d1b;color:#3fb950}
+    .badge-nao{background:#2d1b1b;color:#f85149}
+    .badge-bloq{background:#2d1b00;color:#d29922}
+
+    /* Preço */
+    .preco-change{display:flex;align-items:center;gap:4px;font-family:'SF Mono',monospace;font-size:12px}
+    .preco-arrow{font-size:14px}
+    .preco-up{color:#f85149}.preco-down{color:#3fb950}.preco-same{color:#8b949e}
+
+    /* Motivo tooltip */
+    .motivo-cell{max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
+    .motivo-cell:hover{white-space:normal;overflow:visible}
+
+    /* Paginação */
+    .pagination{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:0 4px}
+    .pagination span{font-size:13px;color:#8b949e}
+    .pagination button{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+    .pagination button:hover{background:#30363d}
+    .pagination button:disabled{opacity:.4;cursor:not-allowed}
+
+    /* Loading */
+    .loading{text-align:center;padding:40px;color:#8b949e;font-size:14px}
+    .spin{display:inline-block;width:18px;height:18px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Dia header */
+    .dia-header{background:#0d1117;padding:8px 12px;font-weight:600;font-size:12px;color:#58a6ff;border-bottom:1px solid #30363d}
+    .dia-header span{color:#8b949e;font-weight:400;margin-left:8px}
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <h1>Auditoria de Automações</h1>
+    <p class="subtitle">Registro de todas as ações executadas pelas automações — catálogo, ADs, reprecificação, reajustes</p>
+
+    <div class="summary" id="summary">
+      <div class="card"><div class="card-label">Ações hoje</div><div class="card-value white" id="s-hoje">—</div><div class="card-sub" id="s-hoje-sub"></div></div>
+      <div class="card"><div class="card-label">Executadas</div><div class="card-value green" id="s-exec">—</div><div class="card-sub" id="s-exec-sub"></div></div>
+      <div class="card"><div class="card-label">Não executadas</div><div class="card-value yellow" id="s-nao">—</div><div class="card-sub" id="s-nao-sub"></div></div>
+      <div class="card"><div class="card-label">Bloqueadas</div><div class="card-value red" id="s-bloq">—</div><div class="card-sub" id="s-bloq-sub"></div></div>
+      <div class="card"><div class="card-label">Total no período</div><div class="card-value blue" id="s-total">—</div><div class="card-sub" id="s-total-sub"></div></div>
+    </div>
+
+    <div class="filters" id="filters">
+      <div class="filter-group">
+        <label>De</label>
+        <input type="date" id="f-de">
+      </div>
+      <div class="filter-group">
+        <label>Até</label>
+        <input type="date" id="f-ate">
+      </div>
+      <div class="filter-group">
+        <label>Fonte</label>
+        <select id="f-fonte">
+          <option value="">Todas</option>
+          <option value="catalogo">Catálogo</option>
+          <option value="ads">ADs</option>
+          <option value="reprecificacao">Reprecificação</option>
+          <option value="reajuste">Reajuste</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Status</label>
+        <select id="f-status">
+          <option value="">Todos</option>
+          <option value="true">Executado</option>
+          <option value="false">Não executado</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>MLB / Título</label>
+        <input type="text" id="f-busca" placeholder="MLB ou texto...">
+      </div>
+      <button class="btn-filter" onclick="AUD.buscar()">Filtrar</button>
+      <button class="btn-reset" onclick="AUD.resetar()">Limpar</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Fonte</th>
+            <th>MLB</th>
+            <th>Título</th>
+            <th>Ação</th>
+            <th>Status</th>
+            <th>Preço</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="8" class="loading"><span class="spin"></span>Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="pag">
+      <span id="pag-info"></span>
+      <div style="display:flex;gap:8px">
+        <button id="pag-prev" onclick="AUD.pag(-1)" disabled>&larr; Anterior</button>
+        <button id="pag-next" onclick="AUD.pag(1)">Próxima &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+  (function(){
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+
+    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+    var PAGE_SIZE = 100;
+    var offset = 0;
+    var totalCount = 0;
+
+    // Defaults: últimos 7 dias
+    var hoje = new Date();
+    var seteDias = new Date(hoje);
+    seteDias.setDate(seteDias.getDate() - 7);
+    document.getElementById('f-de').value = fmt(seteDias);
+    document.getElementById('f-ate').value = fmt(hoje);
+
+    function fmt(d) {
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+    function fmtHora(iso) {
+      if (!iso) return '—';
+      var d = new Date(iso);
+      return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+
+    function getFilters() {
+      return {
+        de: document.getElementById('f-de').value || null,
+        ate: document.getElementById('f-ate').value || null,
+        fonte: document.getElementById('f-fonte').value || null,
+        status: document.getElementById('f-status').value,
+        busca: document.getElementById('f-busca').value.trim() || null
+      };
+    }
+
+    async function carregarResumo() {
+      var f = getFilters();
+      var hojeStr = fmt(new Date());
+
+      // Summary do dia
+      var qHoje = sb.from('vw_log_automacoes').select('executado, fonte', { count: 'exact' })
+        .gte('criado_em', hojeStr + 'T00:00:00')
+        .lte('criado_em', hojeStr + 'T23:59:59');
+      var { data: dHoje, count: cHoje } = await qHoje;
+
+      var execHoje = 0, naoHoje = 0, bloqHoje = 0;
+      var fonteCount = {};
+      (dHoje || []).forEach(function(r) {
+        if (r.executado) execHoje++; else naoHoje++;
+        fonteCount[r.fonte] = (fonteCount[r.fonte] || 0) + 1;
+      });
+
+      document.getElementById('s-hoje').textContent = cHoje || 0;
+      var fonteParts = Object.keys(fonteCount).map(function(k){ return k + ': ' + fonteCount[k]; });
+      document.getElementById('s-hoje-sub').textContent = fonteParts.join(' | ') || 'nenhuma hoje';
+      document.getElementById('s-exec').textContent = execHoje;
+      document.getElementById('s-exec-sub').textContent = 'preços alterados hoje';
+      document.getElementById('s-nao').textContent = naoHoje;
+      document.getElementById('s-nao-sub').textContent = 'decidido não alterar';
+
+      // Bloqueadas no período (reprecificação)
+      var qBloq = sb.from('log_reprecificacao').select('id', { count: 'exact' }).eq('executado', false);
+      if (f.de) qBloq = qBloq.gte('criado_em', f.de + 'T00:00:00');
+      if (f.ate) qBloq = qBloq.lte('criado_em', f.ate + 'T23:59:59');
+      var { count: cBloq } = await qBloq;
+      document.getElementById('s-bloq').textContent = cBloq || 0;
+      document.getElementById('s-bloq-sub').textContent = 'safeguard bloqueou';
+    }
+
+    async function carregarDados() {
+      var f = getFilters();
+      var tbody = document.getElementById('tbody');
+      tbody.innerHTML = '<tr><td colspan="8" class="loading"><span class="spin"></span>Carregando...</td></tr>';
+
+      // Build query
+      var q = sb.from('vw_log_automacoes')
+        .select('criado_em, fonte, mlb_id, titulo, acao, executado, preco_anterior, preco_novo, motivo, status_competicao, price_to_win, gasto_acumulado, roas, acos, campaign_nome', { count: 'exact' })
+        .order('criado_em', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      if (f.de) q = q.gte('criado_em', f.de + 'T00:00:00');
+      if (f.ate) q = q.lte('criado_em', f.ate + 'T23:59:59');
+      if (f.fonte) q = q.eq('fonte', f.fonte);
+      if (f.status === 'true') q = q.eq('executado', true);
+      if (f.status === 'false') q = q.eq('executado', false);
+      if (f.busca) q = q.or('mlb_id.ilike.%' + f.busca + '%,titulo.ilike.%' + f.busca + '%');
+
+      var { data, count, error } = await q;
+      totalCount = count || 0;
+
+      document.getElementById('s-total').textContent = totalCount.toLocaleString('pt-BR');
+      var periodoLabel = (f.de || '?') + ' a ' + (f.ate || '?');
+      document.getElementById('s-total-sub').textContent = periodoLabel;
+
+      if (error) {
+        tbody.innerHTML = '<tr><td colspan="8" style="color:#f85149;padding:20px">Erro: ' + error.message + '</td></tr>';
+        return;
+      }
+      if (!data || !data.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="color:#8b949e;padding:20px;text-align:center">Nenhum registro encontrado</td></tr>';
+        atualizarPag();
+        return;
+      }
+
+      var html = '';
+      var lastDay = '';
+      data.forEach(function(r) {
+        var dia = r.criado_em ? r.criado_em.substring(0, 10) : '';
+        if (dia !== lastDay) {
+          lastDay = dia;
+          var dObj = new Date(dia + 'T12:00:00');
+          var dayLabel = String(dObj.getDate()).padStart(2,'0') + '/' + String(dObj.getMonth()+1).padStart(2,'0') + '/' + dObj.getFullYear();
+          var dayCount = data.filter(function(x){ return x.criado_em && x.criado_em.substring(0,10) === dia; }).length;
+          html += '<tr><td colspan="8" class="dia-header">' + dayLabel + '<span>' + dayCount + ' ações neste dia (visíveis)</span></td></tr>';
+        }
+
+        // Fonte badge
+        var fonteBadge = '<span class="badge badge-' + r.fonte + '">' + r.fonte + '</span>';
+
+        // Status badge
+        var statusBadge;
+        if (r.executado) {
+          statusBadge = '<span class="badge badge-exec">Executado</span>';
+        } else if (r.acao && r.acao.indexOf('bloq') >= 0) {
+          statusBadge = '<span class="badge badge-bloq">Bloqueado</span>';
+        } else {
+          statusBadge = '<span class="badge badge-nao">Não exec.</span>';
+        }
+
+        // Preço / Gasto (diferente para ADs)
+        var precoHtml = '—';
+        if (r.fonte === 'ads') {
+          var parts = [];
+          if (r.gasto_acumulado) parts.push('Gasto: R$' + Number(r.gasto_acumulado).toFixed(2));
+          if (r.preco_novo) parts.push('Limite: R$' + Number(r.preco_novo).toFixed(2));
+          if (r.roas) parts.push('ROAS: ' + Number(r.roas).toFixed(1));
+          if (r.acos) parts.push('ACOS: ' + Number(r.acos).toFixed(0) + '%');
+          precoHtml = parts.length ? '<span style="font-size:11px">' + parts.join(' | ') + '</span>' : '—';
+        } else if (r.preco_anterior && r.preco_novo) {
+          var diff = Number(r.preco_novo) - Number(r.preco_anterior);
+          var cls = diff > 0 ? 'preco-up' : diff < 0 ? 'preco-down' : 'preco-same';
+          var arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '=';
+          precoHtml = '<div class="preco-change ' + cls + '">' +
+            'R$' + Number(r.preco_anterior).toFixed(2) +
+            ' <span class="preco-arrow">' + arrow + '</span> ' +
+            'R$' + Number(r.preco_novo).toFixed(2) +
+            '</div>';
+        } else if (r.preco_anterior) {
+          precoHtml = 'R$' + Number(r.preco_anterior).toFixed(2);
+        }
+
+        // Ação formatada
+        var acaoLabel = (r.acao || '').replace(/_/g, ' ');
+
+        // Título truncado
+        var tituloShort = r.titulo ? (r.titulo.length > 40 ? r.titulo.substring(0,40) + '…' : r.titulo) : '—';
+
+        html += '<tr>' +
+          '<td style="white-space:nowrap;color:#8b949e;font-size:12px">' + fmtHora(r.criado_em) + '</td>' +
+          '<td>' + fonteBadge + '</td>' +
+          '<td style="font-family:monospace;font-size:12px">' + (r.mlb_id || '') + '</td>' +
+          '<td title="' + (r.titulo || '').replace(/"/g,'&quot;') + '" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + tituloShort + '</td>' +
+          '<td style="font-size:12px">' + acaoLabel + '</td>' +
+          '<td>' + statusBadge + '</td>' +
+          '<td>' + precoHtml + '</td>' +
+          '<td class="motivo-cell" title="' + (r.motivo || '').replace(/"/g,'&quot;') + '">' + (r.motivo || '—') + '</td>' +
+          '</tr>';
+      });
+
+      tbody.innerHTML = html;
+      atualizarPag();
+    }
+
+    function atualizarPag() {
+      var from = offset + 1;
+      var to = Math.min(offset + PAGE_SIZE, totalCount);
+      document.getElementById('pag-info').textContent = totalCount > 0 ? (from + '–' + to + ' de ' + totalCount.toLocaleString('pt-BR')) : 'Nenhum registro';
+      document.getElementById('pag-prev').disabled = offset === 0;
+      document.getElementById('pag-next').disabled = offset + PAGE_SIZE >= totalCount;
+    }
+
+    // Public API
+    window.AUD = {
+      buscar: function() {
+        offset = 0;
+        carregarResumo();
+        carregarDados();
+      },
+      resetar: function() {
+        document.getElementById('f-fonte').value = '';
+        document.getElementById('f-status').value = '';
+        document.getElementById('f-busca').value = '';
+        var hoje = new Date();
+        var seteDias = new Date(hoje);
+        seteDias.setDate(seteDias.getDate() - 7);
+        document.getElementById('f-de').value = fmt(seteDias);
+        document.getElementById('f-ate').value = fmt(hoje);
+        offset = 0;
+        carregarResumo();
+        carregarDados();
+      },
+      pag: function(dir) {
+        offset += dir * PAGE_SIZE;
+        if (offset < 0) offset = 0;
+        carregarDados();
+      }
+    };
+
+    // Enter key on search
+    document.getElementById('f-busca').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') AUD.buscar();
+    });
+
+    // Initial load
+    carregarResumo();
+    carregarDados();
+  })();
+  </script>
+</body>
+</html>
