@@ -637,9 +637,17 @@
 
                 totalProdutos++;
 
-                // Custo: override > custo_cif da empresa
+                // Custo: override > historico empresa > custo_cif fixo
+                // TOOW (Simples): custo = Bruto SEM créditos (mais alto que GGE)
+                // GGE (Lucro Real): custo = CIF com créditos deduzidos
                 const custoOverride = item.custo_cif_override ? parseFloat(item.custo_cif_override) : null;
-                const custoDB = currentEmpresa === 'TOOW' ? skuInfo.custo_cif_sp : skuInfo.custo_cif_rj;
+                let custoDB;
+                if (currentEmpresa === 'TOOW') {
+                    const histToow = custoHistPorSku[sku + '|TOOW'];
+                    custoDB = histToow ? (parseFloat(histToow.custo_cif_sp) || parseFloat(histToow.custo_cif_rj) || 0) : skuInfo.custo_cif_sp;
+                } else {
+                    custoDB = skuInfo.custo_cif_rj;
+                }
                 const custo = custoOverride || custoDB;
 
                 if (custo <= 0) semCusto++;
@@ -717,6 +725,8 @@
             const card1 = `<div class="detail-section"><h4>Referências ML</h4>${refLines}</div>`;
 
             // Card 2: Custo CIF destrinchado
+            // TOOW (Simples): CIF = Bruto inteiro (FOB+IPI+ST+Frete), SEM créditos
+            // GGE (Lucro Real): CIF = Bruto - ICMS_cred - PIS/COF_cred
             const histKey = sku + '|' + empresa;
             const hist = custoHistPorSku[histKey] || custoHistPorSku[sku + '|GGE'] || null;
             let card2Content = '';
@@ -726,37 +736,56 @@
                 let icmsC = parseFloat(hist.icms_credito) || 0, pisCofC = parseFloat(hist.pis_cofins_credito) || 0;
                 const outros = parseFloat(hist.outros_custos) || 0;
                 const cifRJ = parseFloat(hist.custo_cif_rj) || 0, cifSP = parseFloat(hist.custo_cif_sp) || 0;
-                const cifFinal = empresa === 'TOOW' ? cifSP : cifRJ;
+                const cifFinal = empresa === 'TOOW' ? (cifSP || cifRJ) : cifRJ;
                 const nf = hist.nota_fiscal || '—';
                 const dataVig = hist.data_vigencia ? new Date(hist.data_vigencia + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
-
-                // Back-calculate créditos quando estão zerados mas CIF < bruto (migração legada)
-                let creditosEstimados = false;
-                if (empresa !== 'TOOW' && icmsC === 0 && pisCofC === 0 && fob > 0) {
-                    const bruto = fob + ipi + st + freteC + outros;
-                    if (cifFinal < bruto && cifFinal > 0) {
-                        // Estimar créditos: ICMS 18% × FOB, PIS/COFINS 9,25% × (FOB + IPI)
-                        icmsC = fob * 0.18;
-                        pisCofC = (fob + ipi) * 0.0925;
-                        creditosEstimados = true;
-                    }
-                }
+                const bruto = fob + ipi + st + freteC + outros;
 
                 card2Content = `
-                    <div class="detail-row-item"><span class="detail-label">FOB</span><span class="detail-value">R$ ${fmtR$(fob)}</span></div>
+                    <div class="detail-row-item"><span class="detail-label">FOB</span><span class="detail-value">R$ ${fmtR$(fob)}</span></div>`;
+
+                if (empresa === 'TOOW') {
+                    // TOOW: Simples Nacional — sem créditos tributários
+                    // CIF = FOB + IPI + ST + Frete (tudo entra no custo)
+                    card2Content += `
                     ${ipi > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) IPI</span><span class="detail-value">R$ ${fmtR$(ipi)}</span></div>` : ''}
                     ${st > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) ST</span><span class="detail-value">R$ ${fmtR$(st)}</span></div>` : ''}
                     ${freteC > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) Frete compra</span><span class="detail-value">R$ ${fmtR$(freteC)}</span></div>` : ''}
-                    ${empresa !== 'TOOW' ? `
-                    <div style="border-top:1px solid #2a2d3a;margin-top:4px;padding-top:4px;">
-                        <div class="detail-row-item"><span class="detail-label">(-) ICMS cred.${creditosEstimados ? ' *' : ''}</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(icmsC)}</span></div>
-                        <div class="detail-row-item"><span class="detail-label">(-) PIS/COF cred.${creditosEstimados ? ' *' : ''}</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(pisCofC)}</span></div>
-                    </div>` : ''}
                     <div class="detail-row-item" style="border-top:1px solid #f0883e40;margin-top:6px;padding-top:6px;">
                         <span class="detail-label" style="font-weight:700;">= CIF Final</span>
                         <span class="detail-value highlight" style="font-size:14px;">R$ ${fmtR$(cifFinal)}</span>
                     </div>
-                    <div class="detail-formula">NF ${nf} · ${dataVig}${creditosEstimados ? '<br>* Créditos estimados (ICMS 18%, PIS/COF 9,25%)' : ''}</div>`;
+                    <div class="detail-formula">NF ${nf} · ${dataVig}<br>Simples Nacional — sem créditos tributários</div>`;
+                } else {
+                    // GGE: Lucro Real — com créditos de ICMS e PIS/COFINS
+                    const temDetalhamento = (icmsC > 0 || pisCofC > 0 || ipi > 0);
+                    const creditosLiquidos = fob > 0 && cifFinal > 0 && cifFinal < bruto ? bruto - cifFinal : 0;
+
+                    card2Content += `
+                    ${ipi > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) IPI</span><span class="detail-value">R$ ${fmtR$(ipi)}</span></div>` : ''}
+                    ${st > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) ST</span><span class="detail-value">R$ ${fmtR$(st)}</span></div>` : ''}
+                    ${freteC > 0 ? `<div class="detail-row-item"><span class="detail-label">(+) Frete compra</span><span class="detail-value">R$ ${fmtR$(freteC)}</span></div>` : ''}`;
+
+                    if (temDetalhamento) {
+                        card2Content += `
+                        <div style="border-top:1px solid #2a2d3a;margin-top:4px;padding-top:4px;">
+                            <div class="detail-row-item"><span class="detail-label">(-) ICMS cred.</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(icmsC)}</span></div>
+                            <div class="detail-row-item"><span class="detail-label">(-) PIS/COF cred.</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(pisCofC)}</span></div>
+                        </div>`;
+                    } else if (creditosLiquidos > 0) {
+                        card2Content += `
+                        <div style="border-top:1px solid #2a2d3a;margin-top:4px;padding-top:4px;">
+                            <div class="detail-row-item"><span class="detail-label">(-) Créditos líquidos *</span><span class="detail-value" style="color:#f85149;">-R$ ${fmtR$(creditosLiquidos)}</span></div>
+                        </div>`;
+                    }
+
+                    card2Content += `
+                    <div class="detail-row-item" style="border-top:1px solid #f0883e40;margin-top:6px;padding-top:6px;">
+                        <span class="detail-label" style="font-weight:700;">= CIF Final</span>
+                        <span class="detail-value highlight" style="font-size:14px;">R$ ${fmtR$(cifFinal)}</span>
+                    </div>
+                    <div class="detail-formula">NF ${nf} · ${dataVig}${!temDetalhamento && creditosLiquidos > 0 ? '<br>* IPI + ICMS + PIS/COF — detalhamento não disponível nesta NF' : ''}</div>`;
+                }
             } else {
                 card2Content = `
                     <div class="detail-row-item"><span class="detail-label">CIF RJ (fixo)</span><span class="detail-value">${item.custo_cif_rj > 0 ? 'R$ ' + fmtR$(item.custo_cif_rj) : '—'}</span></div>
@@ -837,7 +866,15 @@
                     const sku = item.sku;
                     const skuInfo = skuData[sku];
                     const custoOverride = item.custo_cif_override ? parseFloat(item.custo_cif_override) : null;
-                    const custoDB = skuInfo ? (currentEmpresa === 'TOOW' ? skuInfo.custo_cif_sp : skuInfo.custo_cif_rj) : 0;
+                    let custoDB = 0;
+                    if (skuInfo) {
+                        if (currentEmpresa === 'TOOW') {
+                            const histToow = custoHistPorSku[sku + '|TOOW'];
+                            custoDB = histToow ? (parseFloat(histToow.custo_cif_sp) || parseFloat(histToow.custo_cif_rj) || 0) : skuInfo.custo_cif_sp;
+                        } else {
+                            custoDB = skuInfo.custo_cif_rj;
+                        }
+                    }
                     const custo = custoOverride || custoDB;
 
                     const precos = margins.map(m => custo > 0 ? Math.round(calcPV_VD(custo, m, currentEmpresa, false, 'SP', false) * 100) / 100 : 0);
@@ -956,7 +993,13 @@
                             if (!skuData[sku]) {
                                 novosSkus.push(sku);
                             } else if (override !== null) {
-                                const custoAtual = currentEmpresa === 'TOOW' ? skuData[sku].custo_cif_sp : skuData[sku].custo_cif_rj;
+                                let custoAtual;
+                                if (currentEmpresa === 'TOOW') {
+                                    const ht = custoHistPorSku[sku + '|TOOW'];
+                                    custoAtual = ht ? (parseFloat(ht.custo_cif_sp) || parseFloat(ht.custo_cif_rj) || 0) : skuData[sku].custo_cif_sp;
+                                } else {
+                                    custoAtual = skuData[sku].custo_cif_rj;
+                                }
                                 if (Math.abs(override - custoAtual) > 0.01) {
                                     custosAlterados.push({ sku, de: custoAtual, para: override });
                                 }
