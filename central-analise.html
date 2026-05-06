@@ -23,6 +23,16 @@
     .account-bar select{background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer}
     .account-bar select:focus{outline:none;border-color:#58a6ff}
 
+    /* Main tabs */
+    .main-tabs{display:flex;gap:0;border-bottom:2px solid #30363d;margin-bottom:20px}
+    .main-tab{padding:12px 24px;font-size:14px;color:#8b949e;cursor:pointer;border-bottom:3px solid transparent;font-weight:600;transition:all .15s;margin-bottom:-2px;user-select:none}
+    .main-tab:hover{color:#e6edf3}
+    .main-tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+    .main-tab .tab-count{font-size:11px;background:#21262d;padding:2px 7px;border-radius:10px;margin-left:6px;font-weight:500}
+    .main-tab.active .tab-count{background:#1a3a5c;color:#58a6ff}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
     /* Quadrant cards */
     .quad-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
     .quad-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
@@ -44,6 +54,13 @@
     .quad-card.q-avaliar{border-color:#484f58}
     .quad-card.q-avaliar.active{background:#21262d;border-color:#8b949e}
     .quad-card.q-avaliar .q-count{color:#8b949e}
+
+    /* Sub-classification pills for Avaliar */
+    .sub-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+    .sub-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #30363d;background:transparent;color:#8b949e;transition:all .15s}
+    .sub-pill:hover{border-color:#484f58;color:#e6edf3}
+    .sub-pill.active{border-color:#58a6ff;background:#1a2332;color:#58a6ff}
+    .sub-pill .pill-count{font-weight:700}
 
     /* Alert badges */
     .alert-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
@@ -72,11 +89,9 @@
     .search-box::before{content:'';position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;border:2px solid #484f58;border-radius:50%;pointer-events:none}
     .search-box::after{content:'';position:absolute;left:22px;top:60%;width:5px;height:2px;background:#484f58;transform:rotate(45deg);pointer-events:none}
 
-    /* Table summary */
+    /* Table */
     .table-info{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:12px;color:#8b949e}
     .table-info .selected-info{color:#58a6ff;font-weight:500}
-
-    /* Table */
     .table-wrap{overflow-x:auto;border:1px solid #30363d;border-radius:8px;background:#161b22;max-height:70vh;overflow-y:auto;position:relative}
     .tbl{width:100%;border-collapse:collapse;font-size:13px}
     .tbl thead{position:sticky;top:0;z-index:10;background:#161b22}
@@ -106,42 +121,97 @@
     .badge-repricing{background:#3d2e00;color:#d29922}
     .badge-ads{background:#1a2332;color:#58a6ff}
     .badge-avaliar{background:#21262d;color:#8b949e}
+    .badge-rep{background:#1a3a5c;color:#58a6ff}
+    .badge-obs{background:#2d1f4e;color:#bc8cff}
+    .badge-arch{background:#21262d;color:#8b949e}
+    .badge-st{font-size:10px;padding:2px 6px;border-radius:3px}
+    .st-pendente{background:#21262d;color:#8b949e}
+    .st-testando{background:#3d2e00;color:#d29922}
+    .st-ativo{background:#0d3117;color:#3fb950}
+    .st-confirmado{background:#0d3117;color:#3fb950}
+    .st-revertido{background:#3d1117;color:#f85149}
     .dot-green{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3fb950}
     .dot-gray{display:inline-block;width:8px;height:8px;border-radius:50%;background:#484f58}
+
+    /* Sub-class badges */
+    .badge-incognita{background:#21262d;color:#8b949e}
+    .badge-em-teste{background:#2d1f4e;color:#bc8cff}
+    .badge-testar-ads{background:#1a2332;color:#58a6ff}
+    .badge-retrabalhar{background:#3d2e00;color:#d29922}
+    .badge-desativar{background:#3d1117;color:#f85149}
 
     /* Titulo truncated */
     .titulo-cell{max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .titulo-cell:hover{overflow:visible;white-space:normal;word-break:break-word}
-
-    /* MLB link style */
     .mlb-link{color:#58a6ff;text-decoration:none;font-size:12px;font-family:monospace}
     .mlb-link:hover{text-decoration:underline}
-
-    /* Colored values */
     .val-green{color:#3fb950}
     .val-yellow{color:#d29922}
     .val-red{color:#f85149}
 
-    /* Group panel */
-    .group-panel{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-top:24px;overflow:hidden}
-    .group-panel-header{display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;user-select:none}
-    .group-panel-header h2{font-size:16px;font-weight:600}
-    .group-panel-header .toggle{color:#8b949e;font-size:18px;transition:transform .2s}
-    .group-panel-header .toggle.open{transform:rotate(180deg)}
-    .group-panel-body{padding:0 16px 16px;display:none}
-    .group-panel-body.open{display:block}
+    /* ── Grupos (Obs + Repricing tabs) ── */
+    .grupos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:24px}
+    .grupo-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;cursor:pointer;transition:all .15s}
+    .grupo-card:hover{border-color:#58a6ff}
+    .grupo-card.active{border-color:#58a6ff;background:#1a2332}
+    .grupo-card.archived{opacity:.5}
+    .grupo-card .g-name{font-weight:600;font-size:15px;margin-bottom:4px}
+    .grupo-card .g-meta{font-size:12px;color:#8b949e;margin-bottom:6px}
+    .grupo-card .g-mlbs-tags{display:flex;flex-wrap:wrap;gap:4px}
+    .grupo-card .g-mlb-tag{background:#21262d;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px;color:#8b949e}
 
-    /* Create group form */
-    .create-group-form{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:20px}
-    .form-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
-    .form-row label{font-size:13px;color:#8b949e;min-width:140px;font-weight:500}
-    .form-row input[type=text],.form-row input[type=number],.form-row select{background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:6px 12px;border-radius:6px;font-size:13px}
-    .form-row input[type=text]:focus,.form-row input[type=number]:focus,.form-row select:focus{outline:none;border-color:#58a6ff}
-    .form-row input[type=number]{width:80px}
-    .form-info{font-size:12px;color:#8b949e;padding:10px 14px;background:#21262d;border-radius:6px;margin-bottom:12px;line-height:1.5;border-left:3px solid #d29922}
-    .form-warning{font-size:12px;color:#d29922;padding:8px 12px;background:#3d2e0020;border:1px solid #5c450040;border-radius:6px;margin-bottom:8px}
-    .form-danger{font-size:12px;color:#f85149;padding:8px 12px;background:#3d111720;border:1px solid #6e202040;border-radius:6px;margin-bottom:8px}
+    /* Toggle switch */
+    .toggle-switch{position:relative;width:36px;height:20px;display:inline-block;cursor:pointer;flex-shrink:0}
+    .toggle-switch input{display:none}
+    .toggle-track{position:absolute;inset:0;background:#484f58;border-radius:10px;transition:background .2s}
+    .toggle-switch input:checked+.toggle-track{background:#238636}
+    .toggle-knob{position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s}
+    .toggle-switch input:checked~.toggle-knob{left:18px}
 
+    /* Card / Form */
+    .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}
+    .metric{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;text-align:center}
+    .metric .val{font-size:20px;font-weight:600}
+    .metric .lbl{font-size:11px;color:#8b949e;margin-top:2px}
+    .metric .delta-pos{color:#3fb950;font-size:11px}
+    .metric .delta-neg{color:#f85149;font-size:11px}
+    .grid-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+    .tag{display:inline-block;padding:2px 8px;background:#21262d;border-radius:4px;font-size:11px;font-weight:500}
+    .tag-rep{color:#58a6ff;background:#1a2332}
+    .tag-obs{color:#bc8cff;background:#2d1f4e}
+
+    /* Detail section */
+    .detail-section{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-top:16px}
+    .detail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .detail-header h3{font-size:16px;font-weight:600}
+
+    /* Inner tabs (inside group detail) */
+    .inner-tabs{display:flex;gap:0;border-bottom:1px solid #30363d;margin-bottom:16px}
+    .inner-tab{padding:8px 16px;font-size:13px;color:#8b949e;cursor:pointer;border-bottom:2px solid transparent;font-weight:500;transition:all .15s}
+    .inner-tab:hover{color:#e6edf3}
+    .inner-tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+    .inner-tab-content{display:none}
+    .inner-tab-content.active{display:block}
+
+    /* Timeline */
+    .tl-entry{display:flex;gap:10px;padding:8px 0;font-size:12px}
+    .tl-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+    .tl-dot.info{background:#58a6ff}
+    .tl-dot.action{background:#d29922}
+    .tl-dot.alert{background:#f85149}
+    .tl-dot.ok{background:#3fb950}
+
+    /* Rules */
+    .rule-row{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;color:#8b949e;border-bottom:1px solid #21262d}
+    .rule-row:last-child{border-bottom:none}
+
+    /* Notes */
+    .notes-area{width:100%;min-height:120px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;color:#e6edf3;font-size:13px;font-family:inherit;resize:vertical}
+    .notes-area:focus{outline:none;border-color:#58a6ff}
+    .notes-saved{color:#3fb950;font-size:12px;opacity:0;transition:opacity .3s}
+    .notes-saved.show{opacity:1}
+
+    /* Buttons */
     .btn{padding:8px 16px;border-radius:6px;border:1px solid #30363d;background:transparent;color:#e6edf3;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
     .btn:hover{background:#21262d;border-color:#8b949e}
     .btn-primary{background:#238636;border-color:#238636;color:#fff}
@@ -149,24 +219,33 @@
     .btn-sm{padding:5px 12px;font-size:12px}
     .btn-blue{background:#1f6feb;border-color:#1f6feb;color:#fff}
     .btn-blue:hover{background:#388bfd}
+    .btn-danger{border-color:#f85149;color:#f85149}
+    .btn-danger:hover{background:#f8514920}
     .btn:disabled{opacity:.4;cursor:not-allowed}
 
-    /* Existing groups */
-    .existing-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
-    .eg-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:16px}
-    .eg-card .eg-name{font-weight:600;font-size:15px;margin-bottom:4px}
-    .eg-card .eg-meta{font-size:12px;color:#8b949e;margin-bottom:8px}
-    .eg-card .eg-rules{font-size:12px;color:#8b949e;margin-bottom:8px}
-    .eg-card .eg-mlbs{font-size:11px;color:#8b949e;display:flex;flex-wrap:wrap;gap:4px}
-    .eg-card .eg-mlb-tag{background:#21262d;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px}
-    .tag{display:inline-block;padding:2px 8px;background:#21262d;border-radius:4px;font-size:11px;font-weight:500}
-    .tag-rep{color:#58a6ff;background:#1a2332}
-    .tag-obs{color:#bc8cff;background:#2d1f4e}
+    /* Modal */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center}
+    .modal-overlay.show{display:flex}
+    .gge-modal{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:24px;width:90%;max-width:800px;max-height:85vh;overflow-y:auto}
+    .gge-modal h2{margin-bottom:16px;font-size:17px;font-weight:600}
+    .gge-modal .modal-search{width:100%;padding:10px 14px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:14px;margin-bottom:12px}
+    .gge-modal .modal-search:focus{outline:none;border-color:#58a6ff}
+    .gge-modal .modal-filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+
+    /* Form elements */
+    input[type=text],input[type=number],input[type=date],select,textarea{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#e6edf3;font-size:13px;font-family:inherit}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:#58a6ff}
+    .form-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+    .form-row label{font-size:13px;color:#8b949e;min-width:140px;font-weight:500}
+    .form-info{font-size:12px;color:#8b949e;padding:10px 14px;background:#21262d;border-radius:6px;margin-bottom:12px;line-height:1.5;border-left:3px solid #d29922}
+    .form-warning{font-size:12px;color:#d29922;padding:8px 12px;background:#3d2e0020;border:1px solid #5c450040;border-radius:6px;margin-bottom:8px}
+    .form-danger{font-size:12px;color:#f85149;padding:8px 12px;background:#3d111720;border:1px solid #6e202040;border-radius:6px;margin-bottom:8px}
 
     /* Loading */
     .loading{text-align:center;padding:60px;color:#8b949e;font-size:14px}
     .loading::after{content:'';display:block;width:32px;height:32px;margin:16px auto 0;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin .8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
+    .empty{text-align:center;padding:40px;color:#8b949e;font-size:14px}
 
     /* Toast */
     .toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:500;z-index:999;transform:translateY(100px);opacity:0;transition:all .3s}
@@ -184,10 +263,6 @@
       .quad-grid{grid-template-columns:1fr 1fr}
       .container{padding:12px}
     }
-
-    /* Checkbox label */
-    .chk-label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#e6edf3}
-    .chk-label input[type=checkbox]{display:none}
   </style>
 </head>
 <body>
@@ -198,6 +273,104 @@
     </div>
   </div>
   <div class="toast" id="toast"></div>
+
+  <!-- MODAL: CRIAR GRUPO -->
+  <div class="modal-overlay" id="modal-criar">
+    <div class="gge-modal" style="max-width:520px">
+      <h2 id="modal-criar-titulo">Novo grupo</h2>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:13px;color:#8b949e;margin-bottom:4px">Apelido</label>
+        <input type="text" id="criar-apelido" placeholder="Ex: Pinos alta margem" style="width:100%">
+      </div>
+      <div id="criar-tipo-div" style="margin-bottom:16px">
+        <label style="display:block;font-size:13px;color:#8b949e;margin-bottom:4px">Tipo</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm tipo-btn active" data-tipo="observacao" onclick="window.CA.selTipoCriar(this)">Observacao</button>
+          <button class="btn btn-sm tipo-btn" data-tipo="repricing" onclick="window.CA.selTipoCriar(this)">Repricing</button>
+        </div>
+      </div>
+      <div id="criar-investimento-div" style="margin-bottom:16px">
+        <label style="display:block;font-size:13px;color:#8b949e;margin-bottom:4px">Investimento (R$) — opcional</label>
+        <input type="number" id="criar-investimento" placeholder="0.00" step="0.01" style="width:100%">
+      </div>
+      <div id="criar-margem-div" style="margin-bottom:16px;display:none">
+        <label style="display:block;font-size:13px;color:#8b949e;margin-bottom:4px">Margem-alvo (%)</label>
+        <input type="number" id="criar-margem-alvo" placeholder="15" step="0.1" style="width:100%">
+      </div>
+      <div id="criar-periodo-div" style="margin-bottom:16px;display:none">
+        <label style="display:block;font-size:13px;color:#8b949e;margin-bottom:4px">Periodo de observacao (dias)</label>
+        <input type="number" id="criar-periodo" placeholder="30" step="1" value="30" style="width:100%">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-sm" onclick="window.CA.fecharModal('modal-criar')">Cancelar</button>
+        <button class="btn btn-sm btn-primary" onclick="window.CA.criarGrupo()">Criar grupo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADICIONAR MLBs -->
+  <div class="modal-overlay" id="modal-mlbs">
+    <div class="gge-modal">
+      <h2>Adicionar MLBs ao grupo</h2>
+      <input type="text" class="modal-search" id="modal-mlb-search" placeholder="Buscar por titulo, SKU ou MLB..." oninput="window.CA.buscarMLBsModal()">
+      <div class="modal-filter-row">
+        <button class="filter-btn active" data-conta="" onclick="window.CA.filtrarContaModal(this)">Todas</button>
+        <button class="filter-btn" data-conta="GGE" onclick="window.CA.filtrarContaModal(this)">GGE</button>
+        <button class="filter-btn" data-conta="TOOW" onclick="window.CA.filtrarContaModal(this)">TOOW</button>
+        <button class="filter-btn" data-conta="GGESP" onclick="window.CA.filtrarContaModal(this)">GGESP</button>
+      </div>
+      <div style="max-height:400px;overflow-y:auto">
+        <table class="tbl">
+          <thead><tr>
+            <th style="width:30px"></th>
+            <th>Produto</th>
+            <th>Conta</th>
+            <th class="right">Preco</th>
+            <th class="right">Margem</th>
+            <th class="right">Receita 30d</th>
+          </tr></thead>
+          <tbody id="modal-tbody-disponiveis"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+        <span style="color:#8b949e;font-size:12px"><span id="modal-sel-count">0</span> selecionados</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" onclick="window.CA.fecharModal('modal-mlbs')">Cancelar</button>
+          <button class="btn btn-sm btn-primary" onclick="window.CA.adicionarMLBsModal()">Adicionar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REGRA -->
+  <div class="modal-overlay" id="modal-regra">
+    <div class="gge-modal" style="max-width:500px">
+      <h2>Adicionar regra</h2>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:13px;color:#8b949e;margin-bottom:4px">Tipo de regra</label>
+        <select id="regra-tipo" style="width:100%" onchange="window.CA.onRegraTipoChange()">
+          <option value="ritmo_aumento">Ritmo de aumento</option>
+          <option value="gatilho_reverter">Gatilho para reverter</option>
+          <option value="gatilho_confirmar">Gatilho para confirmar</option>
+          <option value="meta_margem">Meta de margem</option>
+          <option value="periodo_espera">Periodo de espera</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px">
+        <label id="regra-param-label" style="display:block;font-size:13px;color:#8b949e;margin-bottom:4px">Parametro</label>
+        <input type="text" id="regra-param" style="width:100%" placeholder="">
+      </div>
+      <div style="margin-bottom:16px">
+        <label id="regra-valor-label" style="display:block;font-size:13px;color:#8b949e;margin-bottom:4px">Valor</label>
+        <input type="text" id="regra-valor" style="width:100%" placeholder="">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-sm" onclick="window.CA.fecharModal('modal-regra')">Cancelar</button>
+        <button class="btn btn-sm btn-primary" onclick="window.CA.salvarRegra()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="sidebar.js" defer></script>
   <script>
   (function() {
@@ -207,648 +380,954 @@
 
   var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
-  // ── State ──
+  // ══════════════════════════════════════
+  //  STATE
+  // ══════════════════════════════════════
   var allData = [];
   var grupos = [];
   var grupoRegras = [];
   var grupoMlbs = [];
+  var grupoAcoes = [];
+  var grupoNotas = [];
+
   var selectedAccount = 'Todas';
+  var activeTab = 'analise'; // analise | observacao | repricing
   var activeQuadrant = null;
+  var activeSubClass = null; // sub-classification inside avaliar
   var filters = { logistica: 'all', tipo: 'all', catalogo: 'all', preco: 'all', grupo: 'all' };
   var searchTerm = '';
   var sortCol = 'visitas_30d';
   var sortDir = 'desc';
   var selectedMlbIds = new Set();
-  var groupPanelOpen = false;
-  var showCreateForm = false;
 
-  // ── Formatters ──
-  function fmtBRL(v) {
-    if (v == null || isNaN(v)) return '-';
-    return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  function fmtNum(v) {
-    if (v == null || isNaN(v)) return '-';
-    var n = Number(v);
-    if (n >= 1000) return (n / 1000).toFixed(1).replace('.', ',') + 'K';
-    return n.toLocaleString('pt-BR');
-  }
-  function fmtInt(v) {
-    if (v == null || isNaN(v)) return '-';
-    return Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
-  }
-  function fmtPct(v) {
-    if (v == null || isNaN(v)) return '-';
-    return Number(v).toFixed(1).replace('.', ',') + '%';
-  }
-  function fmtPct2(v) {
-    if (v == null || isNaN(v)) return '-';
-    return Number(v).toFixed(2).replace('.', ',') + '%';
-  }
-  function fmtR$(v) {
-    if (v == null || isNaN(v)) return '-';
-    return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
+  // Group detail state
+  var grupoAtual = null;
+  var innerTab = 'visao';
+  var tipoSel = 'observacao';
+  var modalMlbsSelecionados = new Set();
+  var modalContaFiltro = '';
+  var modalMlbsCache = [];
+  var debounceTimer = null;
 
-  // ── Toast ──
+  // ══════════════════════════════════════
+  //  FORMATTERS
+  // ══════════════════════════════════════
+  function fmtBRL(v) { if (v == null || isNaN(v)) return '-'; return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function fmtNum(v) { if (v == null || isNaN(v)) return '-'; var n = Number(v); if (n >= 1000) return (n/1000).toFixed(1).replace('.',',')+' K'; return n.toLocaleString('pt-BR'); }
+  function fmtInt(v) { if (v == null || isNaN(v)) return '-'; return Number(v).toLocaleString('pt-BR', {maximumFractionDigits:0}); }
+  function fmtPct(v) { if (v == null || isNaN(v)) return '-'; return Number(v).toFixed(1).replace('.',',')+' %'; }
+  function fmtPct2(v) { if (v == null || isNaN(v)) return '-'; return Number(v).toFixed(2).replace('.',',')+' %'; }
+  function fmtR$(v) { return fmtBRL(v); }
+  function fmtN(v) { if (v == null || isNaN(v)) return '0'; return Number(v).toLocaleString('pt-BR', {maximumFractionDigits:0}); }
+  function formatDate(d) { if(!d) return ''; return new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+  function formatDateTime(d) { if(!d) return ''; var dt=new Date(d); return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  function escHtml(s) { if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function shortAccount(n) { if(!n) return '-'; if(n==='GGE-GRAMPEADORES') return 'GGE'; if(n==='TOOWCOMERCIAL') return 'TOOW'; return n; }
+  function capitalize(s) { if(!s) return ''; return s.charAt(0).toUpperCase()+s.slice(1); }
+
+  // Toast
   function showToast(msg, type) {
     var t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = 'toast toast-' + (type || 'success') + ' show';
-    setTimeout(function() { t.classList.remove('show'); }, 3000);
+    t.className = 'toast toast-' + (type||'success') + ' show';
+    setTimeout(function(){t.classList.remove('show')}, 3000);
   }
 
-  // ── Load data ──
+  // ══════════════════════════════════════
+  //  SUB-CLASSIFICATION LOGIC
+  // ══════════════════════════════════════
+  function getSubClass(row) {
+    // Only applies to "avaliar" quadrant
+    if (row.quadrante !== 'avaliar') return null;
+
+    var jaVendeu = row.ja_vendeu === true;
+    var dias = Number(row.dias_ativo) || 0;
+    var visitas = Number(row.visitas_30d) || 0;
+    var vendas30 = Number(row.vendas_30d) || 0;
+
+    if (!jaVendeu) {
+      // Never sold
+      if (dias < 30) return 'incognita';
+      if (dias <= 90) return 'em_teste';
+      return 'desativar_nunca';
+    } else {
+      // Has sold before
+      if (visitas < 100 && vendas30 === 0) return 'desativar_parou';
+      if (visitas >= 500 && vendas30 < 3) return 'retrabalhar';
+      return 'testar_ads';
+    }
+  }
+
+  var subClassLabels = {
+    incognita: { label: 'Incognita', desc: 'Nunca vendeu, < 30 dias', badge: 'badge-incognita' },
+    em_teste: { label: 'Em teste', desc: 'Nunca vendeu, 30-90 dias', badge: 'badge-em-teste' },
+    desativar_nunca: { label: 'Desativar (nunca vendeu)', desc: 'Nunca vendeu, > 90 dias', badge: 'badge-desativar' },
+    retrabalhar: { label: 'Retrabalhar', desc: 'Muitas visitas, poucas vendas', badge: 'badge-retrabalhar' },
+    testar_ads: { label: 'Testar ADs', desc: 'Poucas visitas, ja vendeu', badge: 'badge-testar-ads' },
+    desativar_parou: { label: 'Desativar (parou)', desc: 'Sem visitas nem vendas, ja vendeu', badge: 'badge-desativar' }
+  };
+
+  // ══════════════════════════════════════
+  //  LOAD DATA
+  // ══════════════════════════════════════
   async function loadData() {
     try {
-      var [r1, r2, r3, r4] = await Promise.all([
+      var [r1, r2, r3, r4, r5, r6] = await Promise.all([
         sb.from('vw_central_analise').select('*'),
-        sb.from('grupos').select('*').eq('status', 'ativo'),
+        sb.from('grupos').select('*').order('id'),
         sb.from('grupo_regras').select('*'),
-        sb.from('grupo_mlbs').select('*')
+        sb.from('grupo_mlbs').select('*'),
+        sb.from('grupo_acoes').select('*').order('criado_em',{ascending:false}).limit(200),
+        sb.from('grupo_notas').select('*')
       ]);
       if (r1.error) throw r1.error;
       allData = r1.data || [];
       grupos = r2.data || [];
       grupoRegras = r3.data || [];
       grupoMlbs = r4.data || [];
+      grupoAcoes = r5.data || [];
+      grupoNotas = r6.data || [];
       render();
     } catch(e) {
       console.error('Load error:', e);
-      document.getElementById('loading').innerHTML = '<span style="color:#f85149">Erro ao carregar dados: ' + (e.message || e) + '</span>';
+      document.getElementById('loading').innerHTML = '<span style="color:#f85149">Erro ao carregar: '+(e.message||e)+'</span>';
     }
   }
 
-  // ── Filter logic ──
+  // ══════════════════════════════════════
+  //  FILTER LOGIC
+  // ══════════════════════════════════════
+  function getAccountData() {
+    if (selectedAccount === 'Todas') return allData;
+    return allData.filter(function(r){return r.conta_nome === selectedAccount});
+  }
+
   function getFilteredData() {
-    var d = allData;
-    // Account filter
-    if (selectedAccount !== 'Todas') {
-      d = d.filter(function(r) { return r.conta_nome === selectedAccount; });
-    }
-    // Quadrant filter
-    if (activeQuadrant) {
-      d = d.filter(function(r) { return r.quadrante === activeQuadrant; });
-    }
-    // Logistica
-    if (filters.logistica !== 'all') {
-      d = d.filter(function(r) { return r.logistica_display === filters.logistica; });
-    }
-    // Tipo
-    if (filters.tipo !== 'all') {
-      d = d.filter(function(r) { return r.tipo_display === filters.tipo; });
-    }
-    // Catalogo
-    if (filters.catalogo === 'em') {
-      d = d.filter(function(r) { return r.em_catalogo === true; });
-    } else if (filters.catalogo === 'fora') {
-      d = d.filter(function(r) { return r.em_catalogo !== true; });
-    }
-    // Preco
-    if (filters.preco === '<79') {
-      d = d.filter(function(r) { return r.preco_atual < 79; });
-    } else if (filters.preco === '79-199') {
-      d = d.filter(function(r) { return r.preco_atual >= 79 && r.preco_atual < 200; });
-    } else if (filters.preco === '200-499') {
-      d = d.filter(function(r) { return r.preco_atual >= 200 && r.preco_atual < 500; });
-    } else if (filters.preco === '500-999') {
-      d = d.filter(function(r) { return r.preco_atual >= 500 && r.preco_atual < 1000; });
-    } else if (filters.preco === '1000+') {
-      d = d.filter(function(r) { return r.preco_atual >= 1000; });
-    }
-    // Grupo
-    if (filters.grupo === 'em') {
-      d = d.filter(function(r) { return r.grupo_id != null; });
-    } else if (filters.grupo === 'sem') {
-      d = d.filter(function(r) { return r.grupo_id == null; });
-    }
-    // Search
+    var d = getAccountData();
+    if (activeQuadrant) d = d.filter(function(r){return r.quadrante === activeQuadrant});
+    if (activeSubClass && activeQuadrant === 'avaliar') d = d.filter(function(r){return getSubClass(r) === activeSubClass});
+    if (filters.logistica !== 'all') d = d.filter(function(r){return r.logistica_display === filters.logistica});
+    if (filters.tipo !== 'all') d = d.filter(function(r){return r.tipo_display === filters.tipo});
+    if (filters.catalogo === 'em') d = d.filter(function(r){return r.em_catalogo === true});
+    else if (filters.catalogo === 'fora') d = d.filter(function(r){return r.em_catalogo !== true});
+    if (filters.preco === '<79') d = d.filter(function(r){return r.preco_atual < 79});
+    else if (filters.preco === '79-199') d = d.filter(function(r){return r.preco_atual >= 79 && r.preco_atual < 200});
+    else if (filters.preco === '200-499') d = d.filter(function(r){return r.preco_atual >= 200 && r.preco_atual < 500});
+    else if (filters.preco === '500-999') d = d.filter(function(r){return r.preco_atual >= 500 && r.preco_atual < 1000});
+    else if (filters.preco === '1000+') d = d.filter(function(r){return r.preco_atual >= 1000});
+    if (filters.grupo === 'em') d = d.filter(function(r){return r.grupo_id != null});
+    else if (filters.grupo === 'sem') d = d.filter(function(r){return r.grupo_id == null});
     if (searchTerm) {
       var q = searchTerm.toLowerCase();
-      d = d.filter(function(r) {
-        return (r.titulo && r.titulo.toLowerCase().indexOf(q) !== -1) ||
-               (r.mlb_id && r.mlb_id.toLowerCase().indexOf(q) !== -1);
-      });
+      d = d.filter(function(r){return (r.titulo && r.titulo.toLowerCase().indexOf(q)!==-1)||(r.mlb_id && r.mlb_id.toLowerCase().indexOf(q)!==-1)});
     }
-    // Sort
-    d = d.slice().sort(function(a, b) {
-      var va = a[sortCol], vb = b[sortCol];
-      if (va == null) va = -Infinity;
-      if (vb == null) vb = -Infinity;
-      if (typeof va === 'string') va = va.toLowerCase();
-      if (typeof vb === 'string') vb = vb.toLowerCase();
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    d = d.slice().sort(function(a,b){
+      var va=a[sortCol],vb=b[sortCol];
+      if(va==null) va=-Infinity; if(vb==null) vb=-Infinity;
+      if(typeof va==='string') va=va.toLowerCase();
+      if(typeof vb==='string') vb=vb.toLowerCase();
+      if(va<vb) return sortDir==='asc'?-1:1;
+      if(va>vb) return sortDir==='asc'?1:-1;
       return 0;
     });
     return d;
   }
 
-  // ── Counts (use account-filtered but not quadrant/filter filtered) ──
-  function getAccountData() {
-    if (selectedAccount === 'Todas') return allData;
-    return allData.filter(function(r) { return r.conta_nome === selectedAccount; });
-  }
-
-  // ── Get unique accounts ──
   function getAccounts() {
-    var set = {};
-    allData.forEach(function(r) { if (r.conta_nome) set[r.conta_nome] = true; });
+    var set={};
+    allData.forEach(function(r){if(r.conta_nome) set[r.conta_nome]=true});
     return Object.keys(set).sort();
   }
 
-  // ── Column definitions ──
-  var columns = [
-    { key: '_chk', label: '', width: '40px', sortable: false },
-    { key: 'mlb_id', label: 'MLB', width: '130px', sortable: true },
-    { key: 'titulo', label: 'Titulo', width: null, sortable: true },
-    { key: 'conta_nome', label: 'Conta', width: '80px', sortable: true },
-    { key: 'preco_atual', label: 'Preco', width: '80px', sortable: true, align: 'right' },
-    { key: 'margem_mc2_pct', label: 'MC2 %', width: '70px', sortable: true, align: 'right' },
-    { key: 'visitas_30d', label: 'Visitas', width: '80px', sortable: true, align: 'right' },
-    { key: 'vendas_30d', label: 'Vendas', width: '60px', sortable: true, align: 'right' },
-    { key: 'conversao_pct', label: 'Conv %', width: '70px', sortable: true, align: 'right' },
-    { key: 'roas', label: 'ROAS', width: '60px', sortable: true, align: 'right' },
-    { key: 'gasto_ads_30d', label: 'Ads R$', width: '70px', sortable: true, align: 'right' },
-    { key: 'logistica_display', label: 'Logistica', width: '70px', sortable: true },
-    { key: 'tipo_display', label: 'Tipo', width: '80px', sortable: true },
-    { key: '_catalogo', label: 'Cat', width: '30px', sortable: false, align: 'center' },
-    { key: 'quadrante', label: 'Quadrante', width: '80px', sortable: true },
-    { key: 'grupo_nome', label: 'Grupo', width: '90px', sortable: true }
-  ];
-
-  // ── Render ──
+  // ══════════════════════════════════════
+  //  MAIN RENDER
+  // ══════════════════════════════════════
   function render() {
-    var acctData = getAccountData();
-    var filtered = getFilteredData();
-
-    // Quadrant counts from account-filtered data
-    var qCounts = { proteger: 0, repricing: 0, ads: 0, avaliar: 0 };
-    acctData.forEach(function(r) {
-      if (r.quadrante && qCounts.hasOwnProperty(r.quadrante)) qCounts[r.quadrante]++;
-    });
-
-    // Alert counts
-    var alertAutoCat = acctData.filter(function(r) { return r.em_automacao_catalogo; }).length;
-    var alertTeto = acctData.filter(function(r) { return r.no_teto_7890; }).length;
-    var alertQueima = acctData.filter(function(r) { return r.alerta_queima_ads; }).length;
-    var alertGrupo = acctData.filter(function(r) { return r.grupo_id != null; }).length;
-
     var html = '';
 
     // Header
-    html += '<div class="page-header">';
-    html += '<h1>Central de Analise</h1>';
-    html += '<div class="sub">Visao 360 dos anuncios -- Margem, Trafego, ADs e Repricing</div>';
-    html += '</div>';
+    html += '<div class="page-header"><h1>Central de Analise</h1>';
+    html += '<div class="sub">Visao 360 dos anuncios — Margem, Trafego, ADs e Repricing</div></div>';
 
-    // Account filter
-    html += '<div class="account-bar">';
-    html += '<label>Conta:</label>';
-    html += '<select id="accountFilter" onchange="setAccount(this.value)">';
-    html += '<option value="Todas"' + (selectedAccount === 'Todas' ? ' selected' : '') + '>Todas (' + allData.length + ')</option>';
-    getAccounts().forEach(function(a) {
-      var cnt = allData.filter(function(r) { return r.conta_nome === a; }).length;
-      html += '<option value="' + a + '"' + (selectedAccount === a ? ' selected' : '') + '>' + a + ' (' + cnt + ')</option>';
+    // Account bar
+    html += '<div class="account-bar"><label>Conta:</label>';
+    html += '<select onchange="window.CA.setAccount(this.value)">';
+    html += '<option value="Todas"'+(selectedAccount==='Todas'?' selected':'')+'>Todas ('+allData.length+')</option>';
+    getAccounts().forEach(function(a){
+      var cnt = allData.filter(function(r){return r.conta_nome===a}).length;
+      html += '<option value="'+a+'"'+(selectedAccount===a?' selected':'')+'>'+a+' ('+cnt+')</option>';
     });
     html += '</select>';
-    html += '<span style="margin-left:auto;font-size:12px;color:#8b949e">' + acctData.length + ' anuncios ativos</span>';
+    html += '<span style="margin-left:auto;font-size:12px;color:#8b949e">'+getAccountData().length+' anuncios ativos</span></div>';
+
+    // Main tabs
+    var gruposObs = grupos.filter(function(g){return g.tipo==='observacao' && g.status==='ativo'});
+    var gruposRep = grupos.filter(function(g){return g.tipo==='repricing' && g.status==='ativo'});
+    html += '<div class="main-tabs">';
+    html += '<div class="main-tab'+(activeTab==='analise'?' active':'')+'" onclick="window.CA.setTab(\'analise\')">Analise</div>';
+    html += '<div class="main-tab'+(activeTab==='observacao'?' active':'')+'" onclick="window.CA.setTab(\'observacao\')">Observacao<span class="tab-count">'+gruposObs.length+'</span></div>';
+    html += '<div class="main-tab'+(activeTab==='repricing'?' active':'')+'" onclick="window.CA.setTab(\'repricing\')">Repricing<span class="tab-count">'+gruposRep.length+'</span></div>';
     html += '</div>';
+
+    // Tab panels
+    html += '<div class="tab-panel'+(activeTab==='analise'?' active':'')+'" id="panel-analise">'+renderAnalise()+'</div>';
+    html += '<div class="tab-panel'+(activeTab==='observacao'?' active':'')+'" id="panel-observacao">'+renderGruposTab('observacao')+'</div>';
+    html += '<div class="tab-panel'+(activeTab==='repricing'?' active':'')+'" id="panel-repricing">'+renderGruposTab('repricing')+'</div>';
+
+    document.getElementById('app').innerHTML = html;
+  }
+
+  // ══════════════════════════════════════
+  //  TAB 1: ANALISE
+  // ══════════════════════════════════════
+  function renderAnalise() {
+    var acctData = getAccountData();
+    var filtered = getFilteredData();
+
+    var qCounts = {proteger:0, repricing:0, ads:0, avaliar:0};
+    acctData.forEach(function(r){ if(r.quadrante && qCounts.hasOwnProperty(r.quadrante)) qCounts[r.quadrante]++; });
+
+    // Sub-class counts for avaliar
+    var scCounts = {};
+    acctData.filter(function(r){return r.quadrante==='avaliar'}).forEach(function(r){
+      var sc = getSubClass(r);
+      if(sc) scCounts[sc] = (scCounts[sc]||0)+1;
+    });
+
+    var alertAutoCat = acctData.filter(function(r){return r.em_automacao_catalogo}).length;
+    var alertTeto = acctData.filter(function(r){return r.no_teto_7890}).length;
+    var alertQueima = acctData.filter(function(r){return r.alerta_queima_ads}).length;
+    var alertGrupo = acctData.filter(function(r){return r.grupo_id!=null}).length;
+
+    var html = '';
 
     // Quadrant cards
     html += '<div class="quad-grid">';
-    html += renderQuadCard('proteger', 'PROTEGER', qCounts.proteger, 'Alta visita + boa margem');
-    html += renderQuadCard('repricing', 'REPRICING', qCounts.repricing, 'Alta visita + margem baixa');
-    html += renderQuadCard('ads', 'ADS', qCounts.ads, 'Baixa visita + boa margem');
-    html += renderQuadCard('avaliar', 'AVALIAR', qCounts.avaliar, 'Baixa visita + margem baixa');
+    html += renderQuadCard('proteger','PROTEGER',qCounts.proteger,'Alta visita + boa margem');
+    html += renderQuadCard('repricing','REPRICING',qCounts.repricing,'Alta visita + margem baixa');
+    html += renderQuadCard('ads','ADS',qCounts.ads,'Baixa visita + boa margem');
+    html += renderQuadCard('avaliar','AVALIAR',qCounts.avaliar,'Baixa visita + margem baixa');
     html += '</div>';
 
-    // Alert badges
-    html += '<div class="alert-badges">';
-    if (alertAutoCat > 0) html += '<div class="alert-badge ab-blue"><span class="ab-dot"></span>' + alertAutoCat + ' em automacao de catalogo</div>';
-    if (alertTeto > 0) html += '<div class="alert-badge ab-yellow"><span class="ab-dot"></span>' + alertTeto + ' no teto R$78,90</div>';
-    if (alertQueima > 0) html += '<div class="alert-badge ab-red"><span class="ab-dot"></span>' + alertQueima + ' queimando ads (ROAS&lt;2)</div>';
-    if (alertGrupo > 0) html += '<div class="alert-badge ab-purple"><span class="ab-dot"></span>' + alertGrupo + ' em grupo de repricing</div>';
-    html += '</div>';
-
-    // Filter bar
-    html += '<div class="filter-bar">';
-    html += renderFilterGroup('Logistica', 'logistica', [
-      { val: 'all', label: 'Todos' }, { val: 'Full', label: 'Full' }, { val: 'Coleta', label: 'Coleta' }
-    ]);
-    html += renderFilterGroup('Tipo', 'tipo', [
-      { val: 'all', label: 'Todos' }, { val: 'Premium', label: 'Premium' }, { val: 'Classico', label: 'Classico' }
-    ]);
-    html += renderFilterGroup('Catalogo', 'catalogo', [
-      { val: 'all', label: 'Todos' }, { val: 'em', label: 'Em catalogo' }, { val: 'fora', label: 'Fora' }
-    ]);
-    html += renderFilterGroup('Preco', 'preco', [
-      { val: 'all', label: 'Todos' }, { val: '<79', label: '< R$79' }, { val: '79-199', label: 'R$79-199' },
-      { val: '200-499', label: 'R$200-499' }, { val: '500-999', label: 'R$500-999' }, { val: '1000+', label: 'R$1000+' }
-    ]);
-    html += renderFilterGroup('Grupo', 'grupo', [
-      { val: 'all', label: 'Todos' }, { val: 'em', label: 'Em grupo' }, { val: 'sem', label: 'Sem grupo' }
-    ]);
-    html += '<div class="search-box"><input type="text" id="searchInput" placeholder="Buscar titulo ou MLB..." value="' + escHtml(searchTerm) + '" oninput="setSearch(this.value)"></div>';
-    html += '</div>';
-
-    // Table info
-    html += '<div class="table-info">';
-    html += '<span>Mostrando ' + filtered.length + ' de ' + acctData.length + ' anuncios</span>';
-    if (selectedMlbIds.size > 0) {
-      html += '<span class="selected-info">' + selectedMlbIds.size + ' selecionado(s)</span>';
-    }
-    html += '</div>';
-
-    // Table
-    html += '<div class="table-wrap">';
-    html += '<table class="tbl">';
-    html += '<thead><tr>';
-    // Select all checkbox
-    html += '<th style="width:40px"><div class="chk' + (selectedMlbIds.size > 0 && selectedMlbIds.size === filtered.length ? ' on' : '') + '" onclick="toggleSelectAll()"></div></th>';
-    columns.forEach(function(c) {
-      if (c.key === '_chk') return;
-      var w = c.width ? ' style="width:' + c.width + (c.align ? ';text-align:' + c.align : '') + '"' : (c.align ? ' style="text-align:' + c.align + '"' : '');
-      var sorted = sortCol === c.key;
-      var arrow = '';
-      if (c.sortable) {
-        arrow = '<span class="sort-arrow">' + (sorted ? (sortDir === 'asc' ? ' &#9650;' : ' &#9660;') : ' &#9650;&#9660;') + '</span>';
-      }
-      var cls = sorted ? ' class="sorted"' : '';
-      var click = c.sortable ? ' onclick="setSort(\'' + c.key + '\')"' : '';
-      html += '<th' + w + cls + click + '>' + c.label + arrow + '</th>';
-    });
-    html += '</tr></thead>';
-    html += '<tbody>';
-    filtered.forEach(function(row) {
-      var isSelected = selectedMlbIds.has(row.mlb_id);
-      html += '<tr class="' + (isSelected ? 'selected' : '') + '">';
-      // Checkbox
-      html += '<td><div class="chk' + (isSelected ? ' on' : '') + '" onclick="toggleSelect(\'' + row.mlb_id + '\')"></div></td>';
-      // MLB
-      html += '<td><a class="mlb-link" href="https://www.mercadolivre.com.br/p/' + row.mlb_id + '" target="_blank" rel="noopener">' + (row.mlb_id || '-') + '</a></td>';
-      // Titulo
-      html += '<td><div class="titulo-cell" title="' + escHtml(row.titulo || '') + '">' + escHtml(row.titulo || '-') + '</div></td>';
-      // Conta
-      html += '<td style="font-size:11px">' + shortAccount(row.conta_nome) + '</td>';
-      // Preco
-      html += '<td class="right">' + fmtR$(row.preco_atual) + '</td>';
-      // MC2 %
-      var mc2Class = row.margem_mc2_pct >= 15 ? 'val-green' : (row.margem_mc2_pct >= 0 ? 'val-yellow' : 'val-red');
-      html += '<td class="right ' + mc2Class + '">' + fmtPct(row.margem_mc2_pct) + '</td>';
-      // Visitas
-      html += '<td class="right">' + fmtNum(row.visitas_30d) + '</td>';
-      // Vendas
-      html += '<td class="right">' + fmtInt(row.vendas_30d) + '</td>';
-      // Conv %
-      html += '<td class="right">' + fmtPct2(row.conversao_pct) + '</td>';
-      // ROAS
-      var roasClass = row.roas > 5 ? 'val-green' : (row.roas >= 2 ? 'val-yellow' : 'val-red');
-      html += '<td class="right ' + (row.roas != null ? roasClass : '') + '">' + (row.roas != null ? Number(row.roas).toFixed(1) : '-') + '</td>';
-      // Ads R$
-      html += '<td class="right">' + (row.gasto_ads_30d != null ? fmtR$(row.gasto_ads_30d) : '-') + '</td>';
-      // Logistica
-      html += '<td>' + (row.logistica_display === 'Full' ? '<span class="badge badge-full">Full</span>' : '<span class="badge badge-coleta">Coleta</span>') + '</td>';
-      // Tipo
-      html += '<td>' + (row.tipo_display === 'Premium' ? '<span class="badge badge-premium">Premium</span>' : '<span class="badge badge-classico">Classico</span>') + '</td>';
-      // Catalogo
-      var catHtml = row.em_catalogo ? '<span class="dot-green"></span>' : '<span class="dot-gray"></span>';
-      if (row.em_automacao_catalogo) catHtml += ' <span title="Em automacao de catalogo" style="cursor:help">&#9888;</span>';
-      html += '<td class="center">' + catHtml + '</td>';
-      // Quadrante
-      var qBadge = row.quadrante ? '<span class="badge badge-' + row.quadrante + '">' + capitalize(row.quadrante) + '</span>' : '-';
-      html += '<td>' + qBadge + '</td>';
-      // Grupo
-      html += '<td style="font-size:11px">' + (row.grupo_nome || '-') + '</td>';
-      html += '</tr>';
-    });
-    html += '</tbody></table></div>';
-
-    // Selection warnings
-    if (selectedMlbIds.size > 0) {
-      html += renderSelectionWarnings();
-    }
-
-    // Group management panel
-    html += '<div class="group-panel">';
-    html += '<div class="group-panel-header" onclick="toggleGroupPanel()">';
-    html += '<h2>Gestao de Grupos</h2>';
-    html += '<span class="toggle' + (groupPanelOpen ? ' open' : '') + '">&#9660;</span>';
-    html += '</div>';
-    html += '<div class="group-panel-body' + (groupPanelOpen ? ' open' : '') + '">';
-
-    // Create group button / form
-    if (!showCreateForm) {
-      html += '<button class="btn btn-blue" onclick="toggleCreateForm()" style="margin-bottom:16px"' + (selectedMlbIds.size === 0 ? ' disabled title="Selecione MLBs na tabela primeiro"' : '') + '>+ Criar Grupo (' + selectedMlbIds.size + ' MLBs selecionados)</button>';
-    } else {
-      html += renderCreateForm();
-    }
-
-    // Existing groups
-    html += '<h3 style="font-size:14px;font-weight:600;margin:16px 0 12px;color:#8b949e">Grupos ativos (' + grupos.length + ')</h3>';
-    if (grupos.length === 0) {
-      html += '<div style="font-size:13px;color:#484f58;padding:20px 0">Nenhum grupo ativo</div>';
-    } else {
-      html += '<div class="existing-groups">';
-      grupos.forEach(function(g) {
-        var gRules = grupoRegras.filter(function(r) { return r.grupo_id === g.id; });
-        var gMlbs = grupoMlbs.filter(function(m) { return m.grupo_id === g.id; });
-        html += '<div class="eg-card">';
-        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-        html += '<span class="eg-name">' + escHtml(g.apelido || 'Grupo ' + g.id) + '</span>';
-        html += '<span class="tag ' + (g.tipo === 'repricing' ? 'tag-rep' : 'tag-obs') + '">' + (g.tipo || 'repricing') + '</span>';
-        html += '</div>';
-        html += '<div class="eg-meta">' + gMlbs.length + ' MLBs | Margem alvo: ' + (g.margem_alvo_pct || 15) + '%</div>';
-        if (gRules.length > 0) {
-          html += '<div class="eg-rules">';
-          gRules.forEach(function(r) {
-            html += '<div style="font-size:11px;color:#484f58;margin-bottom:2px">' + escHtml(r.tipo_regra) + ': ' + escHtml(r.parametro || r.valor) + '</div>';
-          });
-          html += '</div>';
+    // Sub-classification pills (visible only when avaliar is active)
+    if (activeQuadrant === 'avaliar') {
+      html += '<div class="sub-pills">';
+      html += '<div class="sub-pill'+(activeSubClass===null?' active':'')+'" onclick="window.CA.setSubClass(null)">Todos <span class="pill-count">'+qCounts.avaliar+'</span></div>';
+      Object.keys(subClassLabels).forEach(function(key){
+        var cnt = scCounts[key]||0;
+        if(cnt > 0) {
+          html += '<div class="sub-pill'+(activeSubClass===key?' active':'')+'" onclick="window.CA.setSubClass(\''+key+'\')">';
+          html += subClassLabels[key].label+' <span class="pill-count">'+cnt+'</span></div>';
         }
-        if (gMlbs.length > 0) {
-          html += '<div class="eg-mlbs">';
-          gMlbs.slice(0, 10).forEach(function(m) {
-            html += '<span class="eg-mlb-tag">' + m.mlb_id + '</span>';
-          });
-          if (gMlbs.length > 10) html += '<span style="font-size:10px;color:#484f58">+' + (gMlbs.length - 10) + '</span>';
-          html += '</div>';
-        }
-        html += '</div>';
       });
       html += '</div>';
     }
 
+    // Alert badges
+    html += '<div class="alert-badges">';
+    if(alertAutoCat>0) html+='<div class="alert-badge ab-blue"><span class="ab-dot"></span>'+alertAutoCat+' em automacao de catalogo</div>';
+    if(alertTeto>0) html+='<div class="alert-badge ab-yellow"><span class="ab-dot"></span>'+alertTeto+' no teto R$78,90</div>';
+    if(alertQueima>0) html+='<div class="alert-badge ab-red"><span class="ab-dot"></span>'+alertQueima+' queimando ads (ROAS&lt;2)</div>';
+    if(alertGrupo>0) html+='<div class="alert-badge ab-purple"><span class="ab-dot"></span>'+alertGrupo+' em grupo</div>';
+    html += '</div>';
+
+    // Filter bar
+    html += '<div class="filter-bar">';
+    html += renderFilterGroup('Logistica','logistica',[{val:'all',label:'Todos'},{val:'Full',label:'Full'},{val:'Coleta',label:'Coleta'}]);
+    html += renderFilterGroup('Tipo','tipo',[{val:'all',label:'Todos'},{val:'Premium',label:'Premium'},{val:'Classico',label:'Classico'}]);
+    html += renderFilterGroup('Catalogo','catalogo',[{val:'all',label:'Todos'},{val:'em',label:'Em catalogo'},{val:'fora',label:'Fora'}]);
+    html += renderFilterGroup('Preco','preco',[{val:'all',label:'Todos'},{val:'<79',label:'< R$79'},{val:'79-199',label:'R$79-199'},{val:'200-499',label:'R$200-499'},{val:'500-999',label:'R$500-999'},{val:'1000+',label:'R$1000+'}]);
+    html += renderFilterGroup('Grupo','grupo',[{val:'all',label:'Todos'},{val:'em',label:'Em grupo'},{val:'sem',label:'Sem grupo'}]);
+    html += '<div class="search-box"><input type="text" id="searchInput" placeholder="Buscar titulo ou MLB..." value="'+escHtml(searchTerm)+'" oninput="window.CA.setSearch(this.value)"></div>';
+    html += '</div>';
+
+    // Table info + action buttons
+    html += '<div class="table-info">';
+    html += '<span>Mostrando '+filtered.length+' de '+acctData.length+' anuncios</span>';
+    html += '<div style="display:flex;align-items:center;gap:12px">';
+    if(selectedMlbIds.size > 0) {
+      html += '<span class="selected-info">'+selectedMlbIds.size+' selecionado(s)</span>';
+      html += '<button class="btn btn-sm btn-blue" onclick="window.CA.criarGrupoComSelecionados(\'observacao\')">+ Grupo Observacao</button>';
+      html += '<button class="btn btn-sm" style="background:#3d2e00;border-color:#d29922;color:#d29922" onclick="window.CA.criarGrupoComSelecionados(\'repricing\')">+ Grupo Repricing</button>';
+    }
     html += '</div></div>';
 
-    document.getElementById('app').innerHTML = html;
-    // Focus search if it had focus
-    var si = document.getElementById('searchInput');
-    if (si && document.activeElement && document.activeElement.tagName === 'BODY') {
-      // Don't auto-focus
-    }
-  }
+    // Table
+    html += '<div class="table-wrap"><table class="tbl"><thead><tr>';
+    html += '<th style="width:40px"><div class="chk'+(selectedMlbIds.size>0&&selectedMlbIds.size===filtered.length?' on':'')+'" onclick="window.CA.toggleSelectAll()"></div></th>';
 
-  // ── Render helpers ──
-  function renderQuadCard(q, name, count, desc) {
-    var icons = { proteger: '&#128737;&#65039;', repricing: '&#128200;', ads: '&#128226;', avaliar: '&#128269;' };
-    var active = activeQuadrant === q ? ' active' : '';
-    return '<div class="quad-card q-' + q + active + '" onclick="toggleQuadrant(\'' + q + '\')">' +
-      '<div class="q-icon">' + icons[q] + '</div>' +
-      '<div class="q-name">' + name + '</div>' +
-      '<div class="q-count">' + count + '</div>' +
-      '<div class="q-desc">' + desc + '</div>' +
-      '</div>';
-  }
-
-  function renderFilterGroup(label, filterKey, options) {
-    var html = '<div class="filter-group"><label>' + label + ':</label>';
-    options.forEach(function(o) {
-      var active = filters[filterKey] === o.val ? ' active' : '';
-      html += '<button class="filter-btn' + active + '" onclick="setFilter(\'' + filterKey + '\',\'' + o.val + '\')">' + o.label + '</button>';
+    var columns = [
+      {key:'mlb_id',label:'MLB',w:'130px'},
+      {key:'titulo',label:'Titulo'},
+      {key:'conta_nome',label:'Conta',w:'70px'},
+      {key:'preco_atual',label:'Preco',w:'80px',a:'right'},
+      {key:'margem_mc2_pct',label:'MC2 %',w:'70px',a:'right'},
+      {key:'visitas_30d',label:'Visitas',w:'70px',a:'right'},
+      {key:'vendas_30d',label:'Vendas',w:'60px',a:'right'},
+      {key:'conversao_pct',label:'Conv %',w:'65px',a:'right'},
+      {key:'dias_ativo',label:'Idade',w:'55px',a:'right'},
+      {key:'quadrante',label:'Quadrante',w:'90px'},
+      {key:'_subclass',label:'Diagnostico',w:'110px'}
+    ];
+    columns.forEach(function(c){
+      var style = '';
+      if(c.w) style += 'width:'+c.w+';';
+      if(c.a) style += 'text-align:'+c.a+';';
+      var sorted = sortCol===c.key;
+      var arrow = '<span class="sort-arrow">'+(sorted?(sortDir==='asc'?' &#9650;':' &#9660;'):' &#9650;&#9660;')+'</span>';
+      if(c.key==='_subclass') arrow='';
+      var cls = sorted?' class="sorted"':'';
+      var click = c.key!=='_subclass'?' onclick="window.CA.setSort(\''+c.key+'\')"':'';
+      html += '<th'+(style?' style="'+style+'"':'')+cls+click+'>'+c.label+(c.key!=='_subclass'?arrow:'')+'</th>';
     });
+    html += '</tr></thead><tbody>';
+
+    filtered.forEach(function(row){
+      var isSel = selectedMlbIds.has(row.mlb_id);
+      html += '<tr class="'+(isSel?'selected':'')+'">';
+      html += '<td><div class="chk'+(isSel?' on':'')+'" onclick="window.CA.toggleSelect(\''+row.mlb_id+'\')"></div></td>';
+      html += '<td><a class="mlb-link" href="https://www.mercadolivre.com.br/p/'+row.mlb_id+'" target="_blank">'+row.mlb_id+'</a></td>';
+      html += '<td><div class="titulo-cell" title="'+escHtml(row.titulo||'')+'">'+escHtml(row.titulo||'-')+'</div></td>';
+      html += '<td style="font-size:11px">'+shortAccount(row.conta_nome)+'</td>';
+      html += '<td class="right">'+fmtR$(row.preco_atual)+'</td>';
+      var mc2c = row.margem_mc2_pct>=15?'val-green':(row.margem_mc2_pct>=0?'val-yellow':'val-red');
+      html += '<td class="right '+mc2c+'">'+fmtPct(row.margem_mc2_pct)+'</td>';
+      html += '<td class="right">'+fmtNum(row.visitas_30d)+'</td>';
+      html += '<td class="right">'+fmtInt(row.vendas_30d)+'</td>';
+      html += '<td class="right">'+fmtPct2(row.conversao_pct)+'</td>';
+      html += '<td class="right" style="font-size:12px;color:#8b949e">'+(row.dias_ativo!=null?row.dias_ativo+'d':'-')+'</td>';
+      var qBadge = row.quadrante?'<span class="badge badge-'+row.quadrante+'">'+capitalize(row.quadrante)+'</span>':'-';
+      html += '<td>'+qBadge+'</td>';
+      // Sub-class diagnostic
+      var sc = getSubClass(row);
+      if(sc && subClassLabels[sc]) {
+        html += '<td><span class="badge '+subClassLabels[sc].badge+'" title="'+subClassLabels[sc].desc+'">'+subClassLabels[sc].label+'</span></td>';
+      } else {
+        html += '<td>-</td>';
+      }
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  // ══════════════════════════════════════
+  //  TAB 2 & 3: GRUPOS (Obs / Repricing)
+  // ══════════════════════════════════════
+  function renderGruposTab(tipo) {
+    var tipoLabel = tipo === 'observacao' ? 'Observacao' : 'Repricing';
+    var tipoGrupos = grupos.filter(function(g){return g.tipo===tipo});
+    var ativos = tipoGrupos.filter(function(g){return g.status==='ativo'});
+    var arquivados = tipoGrupos.filter(function(g){return g.status==='arquivado'});
+
+    var html = '';
+
+    // Header + create button
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">';
+    html += '<div><span style="font-size:14px;font-weight:600">Grupos de '+tipoLabel+'</span>';
+    html += '<span style="font-size:12px;color:#8b949e;margin-left:8px">'+ativos.length+' ativo(s)</span></div>';
+    html += '<button class="btn btn-sm btn-primary" onclick="window.CA.abrirModalCriar(\''+tipo+'\')">+ Novo grupo</button>';
+    html += '</div>';
+
+    if(tipoGrupos.length === 0) {
+      html += '<div class="empty">Nenhum grupo de '+tipoLabel+' criado ainda.</div>';
+      return html;
+    }
+
+    // Groups grid
+    html += '<div class="grupos-grid">';
+    ativos.forEach(function(g){ html += renderGrupoCard(g); });
+    html += '</div>';
+
+    // Archived (collapsed)
+    if(arquivados.length > 0) {
+      html += '<details style="margin-top:16px"><summary style="cursor:pointer;font-size:12px;color:#8b949e">'+arquivados.length+' grupo(s) arquivado(s)</summary>';
+      html += '<div class="grupos-grid" style="margin-top:12px">';
+      arquivados.forEach(function(g){ html += renderGrupoCard(g); });
+      html += '</div></details>';
+    }
+
+    // Selected group detail
+    if(grupoAtual && grupoAtual.tipo === tipo) {
+      html += renderGrupoDetail();
+    }
+
+    return html;
+  }
+
+  function renderGrupoCard(g) {
+    var gMlbs = grupoMlbs.filter(function(m){return m.grupo_id===g.id && m.ativo});
+    var isActive = grupoAtual && grupoAtual.id === g.id;
+    var cls = 'grupo-card' + (isActive?' active':'') + (g.status==='arquivado'?' archived':'');
+
+    var html = '<div class="'+cls+'" onclick="window.CA.selecionarGrupo('+g.id+')">';
+
+    // Header row with name + toggle
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+    html += '<div class="g-name">'+escHtml(g.apelido||'Grupo #'+g.id)+'</div>';
+    if(g.tipo === 'repricing' && g.status === 'ativo') {
+      var isOn = g.automacao_ativa !== false; // default true
+      html += '<label class="toggle-switch" onclick="event.stopPropagation()" title="'+(isOn?'Automacao ativa':'Automacao pausada')+'">';
+      html += '<input type="checkbox" '+(isOn?'checked':'')+' onchange="window.CA.toggleAutomacao('+g.id+', this.checked)">';
+      html += '<span class="toggle-track"></span><span class="toggle-knob"></span></label>';
+    }
+    html += '</div>';
+
+    html += '<div class="g-meta">';
+    html += gMlbs.length+' MLBs';
+    if(g.margem_alvo_pct) html += ' · Meta: '+g.margem_alvo_pct+'%';
+    if(g.investimento > 0) html += ' · Investido: R$ '+fmtN(g.investimento);
+    html += ' · Criado: '+formatDate(g.criado_em);
+    html += '</div>';
+
+    if(gMlbs.length > 0) {
+      html += '<div class="g-mlbs-tags">';
+      gMlbs.slice(0,8).forEach(function(m){ html += '<span class="g-mlb-tag">...'+m.mlb_id.slice(-6)+'</span>'; });
+      if(gMlbs.length > 8) html += '<span style="font-size:10px;color:#484f58">+'+(gMlbs.length-8)+'</span>';
+      html += '</div>';
+    }
+
     html += '</div>';
     return html;
   }
 
-  function renderSelectionWarnings() {
-    var html = '<div style="margin-top:12px">';
-    var selRows = allData.filter(function(r) { return selectedMlbIds.has(r.mlb_id); });
-    var warnAutoCat = selRows.filter(function(r) { return r.em_automacao_catalogo; });
-    var warnTeto = selRows.filter(function(r) { return r.no_teto_7890; });
-    var warnGrupo = selRows.filter(function(r) { return r.grupo_id != null; });
+  function renderGrupoDetail() {
+    var g = grupoAtual;
+    var gMlbs = grupoMlbs.filter(function(m){return m.grupo_id===g.id});
+    var gMlbsAtivos = gMlbs.filter(function(m){return m.ativo});
+    var gRegras = grupoRegras.filter(function(r){return r.grupo_id===g.id});
+    var gAcoes = grupoAcoes.filter(function(a){return a.grupo_id===g.id});
+    var gNota = grupoNotas.find(function(n){return n.grupo_id===g.id});
 
-    if (warnAutoCat.length > 0) {
-      html += '<div class="form-danger">&#9888;&#65039; ' + warnAutoCat.length + ' MLB(s) selecionado(s) em automacao de catalogo. Adicionar a um grupo de repricing pode gerar conflito de preco.</div>';
+    var html = '<div class="detail-section">';
+
+    // Detail header
+    html += '<div class="detail-header">';
+    html += '<div>';
+    html += '<span style="color:#8b949e;font-size:12px">#'+String(g.id).padStart(3,'0')+' · </span>';
+    html += '<span style="font-size:16px;font-weight:600">'+escHtml(g.apelido||'Grupo #'+g.id)+'</span> ';
+    html += '<span class="badge badge-'+(g.tipo==='repricing'?'rep':'obs')+'">'+capitalize(g.tipo)+'</span>';
+    var dias = Math.floor((Date.now()-new Date(g.criado_em).getTime())/86400000);
+    html += '<div style="font-size:12px;color:#8b949e;margin-top:4px">Observando ha '+dias+' dias · '+gMlbsAtivos.length+' MLBs ativos</div>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<button class="btn btn-sm" onclick="window.CA.arquivarGrupo()">'+(g.status==='arquivado'?'Reativar':'Arquivar')+'</button>';
+    html += '<button class="btn btn-sm" style="color:#f85149;border-color:#f85149" onclick="window.CA.fecharDetalhe()">Fechar</button>';
+    html += '</div></div>';
+
+    // Inner tabs
+    html += '<div class="inner-tabs">';
+    html += '<div class="inner-tab'+(innerTab==='visao'?' active':'')+'" onclick="window.CA.setInnerTab(\'visao\')">Visao geral</div>';
+    html += '<div class="inner-tab'+(innerTab==='mlbs'?' active':'')+'" onclick="window.CA.setInnerTab(\'mlbs\')">MLBs ('+gMlbs.length+')</div>';
+    if(g.tipo==='repricing') html += '<div class="inner-tab'+(innerTab==='regras'?' active':'')+'" onclick="window.CA.setInnerTab(\'regras\')">Regras</div>';
+    html += '<div class="inner-tab'+(innerTab==='historico'?' active':'')+'" onclick="window.CA.setInnerTab(\'historico\')">Historico</div>';
+    html += '<div class="inner-tab'+(innerTab==='notas'?' active':'')+'" onclick="window.CA.setInnerTab(\'notas\')">Notas</div>';
+    html += '</div>';
+
+    // Inner tab content: VISAO
+    html += '<div class="inner-tab-content'+(innerTab==='visao'?' active':'')+'">';
+    html += renderVisaoGeral(g, gMlbs, gRegras);
+    html += '</div>';
+
+    // Inner tab content: MLBs
+    html += '<div class="inner-tab-content'+(innerTab==='mlbs'?' active':'')+'">';
+    html += renderMlbsTab(g, gMlbs);
+    html += '</div>';
+
+    // Inner tab content: REGRAS
+    if(g.tipo==='repricing') {
+      html += '<div class="inner-tab-content'+(innerTab==='regras'?' active':'')+'">';
+      html += renderRegrasTab(g, gRegras);
+      html += '</div>';
     }
-    if (warnTeto.length > 0) {
-      html += '<div class="form-warning">' + warnTeto.length + ' MLB(s) selecionado(s) ja no teto R$78,90.</div>';
-    }
-    if (warnGrupo.length > 0) {
-      html += '<div class="form-warning">&#9888;&#65039; ' + warnGrupo.length + ' MLB(s) selecionado(s) ja pertencem a um grupo: ' +
-        warnGrupo.map(function(r) { return r.mlb_id + ' (' + (r.grupo_nome || '?') + ')'; }).join(', ') + '</div>';
-    }
+
+    // Inner tab content: HISTORICO
+    html += '<div class="inner-tab-content'+(innerTab==='historico'?' active':'')+'">';
+    html += renderHistoricoTab(gAcoes);
+    html += '</div>';
+
+    // Inner tab content: NOTAS
+    html += '<div class="inner-tab-content'+(innerTab==='notas'?' active':'')+'">';
+    html += '<textarea class="notes-area" id="notas-text" placeholder="Anotacoes sobre este grupo...">'+(gNota?escHtml(gNota.conteudo):'')+'</textarea>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">';
+    html += '<span class="notes-saved" id="notas-saved">Salvo!</span>';
+    html += '<button class="btn btn-sm" onclick="window.CA.salvarNotas()">Salvar notas</button>';
+    html += '</div></div>';
+
     html += '</div>';
     return html;
   }
 
-  function renderCreateForm() {
-    var html = '<div class="create-group-form">';
-    html += '<h3 style="font-size:15px;font-weight:600;margin-bottom:16px">Criar novo grupo</h3>';
+  function renderVisaoGeral(g, gMlbs, gRegras) {
+    // Calculate metrics from allData for the MLBs in this group
+    var mlbIds = new Set(gMlbs.filter(function(m){return m.ativo}).map(function(m){return m.mlb_id}));
+    var mlbData = allData.filter(function(r){return mlbIds.has(r.mlb_id)});
 
-    html += '<div class="form-row">';
-    html += '<label>Nome do grupo:</label>';
-    html += '<input type="text" id="fg_nome" placeholder="Ex: Grampos Teste 3%" style="width:260px">';
+    var receitaTotal = 0, margemTotal = 0, vendasTotal = 0, visitasTotal = 0;
+    mlbData.forEach(function(r){
+      receitaTotal += Number(r.receita_30d)||0;
+      margemTotal += Number(r.lucro_30d)||0;
+      vendasTotal += Number(r.vendas_30d)||0;
+      visitasTotal += Number(r.visitas_30d)||0;
+    });
+    var margemPctMedia = receitaTotal > 0 ? (margemTotal/receitaTotal*100) : 0;
+
+    var html = '<div class="grid-metrics">';
+    html += metricCard('Receita 30d', fmtR$(receitaTotal));
+    html += metricCard('Margem 30d', fmtR$(margemTotal));
+    html += metricCard('Margem %', fmtPct(margemPctMedia));
+    html += metricCard('Vendas', fmtInt(vendasTotal));
+    html += metricCard('Visitas', fmtNum(visitasTotal));
+    html += metricCard('MLBs ativos', mlbIds.size);
     html += '</div>';
 
-    html += '<div class="form-row">';
-    html += '<label>Tipo:</label>';
-    html += '<select id="fg_tipo"><option value="repricing" selected>Repricing</option><option value="observacao">Observacao</option></select>';
-    html += '</div>';
+    // Investimento section
+    if(g.investimento > 0) {
+      var falta = Math.max(0, g.investimento - margemTotal);
+      var pctRecup = g.investimento > 0 ? Math.round(margemTotal / g.investimento * 100) : 0;
+      html += '<div style="font-size:14px;font-weight:600;margin-bottom:10px">Investimento</div>';
+      html += '<div class="grid-metrics">';
+      html += metricCard('Investido', 'R$ '+fmtN(g.investimento));
+      html += metricCard('Margem gerada', fmtR$(margemTotal), pctRecup+'% recuperado');
+      html += metricCard('Falta recuperar', fmtR$(falta));
+      html += '</div>';
+    }
 
-    html += '<h4 style="font-size:13px;font-weight:500;color:#8b949e;margin:16px 0 10px">Parametros (ja configurados com defaults)</h4>';
-
-    html += '<div class="form-row">';
-    html += '<label>Meta de margem:</label>';
-    html += '<input type="number" id="fg_margem" value="15" min="0" max="100" step="0.5"> %';
-    html += '</div>';
-
-    html += '<div class="form-row">';
-    html += '<label>Ritmo de aumento:</label>';
-    html += '<input type="number" id="fg_ritmo" value="3" min="0.5" max="20" step="0.5"> % a cada <input type="number" id="fg_dias_ritmo" value="14" min="1" max="90" step="1"> dias';
-    html += '</div>';
-
-    html += '<div class="form-row">';
-    html += '<label>Periodo de espera:</label>';
-    html += '<input type="number" id="fg_espera" value="10" min="1" max="90" step="1"> dias';
-    html += '</div>';
-
-    html += '<div class="form-row">';
-    html += '<label>Gatilho de reversao:</label>';
-    html += '<label class="chk-label"><input type="checkbox" id="fg_gatilho" checked> Visitas diminuindo</label>';
-    html += '</div>';
-
-    html += '<div class="form-info">Teto R$78,90: Produtos abaixo de R$79 tem teto automatico de R$78,90. Ao atingir, a automacao para.</div>';
-
-    html += '<div style="display:flex;align-items:center;gap:12px;margin-top:16px">';
-    html += '<span style="font-size:13px;color:#58a6ff;font-weight:500">MLBs selecionados: ' + selectedMlbIds.size + '</span>';
-    html += '<button class="btn btn-primary" onclick="criarGrupo()"' + (selectedMlbIds.size === 0 ? ' disabled' : '') + '>Criar grupo</button>';
-    html += '<button class="btn" onclick="toggleCreateForm()">Cancelar</button>';
-    html += '</div>';
-
-    html += '</div>';
     return html;
   }
 
-  function shortAccount(name) {
-    if (!name) return '-';
-    if (name === 'GGE-GRAMPEADORES') return 'GGE';
-    if (name === 'TOOWCOMERCIAL') return 'TOOW';
-    return name;
+  function renderMlbsTab(g, gMlbs) {
+    var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+    html += '<span style="color:#8b949e;font-size:12px">'+gMlbs.filter(function(m){return m.ativo}).length+' ativos de '+gMlbs.length+'</span>';
+    html += '<button class="btn btn-sm" onclick="window.CA.abrirModalMLBs()">+ Adicionar MLBs</button>';
+    html += '</div>';
+
+    if(gMlbs.length === 0) {
+      html += '<div class="empty">Nenhum MLB neste grupo</div>';
+      return html;
+    }
+
+    html += '<div style="overflow-x:auto"><table class="tbl"><thead><tr>';
+    html += '<th style="width:30px"></th><th>MLB</th><th>Produto</th>';
+    html += '<th class="right">Preco atual</th><th class="right">Baseline</th>';
+    html += '<th class="right">Margem %</th><th class="right">Receita 30d</th>';
+    html += '<th>Status</th></tr></thead><tbody>';
+
+    gMlbs.forEach(function(m){
+      // Find current data from allData
+      var ad = allData.find(function(r){return r.mlb_id===m.mlb_id});
+      var precoAtual = ad ? ad.preco_atual : null;
+      var margem = ad ? ad.margem_mc2_pct : null;
+      var receita = ad ? ad.receita_30d : null;
+      var titulo = ad ? ad.titulo : m.mlb_id;
+      var stCls = 'st-'+(m.status_mlb||'ativo');
+      var stLabel = capitalize(m.status_mlb||'ativo');
+
+      var deltaPreco = '';
+      if(m.baseline_preco && precoAtual && precoAtual !== m.baseline_preco){
+        var diff = ((precoAtual-m.baseline_preco)/m.baseline_preco*100).toFixed(1);
+        deltaPreco = '<span class="'+(diff>0?'val-green':'val-red')+'" style="font-size:11px"> ('+(diff>0?'+':'')+diff+'%)</span>';
+      }
+
+      html += '<tr>';
+      html += '<td><div class="chk'+(m.ativo?' on':'')+'" onclick="window.CA.toggleMLBGrupo(\''+m.mlb_id+'\','+m.ativo+')"></div></td>';
+      html += '<td style="font-size:11px;font-family:monospace;color:#58a6ff">...'+m.mlb_id.slice(-6)+'</td>';
+      html += '<td><div class="titulo-cell" title="'+escHtml(titulo)+'">'+escHtml(titulo)+'</div></td>';
+      html += '<td class="right">'+fmtR$(precoAtual)+deltaPreco+'</td>';
+      html += '<td class="right" style="color:#8b949e">'+fmtR$(m.baseline_preco)+'</td>';
+      html += '<td class="right"><span class="'+(margem>0?'val-green':'val-red')+'">'+fmtPct(margem)+'</span></td>';
+      html += '<td class="right">'+fmtR$(receita)+'</td>';
+      html += '<td><span class="badge-st '+stCls+'">'+stLabel+'</span></td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    return html;
   }
 
-  function capitalize(s) {
-    if (!s) return '';
-    return s.charAt(0).toUpperCase() + s.slice(1);
+  function renderRegrasTab(g, gRegras) {
+    var tipoLabels = {ritmo_aumento:'RITMO',gatilho_reverter:'SE REVERTER',gatilho_confirmar:'SE CONFIRMAR',meta_margem:'META',periodo_espera:'ESPERA'};
+    var html = '';
+
+    if(gRegras.length === 0) {
+      html += '<div class="empty" style="padding:20px">Nenhuma regra definida</div>';
+    } else {
+      gRegras.forEach(function(r){
+        html += '<div class="rule-row">';
+        html += '<span class="tag tag-rep">'+(tipoLabels[r.tipo_regra]||r.tipo_regra)+'</span> ';
+        html += escHtml(r.parametro||'')+': <strong>'+escHtml(r.valor||'')+'</strong>';
+        html += ' <span style="margin-left:auto;cursor:pointer;color:#8b949e" onclick="window.CA.excluirRegra('+r.id+')">&times;</span>';
+        html += '</div>';
+      });
+    }
+    html += '<div style="margin-top:12px"><button class="btn btn-sm" onclick="window.CA.abrirModalRegra()">+ Adicionar regra</button></div>';
+    return html;
   }
 
-  function escHtml(s) {
-    if (!s) return '';
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function renderHistoricoTab(gAcoes) {
+    if(gAcoes.length === 0) return '<div class="empty" style="padding:20px">Nenhuma acao registrada</div>';
+    var dotClass = {preco_alterado:'action',mlb_adicionado:'info',mlb_removido:'alert',alerta:'alert',grupo_criado:'info',status_alterado:'ok',regra_alterada:'info',observacao:'info',grupo_arquivado:'action'};
+    var html = '';
+    gAcoes.slice(0,30).forEach(function(a){
+      html += '<div class="tl-entry">';
+      html += '<div class="tl-dot '+(dotClass[a.tipo_acao]||'info')+'"></div>';
+      html += '<div><div style="color:#e6edf3;font-size:13px">'+escHtml(a.descricao||a.tipo_acao)+'</div>';
+      html += '<div style="color:#8b949e;font-size:11px">'+formatDateTime(a.criado_em)+(a.autor?' · '+a.autor:'')+'</div>';
+      html += '</div></div>';
+    });
+    return html;
   }
 
-  // ── Event handlers ──
-  window.setAccount = function(v) {
-    selectedAccount = v;
-    selectedMlbIds.clear();
+  function metricCard(label, value, sub) {
+    var subHtml = sub ? '<div style="font-size:11px;color:#8b949e;margin-top:2px">'+sub+'</div>' : '';
+    return '<div class="metric"><div class="val">'+value+'</div><div class="lbl">'+label+'</div>'+subHtml+'</div>';
+  }
+
+  // ══════════════════════════════════════
+  //  RENDER HELPERS
+  // ══════════════════════════════════════
+  function renderQuadCard(q, name, count, desc) {
+    var icons = {proteger:'&#128737;&#65039;',repricing:'&#128200;',ads:'&#128226;',avaliar:'&#128269;'};
+    var active = activeQuadrant===q?' active':'';
+    return '<div class="quad-card q-'+q+active+'" onclick="window.CA.toggleQuadrant(\''+q+'\')">'+
+      '<div class="q-icon">'+icons[q]+'</div>'+
+      '<div class="q-name">'+name+'</div>'+
+      '<div class="q-count">'+count+'</div>'+
+      '<div class="q-desc">'+desc+'</div></div>';
+  }
+
+  function renderFilterGroup(label, key, opts) {
+    var html = '<div class="filter-group"><label>'+label+':</label>';
+    opts.forEach(function(o){
+      html += '<button class="filter-btn'+(filters[key]===o.val?' active':'')+'" onclick="window.CA.setFilter(\''+key+'\',\''+o.val+'\')">'+o.label+'</button>';
+    });
+    return html+'</div>';
+  }
+
+  // ══════════════════════════════════════
+  //  EVENT HANDLERS (exposed via window.CA)
+  // ══════════════════════════════════════
+  window.CA = {};
+
+  window.CA.setTab = function(tab) { activeTab = tab; grupoAtual = null; innerTab = 'visao'; render(); };
+  window.CA.setAccount = function(v) { selectedAccount = v; selectedMlbIds.clear(); render(); };
+  window.CA.toggleQuadrant = function(q) { activeQuadrant = activeQuadrant===q?null:q; activeSubClass=null; render(); };
+  window.CA.setSubClass = function(sc) { activeSubClass = sc; render(); };
+  window.CA.setFilter = function(k,v) { filters[k]=v; render(); };
+  window.CA.setSearch = function(v) { searchTerm=v; render(); var si=document.getElementById('searchInput'); if(si){si.focus();si.setSelectionRange(v.length,v.length);} };
+  window.CA.setSort = function(col) {
+    if(sortCol===col) sortDir = sortDir==='asc'?'desc':'asc';
+    else { sortCol=col; sortDir = ['titulo','mlb_id','conta_nome','logistica_display','tipo_display','quadrante'].indexOf(col)!==-1?'asc':'desc'; }
+    render();
+  };
+  window.CA.toggleSelect = function(id) { if(selectedMlbIds.has(id)) selectedMlbIds.delete(id); else selectedMlbIds.add(id); render(); };
+  window.CA.toggleSelectAll = function() {
+    var f = getFilteredData();
+    if(selectedMlbIds.size===f.length&&f.length>0) selectedMlbIds.clear();
+    else f.forEach(function(r){selectedMlbIds.add(r.mlb_id)});
     render();
   };
 
-  window.toggleQuadrant = function(q) {
-    activeQuadrant = activeQuadrant === q ? null : q;
+  // ── Group selection & inner tabs ──
+  window.CA.selecionarGrupo = function(id) {
+    grupoAtual = grupos.find(function(g){return g.id===id});
+    innerTab = 'visao';
+    render();
+    setTimeout(function(){
+      var ds = document.querySelector('.detail-section');
+      if(ds) ds.scrollIntoView({behavior:'smooth',block:'start'});
+    }, 50);
+  };
+  window.CA.fecharDetalhe = function() { grupoAtual = null; render(); };
+  window.CA.setInnerTab = function(t) { innerTab = t; render(); };
+
+  // ── Toggle automacao (repricing groups) ──
+  window.CA.toggleAutomacao = async function(grupoId, checked) {
+    await sb.from('grupos').update({automacao_ativa: checked}).eq('id', grupoId);
+    var g = grupos.find(function(g){return g.id===grupoId});
+    if(g) g.automacao_ativa = checked;
+    showToast('Automacao '+(checked?'ativada':'pausada'), 'success');
+  };
+
+  // ── Toggle MLB active state in a group ──
+  window.CA.toggleMLBGrupo = async function(mlbId, atualAtivo) {
+    await sb.from('grupo_mlbs').update({ativo:!atualAtivo}).eq('grupo_id',grupoAtual.id).eq('mlb_id',mlbId);
+    await registrarAcao(mlbId,'status_alterado',(atualAtivo?'Desativado':'Reativado')+' no grupo');
+    // Refresh local data
+    var m = grupoMlbs.find(function(m){return m.grupo_id===grupoAtual.id && m.mlb_id===mlbId});
+    if(m) m.ativo = !atualAtivo;
     render();
   };
 
-  window.setFilter = function(key, val) {
-    filters[key] = val;
+  // ── Arquivar / Reativar grupo ──
+  window.CA.arquivarGrupo = async function() {
+    if(!grupoAtual) return;
+    var novoStatus = grupoAtual.status==='arquivado'?'ativo':'arquivado';
+    await sb.from('grupos').update({status:novoStatus, arquivado_em: novoStatus==='arquivado'?new Date().toISOString():null}).eq('id',grupoAtual.id);
+    await registrarAcao(null,'grupo_arquivado','Grupo '+(novoStatus==='arquivado'?'arquivado':'reativado'));
+    grupoAtual.status = novoStatus;
+    var idx = grupos.findIndex(function(g){return g.id===grupoAtual.id});
+    if(idx!==-1) grupos[idx].status = novoStatus;
     render();
-  };
-
-  window.setSearch = function(val) {
-    searchTerm = val;
-    render();
-    // Restore cursor position
-    var si = document.getElementById('searchInput');
-    if (si) { si.focus(); si.setSelectionRange(val.length, val.length); }
-  };
-
-  window.setSort = function(col) {
-    if (sortCol === col) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortCol = col;
-      sortDir = col === 'titulo' || col === 'mlb_id' || col === 'conta_nome' || col === 'logistica_display' || col === 'tipo_display' || col === 'quadrante' || col === 'grupo_nome' ? 'asc' : 'desc';
-    }
-    render();
-  };
-
-  window.toggleSelect = function(mlbId) {
-    if (selectedMlbIds.has(mlbId)) {
-      selectedMlbIds.delete(mlbId);
-    } else {
-      selectedMlbIds.add(mlbId);
-    }
-    render();
-  };
-
-  window.toggleSelectAll = function() {
-    var filtered = getFilteredData();
-    if (selectedMlbIds.size === filtered.length && filtered.length > 0) {
-      selectedMlbIds.clear();
-    } else {
-      filtered.forEach(function(r) { selectedMlbIds.add(r.mlb_id); });
-    }
-    render();
-  };
-
-  window.toggleGroupPanel = function() {
-    groupPanelOpen = !groupPanelOpen;
-    render();
-  };
-
-  window.toggleCreateForm = function() {
-    showCreateForm = !showCreateForm;
-    if (showCreateForm) groupPanelOpen = true;
-    render();
+    showToast('Grupo '+(novoStatus==='arquivado'?'arquivado':'reativado'), 'success');
   };
 
   // ── Create group ──
-  window.criarGrupo = async function() {
-    var nomeEl = document.getElementById('fg_nome');
-    var tipoEl = document.getElementById('fg_tipo');
-    var margemEl = document.getElementById('fg_margem');
-    var ritmoEl = document.getElementById('fg_ritmo');
-    var diasEl = document.getElementById('fg_dias_ritmo');
-    var esperaEl = document.getElementById('fg_espera');
-    var gatilhoEl = document.getElementById('fg_gatilho');
+  window.CA.abrirModalCriar = function(forceType) {
+    document.getElementById('modal-criar').classList.add('show');
+    document.getElementById('criar-apelido').value = '';
+    document.getElementById('criar-investimento').value = '';
+    document.getElementById('criar-margem-alvo').value = '';
 
-    if (!nomeEl || !nomeEl.value.trim()) {
-      showToast('Preencha o nome do grupo', 'error');
-      return;
+    if(forceType) {
+      tipoSel = forceType;
+      document.getElementById('criar-tipo-div').style.display = 'none';
+    } else {
+      tipoSel = 'observacao';
+      document.getElementById('criar-tipo-div').style.display = '';
     }
-    if (selectedMlbIds.size === 0) {
-      showToast('Selecione pelo menos um MLB', 'error');
-      return;
-    }
+    document.querySelectorAll('.tipo-btn').forEach(function(b){b.classList.toggle('active',b.dataset.tipo===tipoSel)});
+    document.getElementById('criar-investimento-div').style.display = tipoSel==='observacao'?'':'none';
+    document.getElementById('criar-margem-div').style.display = tipoSel==='repricing'?'':'none';
+    document.getElementById('criar-periodo-div').style.display = tipoSel==='repricing'?'':'none';
+    document.getElementById('modal-criar-titulo').textContent = 'Novo grupo de '+(tipoSel==='observacao'?'Observacao':'Repricing');
+  };
 
-    var nomeGrupo = nomeEl.value.trim();
-    var tipoGrupo = tipoEl.value;
-    var metaMargem = parseFloat(margemEl.value) || 15;
-    var ritmo = parseFloat(ritmoEl.value) || 3;
-    var dias = parseInt(diasEl.value) || 14;
-    var periodoEspera = parseInt(esperaEl.value) || 10;
-    var gatilhoReverter = gatilhoEl.checked;
+  window.CA.selTipoCriar = function(btn) {
+    tipoSel = btn.dataset.tipo;
+    document.querySelectorAll('.tipo-btn').forEach(function(b){b.classList.remove('active')});
+    btn.classList.add('active');
+    document.getElementById('criar-investimento-div').style.display = tipoSel==='observacao'?'':'none';
+    document.getElementById('criar-margem-div').style.display = tipoSel==='repricing'?'':'none';
+    document.getElementById('criar-periodo-div').style.display = tipoSel==='repricing'?'':'none';
+    document.getElementById('modal-criar-titulo').textContent = 'Novo grupo de '+(tipoSel==='observacao'?'Observacao':'Repricing');
+  };
+
+  window.CA.criarGrupo = async function() {
+    var apelido = document.getElementById('criar-apelido').value.trim();
+    if(!apelido) { showToast('Preencha o apelido','error'); return; }
+
+    var inv = parseFloat(document.getElementById('criar-investimento').value)||0;
+    var margem = parseFloat(document.getElementById('criar-margem-alvo').value)||null;
+    var periodo = parseInt(document.getElementById('criar-periodo').value)||30;
 
     try {
-      // 1. Insert grupo
-      var { data: newGrupo, error: e1 } = await sb.from('grupos').insert({
-        apelido: nomeGrupo,
-        tipo: tipoGrupo,
+      var {data, error} = await sb.from('grupos').insert({
+        apelido: apelido,
+        tipo: tipoSel,
         status: 'ativo',
-        margem_alvo_pct: metaMargem,
-        periodo_observacao_dias: periodoEspera
+        investimento: tipoSel==='observacao'?inv:0,
+        margem_alvo_pct: tipoSel==='repricing'?margem:null,
+        periodo_observacao_dias: periodo,
+        automacao_ativa: tipoSel==='repricing'
       }).select().single();
-      if (e1) throw e1;
+      if(error) throw error;
 
-      // 2. Insert regras
-      var { error: e2 } = await sb.from('grupo_regras').insert([
-        { grupo_id: newGrupo.id, tipo_regra: 'meta_margem', parametro: 'margem alvo do grupo', valor: String(metaMargem), ativo: true },
-        { grupo_id: newGrupo.id, tipo_regra: 'ritmo_aumento', parametro: ritmo + '% a cada ' + dias + ' dias', valor: String(ritmo), ativo: true },
-        { grupo_id: newGrupo.id, tipo_regra: 'periodo_espera', parametro: 'apenas aguardar e observar', valor: String(periodoEspera), ativo: true },
-        { grupo_id: newGrupo.id, tipo_regra: 'gatilho_reverter', parametro: 'visitas diminuindo', valor: '1', ativo: gatilhoReverter }
-      ]);
-      if (e2) throw e2;
+      // If there are selected MLBs (from Analise tab), add them
+      if(selectedMlbIds.size > 0) {
+        var selRows = allData.filter(function(r){return selectedMlbIds.has(r.mlb_id)});
+        var inserts = selRows.map(function(r){
+          return {
+            grupo_id: data.id, mlb_id: r.mlb_id, ativo: true, status_mlb: 'ativo',
+            baseline_preco: r.preco_atual, baseline_margem_pct: r.margem_mc2_pct,
+            baseline_receita_30d: r.receita_30d, baseline_volume_30d: r.vendas_30d,
+            baseline_visitas_30d: r.visitas_30d, baseline_conversao_30d: r.conversao_pct,
+            baseline_data: new Date().toISOString()
+          };
+        });
+        await sb.from('grupo_mlbs').insert(inserts);
+        selectedMlbIds.clear();
+      }
 
-      // 3. Insert grupo_mlbs
-      var selectedRows = allData.filter(function(r) { return selectedMlbIds.has(r.mlb_id); });
-      var mlbsToInsert = selectedRows.map(function(mlb) {
-        return {
-          grupo_id: newGrupo.id,
-          mlb_id: mlb.mlb_id,
-          ativo: true,
-          status_mlb: 'ativo',
-          baseline_preco: mlb.preco_atual,
-          baseline_margem_pct: mlb.margem_mc2_pct,
-          baseline_receita_30d: mlb.receita_30d,
-          baseline_volume_30d: mlb.vendas_30d,
-          baseline_visitas_30d: mlb.visitas_30d,
-          baseline_conversao_30d: mlb.conversao_pct,
-          baseline_data: new Date().toISOString(),
-          preco_alvo: mlb.preco_atual < 79 ? 78.90 : null
-        };
-      });
-      var { error: e3 } = await sb.from('grupo_mlbs').insert(mlbsToInsert);
-      if (e3) throw e3;
+      // Default rules for repricing
+      if(tipoSel === 'repricing' && margem) {
+        await sb.from('grupo_regras').insert([
+          {grupo_id:data.id, tipo_regra:'meta_margem', parametro:'margem alvo do grupo', valor:String(margem), ativo:true},
+          {grupo_id:data.id, tipo_regra:'ritmo_aumento', parametro:'3% a cada 14 dias', valor:'3', ativo:true},
+          {grupo_id:data.id, tipo_regra:'periodo_espera', parametro:'dias entre ajustes', valor:String(periodo), ativo:true}
+        ]);
+      }
 
-      // 4. Log action
-      await sb.from('grupo_acoes').insert({
-        grupo_id: newGrupo.id,
-        tipo_acao: 'grupo_criado',
-        detalhes: {
-          mlbs: selectedRows.map(function(m) { return m.mlb_id; }),
-          parametros: { metaMargem: metaMargem, ritmo: ritmo, dias: dias, periodoEspera: periodoEspera }
-        }
-      });
-
-      showToast('Grupo "' + nomeGrupo + '" criado com ' + selectedRows.length + ' MLBs!', 'success');
-      selectedMlbIds.clear();
-      showCreateForm = false;
+      grupoAtual = data;
+      window.CA.fecharModal('modal-criar');
+      showToast('Grupo "'+apelido+'" criado!','success');
+      activeTab = tipoSel === 'observacao' ? 'observacao' : 'repricing';
       await loadData();
     } catch(e) {
-      console.error('Erro ao criar grupo:', e);
-      showToast('Erro ao criar grupo: ' + (e.message || e), 'error');
+      console.error(e);
+      showToast('Erro: '+(e.message||e),'error');
     }
   };
+
+  // Create from selection in Analise tab
+  window.CA.criarGrupoComSelecionados = function(tipo) {
+    tipoSel = tipo;
+    window.CA.abrirModalCriar(tipo);
+  };
+
+  // ── Modal: Add MLBs to group ──
+  window.CA.abrirModalMLBs = function() {
+    modalMlbsSelecionados.clear();
+    modalContaFiltro = '';
+    document.getElementById('modal-sel-count').textContent = '0';
+    document.getElementById('modal-mlbs').classList.add('show');
+    document.getElementById('modal-mlb-search').value = '';
+    document.querySelectorAll('#modal-mlbs .filter-btn').forEach(function(b){b.classList.toggle('active',b.dataset.conta==='')});
+    window.CA.buscarMLBsModal();
+  };
+
+  window.CA.filtrarContaModal = function(btn) {
+    document.querySelectorAll('#modal-mlbs .filter-btn').forEach(function(b){b.classList.remove('active')});
+    btn.classList.add('active');
+    modalContaFiltro = btn.dataset.conta;
+    window.CA.buscarMLBsModal();
+  };
+
+  window.CA.buscarMLBsModal = function() {
+    if(debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async function(){
+      var busca = (document.getElementById('modal-mlb-search').value||'').trim().toLowerCase();
+      var jaNoGrupo = new Set(grupoMlbs.filter(function(m){return m.grupo_id===grupoAtual.id}).map(function(m){return m.mlb_id}));
+
+      var resultados = allData.filter(function(r){
+        if(jaNoGrupo.has(r.mlb_id)) return false;
+        if(modalContaFiltro && shortAccount(r.conta_nome) !== modalContaFiltro) return false;
+        if(busca && r.titulo && r.titulo.toLowerCase().indexOf(busca)===-1 && r.mlb_id.toLowerCase().indexOf(busca)===-1) return false;
+        return true;
+      }).slice(0, 100);
+      modalMlbsCache = resultados;
+
+      var tbody = document.getElementById('modal-tbody-disponiveis');
+      var html = '';
+      resultados.forEach(function(r){
+        var sel = modalMlbsSelecionados.has(r.mlb_id);
+        html += '<tr onclick="window.CA.toggleModalSel(\''+r.mlb_id+'\')" style="cursor:pointer">';
+        html += '<td><div class="chk'+(sel?' on':'')+'"></div></td>';
+        html += '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis">'+escHtml(r.titulo)+'</td>';
+        html += '<td style="font-size:11px;color:#8b949e">'+shortAccount(r.conta_nome)+'</td>';
+        html += '<td class="right">'+fmtR$(r.preco_atual)+'</td>';
+        html += '<td class="right"><span class="'+(r.margem_mc2_pct>0?'val-green':'val-red')+'">'+fmtPct(r.margem_mc2_pct)+'</span></td>';
+        html += '<td class="right">'+fmtR$(r.receita_30d)+'</td>';
+        html += '</tr>';
+      });
+      if(!html) html = '<tr><td colspan="6" class="empty">Nenhum MLB encontrado</td></tr>';
+      tbody.innerHTML = html;
+    }, 250);
+  };
+
+  window.CA.toggleModalSel = function(id) {
+    if(modalMlbsSelecionados.has(id)) modalMlbsSelecionados.delete(id);
+    else modalMlbsSelecionados.add(id);
+    document.getElementById('modal-sel-count').textContent = modalMlbsSelecionados.size;
+    window.CA.buscarMLBsModal();
+  };
+
+  window.CA.adicionarMLBsModal = async function() {
+    if(!modalMlbsSelecionados.size || !grupoAtual) return;
+    var inserts = [];
+    modalMlbsSelecionados.forEach(function(mlbId){
+      var r = allData.find(function(x){return x.mlb_id===mlbId});
+      if(r) {
+        inserts.push({
+          grupo_id: grupoAtual.id, mlb_id: mlbId, ativo: true, status_mlb: 'ativo',
+          baseline_preco: r.preco_atual, baseline_margem_pct: r.margem_mc2_pct,
+          baseline_receita_30d: r.receita_30d, baseline_volume_30d: r.vendas_30d,
+          baseline_visitas_30d: r.visitas_30d, baseline_conversao_30d: r.conversao_pct,
+          baseline_data: new Date().toISOString()
+        });
+      }
+    });
+    var {error} = await sb.from('grupo_mlbs').insert(inserts);
+    if(error) { showToast('Erro: '+error.message,'error'); return; }
+
+    for(var ins of inserts) {
+      await registrarAcao(ins.mlb_id,'mlb_adicionado','MLB adicionado ao grupo (preco R$ '+fmtN(ins.baseline_preco)+')');
+    }
+
+    // Refresh grupoMlbs locally
+    inserts.forEach(function(ins){ grupoMlbs.push(ins); });
+    window.CA.fecharModal('modal-mlbs');
+    render();
+    showToast(inserts.length+' MLB(s) adicionado(s)','success');
+  };
+
+  // ── Modal: Rules ──
+  window.CA.abrirModalRegra = function() {
+    document.getElementById('modal-regra').classList.add('show');
+    window.CA.onRegraTipoChange();
+  };
+
+  window.CA.onRegraTipoChange = function() {
+    var tipo = document.getElementById('regra-tipo').value;
+    var labels = {
+      ritmo_aumento:['Descricao','Ex: +3% a cada 14 dias','Valor','3'],
+      gatilho_reverter:['Condicao','Ex: volume cair > 20%','Threshold','20'],
+      gatilho_confirmar:['Condicao','Ex: margem total subir','Valor',''],
+      meta_margem:['Descricao','Ex: margem-alvo','Margem % alvo','15'],
+      periodo_espera:['Descricao','Ex: dias entre ajustes','Dias','14']
+    };
+    var l = labels[tipo]||['Parametro','','Valor',''];
+    document.getElementById('regra-param-label').textContent = l[0];
+    document.getElementById('regra-param').placeholder = l[1];
+    document.getElementById('regra-valor-label').textContent = l[2];
+    document.getElementById('regra-valor').placeholder = l[3];
+  };
+
+  window.CA.salvarRegra = async function() {
+    var tipo = document.getElementById('regra-tipo').value;
+    var param = document.getElementById('regra-param').value.trim();
+    var valor = document.getElementById('regra-valor').value.trim();
+    if(!param||!valor){showToast('Preencha os campos','error'); return;}
+    var {data,error} = await sb.from('grupo_regras').insert({grupo_id:grupoAtual.id, tipo_regra:tipo, parametro:param, valor:valor, ativo:true}).select().single();
+    if(error){showToast('Erro: '+error.message,'error'); return;}
+    grupoRegras.push(data);
+    await registrarAcao(null,'regra_alterada','Regra adicionada: '+param+' = '+valor);
+    window.CA.fecharModal('modal-regra');
+    render();
+    showToast('Regra adicionada','success');
+  };
+
+  window.CA.excluirRegra = async function(id) {
+    if(!confirm('Excluir esta regra?')) return;
+    await sb.from('grupo_regras').delete().eq('id',id);
+    grupoRegras = grupoRegras.filter(function(r){return r.id!==id});
+    render();
+    showToast('Regra excluida','success');
+  };
+
+  // ── Notas ──
+  window.CA.salvarNotas = async function() {
+    var texto = document.getElementById('notas-text').value;
+    var existente = grupoNotas.find(function(n){return n.grupo_id===grupoAtual.id});
+    if(existente) {
+      await sb.from('grupo_notas').update({conteudo:texto}).eq('id',existente.id);
+      existente.conteudo = texto;
+    } else {
+      var {data} = await sb.from('grupo_notas').insert({grupo_id:grupoAtual.id, conteudo:texto}).select().single();
+      if(data) grupoNotas.push(data);
+    }
+    var saved = document.getElementById('notas-saved');
+    if(saved){saved.classList.add('show'); setTimeout(function(){saved.classList.remove('show')},2000);}
+  };
+
+  // ── Utils ──
+  window.CA.fecharModal = function(id) { document.getElementById(id).classList.remove('show'); };
+
+  async function registrarAcao(mlbId, tipo, desc) {
+    var {data} = await sb.from('grupo_acoes').insert({
+      grupo_id: grupoAtual.id, mlb_id: mlbId, tipo_acao: tipo, descricao: desc, autor: 'Neco'
+    }).select().single();
+    if(data) grupoAcoes.unshift(data);
+  }
+
+  // Close modals with ESC or click outside
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape') document.querySelectorAll('.modal-overlay.show').forEach(function(m){m.classList.remove('show')});
+  });
+  document.querySelectorAll('.modal-overlay').forEach(function(m){
+    m.addEventListener('click',function(e){if(e.target===m) m.classList.remove('show')});
+  });
 
   // ── Init ──
   loadData();
