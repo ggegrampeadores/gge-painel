@@ -1,1316 +1,298 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Total GGE - ADs</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
-  <script src="/config.js"></script>
-  <script src="/dados.js" onerror="console.warn('dados.js not found, continuing without it')"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ads - Controle Total GGE</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'gge-bg': '#0f1117',
-            'gge-card': '#1a1d2e',
-            'gge-border': '#2a2d3e',
-            'gge-text': '#e2e8f0',
-            'gge-muted': '#94a3b8',
-            'gge-accent': '#6366f1',
-            'gge-green': '#22c55e',
-            'gge-red': '#ef4444',
-            'gge-yellow': '#eab308',
-            'gge-orange': '#f97316',
-            'gge-cyan': '#22d3ee',
-          }
-        }
-      }
-    }
-  </script>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <style>
-    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    .fade-in { animation: fadeIn 0.3s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .pulse-load { animation: pulse 1.5s ease-in-out infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #1a1d2e; }
-    ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; }
+    .main-with-sidebar { margin-left: 48px; min-height: 100vh; padding: 20px; }
+    h1 { font-size: 1.5rem; margin-bottom: 6px; }
+    .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 20px; }
+    .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .filters select, .filters input { background: #161b22; border: 1px solid #30363d; color: #e6edf3; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; }
+    .filters label { color: #8b949e; font-size: 0.8rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+    .card .label { color: #8b949e; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; }
+    .card .value { font-size: 1.4rem; font-weight: 700; }
+    .card .delta { font-size: 0.8rem; margin-top: 4px; }
+    .up { color: #3fb950; } .down { color: #f85149; } .neutral { color: #d29922; }
+    .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    .chart-container h2 { font-size: 1rem; margin-bottom: 12px; }
+    .chart-wrapper { position: relative; height: 240px; }
+    .section { margin-bottom: 24px; }
+    .section h2 { font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .badge { background: #f85149; color: #fff; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .badge-ok { background: #3fb950; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th { background: #161b22; border-bottom: 2px solid #30363d; padding: 8px 6px; text-align: left; color: #8b949e; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+    thead th:hover { color: #58a6ff; }
+    tbody td { padding: 7px 6px; border-bottom: 1px solid #21262d; }
+    tbody tr:hover { background: #161b22; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .mlb-link { color: #58a6ff; text-decoration: none; }
+    .mlb-link:hover { text-decoration: underline; }
+    .roas-bad { color: #f85149; font-weight: 600; }
+    .roas-ok { color: #d29922; }
+    .roas-good { color: #3fb950; font-weight: 600; }
+    .conta-tag { font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+    .conta-gge { background: #1f3d2a; color: #3fb950; }
+    .conta-toow { background: #3d2f1f; color: #d29922; }
+    .conta-ggesp { background: #1f2d3d; color: #58a6ff; }
+    .loading { text-align: center; padding: 60px; color: #8b949e; }
+    .table-scroll { max-height: 500px; overflow-y: auto; border: 1px solid #30363d; border-radius: 8px; }
+    .summary-row td { font-weight: 700; background: #161b22; border-top: 2px solid #30363d; }
   </style>
-  <script src="sidebar.js" defer></script>
 </head>
 <body>
   <div id="sidebar-container"></div>
   <div class="main-with-sidebar">
-    <div id="root"></div>
+    <h1>Product Ads</h1>
+    <p class="subtitle">Performance de anuncios patrocinados</p>
+
+    <div class="filters">
+      <div><label>Conta</label><br>
+        <select id="filtro-conta">
+          <option value="todas">Todas</option>
+          <option value="GGE-GRAMPEADORES">GGE</option>
+          <option value="TOOWCOMERCIAL">TOOW</option>
+          <option value="GGESP">GGESP</option>
+        </select>
+      </div>
+      <div><label>Periodo</label><br>
+        <select id="filtro-periodo">
+          <option value="7">7 dias</option>
+          <option value="15">15 dias</option>
+          <option value="30" selected>30 dias</option>
+        </select>
+      </div>
+      <div><label>Gasto minimo</label><br>
+        <input type="number" id="filtro-gasto-min" value="5" min="0" step="5" style="width:80px;">
+      </div>
+    </div>
+
+    <div class="cards" id="cards-container"><div class="loading">Carregando...</div></div>
+
+    <div class="chart-container">
+      <h2>Evolucao Diaria</h2>
+      <div class="chart-wrapper"><canvas id="chart-diario"></canvas></div>
+    </div>
+
+    <div class="section" id="alertas-section" style="display:none;">
+      <h2>Sangradores <span class="badge" id="alertas-count">0</span></h2>
+      <p style="color:#8b949e;font-size:0.8rem;margin-bottom:10px;">Anuncios com gasto > R$20 e zero vendas via Ads no periodo</p>
+      <div class="table-scroll" style="max-height:300px;">
+        <table id="tabela-alertas">
+          <thead><tr><th>MLB</th><th>Produto</th><th>Conta</th><th class="num">Gasto</th><th class="num">Cliques</th><th class="num">CPC</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Ranking por MLB <span class="badge badge-ok" id="ranking-count">0</span></h2>
+      <div class="table-scroll">
+        <table id="tabela-ranking">
+          <thead><tr>
+            <th data-col="mlb">MLB</th>
+            <th data-col="titulo">Produto</th>
+            <th data-col="conta">Conta</th>
+            <th data-col="gasto" class="num">Gasto</th>
+            <th data-col="receita" class="num">Receita</th>
+            <th data-col="roas" class="num">ROAS</th>
+            <th data-col="acos" class="num">ACOS%</th>
+            <th data-col="cliques" class="num">Cliques</th>
+            <th data-col="vendas" class="num">Vendas</th>
+            <th data-col="cpc" class="num">CPC</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
   </div>
+
+  <script src="sidebar.js" defer></script>
   <script>
-    (function() {
-      var auth = sessionStorage.getItem('gge_auth');
-      if (auth !== 'gge2026') { window.location.href = '/'; return; }
-    })();
-  </script>
-  <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback } = React;
-    const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ComposedChart, Area, Legend, ScatterChart, Scatter, ZAxis } = Recharts;
+  (function(){
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+  })();
 
-    // ── Supabase ──
-    const supabase = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+  var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+  var chartInstance = null;
+  var allData = [];
+  var contasMap = {};
 
-    // ── Helpers ──
-    const fmt = v => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtInt = v => v == null ? '—' : Number(v).toLocaleString('pt-BR');
-    const fmtPct = v => v == null ? '—' : Number(v).toFixed(1) + '%';
-    const fmtPct2 = v => v == null ? '—' : Number(v).toFixed(2) + '%';
-    const fmtR$ = v => v == null ? '—' : 'R$ ' + fmt(v);
-    const fmtR$0 = v => v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  async function loadContas() {
+    var { data } = await sb.from('contas').select('id, nome');
+    (data || []).forEach(function(c) { contasMap[c.id] = c.nome; });
+  }
 
-    const C = {
-      bg: '#0f1117', card: '#1a1d2e', border: '#2a2d3e', text: '#e2e8f0',
-      muted: '#94a3b8', accent: '#6366f1', green: '#22c55e', red: '#ef4444',
-      yellow: '#eab308', orange: '#f97316', cyan: '#22d3ee', blue: '#3b82f6'
-    };
+  function gc(nome) {
+    if (!nome) return 'conta-gge';
+    if (nome.indexOf('TOOW') >= 0) return 'conta-toow';
+    if (nome.indexOf('SP') >= 0) return 'conta-ggesp';
+    return 'conta-gge';
+  }
+  function rc(r) { return r <= 0 ? 'roas-bad' : r < 3 ? 'roas-bad' : r < 5 ? 'roas-ok' : 'roas-good'; }
+  function fmt(v) { return 'R$ ' + Number(v||0).toFixed(2).replace('.', ','); }
+  function fN(v, d) { return Number(v||0).toFixed(d||1).replace('.', ','); }
 
-    const acosColor = v => { if (v == null) return C.muted; if (v < 5) return C.green; if (v <= 10) return C.yellow; return C.red; };
-    const mcColor = v => v >= 0 ? C.green : C.red;
+  async function loadData() {
+    var dias = parseInt(document.getElementById('filtro-periodo').value);
+    var dataMin = new Date(); dataMin.setDate(dataMin.getDate() - dias);
+    var dStr = dataMin.toISOString().split('T')[0];
 
-    // ── Period ──
-    const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
-    const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
-    const fmtDate = d => d.toISOString().slice(0, 10);
-    const daysBetween = (a, b) => Math.floor((new Date(b) - new Date(a)) / 86400000);
+    var { data: raw } = await sb.from('ads_diario')
+      .select('mlb_id, data_referencia, gasto_ads, receita_ads, cliques_ads, vendas_diretas_ads, cpc')
+      .gte('data_referencia', dStr).order('data_referencia', { ascending: true });
 
-    const PERIODO_OPTIONS = [
-      { value: '7d', label: '7 dias' },
-      { value: '15d', label: '15 dias' },
-      { value: '30d', label: '30 dias' },
-      { value: 'mes_atual', label: 'Mês atual' },
-      { value: 'mes_passado', label: 'Mês passado' },
-      { value: '90d', label: '90 dias' },
-    ];
+    var mlbs = [...new Set((raw||[]).map(function(r){return r.mlb_id;}))];
+    var anuncioMap = {};
+    // Buscar em lotes de 200
+    for (var i = 0; i < mlbs.length; i += 200) {
+      var batch = mlbs.slice(i, i+200);
+      var { data: an } = await sb.from('anuncios').select('mlb_id, titulo, conta_id').in('mlb_id', batch);
+      (an||[]).forEach(function(a){ anuncioMap[a.mlb_id] = a; });
+    }
 
-    function getDateRange(periodo) {
-      const t = today();
-      let start, end, prevStart, prevEnd;
-      if (periodo === 'mes_atual') {
-        start = new Date(t.getFullYear(), t.getMonth(), 1);
-        end = addDays(t, -1);
-        const pm = new Date(t.getFullYear(), t.getMonth() - 1, 1);
-        prevStart = pm; prevEnd = new Date(t.getFullYear(), t.getMonth(), 0);
-      } else if (periodo === 'mes_passado') {
-        start = new Date(t.getFullYear(), t.getMonth() - 1, 1);
-        end = new Date(t.getFullYear(), t.getMonth(), 0);
-        prevStart = new Date(t.getFullYear(), t.getMonth() - 2, 1);
-        prevEnd = new Date(t.getFullYear(), t.getMonth() - 1, 0);
-      } else {
-        const days = parseInt(periodo);
-        end = addDays(t, -1);
-        start = addDays(end, -(days - 1));
-        prevEnd = addDays(start, -1);
-        prevStart = addDays(prevEnd, -(days - 1));
+    allData = (raw||[]).map(function(r){
+      var a = anuncioMap[r.mlb_id] || {};
+      r.titulo = a.titulo || r.mlb_id;
+      r.conta_id = a.conta_id || '';
+      r.conta_nome = contasMap[a.conta_id] || '';
+      return r;
+    });
+    render();
+  }
+
+  function render() {
+    var conta = document.getElementById('filtro-conta').value;
+    var gastoMin = parseFloat(document.getElementById('filtro-gasto-min').value) || 0;
+
+    var filtered = allData.filter(function(d){
+      if (conta !== 'todas' && d.conta_nome !== conta) return false;
+      return true;
+    });
+
+    var byMlb = {}, byDay = {};
+    filtered.forEach(function(d){
+      var g = Number(d.gasto_ads)||0, r = Number(d.receita_ads)||0;
+      var c = Number(d.cliques_ads)||0, v = Number(d.vendas_diretas_ads)||0;
+      if (!byMlb[d.mlb_id]) byMlb[d.mlb_id] = {mlb:d.mlb_id, titulo:d.titulo, conta:d.conta_nome, gasto:0, receita:0, cliques:0, vendas:0};
+      byMlb[d.mlb_id].gasto += g; byMlb[d.mlb_id].receita += r;
+      byMlb[d.mlb_id].cliques += c; byMlb[d.mlb_id].vendas += v;
+      var dia = d.data_referencia;
+      if (!byDay[dia]) byDay[dia] = {gasto:0, receita:0};
+      byDay[dia].gasto += g; byDay[dia].receita += r;
+    });
+
+    var mlbList = Object.values(byMlb).filter(function(m){return m.gasto >= gastoMin;});
+    mlbList.forEach(function(m){
+      m.roas = m.gasto > 0 ? m.receita / m.gasto : 0;
+      m.acos = m.receita > 0 ? m.gasto / m.receita * 100 : (m.gasto > 0 ? 999 : 0);
+      m.cpc = m.cliques > 0 ? m.gasto / m.cliques : 0;
+    });
+
+    var tG = mlbList.reduce(function(s,m){return s+m.gasto;},0);
+    var tR = mlbList.reduce(function(s,m){return s+m.receita;},0);
+    var tC = mlbList.reduce(function(s,m){return s+m.cliques;},0);
+    var tV = mlbList.reduce(function(s,m){return s+m.vendas;},0);
+    var roasG = tG > 0 ? tR/tG : 0;
+    var acosG = tR > 0 ? tG/tR*100 : 0;
+    var cpcG = tC > 0 ? tG/tC : 0;
+    var nAds = mlbList.filter(function(m){return m.gasto>0;}).length;
+
+    document.getElementById('cards-container').innerHTML =
+      '<div class="card"><div class="label">Gasto Total</div><div class="value">'+fmt(tG)+'</div><div class="delta neutral">'+nAds+' MLBs ativos</div></div>'+
+      '<div class="card"><div class="label">Receita Ads</div><div class="value">'+fmt(tR)+'</div><div class="delta '+(tV>0?'up':'down')+'">'+tV+' vendas diretas</div></div>'+
+      '<div class="card"><div class="label">ROAS</div><div class="value '+rc(roasG)+'">'+fN(roasG,2)+'x</div><div class="delta '+(roasG>=5?'up':roasG>=3?'neutral':'down')+'">'+(roasG>=5?'Saudavel':roasG>=3?'Aceitavel':'Abaixo')+'</div></div>'+
+      '<div class="card"><div class="label">ACOS</div><div class="value">'+fN(acosG,1)+'%</div><div class="delta '+(acosG<=15?'up':acosG<=25?'neutral':'down')+'">'+(acosG<=15?'Excelente':acosG<=25?'Bom':'Alto')+'</div></div>'+
+      '<div class="card"><div class="label">CPC Medio</div><div class="value">'+fmt(cpcG)+'</div><div class="delta neutral">'+tC+' cliques</div></div>';
+
+    // Chart
+    var dias = Object.keys(byDay).sort();
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(document.getElementById('chart-diario').getContext('2d'), {
+      type:'bar',
+      data:{
+        labels: dias.map(function(d){var p=d.split('-');return p[2]+'/'+p[1];}),
+        datasets:[
+          {label:'Gasto', data:dias.map(function(d){return byDay[d].gasto;}), backgroundColor:'rgba(248,81,73,0.7)', borderRadius:3, order:2},
+          {label:'Receita', data:dias.map(function(d){return byDay[d].receita;}), type:'line', borderColor:'#3fb950', backgroundColor:'rgba(63,185,80,0.1)', tension:0.3, fill:true, pointRadius:2, order:1}
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#8b949e',font:{size:11}}}},
+        scales:{
+          x:{ticks:{color:'#8b949e',font:{size:10}},grid:{color:'#21262d'}},
+          y:{ticks:{color:'#8b949e',callback:function(v){return 'R$'+v;}},grid:{color:'#21262d'}}
+        }
       }
-      return { start: fmtDate(start), end: fmtDate(end), prevStart: fmtDate(prevStart), prevEnd: fmtDate(prevEnd) };
-    }
+    });
 
-    // ── Shared Components ──
-    function SectionTitle({ color, children, count, collapsed, onToggle }) {
-      return (
-        <div className="flex items-center gap-3 mb-4 mt-6 cursor-pointer select-none group" onClick={onToggle}>
-          <div className="w-1 h-6 rounded-full" style={{ background: color }}></div>
-          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color }}>{children}</h2>
-          {count != null && <span className="text-xs text-gge-muted bg-gge-bg px-2 py-0.5 rounded-full">{count}</span>}
-          <span className="text-gge-muted text-xs ml-auto group-hover:text-gge-text transition-colors">
-            {collapsed ? '▸ expandir' : '▾ recolher'}
-          </span>
-        </div>
-      );
-    }
+    // Alertas
+    var sang = mlbList.filter(function(m){return m.gasto>=20 && m.receita===0;}).sort(function(a,b){return b.gasto-a.gasto;});
+    var alertasSec = document.getElementById('alertas-section');
+    if (sang.length > 0) {
+      alertasSec.style.display = '';
+      document.getElementById('alertas-count').textContent = sang.length;
+      document.querySelector('#tabela-alertas tbody').innerHTML = sang.map(function(m){
+        return '<tr><td><a href="https://www.mercadolivre.com.br/p/'+m.mlb+'" target="_blank" class="mlb-link">'+m.mlb+'</a></td>'+
+          '<td>'+m.titulo.substring(0,50)+'</td>'+
+          '<td><span class="conta-tag '+gc(m.conta)+'">'+m.conta+'</span></td>'+
+          '<td class="num roas-bad">'+fmt(m.gasto)+'</td>'+
+          '<td class="num">'+m.cliques+'</td>'+
+          '<td class="num">'+fmt(m.cpc)+'</td></tr>';
+      }).join('');
+    } else { alertasSec.style.display='none'; }
 
-    function KpiCard({ label, value, sub, color }) {
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-lg p-3">
-          <div className="text-[10px] text-gge-muted uppercase tracking-wider mb-1">{label}</div>
-          <div className="text-lg font-bold" style={{ color: color || C.text }}>{value}</div>
-          {sub && <div className="text-xs text-gge-muted mt-0.5">{sub}</div>}
-        </div>
-      );
-    }
+    // Ranking
+    mlbList.sort(function(a,b){return b.gasto-a.gasto;});
+    document.getElementById('ranking-count').textContent = mlbList.length;
+    var tbR = document.querySelector('#tabela-ranking tbody');
+    tbR.innerHTML = mlbList.map(function(m){
+      var ac = m.acos>=999 ? '∞' : fN(m.acos,1)+'%';
+      return '<tr><td><a href="https://www.mercadolivre.com.br/p/'+m.mlb+'" target="_blank" class="mlb-link">'+m.mlb+'</a></td>'+
+        '<td>'+m.titulo.substring(0,45)+'</td>'+
+        '<td><span class="conta-tag '+gc(m.conta)+'">'+m.conta+'</span></td>'+
+        '<td class="num">'+fmt(m.gasto)+'</td>'+
+        '<td class="num">'+fmt(m.receita)+'</td>'+
+        '<td class="num '+rc(m.roas)+'">'+fN(m.roas,2)+'x</td>'+
+        '<td class="num '+(m.acos>30?'roas-bad':m.acos>15?'roas-ok':'roas-good')+'">'+ac+'</td>'+
+        '<td class="num">'+m.cliques+'</td>'+
+        '<td class="num">'+m.vendas+'</td>'+
+        '<td class="num">'+fmt(m.cpc)+'</td></tr>';
+    }).join('');
+    tbR.innerHTML += '<tr class="summary-row"><td colspan="3">TOTAL</td><td class="num">'+fmt(tG)+'</td><td class="num">'+fmt(tR)+'</td><td class="num '+rc(roasG)+'">'+fN(roasG,2)+'x</td><td class="num">'+fN(acosG,1)+'%</td><td class="num">'+tC+'</td><td class="num">'+tV+'</td><td class="num">'+fmt(cpcG)+'</td></tr>';
 
-    // ── SVG Icon System ──
-    function IconSVG({ bg, fg, letter, sub, title, w }) {
-      const width = w || (sub ? (sub.length > 2 ? 34 : 28) : 18);
-      return (
-        <svg width={width} height={18} viewBox={`0 0 ${width} 18`} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-          <title>{title}</title>
-          <rect width={width} height={18} rx={3} fill={bg} />
-          {sub ? (
-            <>
-              <text x={width * 0.38} y={13} textAnchor="middle" fill={fg} fontWeight="800" fontSize="13" fontFamily="Inter, sans-serif">{letter}</text>
-              <text x={width * 0.72} y={13} textAnchor="middle" fill="#fff" fontWeight="700" fontSize={sub.length > 2 ? '7' : '8'} fontFamily="Inter, sans-serif">{sub}</text>
-            </>
-          ) : (
-            <text x={width / 2} y={13.5} textAnchor="middle" fill={fg} fontWeight="800" fontSize={letter.length > 1 ? '10' : '12'} fontFamily="Inter, sans-serif">{letter}</text>
-          )}
-        </svg>
-      );
-    }
-
-    // 1) Conta
-    function IconConta({ nome }) {
-      if (!nome) return null;
-      const n = nome.toLowerCase();
-      if (n.includes('toow')) return <IconSVG bg="#16a34a" fg="#000" letter="T" sub="RJ" title="Toow" />;
-      if (n.includes('sp'))   return <IconSVG bg="#ea580c" fg="#000" letter="G" sub="SP" title="GGE SP" />;
-      if (n.includes('full')) return <IconSVG bg="#ca8a04" fg="#000" letter="G" sub="FULL" title="GGE RJ Full" />;
-      if (n.includes('rj'))   return <IconSVG bg="#ca8a04" fg="#000" letter="G" sub="RJ" title="GGE RJ" />;
-      return <IconSVG bg="#64748b" fg="#fff" letter={nome[0]} title={nome} />;
-    }
-
-    // 2) Ativo / Inativo
-    function IconAtivo({ ativo }) {
-      if (ativo) return <IconSVG bg="#1e3a5f" fg="#fff" letter="A" title="Ativo" />;
-      return <IconSVG bg="#3b82f6" fg="#fff" letter="In" title="Inativo" w={22} />;
-    }
-
-    // 3) Clássico / Premium
-    function IconListagem({ tipo }) {
-      if (tipo === 'gold_pro') return <IconSVG bg="#dc2626" fg="#22c55e" letter="P" title="Premium" />;
-      if (tipo === 'gold_special') return <IconSVG bg="#22c55e" fg="#dc2626" letter="C" title="Clássico" />;
-      return <IconSVG bg="#334155" fg="#94a3b8" letter="?" title={tipo || 'Desconhecido'} />;
-    }
-
-    // 4) Catálogo / Anúncio
-    function IconCatalogo({ catalogo }) {
-      if (catalogo) return <IconSVG bg="#22d3ee" fg="#0e4f5c" letter="C" title="Catálogo" />;
-      return <IconSVG bg="#14b8a6" fg="#134e4a" letter="A" title="Anúncio" />;
-    }
-
-    // 5) Coleta / Full
-    function IconLogistica({ modo }) {
-      if (modo === 'fulfillment') return <IconSVG bg="#7c3aed" fg="#22c55e" letter="F" title="Fulfillment" />;
-      if (modo === 'coleta' || modo === 'xd_drop_off') return <IconSVG bg="#7c3aed" fg="#22c55e" letter="C" title="Coleta" />;
-      return <IconSVG bg="#334155" fg="#94a3b8" letter="?" title={modo || '?'} />;
-    }
-
-    function Badge({ text, color }) {
-      const colors = {
-        green: 'bg-green-900/40 text-green-400 border-green-700/50',
-        red: 'bg-red-900/40 text-red-400 border-red-700/50',
-        yellow: 'bg-yellow-900/40 text-yellow-400 border-yellow-700/50',
-        orange: 'bg-orange-900/40 text-orange-400 border-orange-700/50',
-        blue: 'bg-blue-900/40 text-blue-400 border-blue-700/50',
-        muted: 'bg-gge-bg text-gge-muted border-gge-border',
+    // Sort headers
+    document.querySelectorAll('#tabela-ranking thead th').forEach(function(th){
+      th.onclick = function(){
+        var col = th.getAttribute('data-col'); if(!col) return;
+        var dir = th.getAttribute('data-dir')==='asc' ? 'desc' : 'asc';
+        th.setAttribute('data-dir', dir);
+        mlbList.sort(function(a,b){
+          var va=a[col], vb=b[col];
+          if(typeof va==='string') return dir==='asc'?va.localeCompare(vb):vb.localeCompare(va);
+          return dir==='asc'?va-vb:vb-va;
+        });
+        render();
       };
-      return <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium whitespace-nowrap ${colors[color] || colors.muted}`}>{text}</span>;
-    }
+    });
+  }
 
-    // (TagLogistica/TagListagem replaced by SVG icon system above)
+  document.getElementById('filtro-conta').onchange = render;
+  document.getElementById('filtro-periodo').onchange = function(){ loadData(); };
+  document.getElementById('filtro-gasto-min').onchange = render;
 
-    function SortableTable({ columns, data, defaultSort, maxRows }) {
-      const [sort, setSort] = useState(defaultSort || { key: columns[0]?.key, dir: 'desc' });
-      const [showAll, setShowAll] = useState(false);
-      const limit = maxRows || 30;
-
-      const sorted = useMemo(() => {
-        const arr = [...data];
-        arr.sort((a, b) => {
-          let av = a[sort.key], bv = b[sort.key];
-          if (av == null) av = -Infinity; if (bv == null) bv = -Infinity;
-          if (typeof av === 'string') return sort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-          return sort.dir === 'asc' ? av - bv : bv - av;
-        });
-        return arr;
-      }, [data, sort]);
-
-      const visible = showAll ? sorted : sorted.slice(0, limit);
-
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gge-muted text-[10px] uppercase tracking-wider bg-gge-bg">
-                  {columns.map(col => (
-                    <th key={col.key} className="px-2 py-2.5 text-left cursor-pointer hover:text-gge-text transition-colors whitespace-nowrap"
-                      onClick={() => setSort(prev => ({ key: col.key, dir: prev.key === col.key && prev.dir === 'desc' ? 'asc' : 'desc' }))}>
-                      {col.label}
-                      {sort.key === col.key ? <span className="text-gge-accent ml-1">{sort.dir === 'asc' ? '▲' : '▼'}</span> : <span className="text-gge-border ml-1">↕</span>}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visible.length === 0 ? (
-                  <tr><td colSpan={columns.length} className="text-center text-gge-muted py-6 text-xs">Nenhum dado</td></tr>
-                ) : visible.map((row, i) => (
-                  <tr key={row._key || i} className={`border-t border-gge-border/30 ${i % 2 === 0 ? 'bg-gge-card' : 'bg-gge-bg/20'} hover:bg-gge-accent/5 transition-colors`}>
-                    {columns.map(col => (
-                      <td key={col.key} className={`px-2 py-2 text-xs ${col.className || ''}`}
-                        style={col.style ? col.style(row) : undefined}
-                        title={col.title ? col.title(row) : undefined}>
-                        {col.render ? col.render(row) : (col.format ? col.format(row[col.key]) : row[col.key])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {data.length > limit && (
-            <div className="px-3 py-2 bg-gge-bg/50 border-t border-gge-border text-xs text-gge-muted flex justify-between items-center">
-              <span>{visible.length} de {data.length}</span>
-              <button onClick={() => setShowAll(!showAll)} className="text-gge-accent hover:text-white transition-colors">
-                {showAll ? 'Mostrar menos' : `Ver todos (${data.length})`}
-              </button>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    function ChartTooltip({ active, payload, label, formatters }) {
-      if (!active || !payload || !payload.length) return null;
-      return (
-        <div className="bg-gge-card border border-gge-border rounded-lg p-3 shadow-xl">
-          <p className="text-xs text-gge-muted mb-1">{label}</p>
-          {payload.map((p, i) => (
-            <p key={i} className="text-xs font-medium" style={{ color: p.color }}>
-              {p.name}: {formatters && formatters[p.dataKey] ? formatters[p.dataKey](p.value) : fmt(p.value)}
-            </p>
-          ))}
-        </div>
-      );
-    }
-
-    // ── Main App ──
-    function AdsPage() {
-      const [periodo, setPeriodo] = useState('30d');
-      const [conta, setConta] = useState('all');
-      const [activeView, setActiveView] = useState('ciclo');
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState(null);
-
-      // Collapsible sections
-      const [collapsed, setCollapsed] = useState({});
-      const toggle = key => setCollapsed(p => ({ ...p, [key]: !p[key] }));
-
-      // Raw data
-      const [adsData, setAdsData] = useState([]);
-      const [prevAdsData, setPrevAdsData] = useState([]);
-      const [anunciosRaw, setAnunciosRaw] = useState([]);
-      const [vendasRaw, setVendasRaw] = useState([]);
-      const [contas, setContas] = useState([]);
-      const [mcData, setMcData] = useState([]);
-      const [campanhasRaw, setCampanhasRaw] = useState([]);
-
-      // ── Load ──
-      useEffect(() => { loadData(); }, [periodo]);
-
-      async function loadData() {
-        setLoading(true); setError(null);
-        try {
-          const range = getDateRange(periodo);
-          const [adsR, prevR, anR, vendasR, contasR, mcR, campR] = await Promise.all([
-            supabase.from('ads_diario').select('*').gte('data_referencia', range.start).lte('data_referencia', range.end).limit(10000),
-            supabase.from('ads_diario').select('*').gte('data_referencia', range.prevStart).lte('data_referencia', range.prevEnd).limit(10000),
-            supabase.from('anuncios').select('mlb_id,conta_id,titulo,sku_vendedor,status,tipo_listagem,preco_atual,data_criacao,modo_logistica,em_catalogo,estoque_declarado,permalink').limit(5000),
-            supabase.from('vendas').select('mlb_id,quantidade,preco_total,data_venda,conta_id').eq('status', 'paid').gte('data_venda', range.start).lte('data_venda', range.end).limit(10000),
-            supabase.from('contas').select('id,nome'),
-            supabase.from('vw_mc_por_anuncio').select('*').gte('mes', range.start.slice(0,7) + '-01').lte('mes', range.end.slice(0,7) + '-01').limit(5000),
-            supabase.from('campanhas_ads').select('*'),
-          ]);
-          if (adsR.error) throw adsR.error;
-          if (prevR.error) throw prevR.error;
-          if (anR.error) throw anR.error;
-          if (vendasR.error) throw vendasR.error;
-          if (contasR.error) throw contasR.error;
-          if (mcR.error) throw mcR.error;
-          if (campR.error) throw campR.error;
-          setAdsData(adsR.data || []);
-          setPrevAdsData(prevR.data || []);
-          setAnunciosRaw(anR.data || []);
-          setVendasRaw(vendasR.data || []);
-          setContas(contasR.data || []);
-          setMcData(mcR.data || []);
-          setCampanhasRaw(campR.data || []);
-        } catch (err) {
-          console.error(err);
-          setError(err.message);
-        } finally { setLoading(false); }
-      }
-
-      // ── Maps ──
-      const contaMap = useMemo(() => {
-        const m = {}; contas.forEach(c => { m[c.id] = c.nome; }); return m;
-      }, [contas]);
-
-      const contaNames = useMemo(() => {
-        const s = new Set(); contas.forEach(c => s.add(c.nome)); return Array.from(s).sort();
-      }, [contas]);
-
-      const anuncioMap = useMemo(() => {
-        const m = {}; anunciosRaw.forEach(a => { m[a.mlb_id] = a; }); return m;
-      }, [anunciosRaw]);
-
-      // ── Filter by conta ──
-      const anuncios = useMemo(() => {
-        if (conta === 'all') return anunciosRaw.filter(a => a.status === 'active');
-        return anunciosRaw.filter(a => a.status === 'active' && contaMap[a.conta_id] === conta);
-      }, [anunciosRaw, conta, contaMap]);
-
-      const adsFiltered = useMemo(() => {
-        if (conta === 'all') return adsData;
-        return adsData.filter(r => { const a = anuncioMap[r.mlb_id]; return a && contaMap[a.conta_id] === conta; });
-      }, [adsData, conta, anuncioMap, contaMap]);
-
-      const prevAdsFiltered = useMemo(() => {
-        if (conta === 'all') return prevAdsData;
-        return prevAdsData.filter(r => { const a = anuncioMap[r.mlb_id]; return a && contaMap[a.conta_id] === conta; });
-      }, [prevAdsData, conta, anuncioMap, contaMap]);
-
-      const vendasFiltered = useMemo(() => {
-        if (conta === 'all') return vendasRaw;
-        return vendasRaw.filter(v => { const cname = contaMap[v.conta_id]; return cname === conta; });
-      }, [vendasRaw, conta, contaMap]);
-
-      // ── Vendas aggregated by MLB ──
-      const vendasByMlb = useMemo(() => {
-        const m = {};
-        vendasFiltered.forEach(v => {
-          if (!m[v.mlb_id]) m[v.mlb_id] = { qtd: 0, receita: 0 };
-          m[v.mlb_id].qtd += Number(v.quantidade || 1);
-          m[v.mlb_id].receita += Number(v.preco_total || 0);
-        });
-        return m;
-      }, [vendasFiltered]);
-
-      // ── Ads aggregated by MLB ──
-      const adsByMlb = useMemo(() => {
-        const m = {};
-        adsFiltered.forEach(r => {
-          if (!m[r.mlb_id]) m[r.mlb_id] = { gasto: 0, receita: 0, recOrg: 0, cliques: 0, impressoes: 0, vendas: 0 };
-          m[r.mlb_id].gasto += Number(r.gasto_ads || 0);
-          m[r.mlb_id].receita += Number(r.receita_ads || 0);
-          m[r.mlb_id].recOrg += Number(r.receita_organica || 0);
-          m[r.mlb_id].cliques += Number(r.cliques_ads || 0);
-          m[r.mlb_id].impressoes += Number(r.impressoes_ads || 0);
-          m[r.mlb_id].vendas += Number(r.vendas_diretas_ads || 0);
-        });
-        return m;
-      }, [adsFiltered]);
-
-      // ── MC aggregated by MLB ──
-      const mcByMlb = useMemo(() => {
-        const m = {};
-        mcData.forEach(r => {
-          const an = anuncioMap[r.mlb_id];
-          if (conta !== 'all' && (!an || contaMap[an.conta_id] !== conta)) return;
-          if (!m[r.mlb_id]) m[r.mlb_id] = { mc_sem: 0, mc_com: 0, receita: 0, gasto: 0 };
-          m[r.mlb_id].mc_sem += Number(r.mc_sem_ads || 0);
-          m[r.mlb_id].mc_com += Number(r.mc_com_ads || 0);
-          m[r.mlb_id].receita += Number(r.receita || 0);
-          m[r.mlb_id].gasto += Number(r.gasto_ads || 0);
-        });
-        Object.keys(m).forEach(k => {
-          m[k].mc_sem_pct = m[k].receita > 0 ? (m[k].mc_sem / m[k].receita) * 100 : 0;
-          m[k].mc_com_pct = m[k].receita > 0 ? (m[k].mc_com / m[k].receita) * 100 : 0;
-        });
-        return m;
-      }, [mcData, conta, anuncioMap, contaMap]);
-
-      // ── Build enriched anuncio list ──
-      const enriched = useMemo(() => {
-        const todayDate = today();
-        return anuncios.map(a => {
-          const age = a.data_criacao ? daysBetween(a.data_criacao, fmtDate(todayDate)) : 999;
-          const ads = adsByMlb[a.mlb_id] || { gasto: 0, receita: 0, recOrg: 0, cliques: 0, impressoes: 0, vendas: 0 };
-          const vd = vendasByMlb[a.mlb_id] || { qtd: 0, receita: 0 };
-          const mc = mcByMlb[a.mlb_id] || { mc_sem: 0, mc_com: 0, mc_sem_pct: 0, mc_com_pct: 0, receita: 0, gasto: 0 };
-          const hasAds = ads.gasto > 0 || ads.cliques > 0;
-          const acos = ads.receita > 0 ? (ads.gasto / ads.receita) * 100 : null;
-          const ctr = ads.impressoes > 0 ? (ads.cliques / ads.impressoes) * 100 : null;
-          const conv = ads.cliques > 0 ? (ads.vendas / ads.cliques) * 100 : null;
-          const depAds = (ads.receita + ads.recOrg) > 0 ? (ads.receita / (ads.receita + ads.recOrg)) * 100 : 0;
-          const custoVenda = ads.vendas > 0 ? ads.gasto / ads.vendas : null;
-          const contaNome = contaMap[a.conta_id] || '—';
-
-          // Lifecycle group
-          let grupo;
-          if (age <= 30) grupo = 'incubadora';
-          else if (age <= 90) grupo = 'maturacao';
-          else if (hasAds && acos != null && acos < 5 && mc.mc_com_pct > 20 && vd.qtd >= 10) grupo = 'alta_perf';
-          else grupo = 'bom_desemp';
-
-          return {
-            _key: a.mlb_id, mlb_id: a.mlb_id, titulo: a.titulo || a.mlb_id,
-            sku: a.sku_vendedor || '—', contaNome, age, grupo,
-            tipo_listagem: a.tipo_listagem, em_catalogo: a.em_catalogo,
-            modo_logistica: a.modo_logistica, estoque: a.estoque_declarado,
-            preco: Number(a.preco_atual || 0), permalink: a.permalink,
-            hasAds, gasto: ads.gasto, receitaAds: ads.receita, receitaOrg: ads.recOrg,
-            cliques: ads.cliques, impressoes: ads.impressoes, vendasAds: ads.vendas,
-            vendasTotal: vd.qtd, receitaTotal: vd.receita,
-            acos, ctr, conv, depAds, custoVenda,
-            mc_sem: mc.mc_sem, mc_com: mc.mc_com,
-            mc_sem_pct: mc.mc_sem_pct, mc_com_pct: mc.mc_com_pct,
-            impactoAds: mc.mc_sem_pct - mc.mc_com_pct,
-          };
-        });
-      }, [anuncios, adsByMlb, vendasByMlb, mcByMlb, contaMap]);
-
-      // ── Groups ──
-      const incubadora = useMemo(() => enriched.filter(e => e.grupo === 'incubadora'), [enriched]);
-      const maturacao = useMemo(() => enriched.filter(e => e.grupo === 'maturacao'), [enriched]);
-      const bomDesemp = useMemo(() => enriched.filter(e => e.grupo === 'bom_desemp'), [enriched]);
-      const altaPerf = useMemo(() => enriched.filter(e => e.grupo === 'alta_perf'), [enriched]);
-
-      // ── Global KPIs ──
-      const globalKpis = useMemo(() => {
-        const g = adsFiltered.reduce((s, r) => {
-          s.gasto += Number(r.gasto_ads || 0); s.receita += Number(r.receita_ads || 0);
-          s.cliques += Number(r.cliques_ads || 0); s.impressoes += Number(r.impressoes_ads || 0);
-          s.vendas += Number(r.vendas_diretas_ads || 0); return s;
-        }, { gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0 });
-        const p = prevAdsFiltered.reduce((s, r) => {
-          s.gasto += Number(r.gasto_ads || 0); s.receita += Number(r.receita_ads || 0); return s;
-        }, { gasto: 0, receita: 0 });
-        return {
-          ...g, acos: g.receita > 0 ? (g.gasto / g.receita) * 100 : null,
-          roas: g.gasto > 0 ? g.receita / g.gasto : null,
-          cpc: g.cliques > 0 ? g.gasto / g.cliques : null,
-          prevGasto: p.gasto, prevReceita: p.receita,
-          prevAcos: p.receita > 0 ? (p.gasto / p.receita) * 100 : null,
-        };
-      }, [adsFiltered, prevAdsFiltered]);
-
-      // ── Daily data for charts ──
-      const dailyData = useMemo(() => {
-        const byDate = {};
-        adsFiltered.forEach(r => {
-          const d = r.data_referencia;
-          if (!byDate[d]) byDate[d] = { date: d, gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0 };
-          byDate[d].gasto += Number(r.gasto_ads || 0);
-          byDate[d].receita += Number(r.receita_ads || 0);
-          byDate[d].cliques += Number(r.cliques_ads || 0);
-          byDate[d].impressoes += Number(r.impressoes_ads || 0);
-          byDate[d].vendas += Number(r.vendas_diretas_ads || 0);
-        });
-        return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)).map(d => ({
-          ...d,
-          label: new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-          acos: d.receita > 0 ? (d.gasto / d.receita) * 100 : 0,
-          ctr: d.impressoes > 0 ? (d.cliques / d.impressoes) * 100 : 0,
-        }));
-      }, [adsFiltered]);
-
-      // ── Campaigns ──
-      const campanhaMap = useMemo(() => {
-        const m = {}; campanhasRaw.forEach(c => { m[c.campaign_id] = c; }); return m;
-      }, [campanhasRaw]);
-
-      const campaignAgg = useMemo(() => {
-        const byCamp = {};
-        adsFiltered.forEach(r => {
-          const cid = r.campaign_id ? String(r.campaign_id) : 'sem_campanha';
-          if (!byCamp[cid]) byCamp[cid] = { id: cid, gasto: 0, receita: 0, cliques: 0, impressoes: 0, vendas: 0, mlbs: new Set(), strategy: r.strategy };
-          byCamp[cid].gasto += Number(r.gasto_ads || 0);
-          byCamp[cid].receita += Number(r.receita_ads || 0);
-          byCamp[cid].cliques += Number(r.cliques_ads || 0);
-          byCamp[cid].impressoes += Number(r.impressoes_ads || 0);
-          byCamp[cid].vendas += Number(r.vendas_diretas_ads || 0);
-          if (r.mlb_id) byCamp[cid].mlbs.add(r.mlb_id);
-          if (r.strategy) byCamp[cid].strategy = r.strategy;
-        });
-        return Object.values(byCamp).map(c => {
-          const camp = campanhaMap[c.id] || {};
-          const contaSet = new Set();
-          c.mlbs.forEach(m => { const a = anuncioMap[m]; if (a) contaSet.add(contaMap[a.conta_id] || '?'); });
-          return {
-            ...c, _key: c.id, anuncios: c.mlbs.size,
-            acos: c.receita > 0 ? (c.gasto / c.receita) * 100 : null,
-            cpc: c.cliques > 0 ? c.gasto / c.cliques : null,
-            nome: camp.nome || c.id, acosTarget: camp.acos_target,
-            budget: camp.budget, conta: Array.from(contaSet).join(', '),
-          };
-        });
-      }, [adsFiltered, campanhaMap, anuncioMap, contaMap]);
-
-      // ── Dreno de Caixa (top gastos com MC negativa) ──
-      const drenoItems = useMemo(() => {
-        return enriched.filter(e => e.hasAds && e.mc_com < 0).sort((a, b) => a.mc_com - b.mc_com).slice(0, 5);
-      }, [enriched]);
-
-      const gastoDesperdicado = useMemo(() => {
-        return enriched.filter(e => e.hasAds && e.mc_com < 0).reduce((s, e) => s + e.gasto, 0);
-      }, [enriched]);
-
-      // ── Tag columns (shared) — 5 SVG icons per anúncio ──
-      const tagCols = [
-        { key: 'tags', label: 'Status', className: 'w-[140px]',
-          render: row => (
-            <div className="flex gap-[3px] items-center">
-              <IconConta nome={row.contaNome} />
-              <IconAtivo ativo={true} />
-              <IconListagem tipo={row.tipo_listagem} />
-              <IconCatalogo catalogo={row.em_catalogo} />
-              <IconLogistica modo={row.modo_logistica} />
-            </div>
-          )
-        },
-      ];
-
-      // ══════════════════════════════════════════
-      //  VIEW: CICLO DE VIDA
-      // ══════════════════════════════════════════
-      function ViewCicloDeVida() {
-        // ── Incubadora ──
-        const incSemAds = incubadora.filter(e => !e.hasAds);
-        const incComAds = incubadora.filter(e => e.hasAds);
-
-        function getAcaoIncSem(row) {
-          if (row.vendasTotal >= 3) return { text: 'Ativar ADs', color: 'green' };
-          if (row.vendasTotal >= 1) return { text: 'Monitorar', color: 'yellow' };
-          if (row.age > 15) return { text: 'Revisar oferta', color: 'red' };
-          return { text: 'Aguardar', color: 'muted' };
-        }
-        function getAcaoIncCom(row) {
-          if (row.ctr > 1 && row.conv > 2) return { text: 'Funcionando', color: 'green' };
-          if (row.ctr > 1 && (row.conv == null || row.conv < 1)) return { text: 'Oferta fraca', color: 'yellow' };
-          if (row.ctr != null && row.ctr < 0.5) return { text: 'Invisível', color: 'red' };
-          return { text: 'Analisando', color: 'muted' };
-        }
-
-        const colsSemAds = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'age', label: 'Dias', format: v => v + 'd' },
-          { key: 'vendasTotal', label: 'Vendas Org', format: fmtInt },
-          { key: 'receitaTotal', label: 'Receita Org', format: fmtR$0, style: () => ({ color: C.green }) },
-          { key: 'acao', label: 'Ação', render: row => { const a = getAcaoIncSem(row); return <Badge text={a.text} color={a.color} />; } },
-        ];
-        const colsComAds = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'age', label: 'Dias', format: v => v + 'd' },
-          { key: 'gasto', label: 'Gasto', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'cliques', label: 'Cliques', format: fmtInt },
-          { key: 'vendasAds', label: 'Vendas', format: fmtInt },
-          { key: 'acos', label: 'ACOS', format: fmtPct, style: r => ({ color: acosColor(r.acos) }) },
-          { key: 'ctr', label: 'CTR', format: fmtPct2 },
-          { key: 'conv', label: 'Conv%', format: fmtPct2 },
-          { key: 'acao', label: 'Ação', render: row => { const a = getAcaoIncCom(row); return <Badge text={a.text} color={a.color} />; } },
-        ];
-
-        // ── Maturação ──
-        const matComVendas = maturacao.filter(e => e.vendasTotal > 0);
-        const matSemVendas = maturacao.filter(e => e.vendasTotal === 0);
-
-        function getAcaoMat(row) {
-          if (row.mc_com_pct > 15 && row.acos != null && row.acos < 8) return { text: 'Promover', color: 'green' };
-          if (row.mc_com_pct >= 5) return { text: 'Otimizar', color: 'yellow' };
-          if (row.depAds > 80) return { text: 'Alta dependência', color: 'orange' };
-          return { text: 'Pausar/Revisar', color: 'red' };
-        }
-        function getAcaoMatSem(row) {
-          if (row.gasto > 50 && row.vendasAds === 0) return { text: 'Pausar → criar novo', color: 'red' };
-          if (row.gasto < 50 && row.cliques > 30) return { text: 'Oferta não converte', color: 'yellow' };
-          if (row.impressoes < 100) return { text: 'Sem visibilidade', color: 'red' };
-          return { text: 'Aguardar', color: 'muted' };
-        }
-
-        const colsMatCom = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[180px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'receitaTotal', label: 'Receita', format: fmtR$0, style: () => ({ color: C.green }) },
-          { key: 'gasto', label: 'Gasto ADs', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'acos', label: 'ACOS', format: fmtPct, style: r => ({ color: acosColor(r.acos) }) },
-          { key: 'mc_com', label: 'MC c/ ADs', format: fmtR$0, style: r => ({ color: mcColor(r.mc_com) }) },
-          { key: 'mc_com_pct', label: 'MC%', format: fmtPct, style: r => ({ color: mcColor(r.mc_com_pct) }) },
-          { key: 'depAds', label: 'Dep. ADs', format: fmtPct, style: r => ({ color: r.depAds > 80 ? C.orange : C.text }) },
-          { key: 'acao', label: 'Ação', render: row => { const a = getAcaoMat(row); return <Badge text={a.text} color={a.color} />; } },
-        ];
-        const colsMatSem = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'gasto', label: 'Gasto Acum.', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'cliques', label: 'Cliques', format: fmtInt },
-          { key: 'impressoes', label: 'Impressões', format: fmtInt },
-          { key: 'ctr', label: 'CTR', format: fmtPct2 },
-          { key: 'acao', label: 'Ação', render: row => { const a = getAcaoMatSem(row); return <Badge text={a.text} color={a.color} />; } },
-        ];
-
-        // ── Bom Desempenho ──
-        const colsBom = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[180px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'vendasTotal', label: 'Vendas', format: fmtInt },
-          { key: 'receitaTotal', label: 'Receita', format: fmtR$0, style: () => ({ color: C.green }) },
-          { key: 'gasto', label: 'Gasto', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'acos', label: 'ACOS', format: fmtPct, style: r => ({ color: acosColor(r.acos) }) },
-          { key: 'mc_sem_pct', label: 'MC s/ ADs', format: fmtPct, style: r => ({ color: mcColor(r.mc_sem_pct) }) },
-          { key: 'mc_com_pct', label: 'MC c/ ADs', format: fmtPct, style: r => ({ color: mcColor(r.mc_com_pct) }) },
-          { key: 'impactoAds', label: 'Impacto', format: v => (v > 0 ? '-' : '+') + Math.abs(v).toFixed(1) + 'pp',
-            style: r => ({ color: r.impactoAds > 10 ? C.red : r.impactoAds > 5 ? C.yellow : C.muted }) },
-          { key: 'acao', label: '', render: row => {
-            if (row.acos != null && row.acos < 5 && row.mc_com_pct > 20) return <Badge text="★ Candidato Top" color="blue" />;
-            if (row.acos > 10) return <Badge text="ACOS alto" color="orange" />;
-            if (row.impactoAds > 10) return <Badge text="ADs corroendo" color="red" />;
-            return null;
-          }},
-        ];
-
-        // ── Alta Performance ──
-        const colsAlta = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[180px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'vendasTotal', label: 'Vendas', format: fmtInt },
-          { key: 'receitaTotal', label: 'Receita', format: fmtR$0, style: () => ({ color: C.green }) },
-          { key: 'gasto', label: 'Gasto', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'acos', label: 'ACOS', format: fmtPct, style: r => ({ color: acosColor(r.acos) }) },
-          { key: 'mc_com', label: 'MC R$', format: fmtR$0, style: r => ({ color: mcColor(r.mc_com) }) },
-          { key: 'mc_com_pct', label: 'MC%', format: fmtPct, style: r => ({ color: mcColor(r.mc_com_pct) }) },
-          { key: 'estoque', label: 'Estoque', format: fmtInt,
-            style: r => ({ color: r.estoque != null && r.estoque < 5 ? C.red : C.text }),
-            render: r => r.estoque != null && r.estoque < 5
-              ? <span className="text-gge-red font-bold">{r.estoque} ⚠</span>
-              : <span>{fmtInt(r.estoque)}</span>
-          },
-          { key: 'roas', label: 'ROAS', render: r => {
-            const roas = r.gasto > 0 ? r.receitaAds / r.gasto : null;
-            return roas != null ? <span style={{ color: roas > 15 ? C.cyan : C.text }}>{roas.toFixed(1)}x</span> : '—';
-          }},
-        ];
-
-        const taxaValidacao = incubadora.length > 0 ? (incubadora.filter(e => e.vendasTotal >= 3).length / incubadora.length * 100) : 0;
-        const gastoMatSem = matSemVendas.reduce((s, e) => s + e.gasto, 0);
-        const receitaAlta = altaPerf.reduce((s, e) => s + e.receitaTotal, 0);
-        const receitaTotalAll = enriched.reduce((s, e) => s + e.receitaTotal, 0);
-        const shareAlta = receitaTotalAll > 0 ? (receitaAlta / receitaTotalAll * 100) : 0;
-
-        return (
-          <>
-            {/* INCUBADORA */}
-            <SectionTitle color={C.cyan} count={incubadora.length} collapsed={collapsed.inc} onToggle={() => toggle('inc')}>
-              Incubadora — Novos (&lt; 30 dias)
-            </SectionTitle>
-            {!collapsed.inc && (
-              <div className="fade-in space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <KpiCard label="Total incubadora" value={incubadora.length} />
-                  <KpiCard label="Com ADs" value={incComAds.length} color={C.accent} />
-                  <KpiCard label="Sem ADs" value={incSemAds.length} color={C.muted} />
-                  <KpiCard label="Taxa validação (≥3 vendas)" value={fmtPct(taxaValidacao)} color={C.green} />
-                </div>
-                {incSemAds.length > 0 && (
-                  <>
-                    <h3 className="text-xs text-gge-muted font-semibold uppercase tracking-wider mt-4">Sem ADs rodando</h3>
-                    <SortableTable columns={colsSemAds} data={incSemAds} defaultSort={{ key: 'vendasTotal', dir: 'desc' }} maxRows={15} />
-                  </>
-                )}
-                {incComAds.length > 0 && (
-                  <>
-                    <h3 className="text-xs text-gge-muted font-semibold uppercase tracking-wider mt-4">Com ADs ativos</h3>
-                    <SortableTable columns={colsComAds} data={incComAds} defaultSort={{ key: 'gasto', dir: 'desc' }} maxRows={15} />
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* MATURAÇÃO */}
-            <SectionTitle color={C.orange} count={maturacao.length} collapsed={collapsed.mat} onToggle={() => toggle('mat')}>
-              Maturação — 30 a 90 dias
-            </SectionTitle>
-            {!collapsed.mat && (
-              <div className="fade-in space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <KpiCard label="Total maturação" value={maturacao.length} />
-                  <KpiCard label="Com vendas" value={matComVendas.length} color={C.green} />
-                  <KpiCard label="Sem vendas" value={matSemVendas.length} color={C.red} />
-                  <KpiCard label="Gasto desperdiçado" value={fmtR$0(gastoMatSem)} sub="em anúncios sem vendas" color={C.red} />
-                </div>
-                {matComVendas.length > 0 && (
-                  <>
-                    <h3 className="text-xs text-gge-muted font-semibold uppercase tracking-wider mt-4">Com vendas — avaliar promoção</h3>
-                    <SortableTable columns={colsMatCom} data={matComVendas} defaultSort={{ key: 'receitaTotal', dir: 'desc' }} maxRows={15} />
-                  </>
-                )}
-                {matSemVendas.length > 0 && (
-                  <>
-                    <h3 className="text-xs text-gge-muted font-semibold uppercase tracking-wider mt-4">Sem vendas — decidir destino</h3>
-                    <SortableTable columns={colsMatSem} data={matSemVendas} defaultSort={{ key: 'gasto', dir: 'desc' }} maxRows={15} />
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* BOM DESEMPENHO */}
-            <SectionTitle color={C.green} count={bomDesemp.length} collapsed={collapsed.bom} onToggle={() => toggle('bom')}>
-              Bom Desempenho — Maduros
-            </SectionTitle>
-            {!collapsed.bom && (
-              <div className="fade-in space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  <KpiCard label="Total" value={bomDesemp.length} />
-                  <KpiCard label="Receita" value={fmtR$0(bomDesemp.reduce((s,e) => s + e.receitaTotal, 0))} color={C.green} />
-                  <KpiCard label="Gasto ADs" value={fmtR$0(bomDesemp.reduce((s,e) => s + e.gasto, 0))} color={C.red} />
-                  <KpiCard label="MC média c/ ADs" value={fmtPct(bomDesemp.length > 0 ? bomDesemp.reduce((s,e) => s + e.mc_com_pct, 0) / bomDesemp.length : 0)} color={C.green} />
-                  <KpiCard label="Dreno (MC<0)" value={fmtR$0(gastoDesperdicado)} color={C.red} />
-                </div>
-                <SortableTable columns={colsBom} data={bomDesemp} defaultSort={{ key: 'receitaTotal', dir: 'desc' }} maxRows={30} />
-              </div>
-            )}
-
-            {/* ALTA PERFORMANCE */}
-            <SectionTitle color={C.accent} count={altaPerf.length} collapsed={collapsed.alta} onToggle={() => toggle('alta')}>
-              Alta Performance — Top
-            </SectionTitle>
-            {!collapsed.alta && (
-              <div className="fade-in space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <KpiCard label="Estrelas" value={altaPerf.length} color={C.accent} />
-                  <KpiCard label="Receita gerada" value={fmtR$0(receitaAlta)} color={C.green} />
-                  <KpiCard label="MC total" value={fmtR$0(altaPerf.reduce((s,e) => s + e.mc_com, 0))} color={C.green} />
-                  <KpiCard label="% da receita total" value={fmtPct(shareAlta)} color={C.cyan} />
-                </div>
-                <SortableTable columns={colsAlta} data={altaPerf} defaultSort={{ key: 'mc_com', dir: 'desc' }} maxRows={30} />
-              </div>
-            )}
-          </>
-        );
-      }
-
-      // ══════════════════════════════════════════
-      //  VIEW: EFICIÊNCIA FINANCEIRA
-      // ══════════════════════════════════════════
-      function ViewEficiencia() {
-        const drenos = enriched.filter(e => e.hasAds && e.mc_com < 0).sort((a, b) => a.mc_com - b.mc_com);
-        const oportunidades = enriched.filter(e => e.hasAds && e.mc_com_pct > 25 && e.gasto < 50 && e.vendasTotal > 0).sort((a, b) => b.mc_com_pct - a.mc_com_pct);
-        const altaDep = enriched.filter(e => e.hasAds && e.depAds > 80 && e.vendasTotal > 0).sort((a, b) => b.depAds - a.depAds);
-
-        const colsDreno = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'gasto', label: 'Gasto ADs', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'receitaAds', label: 'Receita ADs', format: fmtR$0, style: () => ({ color: C.green }) },
-          { key: 'acos', label: 'ACOS', format: fmtPct, style: r => ({ color: acosColor(r.acos) }) },
-          { key: 'mc_com', label: 'MC c/ ADs', format: fmtR$0, style: r => ({ color: mcColor(r.mc_com) }) },
-          { key: 'mc_com_pct', label: 'MC%', format: fmtPct, style: r => ({ color: mcColor(r.mc_com_pct) }) },
-          { key: 'custoVenda', label: 'Custo/Venda', format: fmtR$0, style: r => ({ color: r.custoVenda > 20 ? C.red : C.text }) },
-        ];
-
-        const colsOport = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'vendasTotal', label: 'Vendas', format: fmtInt },
-          { key: 'mc_com_pct', label: 'MC%', format: fmtPct, style: r => ({ color: C.green }) },
-          { key: 'gasto', label: 'Gasto ADs', format: fmtR$0, style: () => ({ color: C.muted }) },
-          { key: 'preco', label: 'Preço', format: fmtR$0 },
-          { key: 'acao', label: '', render: () => <Badge text="Escalar investimento" color="green" /> },
-        ];
-
-        const colsDep = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'depAds', label: 'Dep. ADs', format: fmtPct, style: () => ({ color: C.orange }) },
-          { key: 'receitaAds', label: 'Receita ADs', format: fmtR$0, style: () => ({ color: C.green }) },
-          { key: 'receitaOrg', label: 'Receita Org', format: fmtR$0 },
-          { key: 'vendasTotal', label: 'Vendas Total', format: fmtInt },
-          { key: 'acao', label: '', render: r => r.depAds > 90 ? <Badge text="Vulnerável" color="red" /> : <Badge text="Fortalecer orgânico" color="orange" /> },
-        ];
-
-        const totalDreno = drenos.reduce((s, e) => s + Math.abs(e.mc_com), 0);
-        const totalGastoDreno = drenos.reduce((s, e) => s + e.gasto, 0);
-
-        return (
-          <>
-            <SectionTitle color={C.red} count={drenos.length} collapsed={collapsed.dreno} onToggle={() => toggle('dreno')}>
-              Drenos de Caixa — MC negativa com ADs
-            </SectionTitle>
-            {!collapsed.dreno && (
-              <div className="fade-in space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <KpiCard label="Anúncios em prejuízo" value={drenos.length} color={C.red} />
-                  <KpiCard label="Prejuízo total (MC)" value={fmtR$0(totalDreno)} color={C.red} />
-                  <KpiCard label="Gasto ADs neles" value={fmtR$0(totalGastoDreno)} color={C.red} />
-                </div>
-                <SortableTable columns={colsDreno} data={drenos} defaultSort={{ key: 'mc_com', dir: 'asc' }} maxRows={20} />
-              </div>
-            )}
-
-            <SectionTitle color={C.green} count={oportunidades.length} collapsed={collapsed.oport} onToggle={() => toggle('oport')}>
-              Oportunidades de Escala — MC alta, gasto baixo
-            </SectionTitle>
-            {!collapsed.oport && (
-              <div className="fade-in space-y-4">
-                <SortableTable columns={colsOport} data={oportunidades} defaultSort={{ key: 'mc_com_pct', dir: 'desc' }} maxRows={20} />
-              </div>
-            )}
-
-            <SectionTitle color={C.orange} count={altaDep.length} collapsed={collapsed.dep} onToggle={() => toggle('dep')}>
-              Alta Dependência de ADs — Receita ADs &gt; 80%
-            </SectionTitle>
-            {!collapsed.dep && (
-              <div className="fade-in space-y-4">
-                <SortableTable columns={colsDep} data={altaDep} defaultSort={{ key: 'depAds', dir: 'desc' }} maxRows={20} />
-              </div>
-            )}
-          </>
-        );
-      }
-
-      // ══════════════════════════════════════════
-      //  VIEW: OFERTA (Competitividade)
-      // ══════════════════════════════════════════
-      function ViewOferta() {
-        const muitoCliquePouca = enriched.filter(e => e.hasAds && e.cliques > 50 && (e.conv == null || e.conv < 1)).sort((a, b) => b.cliques - a.cliques);
-        const semImpressoes = enriched.filter(e => e.hasAds && e.impressoes < 500 && e.impressoes > 0).sort((a, b) => a.impressoes - b.impressoes);
-        const ctrAltoImpBaixo = enriched.filter(e => e.hasAds && e.ctr > 1.5 && e.impressoes < 2000 && e.impressoes > 0).sort((a, b) => b.ctr - a.ctr);
-        const semAdsSemVendas = enriched.filter(e => !e.hasAds && e.vendasTotal === 0 && e.age > 15).sort((a, b) => b.age - a.age);
-
-        const colsClick = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'cliques', label: 'Cliques', format: fmtInt, style: () => ({ color: C.cyan }) },
-          { key: 'vendasAds', label: 'Vendas', format: fmtInt },
-          { key: 'conv', label: 'Conv%', format: fmtPct2, style: () => ({ color: C.red }) },
-          { key: 'gasto', label: 'Gasto', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'preco', label: 'Preço', format: fmtR$0 },
-          { key: 'acao', label: '', render: () => <Badge text="Revisar oferta" color="yellow" /> },
-        ];
-        const colsInv = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'impressoes', label: 'Impressões', format: fmtInt },
-          { key: 'cliques', label: 'Cliques', format: fmtInt },
-          { key: 'ctr', label: 'CTR', format: fmtPct2 },
-          { key: 'gasto', label: 'Gasto', format: fmtR$0 },
-          { key: 'acao', label: '', render: () => <Badge text="Revisar título/SEO" color="red" /> },
-        ];
-        const colsCtr = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'ctr', label: 'CTR', format: fmtPct2, style: () => ({ color: C.green }) },
-          { key: 'impressoes', label: 'Impressões', format: fmtInt },
-          { key: 'cliques', label: 'Cliques', format: fmtInt },
-          { key: 'vendasAds', label: 'Vendas', format: fmtInt },
-          { key: 'acao', label: '', render: () => <Badge text="Aumentar orçamento" color="green" /> },
-        ];
-        const colsSemSem = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'age', label: 'Dias', format: v => v + 'd' },
-          { key: 'preco', label: 'Preço', format: fmtR$0 },
-          { key: 'estoque', label: 'Estoque', format: fmtInt },
-          { key: 'acao', label: '', render: r => r.age > 60 ? <Badge text="Excluir ou reformular" color="red" /> : <Badge text="Ativar ADs p/ testar" color="yellow" /> },
-        ];
-
-        return (
-          <>
-            <SectionTitle color={C.yellow} count={muitoCliquePouca.length} collapsed={collapsed.click} onToggle={() => toggle('click')}>
-              Muitos cliques, poucas vendas — Conv &lt; 1%
-            </SectionTitle>
-            {!collapsed.click && (
-              <div className="fade-in space-y-4">
-                <div className="bg-gge-card border border-gge-border rounded-lg p-3 text-xs text-gge-muted">
-                  O ADs está fazendo o trabalho (traz visita), mas a oferta não converte. Problema provável: preço, fotos, descrição ou parcelamento.
-                </div>
-                <SortableTable columns={colsClick} data={muitoCliquePouca} defaultSort={{ key: 'cliques', dir: 'desc' }} maxRows={20} />
-              </div>
-            )}
-
-            <SectionTitle color={C.red} count={semImpressoes.length} collapsed={collapsed.inv} onToggle={() => toggle('inv')}>
-              Poucas impressões — Anúncios invisíveis
-            </SectionTitle>
-            {!collapsed.inv && (
-              <div className="fade-in space-y-4">
-                <SortableTable columns={colsInv} data={semImpressoes} defaultSort={{ key: 'impressoes', dir: 'asc' }} maxRows={20} />
-              </div>
-            )}
-
-            <SectionTitle color={C.green} count={ctrAltoImpBaixo.length} collapsed={collapsed.ctrhi} onToggle={() => toggle('ctrhi')}>
-              CTR alto, impressões baixas — Oportunidade de escala
-            </SectionTitle>
-            {!collapsed.ctrhi && (
-              <div className="fade-in space-y-4">
-                <div className="bg-gge-card border border-gge-border rounded-lg p-3 text-xs text-gge-muted">
-                  Converte bem quando aparece, mas aparece pouco. Aumentar lance/orçamento pode multiplicar vendas.
-                </div>
-                <SortableTable columns={colsCtr} data={ctrAltoImpBaixo} defaultSort={{ key: 'ctr', dir: 'desc' }} maxRows={20} />
-              </div>
-            )}
-
-            <SectionTitle color={C.muted} count={semAdsSemVendas.length} collapsed={collapsed.dead} onToggle={() => toggle('dead')}>
-              Sem ADs e sem vendas — Anúncios parados
-            </SectionTitle>
-            {!collapsed.dead && (
-              <div className="fade-in space-y-4">
-                <SortableTable columns={colsSemSem} data={semAdsSemVendas} defaultSort={{ key: 'age', dir: 'desc' }} maxRows={20} />
-              </div>
-            )}
-          </>
-        );
-      }
-
-      // ══════════════════════════════════════════
-      //  VIEW: CAMPANHAS
-      // ══════════════════════════════════════════
-      function ViewCampanhas() {
-        const colsCamp = [
-          { key: 'nome', label: 'Campanha', className: 'max-w-[180px] truncate font-mono text-gge-accent text-[11px]', title: r => r.nome },
-          { key: 'conta', label: 'Conta', className: 'text-gge-muted' },
-          { key: 'strategy', label: 'Estratégia', className: 'capitalize' },
-          { key: 'anuncios', label: 'Anúncios', format: fmtInt },
-          { key: 'gasto', label: 'Gasto', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'receita', label: 'Receita', format: fmtR$0, style: () => ({ color: C.green }) },
-          { key: 'vendas', label: 'Vendas', format: fmtInt },
-          { key: 'acos', label: 'ACOS', format: fmtPct, style: r => ({ color: acosColor(r.acos) }) },
-          { key: 'acosTarget', label: 'ACOS Alvo', format: v => v != null ? fmtPct(v) : '—' },
-          { key: 'cpc', label: 'CPC', format: fmtR$ },
-          { key: 'desvio', label: 'Desvio', render: r => {
-            if (r.acosTarget == null || r.acos == null) return '—';
-            const d = r.acos - r.acosTarget;
-            if (d > r.acosTarget * 0.5) return <Badge text={'+'+ d.toFixed(1) + 'pp'} color="red" />;
-            if (d > 0) return <Badge text={'+'+ d.toFixed(1) + 'pp'} color="yellow" />;
-            return <Badge text={d.toFixed(1) + 'pp'} color="green" />;
-          }},
-        ];
-
-        // Per-conta comparison
-        const perConta = useMemo(() => {
-          const m = {};
-          adsFiltered.forEach(r => {
-            const an = anuncioMap[r.mlb_id];
-            const cn = an ? contaMap[an.conta_id] || '?' : '?';
-            if (!m[cn]) m[cn] = { nome: cn, gasto: 0, receita: 0, vendas: 0, cliques: 0, mlbs: new Set() };
-            m[cn].gasto += Number(r.gasto_ads || 0);
-            m[cn].receita += Number(r.receita_ads || 0);
-            m[cn].vendas += Number(r.vendas_diretas_ads || 0);
-            m[cn].cliques += Number(r.cliques_ads || 0);
-            if (r.mlb_id) m[cn].mlbs.add(r.mlb_id);
-          });
-          return Object.values(m).map(c => ({
-            ...c, _key: c.nome, anuncios: c.mlbs.size,
-            acos: c.receita > 0 ? (c.gasto / c.receita) * 100 : null,
-            roas: c.gasto > 0 ? c.receita / c.gasto : null,
-          }));
-        }, [adsFiltered, anuncioMap, contaMap]);
-
-        const colsConta = [
-          { key: 'nome', label: 'Conta', className: 'font-semibold' },
-          { key: 'anuncios', label: 'Anúncios', format: fmtInt },
-          { key: 'gasto', label: 'Gasto', format: fmtR$0, style: () => ({ color: C.red }) },
-          { key: 'receita', label: 'Receita', format: fmtR$0, style: () => ({ color: C.green }) },
-          { key: 'vendas', label: 'Vendas', format: fmtInt },
-          { key: 'acos', label: 'ACOS', format: fmtPct, style: r => ({ color: acosColor(r.acos) }) },
-          { key: 'roas', label: 'ROAS', render: r => r.roas != null ? r.roas.toFixed(1) + 'x' : '—' },
-        ];
-
-        return (
-          <>
-            <SectionTitle color={C.cyan} count={campaignAgg.length} collapsed={collapsed.camp} onToggle={() => toggle('camp')}>
-              Performance por Campanha
-            </SectionTitle>
-            {!collapsed.camp && (
-              <div className="fade-in space-y-4">
-                <SortableTable columns={colsCamp} data={campaignAgg} defaultSort={{ key: 'gasto', dir: 'desc' }} maxRows={20} />
-              </div>
-            )}
-
-            <SectionTitle color={C.accent} count={perConta.length} collapsed={collapsed.perConta} onToggle={() => toggle('perConta')}>
-              Comparativo por Conta
-            </SectionTitle>
-            {!collapsed.perConta && (
-              <div className="fade-in space-y-4">
-                <SortableTable columns={colsConta} data={perConta} defaultSort={{ key: 'gasto', dir: 'desc' }} />
-              </div>
-            )}
-          </>
-        );
-      }
-
-      // ══════════════════════════════════════════
-      //  VIEW: TENDÊNCIAS
-      // ══════════════════════════════════════════
-      function ViewTendencias() {
-        // Weekly ACOS
-        const weeklyAcos = useMemo(() => {
-          const weeks = {};
-          adsFiltered.forEach(r => {
-            const d = new Date(r.data_referencia + 'T12:00:00');
-            const wk = new Date(d); wk.setDate(d.getDate() - d.getDay());
-            const key = fmtDate(wk);
-            if (!weeks[key]) weeks[key] = { week: key, gasto: 0, receita: 0 };
-            weeks[key].gasto += Number(r.gasto_ads || 0);
-            weeks[key].receita += Number(r.receita_ads || 0);
-          });
-          return Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)).map(w => ({
-            ...w,
-            label: new Date(w.week + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-            acos: w.receita > 0 ? (w.gasto / w.receita) * 100 : 0,
-          }));
-        }, [adsFiltered]);
-
-        // Top variations (current vs prev period)
-        const variations = useMemo(() => {
-          const prevByMlb = {};
-          prevAdsFiltered.forEach(r => {
-            if (!prevByMlb[r.mlb_id]) prevByMlb[r.mlb_id] = { gasto: 0, receita: 0 };
-            prevByMlb[r.mlb_id].gasto += Number(r.gasto_ads || 0);
-            prevByMlb[r.mlb_id].receita += Number(r.receita_ads || 0);
-          });
-          return enriched.filter(e => e.hasAds).map(e => {
-            const prev = prevByMlb[e.mlb_id];
-            const prevAcos = prev && prev.receita > 0 ? (prev.gasto / prev.receita) * 100 : null;
-            const acosVar = e.acos != null && prevAcos != null ? e.acos - prevAcos : null;
-            return { ...e, prevAcos, acosVar };
-          }).filter(e => e.acosVar != null);
-        }, [enriched, prevAdsFiltered]);
-
-        const melhoraram = [...variations].sort((a, b) => a.acosVar - b.acosVar).slice(0, 5);
-        const pioraram = [...variations].sort((a, b) => b.acosVar - a.acosVar).slice(0, 5);
-
-        const colsVar = [
-          ...tagCols,
-          { key: 'titulo', label: 'Título', className: 'max-w-[200px] truncate', title: r => r.titulo },
-          { key: 'sku', label: 'SKU', className: 'font-mono text-gge-muted' },
-          { key: 'prevAcos', label: 'ACOS Anterior', format: fmtPct },
-          { key: 'acos', label: 'ACOS Atual', format: fmtPct, style: r => ({ color: acosColor(r.acos) }) },
-          { key: 'acosVar', label: 'Variação',
-            render: r => {
-              const v = r.acosVar;
-              const color = v < 0 ? C.green : C.red;
-              return <span style={{ color }}>{v > 0 ? '+' : ''}{v.toFixed(1)}pp</span>;
-            }
-          },
-          { key: 'gasto', label: 'Gasto', format: fmtR$0 },
-          { key: 'vendasAds', label: 'Vendas', format: fmtInt },
-        ];
-
-        return (
-          <>
-            {/* ACOS Chart */}
-            <SectionTitle color={C.yellow} collapsed={collapsed.acosChart} onToggle={() => toggle('acosChart')}>
-              Evolução ACOS Semanal
-            </SectionTitle>
-            {!collapsed.acosChart && weeklyAcos.length > 1 && (
-              <div className="fade-in bg-gge-card border border-gge-border rounded-lg p-4 mb-4">
-                <ResponsiveContainer width="100%" height={280}>
-                  <ComposedChart data={weeklyAcos}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                    <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} />
-                    <YAxis yAxisId="left" tick={{ fill: C.muted, fontSize: 11 }} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fill: C.yellow, fontSize: 11 }} unit="%" />
-                    <Tooltip content={<ChartTooltip formatters={{ gasto: fmtR$, receita: fmtR$, acos: fmtPct }} />} />
-                    <Bar yAxisId="left" dataKey="gasto" name="Gasto" fill={C.red} opacity={0.6} radius={[2,2,0,0]} />
-                    <Bar yAxisId="left" dataKey="receita" name="Receita" fill={C.green} opacity={0.6} radius={[2,2,0,0]} />
-                    <Line yAxisId="right" dataKey="acos" name="ACOS %" stroke={C.yellow} strokeWidth={2} dot={{ r: 3 }} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Gasto vs Receita daily */}
-            <SectionTitle color={C.green} collapsed={collapsed.gastoRec} onToggle={() => toggle('gastoRec')}>
-              Gasto vs Receita Diário
-            </SectionTitle>
-            {!collapsed.gastoRec && dailyData.length > 1 && (
-              <div className="fade-in bg-gge-card border border-gge-border rounded-lg p-4 mb-4">
-                <ResponsiveContainer width="100%" height={280}>
-                  <ComposedChart data={dailyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                    <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} />
-                    <YAxis tick={{ fill: C.muted, fontSize: 11 }} />
-                    <Tooltip content={<ChartTooltip formatters={{ gasto: fmtR$, receita: fmtR$, vendas: fmtInt }} />} />
-                    <Area dataKey="receita" name="Receita ADs" fill={C.green} fillOpacity={0.15} stroke={C.green} strokeWidth={2} />
-                    <Area dataKey="gasto" name="Gasto" fill={C.red} fillOpacity={0.15} stroke={C.red} strokeWidth={2} />
-                    <Line dataKey="vendas" name="Vendas" stroke={C.accent} strokeWidth={1.5} dot={false} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Top melhoraram / pioraram */}
-            <SectionTitle color={C.green} count={melhoraram.length} collapsed={collapsed.melhor} onToggle={() => toggle('melhor')}>
-              Top 5 — Mais melhoraram ACOS
-            </SectionTitle>
-            {!collapsed.melhor && (
-              <div className="fade-in"><SortableTable columns={colsVar} data={melhoraram} defaultSort={{ key: 'acosVar', dir: 'asc' }} /></div>
-            )}
-
-            <SectionTitle color={C.red} count={pioraram.length} collapsed={collapsed.pior} onToggle={() => toggle('pior')}>
-              Top 5 — Mais pioraram ACOS
-            </SectionTitle>
-            {!collapsed.pior && (
-              <div className="fade-in"><SortableTable columns={colsVar} data={pioraram} defaultSort={{ key: 'acosVar', dir: 'desc' }} /></div>
-            )}
-          </>
-        );
-      }
-
-      // ── VIEWS CONFIG ──
-      const VIEWS = [
-        { key: 'ciclo', label: 'Ciclo de Vida', icon: '◈' },
-        { key: 'eficiencia', label: 'Eficiência $', icon: '◉' },
-        { key: 'oferta', label: 'Oferta', icon: '◎' },
-        { key: 'campanhas', label: 'Campanhas', icon: '◆' },
-        { key: 'tendencias', label: 'Tendências', icon: '◇' },
-      ];
-
-      // ── Render ──
-      if (error) {
-        return (
-          <div className="p-6 max-w-7xl mx-auto">
-            <div className="bg-red-900/30 border border-red-700 rounded-lg p-6 text-center">
-              <p className="text-gge-red font-semibold mb-2">Erro ao carregar dados</p>
-              <p className="text-gge-muted text-sm">{error}</p>
-              <button onClick={loadData} className="mt-4 px-4 py-2 bg-gge-accent text-white rounded-lg text-sm hover:opacity-90">Tentar novamente</button>
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div className="p-4 md:p-6 max-w-[1440px] mx-auto fade-in">
-          {/* Header */}
-          <div className="mb-4">
-            <h1 className="text-xl md:text-2xl font-bold text-gge-text">ADs — Gestão por Ciclo de Vida</h1>
-            <p className="text-sm text-gge-muted mt-1">Análise multi-dimensional de publicidade no Mercado Livre</p>
-          </div>
-
-          {/* Global KPIs bar */}
-          {!loading && (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
-              <KpiCard label="Gasto" value={fmtR$0(globalKpis.gasto)} color={C.red} />
-              <KpiCard label="Receita ADs" value={fmtR$0(globalKpis.receita)} color={C.green} />
-              <KpiCard label="ACOS" value={fmtPct(globalKpis.acos)} color={acosColor(globalKpis.acos)} />
-              <KpiCard label="ROAS" value={globalKpis.roas != null ? globalKpis.roas.toFixed(1) + 'x' : '—'} color={C.accent} />
-              <KpiCard label="Vendas ADs" value={fmtInt(globalKpis.vendas)} />
-              <KpiCard label="Dreno" value={fmtR$0(gastoDesperdicado)} sub="gasto c/ MC<0" color={C.red} />
-            </div>
-          )}
-
-          {/* Filters + View tabs */}
-          <div className="bg-gge-card border border-gge-border rounded-lg p-3 mb-6 flex flex-wrap gap-3 items-end">
-            <div>
-              <label className="text-[10px] text-gge-muted uppercase tracking-wider block mb-1">Período</label>
-              <select value={periodo} onChange={e => setPeriodo(e.target.value)}
-                className="bg-gge-bg border border-gge-border rounded-md px-3 py-1.5 text-sm text-gge-text focus:border-gge-accent outline-none">
-                {PERIODO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] text-gge-muted uppercase tracking-wider block mb-1">Conta</label>
-              <select value={conta} onChange={e => setConta(e.target.value)}
-                className="bg-gge-bg border border-gge-border rounded-md px-3 py-1.5 text-sm text-gge-text focus:border-gge-accent outline-none">
-                <option value="all">Consolidado</option>
-                {contaNames.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <div className="flex-1" />
-            <div className="flex gap-1">
-              {VIEWS.map(v => (
-                <button key={v.key} onClick={() => setActiveView(v.key)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                    activeView === v.key
-                      ? 'bg-gge-accent text-white'
-                      : 'bg-gge-bg text-gge-muted hover:text-gge-text hover:bg-gge-border/50'
-                  }`}>
-                  <span className="mr-1">{v.icon}</span>{v.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Loading */}
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="text-gge-muted text-sm pulse-load">Carregando dados...</div>
-            </div>
-          ) : (
-            <>
-              {activeView === 'ciclo' && <ViewCicloDeVida />}
-              {activeView === 'eficiencia' && <ViewEficiencia />}
-              {activeView === 'oferta' && <ViewOferta />}
-              {activeView === 'campanhas' && <ViewCampanhas />}
-              {activeView === 'tendencias' && <ViewTendencias />}
-            </>
-          )}
-
-          {/* Footer — Legenda de ícones */}
-          <div className="bg-gge-card border border-gge-border rounded-lg p-4 mt-8 mb-8">
-            <h3 className="text-[10px] font-bold text-gge-muted uppercase tracking-wider mb-3">Legenda dos Ícones</h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs text-gge-muted mb-4">
-              <div>
-                <div className="text-[10px] font-semibold text-gge-text mb-1.5">Conta</div>
-                <div className="flex flex-col gap-1">
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#ea580c" fg="#000" letter="G" sub="SP" title="GGE SP" /> GGE SP</span>
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#ca8a04" fg="#000" letter="G" sub="RJ" title="GGE RJ" /> GGE RJ</span>
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#ca8a04" fg="#000" letter="G" sub="FULL" title="GGE RJ Full" /> GGE Full</span>
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#16a34a" fg="#000" letter="T" sub="RJ" title="Toow" /> Toow</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] font-semibold text-gge-text mb-1.5">Status</div>
-                <div className="flex flex-col gap-1">
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#1e3a5f" fg="#fff" letter="A" title="Ativo" /> Ativo</span>
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#3b82f6" fg="#fff" letter="In" title="Inativo" w={22} /> Inativo</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] font-semibold text-gge-text mb-1.5">Tipo Listagem</div>
-                <div className="flex flex-col gap-1">
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#22c55e" fg="#dc2626" letter="C" title="Clássico" /> Clássico</span>
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#dc2626" fg="#22c55e" letter="P" title="Premium" /> Premium</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] font-semibold text-gge-text mb-1.5">Catálogo</div>
-                <div className="flex flex-col gap-1">
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#22d3ee" fg="#0e4f5c" letter="C" title="Catálogo" /> Catálogo</span>
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#14b8a6" fg="#134e4a" letter="A" title="Anúncio" /> Anúncio</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] font-semibold text-gge-text mb-1.5">Logística</div>
-                <div className="flex flex-col gap-1">
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#7c3aed" fg="#22c55e" letter="F" title="Fulfillment" /> Fulfillment</span>
-                  <span className="flex items-center gap-1.5"><IconSVG bg="#7c3aed" fg="#22c55e" letter="C" title="Coleta" /> Coleta</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-4 text-xs text-gge-muted border-t border-gge-border pt-3">
-              <span><strong className="text-gge-text">ACOS</strong> = Gasto / Receita ADs</span>
-              <span><strong className="text-gge-text">MC</strong> = Margem Canônica (receita − custos − ads − comissão − frete)</span>
-              <span><strong className="text-gge-text">Dep. ADs</strong> = Receita ADs / Receita Total</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<AdsPage />);
+  loadContas().then(function(){ loadData(); });
   </script>
 </body>
 </html>
