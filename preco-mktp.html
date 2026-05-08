@@ -70,10 +70,16 @@
     .atacado-row { background: rgba(99, 102, 241, 0.04); }
     .atacado-row:hover { background: rgba(99, 102, 241, 0.08); }
   </style>
-  <script src="auth.js" defer></script>
   <script src="sidebar.js" defer></script>
 </head>
 <body>
+<script>
+  (function() {
+    var auth = sessionStorage.getItem('gge_auth');
+    if (auth !== 'gge2026') { window.location.href = '/'; return; }
+  })();
+</script>
+  <div id="sidebar-container"></div>
   <!-- Sidebar (injetado por sidebar.js) -->
 
   <!-- Main content -->
@@ -132,82 +138,44 @@
     }
 
     // ── Cálculo reverso: preço para atingir margem ──
-    // GGE (Lucro Real): comissão sobre (preço-frete), PIS/COFINS 9,25% débito com crédito sobre frete+comissão, ICMS dinâmico, DIFAL dinâmico
-    // Toow (Simples): comissão sobre (preço-frete), DAS 8,65%, sem ICMS/DIFAL/PIS-COFINS
-    function calcPrecoParaMargem(custo, peso, qtd, margemPct, comissaoPct, faixas, modeFrete, regime, semImpostos, difalPctParam, icmsPctParam) {
+    function calcPrecoParaMargem(custo, peso, qtd, margemPct, comissaoPct, faixas, modeFrete, regime, semImpostos) {
       if (custo <= 0) return null;
       const custoTotal = custo * qtd;
       const pesoTotal = peso * qtd;
       const margem = margemPct / 100;
-      const comPct = comissaoPct / 100;
 
-      // Iterativo: preço depende do frete, frete depende do preço
-      let preco = custoTotal / 0.5; // chute inicial
-      for (let i = 0; i < 20; i++) {
+      let impostoPct = 0;
+      if (!semImpostos) {
+        impostoPct = regime === 'simples' ? 0.0865 : 0.0925;
+      }
+
+      const fatorFixo = 1 - margem - (comissaoPct / 100) - impostoPct;
+      if (fatorFixo <= 0) return null;
+
+      let preco = custoTotal / fatorFixo;
+      for (let i = 0; i < 10; i++) {
         const frete = lookupFrete(faixas, modeFrete, pesoTotal, preco);
-        const comissao = (preco - frete) * comPct;
-
-        let impostos = 0;
-        let creditoPisCofins = 0;
-        if (!semImpostos) {
-          if (regime === 'simples') {
-            impostos = preco * 0.0865; // DAS
-          } else {
-            const pisCofinsDebito = preco * 0.0925;
-            creditoPisCofins = (frete + comissao) * 0.0925;
-            const icms = preco * (icmsPctParam || 0.044);
-            const difal = preco * (difalPctParam || 0.077);
-            impostos = pisCofinsDebito - creditoPisCofins + icms + difal;
-          }
-        }
-
-        const novoPreco = (custoTotal + frete + comissao + impostos) / (1 - margem);
+        const novoPreco = (custoTotal + frete) / fatorFixo;
         if (Math.abs(novoPreco - preco) < 0.01) { preco = novoPreco; break; }
         preco = novoPreco;
       }
 
       const freteReal = lookupFrete(faixas, modeFrete, pesoTotal, preco);
-      const comissaoReal = (preco - freteReal) * comPct;
-      let impostosReal = 0;
-      let creditoReal = 0;
-      if (!semImpostos) {
-        if (regime === 'simples') {
-          impostosReal = preco * 0.0865;
-        } else {
-          const pisCofinsDebito = preco * 0.0925;
-          creditoReal = (freteReal + comissaoReal) * 0.0925;
-          impostosReal = pisCofinsDebito - creditoReal + preco * (icmsPctParam || 0.044) + preco * (difalPctParam || 0.077);
-        }
-      }
-
       return {
         preco: Math.ceil(preco * 100) / 100,
         frete: freteReal,
-        comissao: comissaoReal,
-        imposto: impostosReal,
-        creditoPisCofins: creditoReal,
+        comissao: preco * (comissaoPct / 100),
+        imposto: preco * impostoPct,
       };
     }
 
     // ── Margem atual de um anúncio ──
-    function calcMargemAtual(preco, custo, peso, comissaoPct, faixas, modeFrete, regime, difalPctParam, icmsPctParam) {
+    function calcMargemAtual(preco, custo, peso, comissaoPct, faixas, modeFrete, regime) {
       const frete = lookupFrete(faixas, modeFrete, peso, preco);
-      const comissao = (preco - frete) * (comissaoPct / 100); // comissão sobre preço sem frete
-
-      let impostos = 0;
-      let creditoPisCofins = 0;
-      if (regime === 'simples') {
-        impostos = preco * 0.0865; // DAS
-      } else {
-        const pisCofinsDebito = preco * 0.0925;
-        creditoPisCofins = (frete + comissao) * 0.0925;
-        const icms = preco * (icmsPctParam || 0.044);  // ICMS médio dinâmico
-        const difal = preco * (difalPctParam || 0.077); // DIFAL médio
-        impostos = pisCofinsDebito - creditoPisCofins + icms + difal;
-      }
-
-      const margem = preco - custo - frete - comissao - impostos;
-      return { margem, margemPct: preco > 0 ? (margem / preco) * 100 : 0, frete, comissao, imposto: impostos, creditoPisCofins };
+      const comissao = preco * (comissaoPct / 100);
+      const imposto = regime === 'simples' ? preco * 0.0865 : preco * 0.0925;
+      const margem = preco - custo - frete - comissao - imposto;
+      return { margem, margemPct: preco > 0 ? (margem / preco) * 100 : 0, frete, comissao, imposto };
     }
 
     // ══════════════════════════════════════════
@@ -222,12 +190,35 @@
       const [expandedSku, setExpandedSku] = useState(null);
       const [expandedAnuncio, setExpandedAnuncio] = useState(null);
 
+      // ── Simulador de preço (4 cards) ──
+      const [simCards, setSimCards] = useState([
+        { sku: '', preco: '' },
+        { sku: '', preco: '' },
+        { sku: '', preco: '' },
+        { sku: '', preco: '' },
+      ]);
+      const [simExpanded, setSimExpanded] = useState(true);
+
+      const updateSimCard = (idx, field, value) => {
+        setSimCards(prev => {
+          const next = [...prev];
+          next[idx] = { ...next[idx], [field]: value };
+          return next;
+        });
+      };
+
+      const clearSimCard = (idx) => {
+        setSimCards(prev => {
+          const next = [...prev];
+          next[idx] = { sku: '', preco: '' };
+          return next;
+        });
+      };
+
       const [skus, setSkus] = useState([]);
       const [anuncios, setAnuncios] = useState([]);
       const [comissoes, setComissoes] = useState([]);
       const [faixasFrete, setFaixasFrete] = useState([]);
-      const [difalPct, setDifalPct] = useState(0.077); // default 7,7%, atualizado dinamicamente
-      const [icmsPct, setIcmsPct] = useState(0.044); // default 4,4%, atualizado dinamicamente
       const [loading, setLoading] = useState(true);
 
       // ── Helper: fetch all rows (bypasses Supabase 1000-row limit) ──
@@ -247,12 +238,11 @@
       // ── Carregar dados ──
       useEffect(() => {
         async function loadAll() {
-          const [skuData, anuncData, comRes, freteRes, difalRes] = await Promise.all([
+          const [skuData, anuncData, comRes, freteRes] = await Promise.all([
             fetchAll(() => sb.from('skus_custo').select('sku, descricao, peso, custo_cif_rj, custo_cif_sp, is_combo, unidade')),
             fetchAll(() => sb.from('anuncios').select('mlb_id, titulo, sku_vendedor, tipo_listagem, preco_atual, preco_promocional, estoque_declarado, categoria_ml, comissao_efetiva_pct, permalink, status, contas!inner(nome, empresa)').in('status', ['active', 'paused'])),
             sb.from('comissoes_ml').select('categoria_nome, classico_pct, premium_pct').eq('ativo', true),
             sb.from('tabela_frete_ml').select('modo, peso_max_kg, preco_min, preco_max, frete'),
-            sb.from('vw_margem_anuncio_mes').select('receita, difal_reserva, icms_debito_valor'),
           ]);
 
           setSkus(skuData.map(r => ({
@@ -281,18 +271,6 @@
             modo: r.modo, peso_max_kg: Number(r.peso_max_kg),
             preco_min: Number(r.preco_min), preco_max: Number(r.preco_max), frete: Number(r.frete),
           })));
-
-          // Calcular DIFAL% e ICMS% dinâmicos a partir dos dados reais de vendas
-          const difalRows = difalRes.data || [];
-          if (difalRows.length > 0) {
-            const totalReceita = difalRows.reduce((s, r) => s + (Number(r.receita) || 0), 0);
-            const totalDifal = difalRows.reduce((s, r) => s + Math.abs(Number(r.difal_reserva) || 0), 0);
-            const totalIcms = difalRows.reduce((s, r) => s + Math.abs(Number(r.icms_debito_valor) || 0), 0);
-            if (totalReceita > 0) {
-              setDifalPct(totalDifal / totalReceita); // ex: 0.077 = 7,7%
-              if (totalIcms > 0) setIcmsPct(totalIcms / totalReceita); // ex: 0.044 = 4,4%
-            }
-          }
 
           setLoading(false);
         }
@@ -333,10 +311,6 @@
           const q = search.toLowerCase();
           result = result.filter(s => s.sku.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q));
         }
-        // Filtrar por status: quando não é 'all', mostrar apenas SKUs que têm anúncios no status selecionado
-        if (statusFilter !== 'all') {
-          result = result.filter(s => (anunciosPorSku[s.sku] || []).length > 0);
-        }
         // Agrupar por família
         const grupos = {};
         for (const s of result) {
@@ -352,7 +326,7 @@
           sorted.push(...grupos[key].sort((a, b) => a.sku.localeCompare(b.sku)));
         }
         return sorted;
-      }, [skus, search, statusFilter, anunciosPorSku]);
+      }, [skus, search]);
 
       // ── Stats (excluir headers de grupo) ──
       const skusSomente = useMemo(() => skusFiltrados.filter(s => !s._grupo), [skusFiltrados]);
@@ -372,6 +346,198 @@
             <h1 className="text-2xl font-bold text-white">Preço MKTP</h1>
             <p className="text-sm text-gge-muted">Precificação para Marketplaces — sugestão de preço por margem desejada</p>
           </div>
+
+          {/* ══ SIMULADOR DE PREÇO ══ */}
+          {!loading && (
+            <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gge-border cursor-pointer select-none"
+                   onClick={() => setSimExpanded(!simExpanded)}>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🧮</span>
+                  <h2 className="text-sm font-bold text-white">Simulador de Preço</h2>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-gge-accent/15 text-gge-accent font-medium">
+                    {origemConfig.label} · {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'}
+                  </span>
+                </div>
+                <span className="text-gge-muted text-xs">{simExpanded ? '▲ Recolher' : '▼ Expandir'}</span>
+              </div>
+
+              {simExpanded && (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-4">
+                  {simCards.map((card, idx) => {
+                    // Lookup SKU
+                    const skuMatch = card.sku.length >= 2
+                      ? skus.find(s => s.sku.toLowerCase() === card.sku.toLowerCase())
+                      : null;
+                    const custo = skuMatch ? skuMatch[origemConfig.custoField] : 0;
+                    const peso = skuMatch ? skuMatch.peso : 0;
+                    const temCusto = custo > 0;
+                    const temPeso = peso > 0;
+
+                    // Anúncios desse SKU
+                    const anunciosDoSku = skuMatch ? (anunciosPorSku[skuMatch.sku] || []) : [];
+                    const anuncioRef = anunciosDoSku.length > 0 ? anunciosDoSku[0] : null;
+                    const precoAtual = anuncioRef
+                      ? (anuncioRef.preco_promocional || anuncioRef.preco_atual)
+                      : 0;
+                    const comPct = anuncioRef
+                      ? (anuncioRef.comissao_efetiva_pct || getComissaoPct(comissoes, anuncioRef.categoria_ml, anuncioRef.tipo_listagem))
+                      : defaultComissao;
+
+                    // Margem atual
+                    const margemAtual = skuMatch && temCusto && temPeso && precoAtual > 0
+                      ? calcMargemAtual(precoAtual, custo, peso, comPct, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
+                      : null;
+
+                    // Margem simulada
+                    const precoSim = parseFloat(card.preco) || 0;
+                    const margemSim = skuMatch && temCusto && temPeso && precoSim > 0
+                      ? calcMargemAtual(precoSim, custo, peso, comPct, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
+                      : null;
+
+                    // Sugestões de SKU (autocomplete simples)
+                    const sugestoesSku = card.sku.length >= 2 && !skuMatch
+                      ? skus.filter(s => s.sku.toLowerCase().includes(card.sku.toLowerCase())).slice(0, 6)
+                      : [];
+
+                    const isEmpty = !card.sku && !card.preco;
+
+                    return (
+                      <div key={idx} className={`rounded-lg border p-3 space-y-3 transition-all ${
+                        skuMatch ? 'border-gge-accent/40 bg-gge-accent/[0.03]' : 'border-gge-border bg-gge-bg/40'
+                      }`}>
+                        {/* Card header */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Slot {idx + 1}</span>
+                          {!isEmpty && (
+                            <button onClick={() => clearSimCard(idx)}
+                              className="text-[10px] text-gge-muted hover:text-gge-red transition-colors">✕ Limpar</button>
+                          )}
+                        </div>
+
+                        {/* SKU input */}
+                        <div className="relative">
+                          <input type="text" placeholder="Digite o SKU..."
+                            value={card.sku}
+                            onChange={e => updateSimCard(idx, 'sku', e.target.value)}
+                            className="w-full bg-gge-bg border border-gge-border rounded px-3 py-2 text-xs text-white font-mono placeholder:text-gge-muted/50 focus:outline-none focus:border-gge-accent transition-colors"
+                          />
+                          {/* Autocomplete dropdown */}
+                          {sugestoesSku.length > 0 && (
+                            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-gge-card border border-gge-border rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                              {sugestoesSku.map(s => (
+                                <button key={s.sku}
+                                  onClick={() => updateSimCard(idx, 'sku', s.sku)}
+                                  className="w-full text-left px-3 py-2 hover:bg-gge-accent/10 transition-colors border-b border-gge-border/30 last:border-b-0">
+                                  <span className="text-xs text-white font-mono font-medium">{s.sku}</span>
+                                  <span className="text-[10px] text-gge-muted ml-2 truncate">{s.descricao.substring(0, 40)}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info do SKU encontrado */}
+                        {skuMatch && (
+                          <>
+                            <div className="text-[11px] text-gge-muted truncate" title={skuMatch.descricao}>
+                              {skuMatch.descricao.substring(0, 50)}{skuMatch.descricao.length > 50 ? '...' : ''}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[11px]">
+                              <div>
+                                <span className="text-gge-muted block">Custo CIF</span>
+                                <span className={temCusto ? 'text-white font-medium' : 'text-gge-yellow'}>{temCusto ? brl(custo) : 'sem custo'}</span>
+                              </div>
+                              <div>
+                                <span className="text-gge-muted block">Peso</span>
+                                <span className={temPeso ? 'text-white' : 'text-gge-yellow'}>{temPeso ? peso + ' kg' : 'sem peso'}</span>
+                              </div>
+                            </div>
+
+                            {/* Preço atual e margem */}
+                            <div className="bg-gge-bg/60 rounded px-3 py-2 space-y-1">
+                              <div className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Preço atual ML</div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-white font-bold">{precoAtual > 0 ? brl(precoAtual) : '—'}</span>
+                                {margemAtual && (
+                                  <span className={`text-sm font-bold ${margemAtual.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                                    MC2 {pct(margemAtual.margemPct)}
+                                  </span>
+                                )}
+                              </div>
+                              {margemAtual && (
+                                <div className="text-[10px] text-gge-muted">
+                                  {brl(margemAtual.margem)} · Com: {pct(comPct)} · Fr: {brl(margemAtual.frete)}
+                                </div>
+                              )}
+                              {anunciosDoSku.length > 1 && (
+                                <div className="text-[10px] text-gge-muted">{anunciosDoSku.length} anúncios — usando o primeiro</div>
+                              )}
+                            </div>
+
+                            {/* Input preço simulado */}
+                            <div>
+                              <label className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold block mb-1">Preço simulado</label>
+                              <input type="number" step="0.01" min="0" placeholder="R$ 0,00"
+                                value={card.preco}
+                                onChange={e => updateSimCard(idx, 'preco', e.target.value)}
+                                className="w-full bg-gge-bg border border-gge-accent/40 rounded px-3 py-2 text-sm text-white font-bold placeholder:text-gge-muted/30 focus:outline-none focus:border-gge-accent transition-colors"
+                              />
+                            </div>
+
+                            {/* Resultado simulação */}
+                            {margemSim && (
+                              <div className={`rounded px-3 py-2.5 space-y-1 ${
+                                margemSim.margemPct >= 10 ? 'bg-green-900/20 border border-green-700/30' :
+                                margemSim.margemPct >= 0 ? 'bg-yellow-900/20 border border-yellow-700/30' :
+                                'bg-red-900/20 border border-red-700/30'
+                              }`}>
+                                <div className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Margem simulada</div>
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-lg font-bold ${margemSim.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                                    {pct(margemSim.margemPct)}
+                                  </span>
+                                  <span className={`text-sm font-bold ${margemSim.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                                    {brl(margemSim.margem)}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-gge-muted space-y-0.5">
+                                  <div>Comissão: {brl(margemSim.comissao)} ({pct(comPct)})</div>
+                                  <div>Frete: {brl(margemSim.frete)}</div>
+                                  <div>Impostos: {brl(margemSim.imposto)}</div>
+                                  <div>Custo: {brl(custo)}</div>
+                                </div>
+                                {margemAtual && precoSim !== precoAtual && (
+                                  <div className="text-[10px] pt-1 border-t border-white/10 mt-1">
+                                    <span className="text-gge-muted">Δ preço: </span>
+                                    <span className={precoSim > precoAtual ? 'text-gge-green' : 'text-gge-red'}>
+                                      {precoSim > precoAtual ? '+' : ''}{brl(precoSim - precoAtual)} ({precoAtual > 0 ? (precoSim > precoAtual ? '+' : '') + ((precoSim - precoAtual) / precoAtual * 100).toFixed(1) + '%' : '—'})
+                                    </span>
+                                    <span className="text-gge-muted ml-2">Δ MC2: </span>
+                                    <span className={margemSim.margemPct > margemAtual.margemPct ? 'text-gge-green' : 'text-gge-red'}>
+                                      {margemSim.margemPct > margemAtual.margemPct ? '+' : ''}{(margemSim.margemPct - margemAtual.margemPct).toFixed(1)}pp
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Empty state */}
+                        {isEmpty && (
+                          <div className="text-center py-4 text-gge-muted/40 text-xs">
+                            Digite um SKU para simular
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Abas de Origem + controles */}
           <div className="flex flex-wrap items-center gap-2">
@@ -507,12 +673,12 @@
                         : 0;
 
                       const margemAtual = temCusto && precoMlAtual > 0 && temPeso
-                        ? calcMargemAtual(precoMlAtual, custo, sku.peso, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, difalPct, icmsPct)
+                        ? calcMargemAtual(precoMlAtual, custo, sku.peso, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
                         : null;
 
                       const sugestoes = MARGENS_ALVO.map(m =>
                         temCusto && temPeso
-                          ? calcPrecoParaMargem(custo, sku.peso, 1, m, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct, icmsPct)
+                          ? calcPrecoParaMargem(custo, sku.peso, 1, m, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
                           : null
                       );
 
@@ -558,7 +724,7 @@
                             const precoAnuncio = anuncio.preco_promocional || anuncio.preco_atual;
                             const comPctAnuncio = anuncio.comissao_efetiva_pct || getComissaoPct(comissoes, anuncio.categoria_ml, anuncio.tipo_listagem);
                             const margemAnuncio = temCusto && temPeso
-                              ? calcMargemAtual(precoAnuncio, custo, sku.peso, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, difalPct, icmsPct)
+                              ? calcMargemAtual(precoAnuncio, custo, sku.peso, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
                               : null;
 
                             const isAnuncioExp = expandedAnuncio === anuncio.mlb_id;
@@ -566,7 +732,7 @@
 
                             const sugAnuncio = MARGENS_ALVO.map(m =>
                               temCusto && temPeso
-                                ? calcPrecoParaMargem(custo, sku.peso, 1, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct, icmsPct)
+                                ? calcPrecoParaMargem(custo, sku.peso, 1, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
                                 : null
                             );
 
@@ -634,7 +800,7 @@
                                           <tbody>
                                             {QTDS_ATACADO.map(qtd => {
                                               const sugAtacado = MARGENS_ALVO.map(m =>
-                                                calcPrecoParaMargem(custo, sku.peso, qtd, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos, difalPct, icmsPct)
+                                                calcPrecoParaMargem(custo, sku.peso, qtd, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
                                               );
                                               return (
                                                 <tr key={qtd} className="border-t border-gge-border/10">
@@ -682,14 +848,8 @@
 
           {/* Notas */}
           <div className="space-y-1 text-[11px] text-gge-muted">
-            <p>* Comissão sobre (preço − frete): {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'} (default {defaultComissao}%, ajustado por categoria quando disponível).</p>
+            <p>* Preços sugeridos arredondados para cima. Comissão: {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'} (default {defaultComissao}%, ajustado por categoria quando disponível).</p>
             <p>* Frete calculado pela tabela ML ({origemConfig.modeFrete}) × peso do produto. Atacado: frete consolidado pelo peso total.</p>
-            {origemConfig.regime === 'lucro_real' && !semImpostos && (
-              <p>* GGE Lucro Real: PIS+COFINS 9,25% (com crédito sobre frete e comissão) · ICMS <span className="text-gge-orange font-medium">{(icmsPct * 100).toFixed(1)}%</span> · DIFAL <span className="text-gge-orange font-medium">{(difalPct * 100).toFixed(1)}%</span> (dinâmicos, calculados das vendas reais).</p>
-            )}
-            {origemConfig.regime === 'simples' && !semImpostos && (
-              <p>* Toow Simples Nacional: DAS 8,65% sobre faturamento. Sem ICMS/DIFAL/PIS-COFINS.</p>
-            )}
             {semImpostos && <p className="text-gge-cyan">* Modo "Sem impostos": preço calculado sem PIS/COFINS/DAS — o ML acrescenta imposto ao comprador com base em geolocalização e CPF/CNPJ.</p>}
           </div>
         </div>
