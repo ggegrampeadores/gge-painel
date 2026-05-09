@@ -20,6 +20,7 @@
     ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
     realinha:     svgIcon('<path d="M2 12h5l3-9 4 18 3-9h5"/>'),
     saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
+    operador:     svgIcon('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
     grupos:       svgIcon('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
     auditoria:    svgIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
     chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
@@ -29,6 +30,7 @@
   // Catálogo tem sub-menu: Dashboard, Catálogo, Automação
   var pages = [
     { href: '/',                     icon: icons.dashboard, label: 'Dashboard',           key: 'dashboard' },
+    { href: '/operador',             icon: icons.operador,  label: 'Operador',            key: 'operador' },
     { href: '/central-analise',      icon: icons.grupos,    label: 'Central de Análise',  key: 'central-analise' },
     { href: '/margem',               icon: icons.margem,    label: 'Margem',              key: 'margem' },
     { href: '/preco-mktp',           icon: icons.precomktp, label: 'Preço MKTP',          key: 'preco-mktp' },
