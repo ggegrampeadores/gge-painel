@@ -52,7 +52,6 @@
        ══════════════════════════════════════════════ */
     .media-layout { display: grid; grid-template-columns: 240px 1fr; gap: 16px; min-height: calc(100vh - 140px); }
     .folder-tree { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px; overflow-y: auto; }
-    .folder-item { padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; color: #8b949e; }
     .folder-item:hover { background: #21262d; color: #e6edf3; }
     .folder-item.active { background: #1f6feb22; color: #58a6ff; }
     .folder-item .icon { font-size: 16px; }
@@ -201,6 +200,27 @@
 
     .toast { position: fixed; bottom: 20px; right: 20px; background: #238636; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 3000; display: none; animation: fadeIn .3s; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ── Help button ── */
+    .btn-help { width: 36px; height: 36px; border-radius: 50%; background: #30363d; border: 1px solid #484f58; color: #e6edf3; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s; }
+    .btn-help:hover { background: #1f6feb; border-color: #1f6feb; }
+    .help-content { font-size: 13px; line-height: 1.7; color: #c9d1d9; }
+    .help-content h4 { color: #58a6ff; font-size: 14px; margin: 16px 0 6px; }
+    .help-content h4:first-child { margin-top: 0; }
+    .help-content p { margin-bottom: 8px; }
+    .help-content .step { display: flex; gap: 10px; margin-bottom: 10px; }
+    .help-content .step-num { background: #1f6feb; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+    .help-content .step-text { flex: 1; }
+    .help-content kbd { background: #21262d; border: 1px solid #484f58; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-family: monospace; }
+
+    /* ── Nested folders ── */
+    .folder-item { padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; color: #8b949e; position: relative; }
+    .folder-children { padding-left: 18px; }
+    .folder-item .folder-toggle { width: 14px; text-align: center; font-size: 10px; color: #484f58; cursor: pointer; flex-shrink: 0; }
+    .folder-item .folder-toggle:hover { color: #58a6ff; }
+    .folder-item .folder-delete { display: none; margin-left: auto; font-size: 14px; color: #f85149; cursor: pointer; padding: 2px 4px; border-radius: 3px; }
+    .folder-item:hover .folder-delete { display: block; }
+    .folder-item .folder-delete:hover { background: #f8514922; }
   </style>
 </head>
 <body>
@@ -213,7 +233,8 @@
         <h1>🎬 Studio <span>GGE</span></h1>
         <div class="subtitle">Produção de vídeos para marketplaces</div>
       </div>
-      <div style="margin-left:auto; display:flex; gap:8px;">
+      <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+        <button class="btn-help" onclick="showHelp()" title="Como usar o Studio GGE">?</button>
         <button class="btn btn-success" onclick="generateVideo()">▶ Gerar Vídeo</button>
       </div>
     </div>
@@ -236,27 +257,7 @@
             <button class="btn btn-sm" onclick="importFromURL()" title="Importar de URL">🌐</button>
           </div>
           <div id="folder-list">
-            <div class="folder-item active" data-folder="all" onclick="selectFolder('all')">
-              <span class="icon">📂</span> Todos os arquivos
-            </div>
-            <div class="folder-item" data-folder="rocadeiras" onclick="selectFolder('rocadeiras')">
-              <span class="icon">📁</span> Roçadeiras
-            </div>
-            <div class="folder-item" data-folder="grampeadores" onclick="selectFolder('grampeadores')">
-              <span class="icon">📁</span> Grampeadores
-            </div>
-            <div class="folder-item" data-folder="pinadores" onclick="selectFolder('pinadores')">
-              <span class="icon">📁</span> Pinadores
-            </div>
-            <div class="folder-item" data-folder="efeitos" onclick="selectFolder('efeitos')">
-              <span class="icon">📁</span> Efeitos
-            </div>
-            <div class="folder-item" data-folder="musicas" onclick="selectFolder('musicas')">
-              <span class="icon">📁</span> Músicas
-            </div>
-            <div class="folder-item" data-folder="cards" onclick="selectFolder('cards')">
-              <span class="icon">📁</span> Cards / Banners
-            </div>
+            <!-- Renderizado por renderFolderTree() -->
           </div>
         </div>
 
@@ -509,10 +510,54 @@
       <div class="modal-body">
         <label style="font-size:13px; color:#8b949e; margin-bottom:4px; display:block;">Nome da pasta</label>
         <input type="text" id="new-folder-name" placeholder="Ex: Grampeador PDR PRO603" style="width:100%; padding:10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:14px;">
+        <label style="font-size:13px; color:#8b949e; margin-top:12px; margin-bottom:4px; display:block;">Criar dentro de</label>
+        <select id="new-folder-parent" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px;">
+          <option value="">Raiz (nível principal)</option>
+        </select>
       </div>
       <div class="modal-footer">
         <button class="btn" onclick="closeModal('modal-new-folder')">Cancelar</button>
         <button class="btn btn-primary" onclick="doCreateFolder()">Criar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Ajuda / Manual -->
+  <div class="modal-overlay" id="modal-help">
+    <div class="modal" style="max-width:680px;">
+      <div class="modal-header">
+        <h3>📖 Como usar o Studio GGE</h3>
+        <button class="btn btn-sm" onclick="closeModal('modal-help')">✕</button>
+      </div>
+      <div class="modal-body help-content">
+        <h4>Fluxo resumido</h4>
+        <div class="step"><span class="step-num">1</span><span class="step-text"><strong>Importe mídia</strong> — Na aba <em>Mídia</em>, faça upload de imagens, vídeos e áudios (arraste ou clique em Upload). Organize por pastas.</span></div>
+        <div class="step"><span class="step-num">2</span><span class="step-text"><strong>Marque trechos</strong> — Na aba <em>Player</em>, dê duplo-clique num arquivo de vídeo/áudio para abri-lo. Use os botões IN/OUT (ou tecle <kbd>I</kbd> e <kbd>O</kbd>) para marcar o trecho útil. Salve como clip.</span></div>
+        <div class="step"><span class="step-num">3</span><span class="step-text"><strong>Monte a timeline</strong> — Na aba <em>Timeline</em>, adicione camadas (imagem, vídeo, texto, efeito, áudio de fundo, áudio pontual). Cada camada é um "andar" — camada 1 fica atrás, camada mais alta fica na frente.</span></div>
+        <div class="step"><span class="step-num">4</span><span class="step-text"><strong>Gere o vídeo</strong> — Clique em <em>▶ Gerar Vídeo</em>. O Studio monta um JSON com a composição, que o Claude usa para renderizar o MP4 final via ffmpeg.</span></div>
+
+        <h4>Aba Mídia</h4>
+        <p>Sua biblioteca de arquivos. Crie pastas (inclusive dentro de outras pastas), importe imagens de catálogos de fabricante pela URL, e use a busca para encontrar rápido.</p>
+        <p>Para <strong>deletar uma pasta</strong>, passe o mouse sobre ela e clique no <span style="color:#f85149">✕</span> vermelho. Os arquivos dentro serão movidos para a raiz.</p>
+
+        <h4>Aba Player</h4>
+        <p>Reprodutor com controle de velocidade (0.1x até 2x) e navegação frame a frame (<kbd>←</kbd> <kbd>→</kbd>). Ideal para encontrar o momento exato de corte.</p>
+        <p><strong>IN</strong> (verde) = onde o trecho começa. <strong>OUT</strong> (vermelho) = onde termina. Depois de marcar, clique em "Salvar Clip" — ele vai para a lista lateral e fica disponível na Timeline.</p>
+
+        <h4>Aba Timeline</h4>
+        <p>Composição por camadas, de baixo para cima:</p>
+        <p><strong>Camada 1</strong> = base (imagem/vídeo de fundo).<br>
+        <strong>Camada 2+</strong> = sobreposições (textos, cards, efeitos animados, áudio).</p>
+        <p>Cada bloco dentro de uma camada tem duração própria. O total é a soma dos blocos da camada mais longa.</p>
+
+        <h4>Templates</h4>
+        <p>Salve a configuração atual da Timeline como template. Da próxima vez, carregue o template e só troque as mídias — a estrutura (durações, efeitos, texto) já vem pronta.</p>
+
+        <h4>Atalhos de teclado</h4>
+        <p><kbd>Space</kbd> Play/Pause &nbsp;|&nbsp; <kbd>I</kbd> Marca IN &nbsp;|&nbsp; <kbd>O</kbd> Marca OUT &nbsp;|&nbsp; <kbd>←</kbd><kbd>→</kbd> Frame a frame</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeModal('modal-help')">Entendi!</button>
       </div>
     </div>
   </div>
@@ -586,6 +631,52 @@
     </div>
   </div>
 
+  <!-- Modal: Gerar Vídeo -->
+  <div class="modal-overlay" id="modal-generate">
+    <div class="modal" style="max-width:620px;">
+      <div class="modal-header">
+        <h3>▶ Gerar Vídeo</h3>
+        <button class="btn btn-sm" onclick="closeModal('modal-generate')">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Pedido / MLB -->
+        <label style="font-size:13px; color:#8b949e; margin-bottom:4px; display:block;">Pedido (opcional) — descreva o que quer ou cole o MLB</label>
+        <textarea id="gen-request" rows="2" placeholder="Ex: Quero um vídeo para o MLB-123456789 mostrando as 3 principais features" style="width:100%; padding:10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px; resize:vertical;"></textarea>
+
+        <!-- URL do fornecedor -->
+        <label style="font-size:13px; color:#8b949e; margin-top:12px; margin-bottom:4px; display:block;">URL do fornecedor (para buscar imagens automaticamente)</label>
+        <input type="text" id="gen-supplier-url" placeholder="https://sparta.com.br/produto/..." style="width:100%; padding:10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px;">
+        <p class="text-sm text-muted" style="margin-top:4px">Marcas: Sparta, MTX, Palisad, Gross, Denzel, Stels</p>
+
+        <!-- Locução IA -->
+        <div style="margin-top:16px; padding-top:16px; border-top:1px solid #30363d;">
+          <label style="font-size:14px; color:#e6edf3; font-weight:600; margin-bottom:8px; display:block;">🎙 Locução com IA</label>
+          <select id="gen-narration" onchange="toggleNarrationFields()" style="width:100%; padding:10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px;">
+            <option value="none">Sem locução</option>
+            <option value="auto">IA cria tudo (texto e voz)</option>
+            <option value="topics">Eu dou os tópicos, IA cria o roteiro</option>
+            <option value="script">Usar exatamente o que eu escrever</option>
+            <option value="mixed">Usar o que eu falei + IA completa o resto</option>
+          </select>
+
+          <div id="nar-topics-row" style="display:none; margin-top:10px;">
+            <label style="font-size:12px; color:#8b949e; margin-bottom:4px; display:block;">Tópicos / pontos-chave para a locução</label>
+            <textarea id="gen-nar-topics" rows="3" placeholder="Ex: Falar sobre potência 43cc, peso leve, 6 meses garantia, assistência Brasil" style="width:100%; padding:10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px; resize:vertical;"></textarea>
+          </div>
+
+          <div id="nar-script-row" style="display:none; margin-top:10px;">
+            <label style="font-size:12px; color:#8b949e; margin-bottom:4px; display:block;">Roteiro / texto da locução</label>
+            <textarea id="gen-nar-script" rows="4" placeholder="Escreva o que o locutor deve falar, na ordem que aparece no vídeo..." style="width:100%; padding:10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px; resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('modal-generate')">Cancelar</button>
+        <button class="btn btn-success" onclick="doGenerate()">🚀 Gerar Composição</button>
+      </div>
+    </div>
+  </div>
+
   <script src="sidebar.js" defer></script>
   <script>
     /* ═══════════════════════════════════════════════
@@ -627,31 +718,139 @@
     });
 
     /* ═══════════════════════════════════════════════
-       MÍDIA - Pastas
+       MÍDIA - Pastas (Árvore aninhada)
        ═══════════════════════════════════════════════ */
+    // Estrutura de pastas: array de objetos { key, name, children: [] }
+    state.folders = [
+      { key: 'rocadeiras', name: 'Roçadeiras', children: [] },
+      { key: 'grampeadores', name: 'Grampeadores', children: [] },
+      { key: 'pinadores', name: 'Pinadores', children: [] },
+      { key: 'efeitos', name: 'Efeitos', children: [] },
+      { key: 'musicas', name: 'Músicas', children: [] },
+      { key: 'cards', name: 'Cards / Banners', children: [] }
+    ];
+
     function selectFolder(folder) {
       state.currentFolder = folder;
-      document.querySelectorAll('.folder-item').forEach(function(f) {
-        f.classList.toggle('active', f.dataset.folder === folder);
-      });
+      renderFolderTree();
       renderMediaGrid();
     }
 
+    function renderFolderTree() {
+      var html = '<div class="folder-item ' + (state.currentFolder === 'all' ? 'active' : '') + '" data-folder="all" onclick="selectFolder(\'all\')">' +
+                 '<span class="icon">📂</span> Todos os arquivos</div>';
+      html += renderFolderLevel(state.folders, 0);
+      document.getElementById('folder-list').innerHTML = html;
+    }
+
+    function renderFolderLevel(folders, depth) {
+      var html = '';
+      var indent = depth > 0 ? ' style="padding-left:' + (depth * 18) + 'px"' : '';
+      for (var i = 0; i < folders.length; i++) {
+        var f = folders[i];
+        var active = state.currentFolder === f.key ? ' active' : '';
+        var hasChildren = f.children && f.children.length > 0;
+        var toggle = hasChildren ? '<span class="folder-toggle" onclick="event.stopPropagation(); toggleFolderExpand(\'' + f.key + '\')">▶</span>' : '<span class="folder-toggle"></span>';
+        html += '<div class="folder-item' + active + '" data-folder="' + f.key + '" onclick="selectFolder(\'' + f.key + '\')"' + indent + '>' +
+                toggle + '<span class="icon">📁</span> ' + f.name +
+                '<span class="folder-delete" onclick="event.stopPropagation(); deleteFolder(\'' + f.key + '\')" title="Excluir pasta">✕</span></div>';
+        if (hasChildren) {
+          html += '<div class="folder-children" id="fc-' + f.key + '">';
+          html += renderFolderLevel(f.children, depth + 1);
+          html += '</div>';
+        }
+      }
+      return html;
+    }
+
+    function toggleFolderExpand(key) {
+      var el = document.getElementById('fc-' + key);
+      if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function findFolderParent(folders, key, parent) {
+      for (var i = 0; i < folders.length; i++) {
+        if (folders[i].key === key) return { list: folders, index: i, parent: parent };
+        if (folders[i].children.length > 0) {
+          var found = findFolderParent(folders[i].children, key, folders[i]);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    function getAllFolderKeys(folders) {
+      var keys = [];
+      for (var i = 0; i < folders.length; i++) {
+        keys.push(folders[i].key);
+        if (folders[i].children.length > 0) {
+          keys = keys.concat(getAllFolderKeys(folders[i].children));
+        }
+      }
+      return keys;
+    }
+
+    function deleteFolder(key) {
+      if (!confirm('Excluir pasta "' + key + '"? Os arquivos dentro serão movidos para a raiz.')) return;
+      var ref = findFolderParent(state.folders, key, null);
+      if (!ref) return;
+      // Coletar todas as sub-keys para mover arquivos
+      var folder = ref.list[ref.index];
+      var allKeys = [key].concat(getAllFolderKeys(folder.children));
+      // Mover arquivos para raiz
+      state.mediaFiles.forEach(function(m) {
+        if (allKeys.indexOf(m.folder) >= 0) m.folder = 'all';
+      });
+      // Remover pasta
+      ref.list.splice(ref.index, 1);
+      if (state.currentFolder === key || allKeys.indexOf(state.currentFolder) >= 0) {
+        state.currentFolder = 'all';
+      }
+      renderFolderTree();
+      renderMediaGrid();
+      showToast('Pasta excluída');
+    }
+
     function createFolder() {
+      // Preencher select de pasta pai
+      var sel = document.getElementById('new-folder-parent');
+      sel.innerHTML = '<option value="">Raiz (nível principal)</option>';
+      function addOptions(folders, prefix) {
+        for (var i = 0; i < folders.length; i++) {
+          sel.innerHTML += '<option value="' + folders[i].key + '">' + prefix + folders[i].name + '</option>';
+          if (folders[i].children.length > 0) addOptions(folders[i].children, prefix + '  ↳ ');
+        }
+      }
+      addOptions(state.folders, '');
+      // Pré-selecionar pasta atual como pai (se não é 'all')
+      if (state.currentFolder !== 'all') sel.value = state.currentFolder;
       document.getElementById('modal-new-folder').classList.add('active');
-      document.getElementById('new-folder-name').focus();
+      setTimeout(function() { document.getElementById('new-folder-name').focus(); }, 100);
     }
 
     function doCreateFolder() {
       var name = document.getElementById('new-folder-name').value.trim();
       if (!name) return;
-      var key = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      var html = '<div class="folder-item" data-folder="' + key + '" onclick="selectFolder(\'' + key + '\')">' +
-                 '<span class="icon">📁</span> ' + name + '</div>';
-      document.getElementById('folder-list').insertAdjacentHTML('beforeend', html);
+      var key = name.toLowerCase().replace(/[^a-z0-9áàãâéèêíìîóòõôúùûç]/g, '-').replace(/-+/g, '-');
+      var parentKey = document.getElementById('new-folder-parent').value;
+      var newFolder = { key: key, name: name, children: [] };
+
+      if (parentKey) {
+        var ref = findFolderParent(state.folders, parentKey, null);
+        if (ref) ref.list[ref.index].children.push(newFolder);
+        else state.folders.push(newFolder);
+      } else {
+        state.folders.push(newFolder);
+      }
+
       closeModal('modal-new-folder');
       document.getElementById('new-folder-name').value = '';
-      showToast('Pasta "' + name + '" criada');
+      renderFolderTree();
+      showToast('Pasta "' + name + '" criada' + (parentKey ? ' dentro de ' + parentKey : ''));
+    }
+
+    function showHelp() {
+      document.getElementById('modal-help').classList.add('active');
     }
 
     function importFromURL() {
@@ -701,11 +900,28 @@
       document.getElementById('drop-zone').style.display = 'none';
     }
 
+    function getFolderAndDescendants(key) {
+      // Retorna array com a key e todas as sub-keys
+      var keys = [key];
+      function collect(folders) {
+        for (var i = 0; i < folders.length; i++) {
+          if (folders[i].key === key || keys.indexOf(folders[i].key) >= 0) {
+            // Adicionar filhos
+            folders[i].children.forEach(function(c) { keys.push(c.key); });
+          }
+          if (folders[i].children.length > 0) collect(folders[i].children);
+        }
+      }
+      collect(state.folders);
+      return keys;
+    }
+
     function renderMediaGrid() {
       var grid = document.getElementById('media-grid');
+      var validKeys = state.currentFolder === 'all' ? null : getFolderAndDescendants(state.currentFolder);
       var filtered = state.mediaFiles.filter(function(m) {
-        if (state.currentFolder === 'all') return true;
-        return m.folder === state.currentFolder;
+        if (!validKeys) return true;
+        return validKeys.indexOf(m.folder) >= 0;
       });
       var search = document.getElementById('media-search').value.toLowerCase();
       if (search) {
@@ -1037,48 +1253,227 @@
 
       var sourceId = document.getElementById('block-source').value;
       var duration = parseFloat(document.getElementById('block-duration').value) || 3;
-      var effect = document.getElementById('block-effect-in').value;
+      var effectIn = document.getElementById('block-effect-in').value;
 
       var block = {
+        id: 'blk-' + Date.now(),
+        sourceId: sourceId,
+        name: '',
         type: layer.type,
         duration: duration,
-        effect: effect,
-        name: '',
-        thumbUrl: null,
-        sourceId: sourceId
+        effect: effectIn,
+        thumbUrl: null
       };
 
-      if (layer.type === 'txt') {
-        block.name = document.getElementById('block-text').value || 'Texto';
+      // Resolver nome e thumb
+      if (sourceId === '__text__') {
+        block.name = document.getElementById('block-text').value.substring(0, 30) || 'Texto';
+        block.text = document.getElementById('block-text').value;
         block.textColor = document.getElementById('block-text-color').value;
         block.textPos = document.getElementById('block-text-pos').value;
+      } else if (sourceId.startsWith('clip:')) {
+        var clip = state.clips.find(function(c) { return c.id === sourceId.replace('clip:', ''); });
+        if (clip) { block.name = clip.name; block.duration = clip.duration || duration; }
       } else {
         var media = state.mediaFiles.find(function(m) { return m.id === sourceId; });
         if (media) {
           block.name = media.name;
-          block.thumbUrl = media.type === 'img' ? media.url : null;
-          block.url = media.url;
-        } else if (sourceId.startsWith('clip:')) {
-          var clip = state.clips.find(function(c) { return c.id === sourceId.replace('clip:', ''); });
-          if (clip) {
-            block.name = clip.name;
-            block.duration = clip.duration;
-            block.inTime = clip.inTime;
-            block.outTime = clip.outTime;
-          }
+          if (media.type === 'img') block.thumbUrl = media.url;
         }
       }
 
+      if (!block.name) block.name = 'Bloco ' + (layer.blocks.length + 1);
+
+      // Audio timing
       if (layer.type === 'aud-bg' || layer.type === 'aud-fx') {
         block.audioStart = parseFloat(document.getElementById('block-audio-start').value) || 0;
         block.timelineStart = parseFloat(document.getElementById('block-timeline-start').value) || 0;
       }
 
       layer.blocks.push(block);
-      renderLayers();
       closeModal('modal-add-block');
+      renderLayers();
       showToast('Bloco adicionado');
     }
+
+    /* ═══════════════════════════════════════════════
+       TIMELINE - Composição Preview
+       ═══════════════════════════════════════════════ */
+    function updateCompositionPreview() {
+      var preview = document.getElementById('composition-preview');
+      if (!preview) return;
+      if (state.layers.length === 0) {
+        preview.innerHTML = '<p class="text-muted">A composição aparece aqui conforme você monta as camadas.</p>';
+        document.getElementById('total-duration').textContent = '0s';
+        return;
+      }
+
+      var maxDuration = 0;
+      var lines = [];
+      state.layers.forEach(function(layer, idx) {
+        var num = idx + 1;
+        var info = layerTypes[layer.type];
+        var layerDur = 0;
+        var blockDescs = layer.blocks.map(function(b) {
+          layerDur += b.duration;
+          return b.name + ' (' + b.duration.toFixed(1) + 's)';
+        });
+        if (layerDur > maxDuration) maxDuration = layerDur;
+        lines.push('<div style="margin-bottom:6px;"><strong style="color:' + info.color + '">' + info.icon + ' Camada ' + num + ' — ' + layer.label + '</strong> (' + layerDur.toFixed(1) + 's)<br><span class="text-muted">' + (blockDescs.length ? blockDescs.join(' → ') : 'vazia') + '</span></div>');
+      });
+
+      preview.innerHTML = lines.join('');
+      document.getElementById('total-duration').textContent = maxDuration.toFixed(1) + 's';
+    }
+
+    /* ═══════════════════════════════════════════════
+       TEMPLATES
+       ═══════════════════════════════════════════════ */
+    state.templates = [
+      { id: 'tpl-1', name: 'Slideshow Básico', desc: 'Imagens sequenciais com áudio de fundo', layers: 2, duration: '~30s', icon: '📷' },
+      { id: 'tpl-2', name: 'Promo Rápido', desc: 'Imagens + texto animado + música', layers: 3, duration: '~15s', icon: '🔥' },
+      { id: 'tpl-3', name: 'Demo com Vídeo', desc: 'Vídeo base + cards de info + narração', layers: 4, duration: '~45s', icon: '🎬' }
+    ];
+
+    function renderTemplates() {
+      var grid = document.getElementById('templates-grid');
+      if (!grid) return;
+      grid.innerHTML = state.templates.map(function(t) {
+        return '<div class="template-card" onclick="loadTemplate(\'' + t.id + '\')">' +
+               '<div class="template-preview">' + t.icon + '</div>' +
+               '<div class="template-info"><div class="name">' + t.name + '</div>' +
+               '<div class="desc">' + t.desc + '</div>' +
+               '<div class="meta"><span>' + t.layers + ' camadas</span><span>' + t.duration + '</span></div></div></div>';
+      }).join('') +
+      '<div class="template-card" onclick="saveAsTemplate()" style="border-style:dashed">' +
+      '<div class="template-preview" style="color:#3fb950">+</div>' +
+      '<div class="template-info"><div class="name">Salvar como Template</div>' +
+      '<div class="desc">Salva a timeline atual como receita reutilizável</div></div></div>';
+    }
+
+    function saveAsTemplate() {
+      var name = prompt('Nome do template:');
+      if (!name) return;
+      var tpl = {
+        id: 'tpl-' + Date.now(),
+        name: name,
+        desc: state.layers.length + ' camadas, ' + state.layers.reduce(function(sum, l) { return sum + l.blocks.length; }, 0) + ' blocos',
+        layers: state.layers.length,
+        duration: document.getElementById('total-duration').textContent,
+        icon: '📋',
+        data: JSON.parse(JSON.stringify(state.layers))
+      };
+      state.templates.push(tpl);
+      renderTemplates();
+      showToast('Template "' + name + '" salvo!');
+    }
+
+    function loadTemplate(id) {
+      var tpl = state.templates.find(function(t) { return t.id === id; });
+      if (!tpl || !tpl.data) {
+        showToast('Template de exemplo — monte suas camadas e salve como template.');
+        return;
+      }
+      if (state.layers.length > 0 && !confirm('Substituir a timeline atual pelo template?')) return;
+      state.layers = JSON.parse(JSON.stringify(tpl.data));
+      renderLayers();
+      showToast('Template "' + tpl.name + '" carregado');
+      // Switch to timeline tab
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === 'timeline'); });
+      document.querySelectorAll('.panel').forEach(function(p) { p.classList.toggle('active', p.id === 'panel-timeline'); });
+    }
+
+    /* ═══════════════════════════════════════════════
+       GERAR VÍDEO (Exportar JSON para Claude)
+       ═══════════════════════════════════════════════ */
+    function generateVideo() {
+      document.getElementById('modal-generate').classList.add('active');
+    }
+
+    function doGenerate() {
+      var narration = document.getElementById('gen-narration').value;
+      var narTopics = document.getElementById('gen-nar-topics').value.trim();
+      var narScript = document.getElementById('gen-nar-script').value.trim();
+      var requestText = document.getElementById('gen-request').value.trim();
+      var supplierURL = document.getElementById('gen-supplier-url').value.trim();
+
+      var composition = {
+        version: 1,
+        generatedAt: new Date().toISOString(),
+        request: requestText || null,
+        supplierURL: supplierURL || null,
+        narration: {
+          enabled: narration !== 'none',
+          mode: narration,
+          topics: narTopics || null,
+          script: narScript || null
+        },
+        layers: state.layers.map(function(layer, idx) {
+          return {
+            order: idx + 1,
+            type: layer.type,
+            label: layer.label,
+            blocks: layer.blocks.map(function(b) {
+              var obj = { name: b.name, duration: b.duration, effect: b.effect };
+              if (b.sourceId) obj.sourceId = b.sourceId;
+              if (b.text) { obj.text = b.text; obj.textColor = b.textColor; obj.textPos = b.textPos; }
+              if (b.audioStart !== undefined) { obj.audioStart = b.audioStart; obj.timelineStart = b.timelineStart; }
+              return obj;
+            })
+          };
+        })
+      };
+      var json = JSON.stringify(composition, null, 2);
+      navigator.clipboard.writeText(json).then(function() {
+        showToast('Composição copiada! Cole no chat para eu renderizar.');
+      }).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = json; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        showToast('Composição copiada!');
+      });
+      closeModal('modal-generate');
+    }
+
+    function toggleNarrationFields() {
+      var mode = document.getElementById('gen-narration').value;
+      document.getElementById('nar-topics-row').style.display = (mode === 'topics' || mode === 'mixed') ? '' : 'none';
+      document.getElementById('nar-script-row').style.display = (mode === 'script' || mode === 'mixed') ? '' : 'none';
+    }
+
+    /* ═══════════════════════════════════════════════
+       UTILITÁRIOS
+       ═══════════════════════════════════════════════ */
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function showToast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(function() { t.style.display = 'none'; }, 3000);
+    }
+
+    /* ═══════════════════════════════════════════════
+       ATALHOS DE TECLADO
+       ═══════════════════════════════════════════════ */
+    document.addEventListener('keydown', function(e) {
+      // Ignorar se estiver digitando em input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+      if (e.key === 'i' || e.key === 'I') setMarkIn();
+      if (e.key === 'o' || e.key === 'O') setMarkOut();
+      if (e.key === 'ArrowLeft') { e.preventDefault(); playerSkip(-1/30); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); playerSkip(1/30); }
+    });
+
+    // Init
+    renderFolderTree();
+    renderMediaGrid();
+    renderLayers();
+    renderClips();
+    renderTemplates();
 
     function addToTimeline() {
       // Quick-add selected media to a new image layer
@@ -1121,121 +1516,6 @@
       showToast(layer.blocks.length + ' itens adicionados à timeline');
     }
 
-    /* ═══════════════════════════════════════════════
-       COMPOSIÇÃO - Preview textual
-       ═══════════════════════════════════════════════ */
-    function updateCompositionPreview() {
-      var pre = document.getElementById('composition-preview');
-      if (state.layers.length === 0) {
-        pre.textContent = '(vazio - adicione camadas para ver a composição)';
-        document.getElementById('total-duration').textContent = '0.0s';
-        return;
-      }
-
-      var lines = [];
-      var maxDur = 0;
-
-      state.layers.forEach(function(layer, idx) {
-        var info = layerTypes[layer.type];
-        lines.push('━━━ Camada ' + (idx + 1) + ': ' + info.icon + ' ' + layer.label + ' ━━━');
-
-        if (layer.blocks.length === 0) {
-          lines.push('  (vazia)');
-        } else {
-          var t = 0;
-          layer.blocks.forEach(function(block, bIdx) {
-            var startTime = (layer.type === 'aud-bg' || layer.type === 'aud-fx') ? (block.timelineStart || 0) : t;
-            var endTime = startTime + block.duration;
-            var effectStr = block.effect && block.effect !== 'none' ? ' | ' + block.effect : '';
-            var rangeStr = '';
-            if (block.inTime !== undefined) {
-              rangeStr = ' [' + formatTime(block.inTime) + '→' + formatTime(block.outTime) + ']';
-            }
-            lines.push('  [' + (bIdx + 1) + '] ' + formatTime(startTime) + ' → ' + formatTime(endTime) + ' | ' + block.name + rangeStr + effectStr + ' (' + block.duration.toFixed(1) + 's)');
-            t = endTime;
-            if (endTime > maxDur) maxDur = endTime;
-          });
-        }
-        lines.push('');
-      });
-
-      lines.push('═══ Duração total: ' + maxDur.toFixed(1) + 's | Formato: 1080×1920 (9:16) | 30fps ═══');
-      pre.textContent = lines.join('\n');
-      document.getElementById('total-duration').textContent = maxDur.toFixed(1) + 's';
-    }
-
-    /* ═══════════════════════════════════════════════
-       TEMPLATES
-       ═══════════════════════════════════════════════ */
-    function saveAsTemplate() {
-      if (state.layers.length === 0) {
-        showToast('Monte uma timeline primeiro');
-        return;
-      }
-      var name = prompt('Nome do template:');
-      if (!name) return;
-      var template = {
-        id: 'tpl-' + Date.now(),
-        name: name,
-        layers: JSON.parse(JSON.stringify(state.layers)),
-        created: new Date().toISOString()
-      };
-      state.templates.push(template);
-      showToast('Template "' + name + '" salvo');
-    }
-
-    function loadTemplate(id) {
-      showToast('Template carregado na timeline');
-      // TODO: carregar template pré-definido ou salvo
-    }
-
-    /* ═══════════════════════════════════════════════
-       GERAR VÍDEO
-       ═══════════════════════════════════════════════ */
-    function generateVideo() {
-      if (state.layers.length === 0) {
-        showToast('Monte a timeline primeiro');
-        return;
-      }
-      var composition = {
-        format: { width: 1080, height: 1920, fps: 30 },
-        layers: state.layers.map(function(l) {
-          return {
-            type: l.type,
-            label: l.label,
-            blocks: l.blocks.map(function(b) {
-              return {
-                name: b.name,
-                duration: b.duration,
-                effect: b.effect,
-                sourceId: b.sourceId,
-                url: b.url,
-                inTime: b.inTime,
-                outTime: b.outTime,
-                text: b.name,
-                textColor: b.textColor,
-                textPos: b.textPos,
-                audioStart: b.audioStart,
-                timelineStart: b.timelineStart
-              };
-            })
-          };
-        })
-      };
-      // Copy composition JSON to clipboard
-      var json = JSON.stringify(composition, null, 2);
-      navigator.clipboard.writeText(json).then(function() {
-        showToast('Composição copiada! Cole no chat para eu renderizar o vídeo.');
-      }).catch(function() {
-        // Fallback
-        console.log('COMPOSIÇÃO:', json);
-        showToast('Composição gerada. Verifique o console (F12).');
-      });
-    }
-
-    /* ═══════════════════════════════════════════════
-       UTILS
-       ═══════════════════════════════════════════════ */
     function formatTime(s) {
       if (s === null || s === undefined || isNaN(s)) return '00:00.000';
       var min = Math.floor(s / 60);
@@ -1244,40 +1524,7 @@
       sec = Math.floor(sec);
       return String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0') + '.' + String(ms).padStart(3, '0');
     }
-
-    function showToast(msg) {
-      var t = document.getElementById('toast');
-      t.textContent = msg;
-      t.style.display = 'block';
-      clearTimeout(t._timer);
-      t._timer = setTimeout(function() { t.style.display = 'none'; }, 3000);
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.remove('active');
-    }
-
-    // Close modals on overlay click
-    document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
-      overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) overlay.classList.remove('active');
-      });
-    });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-      if (e.key === ' ') { e.preventDefault(); togglePlay(); }
-      if (e.key === 'i' || e.key === 'I') setMarkIn();
-      if (e.key === 'o' || e.key === 'O') setMarkOut();
-      if (e.key === 'ArrowLeft') { e.preventDefault(); playerSkip(-1/30); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); playerSkip(1/30); }
-    });
-
-    // Init
-    renderMediaGrid();
-    renderLayers();
-    renderClips();
   </script>
+  <div id="toast" class="toast"></div>
 </body>
 </html>
