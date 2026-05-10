@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Análise de Anúncios - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; }
+    .main-with-sidebar { margin-left: 48px; min-height: 100vh; padding: 20px; }
+    h1 { font-size: 1.5rem; margin-bottom: 6px; }
+    .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 20px; }
+    .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .filters select, .filters input { background: #161b22; border: 1px solid #30363d; color: #e6edf3; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; }
+    .filters label { color: #8b949e; font-size: 0.8rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+    .card .label { color: #8b949e; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; }
+    .card .value { font-size: 1.4rem; font-weight: 700; }
+    .green { color: #3fb950; } .red { color: #f85149; } .yellow { color: #d29922; } .blue { color: #58a6ff; } .orange { color: #f0883e; }
+    .table-scroll { overflow-x: auto; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 900px; }
+    thead th { background: #161b22; border-bottom: 2px solid #30363d; padding: 8px 6px; text-align: left; color: #8b949e; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+    thead th:hover { color: #58a6ff; }
+    tbody td { padding: 7px 6px; border-bottom: 1px solid #21262d; vertical-align: middle; }
+    tbody tr { cursor: pointer; transition: background 0.15s; }
+    tbody tr:hover { background: #1c2128; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .loading { text-align: center; padding: 60px; color: #8b949e; }
+    .search-box { background: #161b22; border: 1px solid #30363d; color: #e6edf3; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; width: 220px; }
+    .search-box::placeholder { color: #484f58; }
+
+    /* Score gauge */
+    .score-gauge { position: relative; width: 44px; height: 44px; }
+    .score-gauge svg { transform: rotate(-90deg); }
+    .score-gauge .score-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 0.7rem; font-weight: 700; }
+
+    /* Stacked bar */
+    .stacked-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; width: 120px; background: #21262d; }
+    .stacked-bar .seg { height: 100%; }
+
+    /* Share bar */
+    .share-bar { width: 60px; height: 6px; background: #21262d; border-radius: 3px; display: inline-block; vertical-align: middle; margin-left: 4px; }
+    .share-bar .fill { height: 100%; border-radius: 3px; background: #58a6ff; }
+
+    /* Diagnosis */
+    .diag { display: flex; flex-wrap: wrap; gap: 4px; }
+    .diag-tag { font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; background: #21262d; color: #e6edf3; white-space: nowrap; }
+    .diag-tag.critical { background: #3d1f1f; color: #f85149; }
+    .diag-tag.warn { background: #3d2f1f; color: #d29922; }
+
+    /* Product info */
+    .prod-title { font-size: 0.8rem; font-weight: 500; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .prod-sub { font-size: 0.7rem; color: #8b949e; margin-top: 2px; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: flex-start; padding: 40px 20px; overflow-y: auto; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #161b22; border: 1px solid #30363d; border-radius: 12px; width: 100%; max-width: 800px; padding: 24px; animation: modalIn 0.2s ease; }
+    @keyframes modalIn { from { opacity:0; transform: translateY(-20px); } to { opacity:1; transform: translateY(0); } }
+    .modal-close { float: right; background: none; border: none; color: #8b949e; font-size: 1.5rem; cursor: pointer; }
+    .modal-close:hover { color: #e6edf3; }
+    .modal h2 { font-size: 1.1rem; margin-bottom: 4px; padding-right: 30px; }
+    .modal .mlb-id { color: #8b949e; font-size: 0.8rem; margin-bottom: 16px; }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    @media (max-width: 700px) { .modal-grid { grid-template-columns: 1fr; } }
+    .radar-container { display: flex; justify-content: center; align-items: center; }
+    .score-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+    .score-card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; text-align: center; }
+    .score-card .sc-label { font-size: 0.7rem; color: #8b949e; margin-bottom: 4px; }
+    .score-card .sc-value { font-size: 1rem; font-weight: 700; }
+    .score-card .sc-max { font-size: 0.7rem; color: #484f58; }
+    .actions-list { list-style: none; padding: 0; }
+    .actions-list li { padding: 6px 0; border-bottom: 1px solid #21262d; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+    .actions-list .priority { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .actions-list .p-high { background: #f85149; }
+    .actions-list .p-med { background: #d29922; }
+    .actions-list .p-low { background: #3fb950; }
+    .financial-row { display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+    .fin-item { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px 14px; }
+    .fin-item .fi-label { font-size: 0.7rem; color: #8b949e; }
+    .fin-item .fi-value { font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+
+    /* FAB */
+    .fab { position: fixed; bottom: 24px; right: 24px; background: #238636; border: none; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 900; transition: background 0.2s; }
+    .fab:hover { background: #2ea043; }
+    .fab:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+
+    .sort-arrow { margin-left: 4px; font-size: 0.7rem; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <h1>Análise de Anúncios</h1>
+    <p class="subtitle" id="subtitle">Carregando...</p>
+
+    <div class="filters">
+      <div><label>Conta</label><br>
+        <select id="filtro-conta">
+          <option value="todas">Todas</option>
+          <option value="GGE-GRAMPEADORES">GGE</option>
+          <option value="TOOWCOMERCIAL">TOOW</option>
+          <option value="GGESP">GGESP</option>
+        </select>
+      </div>
+      <div><label>Grupo</label><br>
+        <select id="filtro-grupo">
+          <option value="todos">Todos</option>
+          <option value="estrela">Estrelas</option>
+          <option value="forte">Fortes</option>
+          <option value="medio">Médios</option>
+          <option value="cauda">Cauda</option>
+          <option value="full">Full</option>
+          <option value="coleta">Coleta</option>
+          <option value="premium">Premium</option>
+          <option value="classico">Clássico</option>
+          <option value="sem_video">Sem Vídeo</option>
+          <option value="ficha_baixa">Ficha &lt; 50%</option>
+          <option value="quick_wins">Quick Wins</option>
+        </select>
+      </div>
+      <div><label>Ordenar</label><br>
+        <select id="filtro-sort">
+          <option value="urgencia">Urgência</option>
+          <option value="score_asc">Pior Score</option>
+          <option value="share">Maior Share</option>
+          <option value="vendas">Mais Vendas</option>
+        </select>
+      </div>
+      <div><label>Buscar</label><br>
+        <input type="text" id="search-box" class="search-box" placeholder="MLB ou título...">
+      </div>
+    </div>
+
+    <div class="cards" id="cards-container"><div class="loading">Carregando...</div></div>
+
+    <div class="table-scroll">
+      <table id="main-table">
+        <thead>
+          <tr>
+            <th>Score</th>
+            <th>Produto</th>
+            <th>Share %</th>
+            <th>Breakdown</th>
+            <th>Diagnóstico</th>
+            <th>Urgência</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="6" class="loading">Carregando dados...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal" id="modal-content"></div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" id="fab-coleta">Atualizar Dados</button>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+    (function() {
+      var auth = sessionStorage.getItem('gge_auth');
+      if (auth !== 'gge2026') { window.location.href = '/'; return; }
+    })();
+
+    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+    var allData = [];
+    var filteredData = [];
+
+    // ===== LOAD DATA =====
+    async function loadData() {
+      var { data, error } = await sb.from('vw_score_anuncio').select('*');
+      if (error) { console.error(error); document.getElementById('subtitle').textContent = 'Erro ao carregar dados'; return; }
+      allData = data || [];
+      document.getElementById('subtitle').textContent = allData.length + ' anúncios analisados';
+      applyFilters();
+    }
+
+    // ===== FILTERS =====
+    function applyFilters() {
+      var conta = document.getElementById('filtro-conta').value;
+      var grupo = document.getElementById('filtro-grupo').value;
+      var sort = document.getElementById('filtro-sort').value;
+      var search = document.getElementById('search-box').value.toLowerCase().trim();
+
+      filteredData = allData.filter(function(r) {
+        if (conta !== 'todas' && r.conta_nome !== conta) return false;
+        if (search && !((r.mlb_id||'').toLowerCase().includes(search) || (r.titulo||'').toLowerCase().includes(search))) return false;
+        switch(grupo) {
+          case 'estrela': return r.classificacao_share === 'estrela';
+          case 'forte': return r.classificacao_share === 'forte';
+          case 'medio': return r.classificacao_share === 'medio';
+          case 'cauda': return r.classificacao_share === 'cauda';
+          case 'full': return r.modo_logistica === 'fulfillment';
+          case 'coleta': return r.modo_logistica !== 'fulfillment';
+          case 'premium': return r.tipo_listagem === 'gold_pro';
+          case 'classico': return r.tipo_listagem === 'gold_special';
+          case 'sem_video': return !r.tem_video;
+          case 'ficha_baixa': return r.atributos_disponiveis > 0 && (r.atributos_preenchidos / r.atributos_disponiveis) < 0.5;
+          case 'quick_wins': return isQuickWin(r);
+          default: return true;
+        }
+      });
+
+      switch(sort) {
+        case 'urgencia': filteredData.sort(function(a,b){ return (b.indice_urgencia||0)-(a.indice_urgencia||0); }); break;
+        case 'score_asc': filteredData.sort(function(a,b){ return (a.score_total||0)-(b.score_total||0); }); break;
+        case 'share': filteredData.sort(function(a,b){ return (b.share_margem_pct||0)-(a.share_margem_pct||0); }); break;
+        case 'vendas': filteredData.sort(function(a,b){ return (b.vendas_30d||0)-(a.vendas_30d||0); }); break;
+      }
+
+      renderCards();
+      renderTable();
+    }
+
+    function isQuickWin(r) {
+      if (!r.score_total || r.score_total < 55 || r.score_total > 75) return false;
+      var gaps = getScoreGaps(r);
+      for (var i = 0; i < gaps.length; i++) {
+        if (r.score_total + gaps[i].gap >= 80) return true;
+      }
+      return false;
+    }
+
+    function getScoreGaps(r) {
+      var items = [
+        { name: 'Vídeo', current: r.score_video||0, max: 8 },
+        { name: 'Fotos', current: r.score_fotos||0, max: 12 },
+        { name: 'Ficha', current: r.score_ficha||0, max: 15 },
+        { name: 'EAN', current: r.score_ean||0, max: 3 },
+        { name: 'Descrição', current: r.score_descricao||0, max: 8 },
+        { name: 'Título', current: r.score_titulo||0, max: 8 },
+        { name: 'Logística', current: r.score_logistica||0, max: 4 },
+        { name: 'Catálogo', current: r.score_catalogo||0, max: 2 },
+        { name: 'Conversão', current: r.score_conversao||0, max: 12 },
+        { name: 'Reviews', current: r.score_reviews||0, max: 10 },
+        { name: 'Vendas', current: r.score_vendas||0, max: 10 },
+        { name: 'Perguntas', current: r.score_perguntas||0, max: 4 },
+        { name: 'Visitas', current: r.score_visitas||0, max: 4 }
+      ];
+      items.forEach(function(it){ it.gap = it.max - it.current; });
+      items.sort(function(a,b){ return b.gap - a.gap; });
+      return items;
+    }
+
+    // ===== SUMMARY CARDS =====
+    function renderCards() {
+      var ct = document.getElementById('cards-container');
+      if (filteredData.length === 0) { ct.innerHTML = '<div class="loading">Nenhum resultado</div>'; return; }
+
+      var avgScore = filteredData.reduce(function(s,r){ return s+(r.score_total||0); },0) / filteredData.length;
+      var semVideo = filteredData.filter(function(r){ return !r.tem_video; }).length;
+      var semVideoPct = (semVideo / filteredData.length * 100);
+      var fichaBaixa = filteredData.filter(function(r){ return r.atributos_disponiveis > 0 && (r.atributos_preenchidos/r.atributos_disponiveis) < 0.5; }).length;
+
+      var sorted = filteredData.slice().sort(function(a,b){ return (b.share_margem_pct||0)-(a.share_margem_pct||0); });
+      var top10Share = sorted.slice(0,10).reduce(function(s,r){ return s+(r.share_margem_pct||0); },0);
+
+      var urgencias = filteredData.filter(function(r){ return (r.indice_urgencia||0) > 100; }).length;
+
+      var scoreColor = avgScore >= 70 ? 'green' : avgScore >= 40 ? 'yellow' : 'red';
+
+      ct.innerHTML = `
+        <div class="card"><div class="label">Score Médio</div><div class="value ${scoreColor}">${avgScore.toFixed(1)}</div></div>
+        <div class="card"><div class="label">Sem Vídeo</div><div class="value ${semVideoPct > 50 ? 'red' : 'yellow'}">${semVideo} <small style="font-size:0.7rem;color:#8b949e">(${semVideoPct.toFixed(0)}%)</small></div></div>
+        <div class="card"><div class="label">Ficha &lt; 50%</div><div class="value orange">${fichaBaixa}</div></div>
+        <div class="card"><div class="label">Share Top 10</div><div class="value blue">${top10Share.toFixed(1)}%</div></div>
+        <div class="card"><div class="label">Urgências</div><div class="value ${urgencias > 20 ? 'red' : urgencias > 5 ? 'yellow' : 'green'}">${urgencias}</div></div>
+      `;
+    }
+
+    // ===== TABLE =====
+    function renderTable() {
+      var tbody = document.getElementById('table-body');
+      if (filteredData.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="loading">Nenhum resultado</td></tr>'; return; }
+
+      var html = '';
+      filteredData.forEach(function(r) {
+        var score = r.score_total || 0;
+        var color = score >= 70 ? '#3fb950' : score >= 40 ? '#d29922' : '#f85149';
+        var pct = score / 100;
+        var circumference = 2 * Math.PI * 17;
+        var offset = circumference * (1 - pct);
+
+        var sharePct = r.share_margem_pct || 0;
+        var diags = getDiagnosis(r);
+        var breakdownHtml = renderBreakdownBar(r);
+
+        html += '<tr data-mlb="' + r.mlb_id + '">';
+        // Score gauge
+        html += '<td><div class="score-gauge"><svg width="44" height="44"><circle cx="22" cy="22" r="17" fill="none" stroke="#21262d" stroke-width="3"/><circle cx="22" cy="22" r="17" fill="none" stroke="' + color + '" stroke-width="3" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '" stroke-linecap="round"/></svg><span class="score-text" style="color:' + color + '">' + score + '</span></div></td>';
+        // Product
+        html += '<td><div class="prod-title">' + esc(r.titulo || '') + '</div><div class="prod-sub">' + esc(r.mlb_id || '') + ' &middot; ' + esc(r.sku_vendedor || '') + '</div></td>';
+        // Share
+        html += '<td class="num">' + sharePct.toFixed(1) + '%<div class="share-bar"><div class="fill" style="width:' + Math.min(sharePct * 2, 100) + '%"></div></div></td>';
+        // Breakdown
+        html += '<td>' + breakdownHtml + '</td>';
+        // Diagnosis
+        html += '<td><div class="diag">' + diags + '</div></td>';
+        // Urgency
+        html += '<td class="num" style="font-weight:700;color:' + (r.indice_urgencia > 100 ? '#f85149' : r.indice_urgencia > 50 ? '#d29922' : '#8b949e') + '">' + (r.indice_urgencia||0).toFixed(0) + '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function renderBreakdownBar(r) {
+      var completude = (r.score_fotos||0)+(r.score_video||0)+(r.score_ficha||0)+(r.score_descricao||0)+(r.score_titulo||0);
+      var performance = (r.score_conversao||0)+(r.score_reviews||0)+(r.score_vendas||0);
+      var maxComp = 12+8+15+8+8; // 51
+      var maxPerf = 12+10+10; // 32
+      var compPct = (completude / maxComp * 100).toFixed(0);
+      var perfPct = (performance / maxPerf * 100).toFixed(0);
+      return '<div class="stacked-bar"><div class="seg" style="width:' + compPct + '%;background:#58a6ff" title="Completude ' + compPct + '%"></div><div class="seg" style="width:' + perfPct + '%;background:#3fb950" title="Performance ' + perfPct + '%"></div></div><div style="font-size:0.65rem;color:#8b949e;margin-top:2px">C:' + compPct + '% P:' + perfPct + '%</div>';
+    }
+
+    function getDiagnosis(r) {
+      var tags = [];
+      if (!r.tem_video) tags.push({ text: 'Sem vídeo', level: 'critical' });
+      if (r.atributos_disponiveis > 0 && (r.atributos_preenchidos / r.atributos_disponiveis) < 0.5) tags.push({ text: 'Ficha ' + Math.round(r.atributos_preenchidos / r.atributos_disponiveis * 100) + '%', level: 'critical' });
+      if ((r.qty_fotos||0) < 6) tags.push({ text: (r.qty_fotos||0) + ' fotos', level: 'warn' });
+      if ((r.perguntas_sem_resposta||0) > 0) tags.push({ text: r.perguntas_sem_resposta + ' perg s/ resp', level: 'warn' });
+      if (!r.tem_ean) tags.push({ text: 'Sem EAN', level: 'warn' });
+      if ((r.descricao_tamanho||0) < 300) tags.push({ text: 'Desc curta', level: 'warn' });
+      if (r.modo_logistica !== 'fulfillment') tags.push({ text: 'Não Full', level: 'warn' });
+      return tags.slice(0, 3).map(function(t) { return '<span class="diag-tag ' + t.level + '">' + t.text + '</span>'; }).join('');
+    }
+
+    // ===== MODAL =====
+    function openModal(mlbId) {
+      var r = allData.find(function(x){ return x.mlb_id === mlbId; });
+      if (!r) return;
+      var modal = document.getElementById('modal-content');
+      var radarSvg = buildRadar(r);
+      var scoreCardsHtml = buildScoreCards(r);
+      var actionsHtml = buildActions(r);
+
+      modal.innerHTML = `
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h2>${esc(r.titulo || '')}</h2>
+        <div class="mlb-id">${r.mlb_id} &middot; SKU: ${esc(r.sku_vendedor||'')} &middot; ${r.conta_nome||''}</div>
+        <div class="modal-grid">
+          <div class="radar-container">${radarSvg}</div>
+          <div>
+            <h3 style="font-size:0.9rem;margin-bottom:8px;color:#8b949e">Scores por Dimensão</h3>
+            <div class="score-cards">${scoreCardsHtml}</div>
+          </div>
+        </div>
+        <h3 style="font-size:0.9rem;margin-bottom:8px;color:#8b949e">O que fazer (priorizado)</h3>
+        <ul class="actions-list">${actionsHtml}</ul>
+        <div class="financial-row">
+          <div class="fin-item"><div class="fi-label">Share Margem</div><div class="fi-value blue">${(r.share_margem_pct||0).toFixed(2)}%</div></div>
+          <div class="fin-item"><div class="fi-label">MC2/mês</div><div class="fi-value ${(r.mc2_mes||0)>=0?'green':'red'}">${formatBRL(r.mc2_mes||0)}</div></div>
+          <div class="fin-item"><div class="fi-label">Receita 30d</div><div class="fi-value">${formatBRL(r.receita_30d||0)}</div></div>
+          <div class="fin-item"><div class="fi-label">Vendas 30d</div><div class="fi-value">${r.vendas_30d||0}</div></div>
+          <div class="fin-item"><div class="fi-label">Visitas 30d</div><div class="fi-value">${r.visitas_30d||0}</div></div>
+          <div class="fin-item"><div class="fi-label">Conversão</div><div class="fi-value">${((r.conversao_media||0)*100).toFixed(2)}%</div></div>
+        </div>
+      `;
+      document.getElementById('modal-overlay').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('active');
+    }
+
+    function buildRadar(r) {
+      var axes = [
+        { label: 'Fotos', val: (r.score_fotos||0)/12 },
+        { label: 'Vídeo', val: (r.score_video||0)/8 },
+        { label: 'Ficha', val: (r.score_ficha||0)/15 },
+        { label: 'Descrição', val: (r.score_descricao||0)/8 },
+        { label: 'Título', val: (r.score_titulo||0)/8 },
+        { label: 'Conversão', val: (r.score_conversao||0)/12 },
+        { label: 'Reviews', val: (r.score_reviews||0)/10 },
+        { label: 'Vendas', val: (r.score_vendas||0)/10 }
+      ];
+      var cx = 120, cy = 120, radius = 90;
+      var n = axes.length;
+      var angleStep = (2 * Math.PI) / n;
+
+      // Grid
+      var gridLines = '';
+      [0.25, 0.5, 0.75, 1].forEach(function(s) {
+        var pts = [];
+        for (var i = 0; i < n; i++) {
+          var angle = -Math.PI/2 + i * angleStep;
+          pts.push((cx + radius * s * Math.cos(angle)).toFixed(1) + ',' + (cy + radius * s * Math.sin(angle)).toFixed(1));
+        }
+        gridLines += '<polygon points="' + pts.join(' ') + '" fill="none" stroke="#30363d" stroke-width="0.5"/>';
+      });
+
+      // Axis lines and labels
+      var axisLines = '';
+      var labels = '';
+      for (var i = 0; i < n; i++) {
+        var angle = -Math.PI/2 + i * angleStep;
+        var ex = cx + radius * Math.cos(angle);
+        var ey = cy + radius * Math.sin(angle);
+        axisLines += '<line x1="' + cx + '" y1="' + cy + '" x2="' + ex.toFixed(1) + '" y2="' + ey.toFixed(1) + '" stroke="#30363d" stroke-width="0.5"/>';
+        var lx = cx + (radius + 16) * Math.cos(angle);
+        var ly = cy + (radius + 16) * Math.sin(angle);
+        labels += '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" fill="#8b949e" font-size="9">' + axes[i].label + '</text>';
+      }
+
+      // Data polygon
+      var dataPts = [];
+      for (var i = 0; i < n; i++) {
+        var angle = -Math.PI/2 + i * angleStep;
+        var v = Math.max(axes[i].val, 0.02);
+        dataPts.push((cx + radius * v * Math.cos(angle)).toFixed(1) + ',' + (cy + radius * v * Math.sin(angle)).toFixed(1));
+      }
+
+      return '<svg width="240" height="240" viewBox="0 0 240 240">' + gridLines + axisLines + '<polygon points="' + dataPts.join(' ') + '" fill="rgba(88,166,255,0.2)" stroke="#58a6ff" stroke-width="1.5"/>' + labels + '</svg>';
+    }
+
+    function buildScoreCards(r) {
+      var items = [
+        { label: 'Fotos', val: r.score_fotos||0, max: 12 },
+        { label: 'Vídeo', val: r.score_video||0, max: 8 },
+        { label: 'Ficha', val: r.score_ficha||0, max: 15 },
+        { label: 'Descrição', val: r.score_descricao||0, max: 8 },
+        { label: 'Título', val: r.score_titulo||0, max: 8 },
+        { label: 'EAN', val: r.score_ean||0, max: 3 },
+        { label: 'Logística', val: r.score_logistica||0, max: 4 },
+        { label: 'Catálogo', val: r.score_catalogo||0, max: 2 },
+        { label: 'Conversão', val: r.score_conversao||0, max: 12 },
+        { label: 'Reviews', val: r.score_reviews||0, max: 10 },
+        { label: 'Vendas', val: r.score_vendas||0, max: 10 },
+        { label: 'Perguntas', val: r.score_perguntas||0, max: 4 },
+        { label: 'Visitas', val: r.score_visitas||0, max: 4 }
+      ];
+      return items.map(function(it) {
+        var pct = it.val / it.max;
+        var color = pct >= 0.7 ? '#3fb950' : pct >= 0.4 ? '#d29922' : '#f85149';
+        return '<div class="score-card"><div class="sc-label">' + it.label + '</div><div class="sc-value" style="color:' + color + '">' + it.val + '</div><div class="sc-max">/ ' + it.max + '</div></div>';
+      }).join('');
+    }
+
+    function buildActions(r) {
+      var suggestions = [];
+      if (!r.tem_video) suggestions.push({ priority: 'high', text: 'Adicionar vídeo (+8 pts)', gain: 8 - (r.score_video||0) });
+      if ((r.score_fotos||0) < 12) suggestions.push({ priority: (r.score_fotos||0) < 6 ? 'high' : 'med', text: 'Melhorar fotos (atual: ' + (r.qty_fotos||0) + ', ideal: 7+)', gain: 12 - (r.score_fotos||0) });
+      if (r.atributos_disponiveis > 0 && (r.atributos_preenchidos/r.atributos_disponiveis) < 0.8) {
+        var fichaAtual = Math.round(r.atributos_preenchidos/r.atributos_disponiveis*100);
+        suggestions.push({ priority: fichaAtual < 50 ? 'high' : 'med', text: 'Preencher ficha técnica (atual: ' + fichaAtual + '%, meta: 80%+)', gain: 15 - (r.score_ficha||0) });
+      }
+      if ((r.score_descricao||0) < 8) suggestions.push({ priority: 'med', text: 'Melhorar descrição (estrutura + tamanho)', gain: 8 - (r.score_descricao||0) });
+      if (!r.tem_ean) suggestions.push({ priority: 'med', text: 'Cadastrar EAN/GTIN (+3 pts)', gain: 3 });
+      if ((r.score_titulo||0) < 8) suggestions.push({ priority: 'low', text: 'Otimizar título (remover repetições, completar caracteres)', gain: 8 - (r.score_titulo||0) });
+      if ((r.perguntas_sem_resposta||0) > 0) suggestions.push({ priority: 'med', text: 'Responder ' + r.perguntas_sem_resposta + ' perguntas pendentes', gain: 4 - (r.score_perguntas||0) });
+      if (r.modo_logistica !== 'fulfillment') suggestions.push({ priority: 'low', text: 'Migrar para Full (melhora logística e conversão)', gain: 4 - (r.score_logistica||0) });
+
+      suggestions.sort(function(a,b){ return b.gain - a.gain; });
+
+      return suggestions.slice(0, 6).map(function(s) {
+        return '<li><span class="priority p-' + s.priority + '"></span>' + s.text + ' <small style="color:#8b949e">(+' + s.gain + ')</small></li>';
+      }).join('');
+    }
+
+    // ===== HELPERS =====
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function formatBRL(v) { return 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+    // ===== EVENTS =====
+    document.getElementById('filtro-conta').addEventListener('change', applyFilters);
+    document.getElementById('filtro-grupo').addEventListener('change', applyFilters);
+    document.getElementById('filtro-sort').addEventListener('change', applyFilters);
+    document.getElementById('search-box').addEventListener('input', applyFilters);
+
+    document.getElementById('table-body').addEventListener('click', function(e) {
+      var row = e.target.closest('tr[data-mlb]');
+      if (row) openModal(row.getAttribute('data-mlb'));
+    });
+
+    document.getElementById('modal-overlay').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+
+    // ===== FAB COLETA =====
+    document.getElementById('fab-coleta').addEventListener('click', async function() {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Coletando...';
+      try {
+        var resp = await fetch(window.GGE_SUPABASE_URL + '/functions/v1/coleta-analise-conteudo', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + window.GGE_SUPABASE_KEY, 'Content-Type': 'application/json' }
+        });
+        var result = await resp.json();
+        btn.textContent = 'Concluído!';
+        btn.style.background = '#238636';
+        setTimeout(function() { btn.textContent = 'Atualizar Dados'; btn.disabled = false; btn.style.background = ''; loadData(); }, 2000);
+      } catch(err) {
+        btn.textContent = 'Erro!';
+        btn.style.background = '#f85149';
+        setTimeout(function() { btn.textContent = 'Atualizar Dados'; btn.disabled = false; btn.style.background = ''; }, 3000);
+      }
+    });
+
+    // ===== INIT =====
+    loadData();
+  </script>
+</body>
+</html>
