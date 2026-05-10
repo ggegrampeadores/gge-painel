@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio GGE - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; }
+    .main-with-sidebar { margin-left: 48px; min-height: 100vh; }
+
+    /* ── Header ── */
+    .studio-header { padding: 20px 28px 12px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 16px; }
+    .studio-header h1 { font-size: 22px; font-weight: 700; color: #58a6ff; }
+    .studio-header h1 span { color: #d29922; }
+    .studio-header .subtitle { color: #8b949e; font-size: 13px; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 0; padding: 0 28px; border-bottom: 1px solid #30363d; }
+    .tab { padding: 12px 20px; cursor: pointer; color: #8b949e; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; transition: all .2s; }
+    .tab:hover { color: #e6edf3; }
+    .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+    /* ── Panels ── */
+    .panel { display: none; padding: 20px 28px; }
+    .panel.active { display: block; }
+
+    /* ── Botões ── */
+    .btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #e6edf3; cursor: pointer; font-size: 13px; transition: all .2s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:hover { background: #30363d; }
+    .btn-primary { background: #1f6feb; border-color: #1f6feb; }
+    .btn-primary:hover { background: #388bfd; }
+    .btn-success { background: #238636; border-color: #238636; }
+    .btn-success:hover { background: #2ea043; }
+    .btn-warning { background: #9e6a03; border-color: #9e6a03; }
+    .btn-warning:hover { background: #bb8009; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-icon { width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+
+    /* ── Cards ── */
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+    .card-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #e6edf3; }
+
+    /* ── Grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+    /* ══════════════════════════════════════════════
+       PAINEL 1: MÍDIA (Biblioteca de arquivos)
+       ══════════════════════════════════════════════ */
+    .media-layout { display: grid; grid-template-columns: 240px 1fr; gap: 16px; min-height: calc(100vh - 140px); }
+    .folder-tree { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px; overflow-y: auto; }
+    .folder-item { padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; color: #8b949e; }
+    .folder-item:hover { background: #21262d; color: #e6edf3; }
+    .folder-item.active { background: #1f6feb22; color: #58a6ff; }
+    .folder-item .icon { font-size: 16px; }
+    .folder-actions { display: flex; gap: 4px; padding: 8px 0; border-bottom: 1px solid #30363d; margin-bottom: 8px; }
+
+    .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; align-content: start; }
+    .media-item { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all .2s; position: relative; }
+    .media-item:hover { border-color: #58a6ff; transform: translateY(-2px); }
+    .media-item.selected { border-color: #58a6ff; box-shadow: 0 0 0 2px #1f6feb44; }
+    .media-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; background: #0d1117; display: flex; align-items: center; justify-content: center; }
+    .media-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .media-thumb .placeholder { color: #30363d; font-size: 40px; }
+    .media-info { padding: 8px; font-size: 11px; color: #8b949e; }
+    .media-info .name { color: #e6edf3; font-weight: 500; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .media-type-badge { position: absolute; top: 6px; right: 6px; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .badge-img { background: #238636; color: #fff; }
+    .badge-vid { background: #1f6feb; color: #fff; }
+    .badge-aud { background: #d29922; color: #000; }
+
+    .media-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .media-toolbar .search { flex: 1; min-width: 200px; padding: 8px 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; font-size: 13px; }
+    .media-toolbar .search:focus { outline: none; border-color: #58a6ff; }
+
+    .drop-zone { border: 2px dashed #30363d; border-radius: 8px; padding: 40px; text-align: center; color: #8b949e; transition: all .2s; margin-bottom: 16px; }
+    .drop-zone.dragover { border-color: #58a6ff; background: #1f6feb11; color: #58a6ff; }
+    .drop-zone input { display: none; }
+
+    /* ══════════════════════════════════════════════
+       PAINEL 2: PLAYER (Vídeo/Áudio com marcação)
+       ══════════════════════════════════════════════ */
+    .player-layout { display: grid; grid-template-columns: 1fr 360px; gap: 16px; }
+    .player-container { background: #000; border-radius: 8px; overflow: hidden; position: relative; }
+    .player-container video, .player-container audio { width: 100%; display: block; }
+    .player-controls { background: #161b22; border: 1px solid #30363d; border-radius: 0 0 8px 8px; padding: 12px; }
+    .player-timeline { position: relative; height: 48px; background: #0d1117; border-radius: 4px; margin-bottom: 12px; cursor: pointer; overflow: hidden; }
+    .player-progress { height: 100%; background: #1f6feb33; position: absolute; left: 0; top: 0; }
+    .player-marker { position: absolute; top: 0; height: 100%; width: 3px; cursor: ew-resize; z-index: 5; }
+    .player-marker.mark-in { background: #3fb950; }
+    .player-marker.mark-out { background: #f85149; }
+    .player-selection { position: absolute; top: 0; height: 100%; background: #58a6ff22; border-left: 2px solid #3fb950; border-right: 2px solid #f85149; }
+    .player-playhead { position: absolute; top: 0; height: 100%; width: 2px; background: #e6edf3; z-index: 6; pointer-events: none; }
+    .player-time { display: flex; justify-content: space-between; font-size: 12px; color: #8b949e; margin-bottom: 8px; }
+    .player-time .current { color: #e6edf3; font-weight: 600; font-family: monospace; font-size: 14px; }
+    .player-btns { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .speed-select { background: #21262d; border: 1px solid #30363d; color: #e6edf3; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+
+    .clips-panel { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px; overflow-y: auto; max-height: calc(100vh - 200px); }
+    .clip-item { background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 12px; }
+    .clip-item .clip-name { font-weight: 600; color: #e6edf3; margin-bottom: 4px; }
+    .clip-item .clip-range { color: #58a6ff; font-family: monospace; }
+    .clip-item .clip-dur { color: #3fb950; }
+    .clip-actions { display: flex; gap: 4px; margin-top: 6px; }
+
+    /* Waveform */
+    .waveform-container { height: 60px; background: #0d1117; border-radius: 4px; margin-bottom: 8px; position: relative; }
+    .waveform-canvas { width: 100%; height: 100%; }
+
+    /* ══════════════════════════════════════════════
+       PAINEL 3: TIMELINE (Composição por camadas)
+       ══════════════════════════════════════════════ */
+    .timeline-layout { display: flex; flex-direction: column; gap: 16px; }
+    .timeline-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .timeline-info { display: flex; gap: 16px; font-size: 13px; color: #8b949e; }
+    .timeline-info strong { color: #e6edf3; }
+
+    .layers-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; }
+    .layer { border-bottom: 1px solid #30363d; }
+    .layer:last-child { border-bottom: none; }
+    .layer-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1c2128; cursor: pointer; }
+    .layer-header .layer-num { background: #30363d; color: #e6edf3; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+    .layer-header .layer-type { font-size: 13px; font-weight: 600; }
+    .layer-header .layer-type-icon { font-size: 18px; }
+    .layer-header .layer-actions { margin-left: auto; display: flex; gap: 4px; }
+    .layer-body { padding: 10px 14px; background: #161b22; }
+
+    .layer-blocks { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 0; }
+    .block { background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; font-size: 12px; cursor: grab; display: flex; align-items: center; gap: 8px; transition: all .15s; position: relative; min-width: 120px; }
+    .block:hover { border-color: #58a6ff; }
+    .block.dragging { opacity: 0.5; }
+    .block .block-thumb { width: 36px; height: 36px; border-radius: 4px; object-fit: cover; background: #0d1117; flex-shrink: 0; }
+    .block .block-info { flex: 1; min-width: 0; }
+    .block .block-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .block .block-meta { color: #8b949e; font-size: 11px; margin-top: 2px; }
+    .block .block-remove { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; background: #f85149; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; color: #fff; border: 2px solid #161b22; }
+    .block:hover .block-remove { display: flex; }
+
+    .block-type-img { border-left: 3px solid #238636; }
+    .block-type-vid { border-left: 3px solid #1f6feb; }
+    .block-type-aud { border-left: 3px solid #d29922; }
+    .block-type-txt { border-left: 3px solid #bc8cff; }
+    .block-type-fx { border-left: 3px solid #f778ba; }
+
+    .add-block-area { border: 1px dashed #30363d; border-radius: 6px; padding: 12px; text-align: center; color: #8b949e; cursor: pointer; font-size: 12px; min-width: 100px; }
+    .add-block-area:hover { border-color: #58a6ff; color: #58a6ff; }
+
+    /* Block edit modal */
+    .block-edit { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 8px; }
+    .block-edit label { font-size: 12px; color: #8b949e; display: block; margin-bottom: 4px; }
+    .block-edit input, .block-edit select { width: 100%; padding: 6px 10px; background: #161b22; border: 1px solid #30363d; border-radius: 4px; color: #e6edf3; font-size: 13px; margin-bottom: 8px; }
+    .block-edit input:focus, .block-edit select:focus { outline: none; border-color: #58a6ff; }
+    .inline-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* ══════════════════════════════════════════════
+       PAINEL 4: TEMPLATES
+       ══════════════════════════════════════════════ */
+    .templates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .template-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all .2s; }
+    .template-card:hover { border-color: #58a6ff; transform: translateY(-2px); }
+    .template-preview { height: 160px; background: #0d1117; display: flex; align-items: center; justify-content: center; color: #30363d; font-size: 48px; }
+    .template-info { padding: 12px; }
+    .template-info .name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .template-info .desc { color: #8b949e; font-size: 12px; margin-bottom: 8px; }
+    .template-info .meta { display: flex; gap: 12px; font-size: 11px; color: #8b949e; }
+
+    /* ── Modais ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 2000; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #161b22; border: 1px solid #30363d; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h3 { font-size: 16px; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #30363d; display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* ── Utils ── */
+    .text-muted { color: #8b949e; }
+    .text-sm { font-size: 12px; }
+    .mt-8 { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    .mb-8 { margin-bottom: 8px; }
+    .mb-16 { margin-bottom: 16px; }
+    .flex { display: flex; }
+    .gap-8 { gap: 8px; }
+    .gap-16 { gap: 16px; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .flex-1 { flex: 1; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #8b949e; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+    .empty-state p { font-size: 14px; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+    .tag-green { background: #23863622; color: #3fb950; }
+    .tag-blue { background: #1f6feb22; color: #58a6ff; }
+    .tag-yellow { background: #9e6a0322; color: #d29922; }
+    .tag-purple { background: #8957e522; color: #bc8cff; }
+    .tag-pink { background: #f778ba22; color: #f778ba; }
+
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #238636; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 3000; display: none; animation: fadeIn .3s; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+
+    <!-- Header -->
+    <div class="studio-header">
+      <div>
+        <h1>🎬 Studio <span>GGE</span></h1>
+        <div class="subtitle">Produção de vídeos para marketplaces</div>
+      </div>
+      <div style="margin-left:auto; display:flex; gap:8px;">
+        <button class="btn btn-success" onclick="generateVideo()">▶ Gerar Vídeo</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="media">📁 Mídia</div>
+      <div class="tab" data-tab="player">🎬 Player</div>
+      <div class="tab" data-tab="timeline">🎞 Timeline</div>
+      <div class="tab" data-tab="templates">📋 Templates</div>
+    </div>
+
+    <!-- ═══ PAINEL 1: MÍDIA ═══ -->
+    <div class="panel active" id="panel-media">
+      <div class="media-layout">
+        <!-- Árvore de Pastas -->
+        <div class="folder-tree">
+          <div class="folder-actions">
+            <button class="btn btn-sm" onclick="createFolder()" title="Nova pasta">📁+</button>
+            <button class="btn btn-sm" onclick="importFromURL()" title="Importar de URL">🌐</button>
+          </div>
+          <div id="folder-list">
+            <div class="folder-item active" data-folder="all" onclick="selectFolder('all')">
+              <span class="icon">📂</span> Todos os arquivos
+            </div>
+            <div class="folder-item" data-folder="rocadeiras" onclick="selectFolder('rocadeiras')">
+              <span class="icon">📁</span> Roçadeiras
+            </div>
+            <div class="folder-item" data-folder="grampeadores" onclick="selectFolder('grampeadores')">
+              <span class="icon">📁</span> Grampeadores
+            </div>
+            <div class="folder-item" data-folder="pinadores" onclick="selectFolder('pinadores')">
+              <span class="icon">📁</span> Pinadores
+            </div>
+            <div class="folder-item" data-folder="efeitos" onclick="selectFolder('efeitos')">
+              <span class="icon">📁</span> Efeitos
+            </div>
+            <div class="folder-item" data-folder="musicas" onclick="selectFolder('musicas')">
+              <span class="icon">📁</span> Músicas
+            </div>
+            <div class="folder-item" data-folder="cards" onclick="selectFolder('cards')">
+              <span class="icon">📁</span> Cards / Banners
+            </div>
+          </div>
+        </div>
+
+        <!-- Conteúdo principal -->
+        <div>
+          <!-- Toolbar -->
+          <div class="media-toolbar">
+            <input type="text" class="search" placeholder="🔍 Buscar mídia..." id="media-search" oninput="filterMedia()">
+            <button class="btn" onclick="document.getElementById('file-upload').click()">📤 Upload</button>
+            <button class="btn" onclick="addToTimeline()" id="btn-add-timeline" style="display:none">➕ Adicionar à Timeline</button>
+            <input type="file" id="file-upload" multiple accept="image/*,video/*,audio/*" onchange="handleUpload(event)" style="display:none">
+          </div>
+
+          <!-- Drop Zone -->
+          <div class="drop-zone" id="drop-zone"
+               ondragover="event.preventDefault(); this.classList.add('dragover')"
+               ondragleave="this.classList.remove('dragover')"
+               ondrop="handleDrop(event)">
+            <div style="font-size:32px; margin-bottom:8px;">📥</div>
+            <p>Arraste arquivos aqui ou clique em Upload</p>
+            <p class="text-sm text-muted mt-8">Imagens, vídeos e áudios</p>
+          </div>
+
+          <!-- Grid de mídias -->
+          <div class="media-grid" id="media-grid">
+            <!-- Preenchido dinamicamente -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PAINEL 2: PLAYER ═══ -->
+    <div class="panel" id="panel-player">
+      <div class="player-layout">
+        <div>
+          <!-- Player de vídeo -->
+          <div class="card" id="video-player-card">
+            <div class="player-container">
+              <video id="main-video" preload="metadata" style="max-height: 500px; margin: 0 auto;">
+                <source src="" type="video/mp4">
+              </video>
+            </div>
+            <div class="player-controls">
+              <div class="player-time">
+                <span class="current" id="player-current">00:00.000</span>
+                <span id="player-duration">00:00.000</span>
+              </div>
+              <div class="player-timeline" id="player-timeline" onclick="seekPlayer(event)">
+                <div class="player-progress" id="player-progress"></div>
+                <div class="player-selection" id="player-selection" style="display:none"></div>
+                <div class="player-marker mark-in" id="marker-in" style="display:none"></div>
+                <div class="player-marker mark-out" id="marker-out" style="display:none"></div>
+                <div class="player-playhead" id="player-playhead"></div>
+              </div>
+              <div class="player-btns">
+                <button class="btn btn-sm" onclick="playerSkip(-1/30)" title="← 1 frame">⏮</button>
+                <button class="btn btn-sm" onclick="playerSkip(-1)">-1s</button>
+                <button class="btn btn-sm btn-primary" onclick="togglePlay()" id="btn-play">▶ Play</button>
+                <button class="btn btn-sm" onclick="playerSkip(1)">+1s</button>
+                <button class="btn btn-sm" onclick="playerSkip(1/30)" title="→ 1 frame">⏭</button>
+                <select class="speed-select" id="speed-select" onchange="setSpeed(this.value)">
+                  <option value="0.1">0.1x</option>
+                  <option value="0.25">0.25x</option>
+                  <option value="0.5">0.5x</option>
+                  <option value="1" selected>1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                </select>
+                <div style="border-left: 1px solid #30363d; height: 24px; margin: 0 4px;"></div>
+                <button class="btn btn-sm" style="border-color:#3fb950; color:#3fb950;" onclick="setMarkIn()" title="Marcar início (I)">◀ IN</button>
+                <button class="btn btn-sm" style="border-color:#f85149; color:#f85149;" onclick="setMarkOut()" title="Marcar fim (O)">OUT ▶</button>
+                <button class="btn btn-sm btn-success" onclick="saveClip()">✂ Salvar Trecho</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Player de áudio -->
+          <div class="card mt-16" id="audio-player-card" style="display:none;">
+            <div class="card-title">🎵 Áudio</div>
+            <audio id="main-audio" preload="metadata" style="width:100%;" controls></audio>
+            <div class="waveform-container mt-8">
+              <canvas class="waveform-canvas" id="waveform-canvas"></canvas>
+            </div>
+            <div class="player-btns mt-8">
+              <select class="speed-select" onchange="setAudioSpeed(this.value)">
+                <option value="0.25">0.25x</option>
+                <option value="0.5">0.5x</option>
+                <option value="1" selected>1x</option>
+              </select>
+              <button class="btn btn-sm" style="color:#3fb950;" onclick="setAudioMarkIn()">◀ IN</button>
+              <button class="btn btn-sm" style="color:#f85149;" onclick="setAudioMarkOut()">OUT ▶</button>
+              <button class="btn btn-sm btn-success" onclick="saveAudioClip()">✂ Salvar Trecho</button>
+            </div>
+          </div>
+
+          <div class="empty-state mt-16" id="player-empty">
+            <div class="icon">🎬</div>
+            <p>Selecione um arquivo de vídeo ou áudio na aba Mídia para abrir aqui</p>
+            <p class="text-sm text-muted mt-8">Use os controles para navegar frame a frame e marcar trechos precisos</p>
+          </div>
+        </div>
+
+        <!-- Painel de Clips Salvos -->
+        <div class="clips-panel">
+          <div class="card-title">✂ Trechos Salvos</div>
+          <p class="text-sm text-muted mb-8">Marque IN/OUT no player e salve trechos para usar na timeline</p>
+          <div id="clips-list">
+            <div class="empty-state" style="padding:30px">
+              <p class="text-sm">Nenhum trecho salvo ainda</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PAINEL 3: TIMELINE ═══ -->
+    <div class="panel" id="panel-timeline">
+      <div class="timeline-layout">
+        <!-- Toolbar -->
+        <div class="timeline-toolbar">
+          <div class="timeline-info">
+            <span>Duração: <strong id="total-duration">0.0s</strong></span>
+            <span>Camadas: <strong id="total-layers">0</strong></span>
+            <span>Formato: <strong>1080×1920 (9:16)</strong></span>
+          </div>
+          <div style="margin-left:auto; display:flex; gap:8px;">
+            <button class="btn" onclick="addLayer()">+ Camada</button>
+            <button class="btn" onclick="saveAsTemplate()">📋 Salvar Template</button>
+            <button class="btn btn-success" onclick="generateVideo()">▶ Gerar Vídeo</button>
+          </div>
+        </div>
+
+        <!-- Container de Camadas -->
+        <div class="layers-container" id="layers-container">
+          <!-- Camada exemplo -->
+        </div>
+
+        <div class="flex gap-8 mt-8">
+          <button class="btn" onclick="addLayer('img')">+ 🖼 Camada de Imagens</button>
+          <button class="btn" onclick="addLayer('vid')">+ 🎬 Camada de Vídeo</button>
+          <button class="btn" onclick="addLayer('txt')">+ ✏ Camada de Texto</button>
+          <button class="btn" onclick="addLayer('fx')">+ ✨ Camada de Efeitos</button>
+          <button class="btn" onclick="addLayer('aud-bg')">+ 🎵 Música de Fundo</button>
+          <button class="btn" onclick="addLayer('aud-fx')">+ 🔊 Áudio Pontual</button>
+        </div>
+
+        <!-- Preview da composição (texto) -->
+        <div class="card mt-16">
+          <div class="card-title">📝 Preview da Composição</div>
+          <pre id="composition-preview" style="font-size:12px; color:#8b949e; white-space:pre-wrap; font-family:monospace; line-height:1.8;"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PAINEL 4: TEMPLATES ═══ -->
+    <div class="panel" id="panel-templates">
+      <div class="flex justify-between items-center mb-16">
+        <div>
+          <h3>Templates Salvos</h3>
+          <p class="text-sm text-muted mt-8">Reutilize composições prontas trocando apenas as mídias</p>
+        </div>
+        <button class="btn btn-primary" onclick="createTemplate()">+ Novo Template</button>
+      </div>
+      <div class="templates-grid" id="templates-grid">
+        <!-- Template exemplo -->
+        <div class="template-card" onclick="loadTemplate('slideshow-basico')">
+          <div class="template-preview">🖼</div>
+          <div class="template-info">
+            <div class="name">Slideshow Básico</div>
+            <div class="desc">13 fotos com texto e música. Ideal para catálogo de produto.</div>
+            <div class="meta">
+              <span class="tag tag-green">6 camadas</span>
+              <span class="tag tag-blue">37s</span>
+              <span class="tag tag-yellow">9:16</span>
+            </div>
+          </div>
+        </div>
+        <div class="template-card" onclick="loadTemplate('promo-rapido')">
+          <div class="template-preview">⚡</div>
+          <div class="template-info">
+            <div class="name">Promo Rápido</div>
+            <div class="desc">5 fotos + card de preço + selo. Ritmo acelerado, 15 segundos.</div>
+            <div class="meta">
+              <span class="tag tag-green">4 camadas</span>
+              <span class="tag tag-blue">15s</span>
+              <span class="tag tag-yellow">9:16</span>
+            </div>
+          </div>
+        </div>
+        <div class="template-card" onclick="loadTemplate('demo-produto')">
+          <div class="template-preview">🎥</div>
+          <div class="template-info">
+            <div class="name">Demo com Vídeo</div>
+            <div class="desc">Trecho de vídeo do fabricante + fotos + specs. 30 segundos.</div>
+            <div class="meta">
+              <span class="tag tag-green">5 camadas</span>
+              <span class="tag tag-blue">30s</span>
+              <span class="tag tag-yellow">9:16</span>
+            </div>
+          </div>
+        </div>
+        <div class="template-card" style="border-style:dashed; cursor:pointer;" onclick="createTemplate()">
+          <div class="template-preview" style="color:#58a6ff;">+</div>
+          <div class="template-info">
+            <div class="name" style="color:#58a6ff;">Criar Template</div>
+            <div class="desc">Monte a timeline e salve como template reutilizável</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Modal: Importar de URL -->
+  <div class="modal-overlay" id="modal-import-url">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🌐 Importar de URL (Catálogo do Fabricante)</h3>
+        <button class="btn btn-sm" onclick="closeModal('modal-import-url')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label style="font-size:13px; color:#8b949e; margin-bottom:4px; display:block;">URL do catálogo ou página do produto</label>
+        <input type="text" id="import-url" placeholder="https://example.com/catalogo/produto" style="width:100%; padding:10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:14px;">
+        <p class="text-sm text-muted mt-8">Marcas suportadas: Sparta, MTX, Palisad, Gross, Denzel, Stels</p>
+        <label style="font-size:13px; color:#8b949e; margin-top:12px; margin-bottom:4px; display:block;">Pasta destino</label>
+        <select id="import-folder" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3;">
+          <option value="all">Raiz</option>
+          <option value="rocadeiras">Roçadeiras</option>
+          <option value="grampeadores">Grampeadores</option>
+          <option value="pinadores">Pinadores</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('modal-import-url')">Cancelar</button>
+        <button class="btn btn-primary" onclick="doImportURL()">Importar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nova Pasta -->
+  <div class="modal-overlay" id="modal-new-folder">
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-header">
+        <h3>📁 Nova Pasta</h3>
+        <button class="btn btn-sm" onclick="closeModal('modal-new-folder')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label style="font-size:13px; color:#8b949e; margin-bottom:4px; display:block;">Nome da pasta</label>
+        <input type="text" id="new-folder-name" placeholder="Ex: Grampeador PDR PRO603" style="width:100%; padding:10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:14px;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('modal-new-folder')">Cancelar</button>
+        <button class="btn btn-primary" onclick="doCreateFolder()">Criar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Adicionar bloco na camada -->
+  <div class="modal-overlay" id="modal-add-block">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-add-block-title">Adicionar Bloco</h3>
+        <button class="btn btn-sm" onclick="closeModal('modal-add-block')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="inline-fields">
+          <div>
+            <label style="font-size:12px; color:#8b949e;">Arquivo / Fonte</label>
+            <select id="block-source" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px;">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px; color:#8b949e;">Duração (segundos)</label>
+            <input type="number" id="block-duration" value="3" min="0.1" step="0.1" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3;">
+          </div>
+        </div>
+        <div class="mt-8">
+          <label style="font-size:12px; color:#8b949e;">Efeito de entrada</label>
+          <select id="block-effect-in" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px;">
+            <option value="none">Nenhum (corte seco)</option>
+            <option value="fade">Fade In</option>
+            <option value="slide-left">Slide da esquerda</option>
+            <option value="slide-right">Slide da direita</option>
+            <option value="zoom-in">Zoom In</option>
+            <option value="zoom-out">Zoom Out</option>
+          </select>
+        </div>
+        <div class="mt-8" id="block-text-field" style="display:none;">
+          <label style="font-size:12px; color:#8b949e;">Texto</label>
+          <textarea id="block-text" rows="3" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:13px; resize:vertical;" placeholder="Texto que aparece no vídeo"></textarea>
+          <div class="inline-fields mt-8">
+            <div>
+              <label style="font-size:12px; color:#8b949e;">Cor</label>
+              <input type="color" id="block-text-color" value="#FFD700" style="width:100%; height:32px; background:none; border:none; cursor:pointer;">
+            </div>
+            <div>
+              <label style="font-size:12px; color:#8b949e;">Posição</label>
+              <select id="block-text-pos" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3;">
+                <option value="top">Topo</option>
+                <option value="center">Centro</option>
+                <option value="bottom" selected>Rodapé</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="mt-8" id="block-audio-range" style="display:none;">
+          <div class="inline-fields">
+            <div>
+              <label style="font-size:12px; color:#8b949e;">Início no áudio (s)</label>
+              <input type="number" id="block-audio-start" value="0" min="0" step="0.1" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3;">
+            </div>
+            <div>
+              <label style="font-size:12px; color:#8b949e;">Inicia na timeline (s)</label>
+              <input type="number" id="block-timeline-start" value="0" min="0" step="0.1" style="width:100%; padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('modal-add-block')">Cancelar</button>
+        <button class="btn btn-primary" onclick="doAddBlock()">Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+    /* ═══════════════════════════════════════════════
+       AUTENTICAÇÃO
+       ═══════════════════════════════════════════════ */
+    (function() {
+      var auth = sessionStorage.getItem('gge_auth');
+      if (auth !== 'gge2026') { window.location.href = '/'; return; }
+    })();
+    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+
+    /* ═══════════════════════════════════════════════
+       ESTADO GLOBAL
+       ═══════════════════════════════════════════════ */
+    var state = {
+      currentFolder: 'all',
+      mediaFiles: [],      // { id, name, type, folder, url, duration?, thumbUrl? }
+      selectedMedia: [],
+      clips: [],           // { id, name, sourceId, inTime, outTime, duration }
+      layers: [],          // { id, type, label, blocks: [] }
+      templates: [],
+      markIn: null,
+      markOut: null,
+    };
+
+    // Demo data - será substituído por Supabase
+    state.mediaFiles = [];
+
+    /* ═══════════════════════════════════════════════
+       TABS
+       ═══════════════════════════════════════════════ */
+    document.querySelectorAll('.tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    /* ═══════════════════════════════════════════════
+       MÍDIA - Pastas
+       ═══════════════════════════════════════════════ */
+    function selectFolder(folder) {
+      state.currentFolder = folder;
+      document.querySelectorAll('.folder-item').forEach(function(f) {
+        f.classList.toggle('active', f.dataset.folder === folder);
+      });
+      renderMediaGrid();
+    }
+
+    function createFolder() {
+      document.getElementById('modal-new-folder').classList.add('active');
+      document.getElementById('new-folder-name').focus();
+    }
+
+    function doCreateFolder() {
+      var name = document.getElementById('new-folder-name').value.trim();
+      if (!name) return;
+      var key = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      var html = '<div class="folder-item" data-folder="' + key + '" onclick="selectFolder(\'' + key + '\')">' +
+                 '<span class="icon">📁</span> ' + name + '</div>';
+      document.getElementById('folder-list').insertAdjacentHTML('beforeend', html);
+      closeModal('modal-new-folder');
+      document.getElementById('new-folder-name').value = '';
+      showToast('Pasta "' + name + '" criada');
+    }
+
+    function importFromURL() {
+      document.getElementById('modal-import-url').classList.add('active');
+    }
+
+    function doImportURL() {
+      var url = document.getElementById('import-url').value.trim();
+      if (!url) return;
+      showToast('Importação iniciada... As imagens serão baixadas em segundo plano.');
+      closeModal('modal-import-url');
+      // TODO: chamar Claude/Edge Function para varrer o catálogo
+    }
+
+    /* ═══════════════════════════════════════════════
+       MÍDIA - Upload e Grid
+       ═══════════════════════════════════════════════ */
+    function handleUpload(event) {
+      var files = event.target.files;
+      processFiles(files);
+    }
+
+    function handleDrop(event) {
+      event.preventDefault();
+      event.target.classList.remove('dragover');
+      var files = event.dataTransfer.files;
+      processFiles(files);
+    }
+
+    function processFiles(files) {
+      for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var type = file.type.startsWith('image') ? 'img' : file.type.startsWith('video') ? 'vid' : 'aud';
+        var url = URL.createObjectURL(file);
+        state.mediaFiles.push({
+          id: 'media-' + Date.now() + '-' + i,
+          name: file.name,
+          type: type,
+          folder: state.currentFolder === 'all' ? 'all' : state.currentFolder,
+          url: url,
+          file: file,
+          size: file.size
+        });
+      }
+      renderMediaGrid();
+      showToast(files.length + ' arquivo(s) adicionado(s)');
+      document.getElementById('drop-zone').style.display = 'none';
+    }
+
+    function renderMediaGrid() {
+      var grid = document.getElementById('media-grid');
+      var filtered = state.mediaFiles.filter(function(m) {
+        if (state.currentFolder === 'all') return true;
+        return m.folder === state.currentFolder;
+      });
+      var search = document.getElementById('media-search').value.toLowerCase();
+      if (search) {
+        filtered = filtered.filter(function(m) { return m.name.toLowerCase().includes(search); });
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><div class="icon">📁</div><p>Nenhum arquivo nesta pasta</p></div>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(function(m) {
+        var badgeClass = m.type === 'img' ? 'badge-img' : m.type === 'vid' ? 'badge-vid' : 'badge-aud';
+        var badgeLabel = m.type === 'img' ? 'IMG' : m.type === 'vid' ? 'VID' : 'AUD';
+        var thumb = '';
+        if (m.type === 'img') {
+          thumb = '<img src="' + m.url + '" alt="">';
+        } else if (m.type === 'vid') {
+          thumb = '<div class="placeholder">🎬</div>';
+        } else {
+          thumb = '<div class="placeholder">🎵</div>';
+        }
+        var selected = state.selectedMedia.includes(m.id) ? 'selected' : '';
+        var size = m.size ? (m.size / 1024 / 1024).toFixed(1) + ' MB' : '';
+        return '<div class="media-item ' + selected + '" data-id="' + m.id + '" onclick="toggleMediaSelect(\'' + m.id + '\')" ondblclick="openInPlayer(\'' + m.id + '\')">' +
+               '<span class="media-type-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+               '<div class="media-thumb">' + thumb + '</div>' +
+               '<div class="media-info"><div class="name">' + m.name + '</div>' + size + '</div></div>';
+      }).join('');
+    }
+
+    function toggleMediaSelect(id) {
+      var idx = state.selectedMedia.indexOf(id);
+      if (idx >= 0) state.selectedMedia.splice(idx, 1);
+      else state.selectedMedia.push(id);
+      document.getElementById('btn-add-timeline').style.display = state.selectedMedia.length > 0 ? '' : 'none';
+      renderMediaGrid();
+    }
+
+    function filterMedia() { renderMediaGrid(); }
+
+    function openInPlayer(id) {
+      var media = state.mediaFiles.find(function(m) { return m.id === id; });
+      if (!media) return;
+
+      // Switch to player tab
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+      document.querySelector('[data-tab="player"]').classList.add('active');
+      document.getElementById('panel-player').classList.add('active');
+
+      document.getElementById('player-empty').style.display = 'none';
+
+      if (media.type === 'vid') {
+        document.getElementById('video-player-card').style.display = '';
+        document.getElementById('audio-player-card').style.display = 'none';
+        var video = document.getElementById('main-video');
+        video.src = media.url;
+        video.load();
+        state.markIn = null;
+        state.markOut = null;
+        updateMarkers();
+      } else if (media.type === 'aud') {
+        document.getElementById('video-player-card').style.display = 'none';
+        document.getElementById('audio-player-card').style.display = '';
+        var audio = document.getElementById('main-audio');
+        audio.src = media.url;
+        audio.load();
+      }
+    }
+
+    /* ═══════════════════════════════════════════════
+       PLAYER - Controles de vídeo
+       ═══════════════════════════════════════════════ */
+    var videoEl = document.getElementById('main-video');
+    var animFrame;
+
+    videoEl.addEventListener('loadedmetadata', function() {
+      document.getElementById('player-duration').textContent = formatTime(videoEl.duration);
+      updatePlayerUI();
+    });
+
+    videoEl.addEventListener('play', function() {
+      document.getElementById('btn-play').textContent = '⏸ Pause';
+      updateLoop();
+    });
+    videoEl.addEventListener('pause', function() {
+      document.getElementById('btn-play').textContent = '▶ Play';
+      cancelAnimationFrame(animFrame);
+    });
+
+    function updateLoop() {
+      updatePlayerUI();
+      if (!videoEl.paused) animFrame = requestAnimationFrame(updateLoop);
+    }
+
+    function updatePlayerUI() {
+      var pct = videoEl.duration ? (videoEl.currentTime / videoEl.duration * 100) : 0;
+      document.getElementById('player-progress').style.width = pct + '%';
+      document.getElementById('player-playhead').style.left = pct + '%';
+      document.getElementById('player-current').textContent = formatTime(videoEl.currentTime);
+    }
+
+    function togglePlay() {
+      if (videoEl.paused) videoEl.play(); else videoEl.pause();
+    }
+
+    function playerSkip(s) {
+      videoEl.currentTime = Math.max(0, Math.min(videoEl.duration, videoEl.currentTime + s));
+      updatePlayerUI();
+    }
+
+    function setSpeed(v) {
+      videoEl.playbackRate = parseFloat(v);
+    }
+
+    function seekPlayer(e) {
+      var rect = e.currentTarget.getBoundingClientRect();
+      var pct = (e.clientX - rect.left) / rect.width;
+      videoEl.currentTime = pct * videoEl.duration;
+      updatePlayerUI();
+    }
+
+    function setMarkIn() {
+      state.markIn = videoEl.currentTime;
+      updateMarkers();
+      showToast('IN marcado em ' + formatTime(state.markIn));
+    }
+
+    function setMarkOut() {
+      state.markOut = videoEl.currentTime;
+      updateMarkers();
+      showToast('OUT marcado em ' + formatTime(state.markOut));
+    }
+
+    function updateMarkers() {
+      var dur = videoEl.duration || 1;
+      var sel = document.getElementById('player-selection');
+      var mIn = document.getElementById('marker-in');
+      var mOut = document.getElementById('marker-out');
+
+      if (state.markIn !== null) {
+        mIn.style.display = '';
+        mIn.style.left = (state.markIn / dur * 100) + '%';
+      } else { mIn.style.display = 'none'; }
+
+      if (state.markOut !== null) {
+        mOut.style.display = '';
+        mOut.style.left = (state.markOut / dur * 100) + '%';
+      } else { mOut.style.display = 'none'; }
+
+      if (state.markIn !== null && state.markOut !== null) {
+        sel.style.display = '';
+        sel.style.left = (state.markIn / dur * 100) + '%';
+        sel.style.width = ((state.markOut - state.markIn) / dur * 100) + '%';
+      } else { sel.style.display = 'none'; }
+    }
+
+    function saveClip() {
+      if (state.markIn === null || state.markOut === null) {
+        showToast('Marque IN e OUT primeiro');
+        return;
+      }
+      var clip = {
+        id: 'clip-' + Date.now(),
+        name: 'Trecho ' + formatTime(state.markIn) + ' → ' + formatTime(state.markOut),
+        sourceUrl: videoEl.src,
+        inTime: state.markIn,
+        outTime: state.markOut,
+        duration: state.markOut - state.markIn,
+        type: 'vid'
+      };
+      state.clips.push(clip);
+      renderClips();
+      showToast('Trecho salvo: ' + clip.duration.toFixed(1) + 's');
+    }
+
+    function renderClips() {
+      var list = document.getElementById('clips-list');
+      if (state.clips.length === 0) {
+        list.innerHTML = '<div class="empty-state" style="padding:30px"><p class="text-sm">Nenhum trecho salvo ainda</p></div>';
+        return;
+      }
+      list.innerHTML = state.clips.map(function(c) {
+        return '<div class="clip-item">' +
+               '<div class="clip-name">' + c.name + '</div>' +
+               '<div><span class="clip-range">' + formatTime(c.inTime) + ' → ' + formatTime(c.outTime) + '</span> · ' +
+               '<span class="clip-dur">' + c.duration.toFixed(1) + 's</span></div>' +
+               '<div class="clip-actions">' +
+               '<button class="btn btn-sm" onclick="previewClip(\'' + c.id + '\')">▶ Preview</button>' +
+               '<button class="btn btn-sm btn-success" onclick="addClipToTimeline(\'' + c.id + '\')">➕ Timeline</button>' +
+               '<button class="btn btn-sm" style="color:#f85149" onclick="removeClip(\'' + c.id + '\')">✕</button>' +
+               '</div></div>';
+      }).join('');
+    }
+
+    function removeClip(id) {
+      state.clips = state.clips.filter(function(c) { return c.id !== id; });
+      renderClips();
+    }
+
+    /* ═══════════════════════════════════════════════
+       TIMELINE - Camadas e Blocos
+       ═══════════════════════════════════════════════ */
+    var layerTypes = {
+      'img':    { icon: '🖼', label: 'Imagens', color: '#238636' },
+      'vid':    { icon: '🎬', label: 'Vídeo', color: '#1f6feb' },
+      'txt':    { icon: '✏', label: 'Texto', color: '#bc8cff' },
+      'fx':     { icon: '✨', label: 'Efeitos', color: '#f778ba' },
+      'aud-bg': { icon: '🎵', label: 'Música de Fundo', color: '#d29922' },
+      'aud-fx': { icon: '🔊', label: 'Áudio Pontual', color: '#d29922' }
+    };
+
+    function addLayer(type) {
+      if (!type) type = 'img';
+      var info = layerTypes[type];
+      var layer = {
+        id: 'layer-' + Date.now(),
+        type: type,
+        label: info.label,
+        blocks: []
+      };
+      state.layers.push(layer);
+      renderLayers();
+    }
+
+    function removeLayer(id) {
+      state.layers = state.layers.filter(function(l) { return l.id !== id; });
+      renderLayers();
+    }
+
+    function moveLayer(id, dir) {
+      var idx = state.layers.findIndex(function(l) { return l.id === id; });
+      if (idx < 0) return;
+      var newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= state.layers.length) return;
+      var tmp = state.layers[idx];
+      state.layers[idx] = state.layers[newIdx];
+      state.layers[newIdx] = tmp;
+      renderLayers();
+    }
+
+    function renderLayers() {
+      var container = document.getElementById('layers-container');
+      document.getElementById('total-layers').textContent = state.layers.length;
+
+      if (state.layers.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="padding:40px"><div class="icon">🎞</div><p>Adicione camadas para montar o vídeo</p><p class="text-sm text-muted mt-8">Camada 1 = fundo, cada camada seguinte fica por cima</p></div>';
+        updateCompositionPreview();
+        return;
+      }
+
+      container.innerHTML = state.layers.map(function(layer, idx) {
+        var info = layerTypes[layer.type];
+        var num = idx + 1;
+        var blocksHtml = layer.blocks.map(function(block, bIdx) {
+          var blockClass = 'block block-type-' + (block.type || layer.type);
+          var thumbHtml = block.thumbUrl ? '<img class="block-thumb" src="' + block.thumbUrl + '">' : '';
+          return '<div class="' + blockClass + '" draggable="true">' +
+                 thumbHtml +
+                 '<div class="block-info"><div class="block-name">' + block.name + '</div>' +
+                 '<div class="block-meta">' + block.duration.toFixed(1) + 's' +
+                 (block.effect && block.effect !== 'none' ? ' · ' + block.effect : '') + '</div></div>' +
+                 '<div class="block-remove" onclick="removeBlock(\'' + layer.id + '\',' + bIdx + ')">✕</div></div>';
+        }).join('');
+
+        return '<div class="layer" data-layer-id="' + layer.id + '">' +
+               '<div class="layer-header">' +
+               '<div class="layer-num" style="background:' + info.color + '">' + num + '</div>' +
+               '<span class="layer-type-icon">' + info.icon + '</span>' +
+               '<span class="layer-type">' + layer.label + '</span>' +
+               '<div class="layer-actions">' +
+               '<button class="btn btn-sm btn-icon" onclick="moveLayer(\'' + layer.id + '\',-1)" title="Mover acima">↑</button>' +
+               '<button class="btn btn-sm btn-icon" onclick="moveLayer(\'' + layer.id + '\',1)" title="Mover abaixo">↓</button>' +
+               '<button class="btn btn-sm btn-icon" style="color:#f85149" onclick="removeLayer(\'' + layer.id + '\')" title="Remover">✕</button>' +
+               '</div></div>' +
+               '<div class="layer-body"><div class="layer-blocks">' +
+               blocksHtml +
+               '<div class="add-block-area" onclick="openAddBlock(\'' + layer.id + '\')">+ Adicionar</div>' +
+               '</div></div></div>';
+      }).join('');
+
+      updateCompositionPreview();
+    }
+
+    function removeBlock(layerId, blockIdx) {
+      var layer = state.layers.find(function(l) { return l.id === layerId; });
+      if (layer) {
+        layer.blocks.splice(blockIdx, 1);
+        renderLayers();
+      }
+    }
+
+    var currentAddLayerId = null;
+    function openAddBlock(layerId) {
+      currentAddLayerId = layerId;
+      var layer = state.layers.find(function(l) { return l.id === layerId; });
+      if (!layer) return;
+
+      // Show/hide fields based on layer type
+      document.getElementById('block-text-field').style.display = (layer.type === 'txt') ? '' : 'none';
+      document.getElementById('block-audio-range').style.display = (layer.type === 'aud-bg' || layer.type === 'aud-fx') ? '' : 'none';
+
+      // Populate source dropdown
+      var sel = document.getElementById('block-source');
+      var typeFilter = layer.type === 'aud-bg' || layer.type === 'aud-fx' ? 'aud' : layer.type === 'txt' ? null : layer.type;
+      var opts = '<option value="">Selecione...</option>';
+      if (layer.type === 'txt') {
+        opts += '<option value="__text__">Texto personalizado</option>';
+      }
+      state.mediaFiles.forEach(function(m) {
+        if (!typeFilter || m.type === typeFilter || (typeFilter === 'img' && m.type === 'img')) {
+          opts += '<option value="' + m.id + '">' + m.name + '</option>';
+        }
+      });
+      state.clips.forEach(function(c) {
+        opts += '<option value="clip:' + c.id + '">[Trecho] ' + c.name + '</option>';
+      });
+      sel.innerHTML = opts;
+
+      document.getElementById('modal-add-block-title').textContent = 'Adicionar ' + layerTypes[layer.type].icon + ' ' + layerTypes[layer.type].label;
+      document.getElementById('modal-add-block').classList.add('active');
+    }
+
+    function doAddBlock() {
+      var layerId = currentAddLayerId;
+      var layer = state.layers.find(function(l) { return l.id === layerId; });
+      if (!layer) return;
+
+      var sourceId = document.getElementById('block-source').value;
+      var duration = parseFloat(document.getElementById('block-duration').value) || 3;
+      var effect = document.getElementById('block-effect-in').value;
+
+      var block = {
+        type: layer.type,
+        duration: duration,
+        effect: effect,
+        name: '',
+        thumbUrl: null,
+        sourceId: sourceId
+      };
+
+      if (layer.type === 'txt') {
+        block.name = document.getElementById('block-text').value || 'Texto';
+        block.textColor = document.getElementById('block-text-color').value;
+        block.textPos = document.getElementById('block-text-pos').value;
+      } else {
+        var media = state.mediaFiles.find(function(m) { return m.id === sourceId; });
+        if (media) {
+          block.name = media.name;
+          block.thumbUrl = media.type === 'img' ? media.url : null;
+          block.url = media.url;
+        } else if (sourceId.startsWith('clip:')) {
+          var clip = state.clips.find(function(c) { return c.id === sourceId.replace('clip:', ''); });
+          if (clip) {
+            block.name = clip.name;
+            block.duration = clip.duration;
+            block.inTime = clip.inTime;
+            block.outTime = clip.outTime;
+          }
+        }
+      }
+
+      if (layer.type === 'aud-bg' || layer.type === 'aud-fx') {
+        block.audioStart = parseFloat(document.getElementById('block-audio-start').value) || 0;
+        block.timelineStart = parseFloat(document.getElementById('block-timeline-start').value) || 0;
+      }
+
+      layer.blocks.push(block);
+      renderLayers();
+      closeModal('modal-add-block');
+      showToast('Bloco adicionado');
+    }
+
+    function addToTimeline() {
+      // Quick-add selected media to a new image layer
+      if (state.selectedMedia.length === 0) return;
+
+      var layer = {
+        id: 'layer-' + Date.now(),
+        type: 'img',
+        label: 'Imagens',
+        blocks: []
+      };
+
+      state.selectedMedia.forEach(function(id) {
+        var media = state.mediaFiles.find(function(m) { return m.id === id; });
+        if (media) {
+          layer.blocks.push({
+            type: media.type,
+            name: media.name,
+            duration: 3,
+            effect: 'fade',
+            thumbUrl: media.type === 'img' ? media.url : null,
+            url: media.url,
+            sourceId: media.id
+          });
+        }
+      });
+
+      state.layers.push(layer);
+      state.selectedMedia = [];
+      document.getElementById('btn-add-timeline').style.display = 'none';
+
+      // Switch to timeline tab
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+      document.querySelector('[data-tab="timeline"]').classList.add('active');
+      document.getElementById('panel-timeline').classList.add('active');
+
+      renderLayers();
+      renderMediaGrid();
+      showToast(layer.blocks.length + ' itens adicionados à timeline');
+    }
+
+    /* ═══════════════════════════════════════════════
+       COMPOSIÇÃO - Preview textual
+       ═══════════════════════════════════════════════ */
+    function updateCompositionPreview() {
+      var pre = document.getElementById('composition-preview');
+      if (state.layers.length === 0) {
+        pre.textContent = '(vazio - adicione camadas para ver a composição)';
+        document.getElementById('total-duration').textContent = '0.0s';
+        return;
+      }
+
+      var lines = [];
+      var maxDur = 0;
+
+      state.layers.forEach(function(layer, idx) {
+        var info = layerTypes[layer.type];
+        lines.push('━━━ Camada ' + (idx + 1) + ': ' + info.icon + ' ' + layer.label + ' ━━━');
+
+        if (layer.blocks.length === 0) {
+          lines.push('  (vazia)');
+        } else {
+          var t = 0;
+          layer.blocks.forEach(function(block, bIdx) {
+            var startTime = (layer.type === 'aud-bg' || layer.type === 'aud-fx') ? (block.timelineStart || 0) : t;
+            var endTime = startTime + block.duration;
+            var effectStr = block.effect && block.effect !== 'none' ? ' | ' + block.effect : '';
+            var rangeStr = '';
+            if (block.inTime !== undefined) {
+              rangeStr = ' [' + formatTime(block.inTime) + '→' + formatTime(block.outTime) + ']';
+            }
+            lines.push('  [' + (bIdx + 1) + '] ' + formatTime(startTime) + ' → ' + formatTime(endTime) + ' | ' + block.name + rangeStr + effectStr + ' (' + block.duration.toFixed(1) + 's)');
+            t = endTime;
+            if (endTime > maxDur) maxDur = endTime;
+          });
+        }
+        lines.push('');
+      });
+
+      lines.push('═══ Duração total: ' + maxDur.toFixed(1) + 's | Formato: 1080×1920 (9:16) | 30fps ═══');
+      pre.textContent = lines.join('\n');
+      document.getElementById('total-duration').textContent = maxDur.toFixed(1) + 's';
+    }
+
+    /* ═══════════════════════════════════════════════
+       TEMPLATES
+       ═══════════════════════════════════════════════ */
+    function saveAsTemplate() {
+      if (state.layers.length === 0) {
+        showToast('Monte uma timeline primeiro');
+        return;
+      }
+      var name = prompt('Nome do template:');
+      if (!name) return;
+      var template = {
+        id: 'tpl-' + Date.now(),
+        name: name,
+        layers: JSON.parse(JSON.stringify(state.layers)),
+        created: new Date().toISOString()
+      };
+      state.templates.push(template);
+      showToast('Template "' + name + '" salvo');
+    }
+
+    function loadTemplate(id) {
+      showToast('Template carregado na timeline');
+      // TODO: carregar template pré-definido ou salvo
+    }
+
+    /* ═══════════════════════════════════════════════
+       GERAR VÍDEO
+       ═══════════════════════════════════════════════ */
+    function generateVideo() {
+      if (state.layers.length === 0) {
+        showToast('Monte a timeline primeiro');
+        return;
+      }
+      var composition = {
+        format: { width: 1080, height: 1920, fps: 30 },
+        layers: state.layers.map(function(l) {
+          return {
+            type: l.type,
+            label: l.label,
+            blocks: l.blocks.map(function(b) {
+              return {
+                name: b.name,
+                duration: b.duration,
+                effect: b.effect,
+                sourceId: b.sourceId,
+                url: b.url,
+                inTime: b.inTime,
+                outTime: b.outTime,
+                text: b.name,
+                textColor: b.textColor,
+                textPos: b.textPos,
+                audioStart: b.audioStart,
+                timelineStart: b.timelineStart
+              };
+            })
+          };
+        })
+      };
+      // Copy composition JSON to clipboard
+      var json = JSON.stringify(composition, null, 2);
+      navigator.clipboard.writeText(json).then(function() {
+        showToast('Composição copiada! Cole no chat para eu renderizar o vídeo.');
+      }).catch(function() {
+        // Fallback
+        console.log('COMPOSIÇÃO:', json);
+        showToast('Composição gerada. Verifique o console (F12).');
+      });
+    }
+
+    /* ═══════════════════════════════════════════════
+       UTILS
+       ═══════════════════════════════════════════════ */
+    function formatTime(s) {
+      if (s === null || s === undefined || isNaN(s)) return '00:00.000';
+      var min = Math.floor(s / 60);
+      var sec = s % 60;
+      var ms = Math.round((sec % 1) * 1000);
+      sec = Math.floor(sec);
+      return String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0') + '.' + String(ms).padStart(3, '0');
+    }
+
+    function showToast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._timer);
+      t._timer = setTimeout(function() { t.style.display = 'none'; }, 3000);
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    // Close modals on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.classList.remove('active');
+      });
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+      if (e.key === 'i' || e.key === 'I') setMarkIn();
+      if (e.key === 'o' || e.key === 'O') setMarkOut();
+      if (e.key === 'ArrowLeft') { e.preventDefault(); playerSkip(-1/30); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); playerSkip(1/30); }
+    });
+
+    // Init
+    renderMediaGrid();
+    renderLayers();
+    renderClips();
+  </script>
+</body>
+</html>
