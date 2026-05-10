@@ -23,6 +23,7 @@
     operador:     svgIcon('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
     grupos:       svgIcon('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
     auditoria:    svgIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
+    analise:      svgIcon('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/>'),
     studio:       svgIcon('<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'),
     chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
   };
@@ -45,6 +46,7 @@
       ]
     },
     { href: '/ads',                  icon: icons.ads,       label: 'ADs',                 key: 'ads' },
+    { href: '/analise',              icon: icons.analise,   label: 'Análise',             key: 'analise' },
     { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação',           key: 'reputacao' },
     { href: '/auditoria',           icon: icons.auditoria, label: 'Auditoria',           key: 'auditoria' },
     { href: '/saude',                icon: icons.saude,     label: 'Saúde',               key: 'saude' },
