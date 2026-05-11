@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABW0lEQVR4nN2Wv3XCMBDGP+elSn01tTcIhYdgCLOBC4bIBlBkGBXyBimoqFXTQpNThCJLZ53zeM5X2XDS/XT/ZGD1sv1Ns/xlKY6nAGzOhx6AKgrrjQCffkO0fwrAUloOoLIOqgB88fG7Ig3rS0F8ev870b4mDY1/sv1NW9ESXZw7AgC2pwYAGupay3+6j+4d0LdW1jEAGszIzz4CMciSEOw8dOzM1/YBIAUB6KIxdWp2/gsgBtFApJyHjrMAIcRcEMmpRQAxiLQu4nxPOWYV5wBvIE1DaFdyLgIAflIwR9I1RYCwFuZKslYUganwhwUnsU/pVWqYckyDGa9ArxlcxS6I74jUVGO9fe5OsR3P/CoA6lrLm+bGKdsCj+16ce5Igxlz3SCqgZLz8J0GM07VRkr5FHzf75KJFioe5aU0ZAGoa21NK/p1hY8U2V0gOHVpn9l7aAbQX+71/3QHEtvNzFvcqusAAAAASUVORK5CYII=">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Análise de Anúncios - Controle Total GGE</title>
@@ -114,7 +115,9 @@
           <option value="medio">Médios</option>
           <option value="cauda">Cauda</option>
           <option value="full">Full</option>
+          <option value="flex">Flex</option>
           <option value="coleta">Coleta</option>
+          <option value="sem_flex">Sem Flex (coleta pura)</option>
           <option value="premium">Premium</option>
           <option value="classico">Clássico</option>
           <option value="sem_video">Sem Vídeo</option>
@@ -200,7 +203,9 @@
           case 'medio': return r.classificacao_share === 'medio';
           case 'cauda': return r.classificacao_share === 'cauda';
           case 'full': return r.modo_logistica === 'fulfillment';
+          case 'flex': return r.modo_logistica === 'flex';
           case 'coleta': return r.modo_logistica !== 'fulfillment';
+          case 'sem_flex': return r.modo_logistica === 'coleta';
           case 'premium': return r.tipo_listagem === 'gold_pro';
           case 'classico': return r.tipo_listagem === 'gold_special';
           case 'sem_video': return !r.tem_video;
@@ -266,11 +271,15 @@
 
       var urgencias = filteredData.filter(function(r){ return (r.indice_urgencia||0) > 100; }).length;
 
+      var fullCount = filteredData.filter(function(r){ return r.modo_logistica === 'fulfillment'; }).length;
+      var flexCount = filteredData.filter(function(r){ return r.modo_logistica === 'flex'; }).length;
+      var coletaPura = filteredData.length - fullCount - flexCount;
+
       var scoreColor = avgScore >= 70 ? 'green' : avgScore >= 40 ? 'yellow' : 'red';
 
       ct.innerHTML = `
         <div class="card"><div class="label">Score Médio</div><div class="value ${scoreColor}">${avgScore.toFixed(1)}</div></div>
-        <div class="card"><div class="label">Sem Vídeo</div><div class="value ${semVideoPct > 50 ? 'red' : 'yellow'}">${semVideo} <small style="font-size:0.7rem;color:#8b949e">(${semVideoPct.toFixed(0)}%)</small></div></div>
+        <div class="card"><div class="label">Logística</div><div class="value"><span class="green" style="font-size:1rem">${fullCount} Full</span> <span class="blue" style="font-size:1rem">${flexCount} Flex</span> <span class="${coletaPura > 0 ? 'yellow' : 'green'}" style="font-size:1rem">${coletaPura} Coleta</span></div></div>
         <div class="card"><div class="label">Ficha &lt; 50%</div><div class="value orange">${fichaBaixa}</div></div>
         <div class="card"><div class="label">Share Top 10</div><div class="value blue">${top10Share.toFixed(1)}%</div></div>
         <div class="card"><div class="label">Urgências</div><div class="value ${urgencias > 20 ? 'red' : urgencias > 5 ? 'yellow' : 'green'}">${urgencias}</div></div>
@@ -330,7 +339,9 @@
       if ((r.perguntas_sem_resposta||0) > 0) tags.push({ text: r.perguntas_sem_resposta + ' perg s/ resp', level: 'warn' });
       if (!r.tem_ean) tags.push({ text: 'Sem EAN', level: 'warn' });
       if ((r.descricao_tamanho||0) < 300) tags.push({ text: 'Desc curta', level: 'warn' });
-      if (r.modo_logistica !== 'fulfillment') tags.push({ text: 'Não Full', level: 'warn' });
+      if (r.modo_logistica === 'coleta') tags.push({ text: 'Ativar Flex', level: 'warn' });
+      else if (r.modo_logistica === 'flex') tags.push({ text: 'Flex ativo', level: '' });
+      else if (r.modo_logistica !== 'fulfillment') tags.push({ text: 'Não Full', level: 'warn' });
       return tags.slice(0, 3).map(function(t) { return '<span class="diag-tag ' + t.level + '">' + t.text + '</span>'; }).join('');
     }
 
@@ -362,7 +373,7 @@
           <div class="fin-item"><div class="fi-label">Receita 30d</div><div class="fi-value">${formatBRL(r.receita_30d||0)}</div></div>
           <div class="fin-item"><div class="fi-label">Vendas 30d</div><div class="fi-value">${r.vendas_30d||0}</div></div>
           <div class="fin-item"><div class="fi-label">Visitas 30d</div><div class="fi-value">${r.visitas_30d||0}</div></div>
-          <div class="fin-item"><div class="fi-label">Conversão</div><div class="fi-value">${((r.conversao_media||0)*100).toFixed(2)}%</div></div>
+          <div class="fin-item"><div class="fi-label">Conversão</div><div class="fi-value">${(r.conversao_media||0).toFixed(2)}%</div></div>
         </div>
       `;
       document.getElementById('modal-overlay').classList.add('active');
@@ -457,7 +468,8 @@
       if (!r.tem_ean) suggestions.push({ priority: 'med', text: 'Cadastrar EAN/GTIN (+3 pts)', gain: 3 });
       if ((r.score_titulo||0) < 8) suggestions.push({ priority: 'low', text: 'Otimizar título (remover repetições, completar caracteres)', gain: 8 - (r.score_titulo||0) });
       if ((r.perguntas_sem_resposta||0) > 0) suggestions.push({ priority: 'med', text: 'Responder ' + r.perguntas_sem_resposta + ' perguntas pendentes', gain: 4 - (r.score_perguntas||0) });
-      if (r.modo_logistica !== 'fulfillment') suggestions.push({ priority: 'low', text: 'Migrar para Full (melhora logística e conversão)', gain: 4 - (r.score_logistica||0) });
+      if (r.modo_logistica === 'coleta') suggestions.push({ priority: 'med', text: 'Ativar Coleta Flex (+1 pt logística, entrega rápida)', gain: 1 });
+      if (r.modo_logistica !== 'fulfillment') suggestions.push({ priority: 'low', text: 'Migrar para Full (+' + (4 - (r.score_logistica||0)) + ' pts logística)', gain: 4 - (r.score_logistica||0) });
 
       suggestions.sort(function(a,b){ return b.gain - a.gain; });
 
