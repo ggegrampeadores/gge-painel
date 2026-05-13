@@ -109,8 +109,8 @@
               <th class="num">ACOS %</th>
               <th class="num">ROAS</th>
               <th class="num">CPC Médio</th>
-              <th class="num">MC2 c/ ADs</th>
-              <th class="num">MC2 s/ ADs</th>
+              <th class="num">MC2 c/ ADs %</th>
+              <th class="num">MC2 s/ ADs %</th>
               <th style="text-align:center">Full</th>
             </tr>
           </thead>
@@ -167,7 +167,8 @@
     var {data:c} = await sb.from('contas').select('id, nome');
     (c||[]).forEach(function(r){ contasMap[r.id] = r.nome; });
     var {data:ca} = await sb.from('campanhas_ads').select('campaign_id, nome, status, conta_id');
-    (ca||[]).forEach(function(r){ campanhasMap[r.campaign_id] = r; });
+    // Key by conta_id+campaign_id to handle same campaign_id across accounts
+    (ca||[]).forEach(function(r){ campanhasMap[r.conta_id+'|'+r.campaign_id] = r; });
   }
 
   /* ── load weekly evolution (always 56 days) ── */
@@ -281,25 +282,30 @@
       byCampMlb[key].vendas += Number(r.vendas_diretas_ads)||0;
     });
 
-    // group by campaign
+    // group by conta+campaign (using MLB's conta_id, not campanhasMap)
     var byCamp = {};
     Object.values(byCampMlb).forEach(function(m){
+      var mlbContaId = m.conta_id; // from anuncios table - the real conta
       var cid = m.campaign_id;
-      if(!byCamp[cid]){
-        var ci = campanhasMap[cid]||{};
-        byCamp[cid] = {
+      var campKey = mlbContaId+'|'+cid; // unique per conta+campaign
+      if(!byCamp[campKey]){
+        var ci = campanhasMap[mlbContaId+'|'+cid]||{};
+        byCamp[campKey] = {
           campaign_id:cid, nome:ci.nome||('Campanha '+cid), status:ci.status||'',
-          conta_id:ci.conta_id||'', mlbs:[]
+          conta_id:mlbContaId, mlbs:[]
         };
       }
       var mrg = margemMap[m.mlb_id];
       m.mc2_com = mrg?mrg.mc2:0;
       m.mc2_sem = mrg?(mrg.mc2+mrg.ads_cost):0;
+      m.receita_total = m.receita_ads + m.receita_org;
+      m.mc2_com_pct = m.receita_total>0?(m.mc2_com/m.receita_total*100):0;
+      m.mc2_sem_pct = m.receita_total>0?(m.mc2_sem/m.receita_total*100):0;
       m.acos = calcAcos(m.gasto,m.receita_ads);
       m.roas = calcRoas(m.gasto,m.receita_ads);
       m.cpc = calcCpc(m.gasto,m.cliques);
       m.is_full = m.modo_logistica==='fulfillment';
-      byCamp[cid].mlbs.push(m);
+      byCamp[campKey].mlbs.push(m);
     });
 
     // group by conta
@@ -342,10 +348,14 @@
       mc2c+=m.mc2_com; mc2s+=m.mc2_sem;
       if(m.is_full) hasFull=true;
     });
+    var recTotal = ra+ro;
     return {
       n:rows.length, gasto:g, receita_ads:ra, receita_org:ro, cliques:cl, vendas:v,
       acos:calcAcos(g,ra), roas:calcRoas(g,ra), cpc:calcCpc(g,cl),
-      mc2_com:mc2c, mc2_sem:mc2s, has_full:hasFull
+      mc2_com:mc2c, mc2_sem:mc2s,
+      mc2_com_pct:recTotal>0?(mc2c/recTotal*100):0,
+      mc2_sem_pct:recTotal>0?(mc2s/recTotal*100):0,
+      has_full:hasFull
     };
   }
 
@@ -364,8 +374,8 @@
     html += '<td class="num '+acosClass(gt.acos)+'">'+acosStr(gt.acos)+'</td>';
     html += '<td class="num '+roasClass(gt.roas)+'">'+gt.roas.toFixed(2)+'x</td>';
     html += '<td class="num c-white">'+fmtBrl(gt.cpc)+'</td>';
-    html += '<td class="num '+mc2Class(gt.mc2_com)+'">'+fmtBrl(gt.mc2_com)+'</td>';
-    html += '<td class="num '+mc2Class(gt.mc2_sem)+'">'+fmtBrl(gt.mc2_sem)+'</td>';
+    html += '<td class="num '+mc2Class(gt.mc2_com_pct)+'">'+fPct(gt.mc2_com_pct,1)+'</td>';
+    html += '<td class="num '+mc2Class(gt.mc2_sem_pct)+'">'+fPct(gt.mc2_sem_pct,1)+'</td>';
     html += '<td style="text-align:center"><span class="c-muted">—</span></td>';
     html += '</tr>';
 
@@ -386,8 +396,8 @@
       html += '<td class="num '+acosClass(s.acos)+'">'+acosStr(s.acos)+'</td>';
       html += '<td class="num '+roasClass(s.roas)+'">'+s.roas.toFixed(2)+'x</td>';
       html += '<td class="num c-white">'+fmtBrl(s.cpc)+'</td>';
-      html += '<td class="num '+mc2Class(s.mc2_com)+'">'+fmtBrl(s.mc2_com)+'</td>';
-      html += '<td class="num '+mc2Class(s.mc2_sem)+'">'+fmtBrl(s.mc2_sem)+'</td>';
+      html += '<td class="num '+mc2Class(s.mc2_com_pct)+'">'+fPct(s.mc2_com_pct,1)+'</td>';
+      html += '<td class="num '+mc2Class(s.mc2_sem_pct)+'">'+fPct(s.mc2_sem_pct,1)+'</td>';
       html += '<td style="text-align:center">'+(s.has_full?'<span class="full-yes">SIM</span>':'')+'</td>';
       html += '</tr>';
 
@@ -395,14 +405,14 @@
 
       // Campanhas
       conta.campanhas.forEach(function(camp){
-        var cpId = camp.campaign_id;
+        var cpKey = conta.conta_id+'|'+camp.campaign_id;
         var cs = camp.sum;
-        var cpOpen = expandedCampanhas[cpId];
+        var cpOpen = expandedCampanhas[cpKey];
         var cpChev = cpOpen?'chevron open':'chevron';
         var cpChar = cpOpen?'▼':'▶';
         var pauseTag = camp.status==='paused'?'<span class="tag-paused">PAUSADA</span>':'';
 
-        html += '<tr class="row-campanha" onclick="event.stopPropagation();toggleCampanha('+cpId+')">';
+        html += '<tr class="row-campanha" onclick="event.stopPropagation();toggleCampanha(\''+cpKey+'\')">';
         html += '<td style="padding-left:36px"><span class="'+cpChev+'">'+cpChar+'</span> <span style="margin-left:4px">'+camp.nome+'</span>'+pauseTag+'</td>';
         html += '<td class="num c-muted">'+cs.n+'</td>';
         html += '<td class="num c-muted">'+fmtBrl(cs.receita_org)+'</td>';
@@ -411,8 +421,8 @@
         html += '<td class="num '+acosClass(cs.acos)+'">'+acosStr(cs.acos)+'</td>';
         html += '<td class="num '+roasClass(cs.roas)+'">'+cs.roas.toFixed(2)+'x</td>';
         html += '<td class="num c-muted">'+fmtBrl(cs.cpc)+'</td>';
-        html += '<td class="num '+mc2Class(cs.mc2_com)+'">'+fmtBrl(cs.mc2_com)+'</td>';
-        html += '<td class="num '+mc2Class(cs.mc2_sem)+'">'+fmtBrl(cs.mc2_sem)+'</td>';
+        html += '<td class="num '+mc2Class(cs.mc2_com_pct)+'">'+fPct(cs.mc2_com_pct,1)+'</td>';
+        html += '<td class="num '+mc2Class(cs.mc2_sem_pct)+'">'+fPct(cs.mc2_sem_pct,1)+'</td>';
         html += '<td style="text-align:center">'+(cs.has_full?'<span class="full-yes">SIM</span>':'')+'</td>';
         html += '</tr>';
 
@@ -430,8 +440,8 @@
           html += '<td class="num '+acosClass(m.acos)+'">'+acosStr(m.acos)+'</td>';
           html += '<td class="num '+roasClass(m.roas)+'">'+m.roas.toFixed(2)+'x</td>';
           html += '<td class="num c-muted">'+fmtBrl(m.cpc)+'</td>';
-          html += '<td class="num '+mc2Class(m.mc2_com)+'">'+fmtBrl(m.mc2_com)+'</td>';
-          html += '<td class="num '+mc2Class(m.mc2_sem)+'">'+fmtBrl(m.mc2_sem)+'</td>';
+          html += '<td class="num '+mc2Class(m.mc2_com_pct)+'">'+fPct(m.mc2_com_pct,1)+'</td>';
+          html += '<td class="num '+mc2Class(m.mc2_sem_pct)+'">'+fPct(m.mc2_sem_pct,1)+'</td>';
           html += '<td style="text-align:center">'+(m.is_full?'<span class="full-yes">SIM</span>':'<span class="full-no">NÃO</span>')+'</td>';
           html += '</tr>';
         });
@@ -446,8 +456,8 @@
     expandedContas[id] = !expandedContas[id];
     renderTable();
   };
-  window.toggleCampanha = function(id){
-    expandedCampanhas[id] = !expandedCampanhas[id];
+  window.toggleCampanha = function(key){
+    expandedCampanhas[key] = !expandedCampanhas[key];
     renderTable();
   };
 
