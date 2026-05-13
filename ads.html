@@ -158,6 +158,7 @@
   /* ── state ── */
   var contasMap = {};
   var campanhasMap = {};
+  var campanhasById = {};
   var expandedContas = {};
   var expandedCampanhas = {};
   var hierData = null;
@@ -167,8 +168,12 @@
     var {data:c} = await sb.from('contas').select('id, nome');
     (c||[]).forEach(function(r){ contasMap[r.id] = r.nome; });
     var {data:ca} = await sb.from('campanhas_ads').select('campaign_id, nome, status, conta_id');
-    // Key by conta_id+campaign_id to handle same campaign_id across accounts
-    (ca||[]).forEach(function(r){ campanhasMap[r.conta_id+'|'+r.campaign_id] = r; });
+    // Key by conta_id+campaign_id AND by campaign_id alone (fallback)
+    campanhasById = {};
+    (ca||[]).forEach(function(r){
+      campanhasMap[r.conta_id+'|'+r.campaign_id] = r;
+      if(!campanhasById[r.campaign_id]) campanhasById[r.campaign_id] = r;
+    });
   }
 
   /* ── load weekly evolution (always 56 days) ── */
@@ -289,7 +294,7 @@
       var cid = m.campaign_id;
       var campKey = mlbContaId+'|'+cid; // unique per conta+campaign
       if(!byCamp[campKey]){
-        var ci = campanhasMap[mlbContaId+'|'+cid]||{};
+        var ci = campanhasMap[mlbContaId+'|'+cid] || campanhasById[cid] || {};
         byCamp[campKey] = {
           campaign_id:cid, nome:ci.nome||('Campanha '+cid), status:ci.status||'',
           conta_id:mlbContaId, mlbs:[]
