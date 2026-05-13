@@ -1,116 +1,122 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABW0lEQVR4nN2Wv3XCMBDGP+elSn01tTcIhYdgCLOBC4bIBlBkGBXyBimoqFXTQpNThCJLZ53zeM5X2XDS/XT/ZGD1sv1Ns/xlKY6nAGzOhx6AKgrrjQCffkO0fwrAUloOoLIOqgB88fG7Ig3rS0F8ev870b4mDY1/sv1NW9ESXZw7AgC2pwYAGupay3+6j+4d0LdW1jEAGszIzz4CMciSEOw8dOzM1/YBIAUB6KIxdWp2/gsgBtFApJyHjrMAIcRcEMmpRQAxiLQu4nxPOWYV5wBvIE1DaFdyLgIAflIwR9I1RYCwFuZKslYUganwhwUnsU/pVWqYckyDGa9ArxlcxS6I74jUVGO9fe5OsR3P/CoA6lrLm+bGKdsCj+16ce5Igxlz3SCqgZLz8J0GM07VRkr5FHzf75KJFioe5aU0ZAGoa21NK/p1hY8U2V0gOHVpn9l7aAbQX+71/3QHEtvNzFvcqusAAAAASUVORK5CYII=">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ads - Controle Total GGE</title>
+  <title>ADs Dashboard - Controle Total GGE</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; }
-    .main-with-sidebar { margin-left: 48px; min-height: 100vh; padding: 20px; }
-    h1 { font-size: 1.5rem; margin-bottom: 6px; }
-    .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 20px; }
-    .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-    .filters select, .filters input { background: #161b22; border: 1px solid #30363d; color: #e6edf3; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; }
-    .filters label { color: #8b949e; font-size: 0.8rem; }
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
-    .card .label { color: #8b949e; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; }
-    .card .value { font-size: 1.4rem; font-weight: 700; }
-    .card .delta { font-size: 0.8rem; margin-top: 4px; }
-    .up { color: #3fb950; } .down { color: #f85149; } .neutral { color: #d29922; }
-    .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
-    .chart-container h2 { font-size: 1rem; margin-bottom: 12px; }
-    .chart-wrapper { position: relative; height: 240px; }
-    .section { margin-bottom: 24px; }
-    .section h2 { font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-    .badge { background: #f85149; color: #fff; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
-    .badge-ok { background: #3fb950; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    thead th { background: #161b22; border-bottom: 2px solid #30363d; padding: 8px 6px; text-align: left; color: #8b949e; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
-    thead th:hover { color: #58a6ff; }
-    tbody td { padding: 7px 6px; border-bottom: 1px solid #21262d; }
-    tbody tr:hover { background: #161b22; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .mlb-link { color: #58a6ff; text-decoration: none; }
-    .mlb-link:hover { text-decoration: underline; }
-    .roas-bad { color: #f85149; font-weight: 600; }
-    .roas-ok { color: #d29922; }
-    .roas-good { color: #3fb950; font-weight: 600; }
-    .conta-tag { font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
-    .conta-gge { background: #1f3d2a; color: #3fb950; }
-    .conta-toow { background: #3d2f1f; color: #d29922; }
-    .conta-ggesp { background: #1f2d3d; color: #58a6ff; }
-    .loading { text-align: center; padding: 60px; color: #8b949e; }
-    .table-scroll { max-height: 500px; overflow-y: auto; border: 1px solid #30363d; border-radius: 8px; }
-    .summary-row td { font-weight: 700; background: #161b22; border-top: 2px solid #30363d; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#e6edf3}
+    .main-with-sidebar{margin-left:48px;min-height:100vh;padding:20px}
+    h1{font-size:1.5rem;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+    .subtitle{color:#8b949e;font-size:0.85rem;margin-bottom:20px}
+    .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+    .filters select{background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:6px 10px;border-radius:6px;font-size:0.85rem}
+    .filters label{color:#8b949e;font-size:0.8rem}
+
+    /* Week cards */
+    .week-row{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:24px}
+    .week-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px}
+    .week-card.current{border-color:rgba(255,229,0,0.4);box-shadow:0 0 0 1px rgba(255,229,0,0.15)}
+    .week-card .wk-label{font-size:10px;color:#8b949e;margin-bottom:6px;font-weight:600}
+    .week-card.current .wk-label{color:#ffe500}
+    .week-card .wk-row{margin-bottom:4px}
+    .week-card .wk-row .wk-metric{font-size:9px;color:#8b949e}
+    .week-card .wk-row .wk-val{font-size:12px;font-weight:700;color:#e6edf3}
+    .section-title{font-size:0.75rem;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px}
+
+    /* Table */
+    .table-wrap{background:#161b22;border:1px solid #30363d;border-radius:10px;overflow:hidden}
+    .table-scroll{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:0.82rem}
+    thead th{background:#161b22;border-bottom:2px solid #30363d;padding:10px 8px;text-align:left;color:#8b949e;font-weight:600;position:sticky;top:0;cursor:pointer;white-space:nowrap;font-size:0.73rem;text-transform:uppercase;letter-spacing:0.03em}
+    thead th:hover{color:#58a6ff}
+    thead th.num{text-align:right}
+    tbody td{padding:8px;border-bottom:1px solid #21262d}
+    tbody td.num{text-align:right;font-variant-numeric:tabular-nums}
+
+    /* Row types */
+    .row-total{background:rgba(255,229,0,0.04);border-bottom:2px solid rgba(255,229,0,0.25);font-weight:700;font-size:0.9rem}
+    .row-total td{padding:12px 8px}
+    .row-conta{background:rgba(255,255,255,0.015);font-weight:600;cursor:pointer}
+    .row-conta:hover{background:rgba(255,255,255,0.035)}
+    .row-campanha{cursor:pointer}
+    .row-campanha:hover{background:rgba(255,255,255,0.025)}
+    .row-mlb{font-size:0.78rem}
+    .row-mlb:hover{background:rgba(255,255,255,0.015)}
+    .row-mlb td{padding:6px 8px}
+    .hidden{display:none}
+
+    /* Tags & colors */
+    .tag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;display:inline-block}
+    .tag-gge{background:#1f3d2a;color:#3fb950}
+    .tag-toow{background:#3d2f1f;color:#d29922}
+    .tag-ggesp{background:#1f2d3d;color:#58a6ff}
+    .tag-paused{background:rgba(248,81,73,0.15);color:#f85149;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px}
+    .c-green{color:#3fb950} .c-red{color:#f85149} .c-yellow{color:#d29922} .c-white{color:#e6edf3} .c-muted{color:#8b949e}
+    .chevron{display:inline-block;width:16px;text-align:center;color:#8b949e;font-size:12px;transition:transform 0.15s}
+    .chevron.open{color:#ffe500}
+    a.mlb-link{color:#58a6ff;text-decoration:none;font-size:11px}
+    a.mlb-link:hover{text-decoration:underline}
+    .loading{text-align:center;padding:60px;color:#8b949e}
+    .full-yes{color:#3fb950;font-size:10px;font-weight:700}
+    .full-no{color:#8b949e;font-size:10px}
   </style>
 </head>
 <body>
   <div id="sidebar-container"></div>
   <div class="main-with-sidebar">
-    <h1>Product Ads</h1>
-    <p class="subtitle">Performance de anuncios patrocinados</p>
+    <h1>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffe500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+      Dashboard de ADs
+    </h1>
+    <p class="subtitle">Performance de investimento em anúncios patrocinados</p>
 
     <div class="filters">
       <div><label>Conta</label><br>
-        <select id="filtro-conta">
-          <option value="todas">Todas</option>
-          <option value="GGE-GRAMPEADORES">GGE</option>
+        <select id="f-conta">
+          <option value="todas">Consolidado</option>
+          <option value="GGE-GRAMPEADORES">GGE RJ</option>
           <option value="TOOWCOMERCIAL">TOOW</option>
-          <option value="GGESP">GGESP</option>
+          <option value="GGESP">GGE SP</option>
         </select>
       </div>
-      <div><label>Periodo</label><br>
-        <select id="filtro-periodo">
+      <div><label>Período</label><br>
+        <select id="f-periodo">
           <option value="7">7 dias</option>
           <option value="15">15 dias</option>
           <option value="30" selected>30 dias</option>
         </select>
       </div>
-      <div><label>Gasto minimo</label><br>
-        <input type="number" id="filtro-gasto-min" value="5" min="0" step="5" style="width:80px;">
-      </div>
     </div>
 
-    <div class="cards" id="cards-container"><div class="loading">Carregando...</div></div>
+    <p class="section-title">Evolução Semanal</p>
+    <div class="week-row" id="week-cards"><div class="loading">Carregando...</div></div>
 
-    <div class="chart-container">
-      <h2>Evolucao Diaria</h2>
-      <div class="chart-wrapper"><canvas id="chart-diario"></canvas></div>
-    </div>
-
-    <div class="section" id="alertas-section" style="display:none;">
-      <h2>Sangradores <span class="badge" id="alertas-count">0</span></h2>
-      <p style="color:#8b949e;font-size:0.8rem;margin-bottom:10px;">Anuncios com gasto > R$20 e zero vendas via Ads no periodo</p>
-      <div class="table-scroll" style="max-height:300px;">
-        <table id="tabela-alertas">
-          <thead><tr><th>MLB</th><th>Produto</th><th>Conta</th><th class="num">Gasto</th><th class="num">Cliques</th><th class="num">CPC</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>Ranking por MLB <span class="badge badge-ok" id="ranking-count">0</span></h2>
+    <div class="table-wrap">
       <div class="table-scroll">
-        <table id="tabela-ranking">
-          <thead><tr>
-            <th data-col="mlb">MLB</th>
-            <th data-col="titulo">Produto</th>
-            <th data-col="conta">Conta</th>
-            <th data-col="gasto" class="num">Gasto</th>
-            <th data-col="receita" class="num">Receita</th>
-            <th data-col="roas" class="num">ROAS</th>
-            <th data-col="acos" class="num">ACOS%</th>
-            <th data-col="cliques" class="num">Cliques</th>
-            <th data-col="vendas" class="num">Vendas</th>
-            <th data-col="cpc" class="num">CPC</th>
-          </tr></thead>
-          <tbody></tbody>
+        <table id="main-table">
+          <thead>
+            <tr>
+              <th style="min-width:260px">Conta / Campanha</th>
+              <th class="num">Anúncios</th>
+              <th class="num">Vendas Org. R$</th>
+              <th class="num">Vendas ADs R$</th>
+              <th class="num">Gasto ADs R$</th>
+              <th class="num">ACOS %</th>
+              <th class="num">ROAS</th>
+              <th class="num">CPC Médio</th>
+              <th class="num">MC2 c/ ADs</th>
+              <th class="num">MC2 s/ ADs</th>
+              <th style="text-align:center">Full</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr><td colspan="11" class="loading">Carregando dados...</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -124,175 +130,342 @@
   })();
 
   var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
-  var chartInstance = null;
-  var allData = [];
+
+  /* ── helpers ── */
+  function fmt(v){ return 'R$ '+Number(v||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,'.').replace(/\.(\d{2})$/,',$1'); }
+  function fmtBrl(v){
+    var n = Number(v||0);
+    var s = Math.abs(n).toFixed(2).replace('.',',');
+    var parts = s.split(',');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    return (n<0?'-':'')+'R$ '+parts.join(',');
+  }
+  function fPct(v,d){ return Number(v||0).toFixed(d||1).replace('.',',')+' %'; }
+  function calcAcos(g,r){ return r>0?(g/r*100):(g>0?999:0); }
+  function calcRoas(g,r){ return g>0?r/g:0; }
+  function calcCpc(g,c){ return c>0?g/c:0; }
+  function acosClass(v){ return v>=999?'c-red':v>30?'c-red':v>15?'c-yellow':'c-green'; }
+  function roasClass(v){ return v<3?'c-red':v<5?'c-yellow':'c-green'; }
+  function mc2Class(v){ return v>=0?'c-green':'c-red'; }
+  function contaTag(nome){
+    if(!nome) return '<span class="tag tag-gge">GGE RJ</span>';
+    if(nome.indexOf('TOOW')>=0) return '<span class="tag tag-toow">TOOW</span>';
+    if(nome.indexOf('SP')>=0) return '<span class="tag tag-ggesp">GGE SP</span>';
+    return '<span class="tag tag-gge">GGE RJ</span>';
+  }
+  function acosStr(v){ return v>=999?'∞':fPct(v,1); }
+
+  /* ── state ── */
   var contasMap = {};
+  var campanhasMap = {};
+  var expandedContas = {};
+  var expandedCampanhas = {};
+  var hierData = null;
 
-  async function loadContas() {
-    var { data } = await sb.from('contas').select('id, nome');
-    (data || []).forEach(function(c) { contasMap[c.id] = c.nome; });
+  /* ── load reference data ── */
+  async function loadRefs(){
+    var {data:c} = await sb.from('contas').select('id, nome');
+    (c||[]).forEach(function(r){ contasMap[r.id] = r.nome; });
+    var {data:ca} = await sb.from('campanhas_ads').select('campaign_id, nome, status, conta_id');
+    (ca||[]).forEach(function(r){ campanhasMap[r.campaign_id] = r; });
   }
 
-  function gc(nome) {
-    if (!nome) return 'conta-gge';
-    if (nome.indexOf('TOOW') >= 0) return 'conta-toow';
-    if (nome.indexOf('SP') >= 0) return 'conta-ggesp';
-    return 'conta-gge';
+  /* ── load weekly evolution (always 56 days) ── */
+  async function loadWeeks(contaFilter){
+    var wFrom = new Date(); wFrom.setDate(wFrom.getDate()-56);
+    var wFromStr = wFrom.toISOString().split('T')[0];
+
+    var {data:raw} = await sb.from('ads_diario')
+      .select('gasto_ads, receita_ads, data_referencia, mlb_id')
+      .gte('data_referencia', wFromStr);
+
+    // If filtering by conta, need anuncio info
+    var contaByMlb = {};
+    if(contaFilter && contaFilter !== 'todas'){
+      var mlbs = [...new Set((raw||[]).map(function(r){return r.mlb_id}))];
+      for(var i=0;i<mlbs.length;i+=200){
+        var batch = mlbs.slice(i,i+200);
+        var {data:an} = await sb.from('anuncios').select('mlb_id, conta_id').in('mlb_id', batch);
+        (an||[]).forEach(function(a){ contaByMlb[a.mlb_id] = contasMap[a.conta_id]||''; });
+      }
+    }
+
+    var today = new Date();
+    var html = '';
+    for(var w=7;w>=0;w--){
+      var wEnd = new Date(today); wEnd.setDate(today.getDate()-(w*7));
+      var wStart = new Date(wEnd); wStart.setDate(wEnd.getDate()-6);
+      var startStr = wStart.toISOString().split('T')[0];
+      var endStr = wEnd.toISOString().split('T')[0];
+      var wG=0, wR=0;
+      (raw||[]).forEach(function(r){
+        if(r.data_referencia>=startStr && r.data_referencia<=endStr){
+          if(contaFilter && contaFilter!=='todas' && contaByMlb[r.mlb_id]!==contaFilter) return;
+          wG += Number(r.gasto_ads)||0;
+          wR += Number(r.receita_ads)||0;
+        }
+      });
+      var acos = calcAcos(wG,wR);
+      var roas = calcRoas(wG,wR);
+      var dd=function(d){return String(d.getDate()).padStart(2,'0')};
+      var mm=function(d){return String(d.getMonth()+1).padStart(2,'0')};
+      var label = w===0?'Atual':dd(wStart)+'/'+mm(wStart)+' - '+dd(wEnd)+'/'+mm(wEnd);
+      var cls = w===0?' current':'';
+      html += '<div class="week-card'+cls+'">'+
+        '<div class="wk-label">'+label+'</div>'+
+        '<div class="wk-row"><div class="wk-metric">Vendas ADs</div><div class="wk-val c-white">'+fmtBrl(wR)+'</div></div>'+
+        '<div class="wk-row"><div class="wk-metric">Gasto</div><div class="wk-val c-red">'+fmtBrl(wG)+'</div></div>'+
+        '<div class="wk-row"><div class="wk-metric">ACOS</div><div class="wk-val '+acosClass(acos)+'">'+acosStr(acos)+'</div></div>'+
+        '<div class="wk-row"><div class="wk-metric">ROAS</div><div class="wk-val '+roasClass(roas)+'">'+roas.toFixed(2)+'x</div></div>'+
+        '</div>';
+    }
+    document.getElementById('week-cards').innerHTML = html;
   }
-  function rc(r) { return r <= 0 ? 'roas-bad' : r < 3 ? 'roas-bad' : r < 5 ? 'roas-ok' : 'roas-good'; }
-  function fmt(v) { return 'R$ ' + Number(v||0).toFixed(2).replace('.', ','); }
-  function fN(v, d) { return Number(v||0).toFixed(d||1).replace('.', ','); }
 
-  async function loadData() {
-    var dias = parseInt(document.getElementById('filtro-periodo').value);
-    var dataMin = new Date(); dataMin.setDate(dataMin.getDate() - dias);
-    var dStr = dataMin.toISOString().split('T')[0];
+  /* ── load main data ── */
+  async function loadData(){
+    var dias = parseInt(document.getElementById('f-periodo').value);
+    var contaFilter = document.getElementById('f-conta').value;
+    var dMin = new Date(); dMin.setDate(dMin.getDate()-dias);
+    var dStr = dMin.toISOString().split('T')[0];
 
-    var { data: raw } = await sb.from('ads_diario')
-      .select('mlb_id, data_referencia, gasto_ads, receita_ads, cliques_ads, vendas_diretas_ads, cpc')
-      .gte('data_referencia', dStr).order('data_referencia', { ascending: true });
+    // ads_diario
+    var {data:raw} = await sb.from('ads_diario')
+      .select('mlb_id, campaign_id, gasto_ads, receita_ads, receita_organica, cliques_ads, vendas_diretas_ads')
+      .gte('data_referencia', dStr);
 
-    var mlbs = [...new Set((raw||[]).map(function(r){return r.mlb_id;}))];
+    // anuncios info
+    var mlbs = [...new Set((raw||[]).map(function(r){return r.mlb_id}))];
     var anuncioMap = {};
-    // Buscar em lotes de 200
-    for (var i = 0; i < mlbs.length; i += 200) {
-      var batch = mlbs.slice(i, i+200);
-      var { data: an } = await sb.from('anuncios').select('mlb_id, titulo, conta_id').in('mlb_id', batch);
+    for(var i=0;i<mlbs.length;i+=200){
+      var batch = mlbs.slice(i,i+200);
+      var {data:an} = await sb.from('anuncios').select('mlb_id, titulo, conta_id, modo_logistica').in('mlb_id', batch);
       (an||[]).forEach(function(a){ anuncioMap[a.mlb_id] = a; });
     }
 
-    allData = (raw||[]).map(function(r){
-      var a = anuncioMap[r.mlb_id] || {};
-      r.titulo = a.titulo || r.mlb_id;
-      r.conta_id = a.conta_id || '';
-      r.conta_nome = contasMap[a.conta_id] || '';
-      return r;
-    });
-    render();
-  }
+    // margem
+    var margemMap = {};
+    if(mlbs.length>0){
+      var {data:mrg} = await sb.from('vw_margem_canonica')
+        .select('mlb_id, margem_valor, custo_ads_rateado')
+        .gte('data_venda', dStr)
+        .in('mlb_id', mlbs.slice(0,500));
+      (mrg||[]).forEach(function(m){
+        if(!margemMap[m.mlb_id]) margemMap[m.mlb_id] = {mc2:0,ads_cost:0};
+        margemMap[m.mlb_id].mc2 += Number(m.margem_valor)||0;
+        margemMap[m.mlb_id].ads_cost += Number(m.custo_ads_rateado)||0;
+      });
+    }
 
-  function render() {
-    var conta = document.getElementById('filtro-conta').value;
-    var gastoMin = parseFloat(document.getElementById('filtro-gasto-min').value) || 0;
+    // aggregate by mlb+campaign
+    var byCampMlb = {};
+    (raw||[]).forEach(function(r){
+      if(!r.campaign_id) return;
+      var info = anuncioMap[r.mlb_id]||{};
+      var cNome = contasMap[info.conta_id]||'';
+      if(contaFilter!=='todas' && cNome!==contaFilter) return;
 
-    var filtered = allData.filter(function(d){
-      if (conta !== 'todas' && d.conta_nome !== conta) return false;
-      return true;
-    });
-
-    var byMlb = {}, byDay = {};
-    filtered.forEach(function(d){
-      var g = Number(d.gasto_ads)||0, r = Number(d.receita_ads)||0;
-      var c = Number(d.cliques_ads)||0, v = Number(d.vendas_diretas_ads)||0;
-      if (!byMlb[d.mlb_id]) byMlb[d.mlb_id] = {mlb:d.mlb_id, titulo:d.titulo, conta:d.conta_nome, gasto:0, receita:0, cliques:0, vendas:0};
-      byMlb[d.mlb_id].gasto += g; byMlb[d.mlb_id].receita += r;
-      byMlb[d.mlb_id].cliques += c; byMlb[d.mlb_id].vendas += v;
-      var dia = d.data_referencia;
-      if (!byDay[dia]) byDay[dia] = {gasto:0, receita:0};
-      byDay[dia].gasto += g; byDay[dia].receita += r;
-    });
-
-    var mlbList = Object.values(byMlb).filter(function(m){return m.gasto >= gastoMin;});
-    mlbList.forEach(function(m){
-      m.roas = m.gasto > 0 ? m.receita / m.gasto : 0;
-      m.acos = m.receita > 0 ? m.gasto / m.receita * 100 : (m.gasto > 0 ? 999 : 0);
-      m.cpc = m.cliques > 0 ? m.gasto / m.cliques : 0;
-    });
-
-    var tG = mlbList.reduce(function(s,m){return s+m.gasto;},0);
-    var tR = mlbList.reduce(function(s,m){return s+m.receita;},0);
-    var tC = mlbList.reduce(function(s,m){return s+m.cliques;},0);
-    var tV = mlbList.reduce(function(s,m){return s+m.vendas;},0);
-    var roasG = tG > 0 ? tR/tG : 0;
-    var acosG = tR > 0 ? tG/tR*100 : 0;
-    var cpcG = tC > 0 ? tG/tC : 0;
-    var nAds = mlbList.filter(function(m){return m.gasto>0;}).length;
-
-    document.getElementById('cards-container').innerHTML =
-      '<div class="card"><div class="label">Gasto Total</div><div class="value">'+fmt(tG)+'</div><div class="delta neutral">'+nAds+' MLBs ativos</div></div>'+
-      '<div class="card"><div class="label">Receita Ads</div><div class="value">'+fmt(tR)+'</div><div class="delta '+(tV>0?'up':'down')+'">'+tV+' vendas diretas</div></div>'+
-      '<div class="card"><div class="label">ROAS</div><div class="value '+rc(roasG)+'">'+fN(roasG,2)+'x</div><div class="delta '+(roasG>=5?'up':roasG>=3?'neutral':'down')+'">'+(roasG>=5?'Saudavel':roasG>=3?'Aceitavel':'Abaixo')+'</div></div>'+
-      '<div class="card"><div class="label">ACOS</div><div class="value">'+fN(acosG,1)+'%</div><div class="delta '+(acosG<=15?'up':acosG<=25?'neutral':'down')+'">'+(acosG<=15?'Excelente':acosG<=25?'Bom':'Alto')+'</div></div>'+
-      '<div class="card"><div class="label">CPC Medio</div><div class="value">'+fmt(cpcG)+'</div><div class="delta neutral">'+tC+' cliques</div></div>';
-
-    // Chart
-    var dias = Object.keys(byDay).sort();
-    if (chartInstance) chartInstance.destroy();
-    chartInstance = new Chart(document.getElementById('chart-diario').getContext('2d'), {
-      type:'bar',
-      data:{
-        labels: dias.map(function(d){var p=d.split('-');return p[2]+'/'+p[1];}),
-        datasets:[
-          {label:'Gasto', data:dias.map(function(d){return byDay[d].gasto;}), backgroundColor:'rgba(248,81,73,0.7)', borderRadius:3, order:2},
-          {label:'Receita', data:dias.map(function(d){return byDay[d].receita;}), type:'line', borderColor:'#3fb950', backgroundColor:'rgba(63,185,80,0.1)', tension:0.3, fill:true, pointRadius:2, order:1}
-        ]
-      },
-      options:{
-        responsive:true, maintainAspectRatio:false,
-        plugins:{legend:{labels:{color:'#8b949e',font:{size:11}}}},
-        scales:{
-          x:{ticks:{color:'#8b949e',font:{size:10}},grid:{color:'#21262d'}},
-          y:{ticks:{color:'#8b949e',callback:function(v){return 'R$'+v;}},grid:{color:'#21262d'}}
-        }
+      var key = r.campaign_id+'|'+r.mlb_id;
+      if(!byCampMlb[key]){
+        byCampMlb[key] = {
+          mlb_id:r.mlb_id, campaign_id:r.campaign_id,
+          titulo:info.titulo||r.mlb_id, conta_id:info.conta_id||'',
+          modo_logistica:info.modo_logistica||null,
+          gasto:0, receita_ads:0, receita_org:0, cliques:0, vendas:0
+        };
       }
+      byCampMlb[key].gasto += Number(r.gasto_ads)||0;
+      byCampMlb[key].receita_ads += Number(r.receita_ads)||0;
+      byCampMlb[key].receita_org += Number(r.receita_organica)||0;
+      byCampMlb[key].cliques += Number(r.cliques_ads)||0;
+      byCampMlb[key].vendas += Number(r.vendas_diretas_ads)||0;
     });
 
-    // Alertas
-    var sang = mlbList.filter(function(m){return m.gasto>=20 && m.receita===0;}).sort(function(a,b){return b.gasto-a.gasto;});
-    var alertasSec = document.getElementById('alertas-section');
-    if (sang.length > 0) {
-      alertasSec.style.display = '';
-      document.getElementById('alertas-count').textContent = sang.length;
-      document.querySelector('#tabela-alertas tbody').innerHTML = sang.map(function(m){
-        return '<tr><td><a href="https://www.mercadolivre.com.br/p/'+m.mlb+'" target="_blank" class="mlb-link">'+m.mlb+'</a></td>'+
-          '<td>'+m.titulo.substring(0,50)+'</td>'+
-          '<td><span class="conta-tag '+gc(m.conta)+'">'+m.conta+'</span></td>'+
-          '<td class="num roas-bad">'+fmt(m.gasto)+'</td>'+
-          '<td class="num">'+m.cliques+'</td>'+
-          '<td class="num">'+fmt(m.cpc)+'</td></tr>';
-      }).join('');
-    } else { alertasSec.style.display='none'; }
-
-    // Ranking
-    mlbList.sort(function(a,b){return b.gasto-a.gasto;});
-    document.getElementById('ranking-count').textContent = mlbList.length;
-    var tbR = document.querySelector('#tabela-ranking tbody');
-    tbR.innerHTML = mlbList.map(function(m){
-      var ac = m.acos>=999 ? '∞' : fN(m.acos,1)+'%';
-      return '<tr><td><a href="https://www.mercadolivre.com.br/p/'+m.mlb+'" target="_blank" class="mlb-link">'+m.mlb+'</a></td>'+
-        '<td>'+m.titulo.substring(0,45)+'</td>'+
-        '<td><span class="conta-tag '+gc(m.conta)+'">'+m.conta+'</span></td>'+
-        '<td class="num">'+fmt(m.gasto)+'</td>'+
-        '<td class="num">'+fmt(m.receita)+'</td>'+
-        '<td class="num '+rc(m.roas)+'">'+fN(m.roas,2)+'x</td>'+
-        '<td class="num '+(m.acos>30?'roas-bad':m.acos>15?'roas-ok':'roas-good')+'">'+ac+'</td>'+
-        '<td class="num">'+m.cliques+'</td>'+
-        '<td class="num">'+m.vendas+'</td>'+
-        '<td class="num">'+fmt(m.cpc)+'</td></tr>';
-    }).join('');
-    tbR.innerHTML += '<tr class="summary-row"><td colspan="3">TOTAL</td><td class="num">'+fmt(tG)+'</td><td class="num">'+fmt(tR)+'</td><td class="num '+rc(roasG)+'">'+fN(roasG,2)+'x</td><td class="num">'+fN(acosG,1)+'%</td><td class="num">'+tC+'</td><td class="num">'+tV+'</td><td class="num">'+fmt(cpcG)+'</td></tr>';
-
-    // Sort headers
-    document.querySelectorAll('#tabela-ranking thead th').forEach(function(th){
-      th.onclick = function(){
-        var col = th.getAttribute('data-col'); if(!col) return;
-        var dir = th.getAttribute('data-dir')==='asc' ? 'desc' : 'asc';
-        th.setAttribute('data-dir', dir);
-        mlbList.sort(function(a,b){
-          var va=a[col], vb=b[col];
-          if(typeof va==='string') return dir==='asc'?va.localeCompare(vb):vb.localeCompare(va);
-          return dir==='asc'?va-vb:vb-va;
-        });
-        render();
-      };
+    // group by campaign
+    var byCamp = {};
+    Object.values(byCampMlb).forEach(function(m){
+      var cid = m.campaign_id;
+      if(!byCamp[cid]){
+        var ci = campanhasMap[cid]||{};
+        byCamp[cid] = {
+          campaign_id:cid, nome:ci.nome||('Campanha '+cid), status:ci.status||'',
+          conta_id:ci.conta_id||'', mlbs:[]
+        };
+      }
+      var mrg = margemMap[m.mlb_id];
+      m.mc2_com = mrg?mrg.mc2:0;
+      m.mc2_sem = mrg?(mrg.mc2+mrg.ads_cost):0;
+      m.acos = calcAcos(m.gasto,m.receita_ads);
+      m.roas = calcRoas(m.gasto,m.receita_ads);
+      m.cpc = calcCpc(m.gasto,m.cliques);
+      m.is_full = m.modo_logistica==='fulfillment';
+      byCamp[cid].mlbs.push(m);
     });
+
+    // group by conta
+    var byConta = {};
+    Object.values(byCamp).forEach(function(camp){
+      var contaId = camp.conta_id;
+      var contaNome = contasMap[contaId]||contaId;
+      if(!byConta[contaId]) byConta[contaId] = {conta_id:contaId, conta_nome:contaNome, campanhas:[]};
+
+      var s = sumRows(camp.mlbs);
+      camp.sum = s;
+      camp.mlbs.sort(function(a,b){return b.gasto-a.gasto});
+      byConta[contaId].campanhas.push(camp);
+    });
+
+    // compute conta sums & sort
+    var contaList = Object.values(byConta);
+    contaList.forEach(function(conta){
+      var allMlbs = [];
+      conta.campanhas.forEach(function(c){ allMlbs = allMlbs.concat(c.mlbs); });
+      conta.sum = sumRows(allMlbs);
+      conta.campanhas.sort(function(a,b){return b.sum.gasto-a.sum.gasto});
+    });
+    contaList.sort(function(a,b){return b.sum.gasto-a.sum.gasto});
+
+    // grand total
+    var allMlbs = [];
+    contaList.forEach(function(conta){ conta.campanhas.forEach(function(c){ allMlbs = allMlbs.concat(c.mlbs); }); });
+    var gt = sumRows(allMlbs);
+
+    hierData = {gt:gt, contas:contaList};
+    renderTable();
   }
 
-  document.getElementById('filtro-conta').onchange = render;
-  document.getElementById('filtro-periodo').onchange = function(){ loadData(); };
-  document.getElementById('filtro-gasto-min').onchange = render;
+  function sumRows(rows){
+    var g=0,ra=0,ro=0,cl=0,v=0,mc2c=0,mc2s=0,hasFull=false;
+    rows.forEach(function(m){
+      g+=m.gasto; ra+=m.receita_ads; ro+=m.receita_org;
+      cl+=m.cliques; v+=m.vendas;
+      mc2c+=m.mc2_com; mc2s+=m.mc2_sem;
+      if(m.is_full) hasFull=true;
+    });
+    return {
+      n:rows.length, gasto:g, receita_ads:ra, receita_org:ro, cliques:cl, vendas:v,
+      acos:calcAcos(g,ra), roas:calcRoas(g,ra), cpc:calcCpc(g,cl),
+      mc2_com:mc2c, mc2_sem:mc2s, has_full:hasFull
+    };
+  }
 
-  loadContas().then(function(){ loadData(); });
+  function renderTable(){
+    if(!hierData) return;
+    var gt = hierData.gt;
+    var html = '';
+
+    // Grand total row
+    html += '<tr class="row-total">';
+    html += '<td>TOTAL CONSOLIDADO</td>';
+    html += '<td class="num c-white">'+gt.n+'</td>';
+    html += '<td class="num c-white">'+fmtBrl(gt.receita_org)+'</td>';
+    html += '<td class="num c-white">'+fmtBrl(gt.receita_ads)+'</td>';
+    html += '<td class="num c-red">'+fmtBrl(gt.gasto)+'</td>';
+    html += '<td class="num '+acosClass(gt.acos)+'">'+acosStr(gt.acos)+'</td>';
+    html += '<td class="num '+roasClass(gt.roas)+'">'+gt.roas.toFixed(2)+'x</td>';
+    html += '<td class="num c-white">'+fmtBrl(gt.cpc)+'</td>';
+    html += '<td class="num '+mc2Class(gt.mc2_com)+'">'+fmtBrl(gt.mc2_com)+'</td>';
+    html += '<td class="num '+mc2Class(gt.mc2_sem)+'">'+fmtBrl(gt.mc2_sem)+'</td>';
+    html += '<td style="text-align:center"><span class="c-muted">—</span></td>';
+    html += '</tr>';
+
+    // Contas
+    hierData.contas.forEach(function(conta){
+      var cId = conta.conta_id;
+      var s = conta.sum;
+      var isOpen = expandedContas[cId];
+      var chevClass = isOpen?'chevron open':'chevron';
+      var chevChar = isOpen?'▼':'▶';
+
+      html += '<tr class="row-conta" onclick="toggleConta(\''+cId+'\')">';
+      html += '<td><span class="'+chevClass+'">'+chevChar+'</span> '+contaTag(conta.conta_nome)+' <span style="margin-left:6px">'+conta.conta_nome+'</span></td>';
+      html += '<td class="num c-white">'+s.n+'</td>';
+      html += '<td class="num c-white">'+fmtBrl(s.receita_org)+'</td>';
+      html += '<td class="num c-white">'+fmtBrl(s.receita_ads)+'</td>';
+      html += '<td class="num c-red">'+fmtBrl(s.gasto)+'</td>';
+      html += '<td class="num '+acosClass(s.acos)+'">'+acosStr(s.acos)+'</td>';
+      html += '<td class="num '+roasClass(s.roas)+'">'+s.roas.toFixed(2)+'x</td>';
+      html += '<td class="num c-white">'+fmtBrl(s.cpc)+'</td>';
+      html += '<td class="num '+mc2Class(s.mc2_com)+'">'+fmtBrl(s.mc2_com)+'</td>';
+      html += '<td class="num '+mc2Class(s.mc2_sem)+'">'+fmtBrl(s.mc2_sem)+'</td>';
+      html += '<td style="text-align:center">'+(s.has_full?'<span class="full-yes">SIM</span>':'')+'</td>';
+      html += '</tr>';
+
+      if(!isOpen) return;
+
+      // Campanhas
+      conta.campanhas.forEach(function(camp){
+        var cpId = camp.campaign_id;
+        var cs = camp.sum;
+        var cpOpen = expandedCampanhas[cpId];
+        var cpChev = cpOpen?'chevron open':'chevron';
+        var cpChar = cpOpen?'▼':'▶';
+        var pauseTag = camp.status==='paused'?'<span class="tag-paused">PAUSADA</span>':'';
+
+        html += '<tr class="row-campanha" onclick="event.stopPropagation();toggleCampanha('+cpId+')">';
+        html += '<td style="padding-left:36px"><span class="'+cpChev+'">'+cpChar+'</span> <span style="margin-left:4px">'+camp.nome+'</span>'+pauseTag+'</td>';
+        html += '<td class="num c-muted">'+cs.n+'</td>';
+        html += '<td class="num c-muted">'+fmtBrl(cs.receita_org)+'</td>';
+        html += '<td class="num c-white">'+fmtBrl(cs.receita_ads)+'</td>';
+        html += '<td class="num c-red">'+fmtBrl(cs.gasto)+'</td>';
+        html += '<td class="num '+acosClass(cs.acos)+'">'+acosStr(cs.acos)+'</td>';
+        html += '<td class="num '+roasClass(cs.roas)+'">'+cs.roas.toFixed(2)+'x</td>';
+        html += '<td class="num c-muted">'+fmtBrl(cs.cpc)+'</td>';
+        html += '<td class="num '+mc2Class(cs.mc2_com)+'">'+fmtBrl(cs.mc2_com)+'</td>';
+        html += '<td class="num '+mc2Class(cs.mc2_sem)+'">'+fmtBrl(cs.mc2_sem)+'</td>';
+        html += '<td style="text-align:center">'+(cs.has_full?'<span class="full-yes">SIM</span>':'')+'</td>';
+        html += '</tr>';
+
+        if(!cpOpen) return;
+
+        // MLBs
+        camp.mlbs.forEach(function(m){
+          var tit = m.titulo.length>55?m.titulo.substring(0,55)+'…':m.titulo;
+          html += '<tr class="row-mlb">';
+          html += '<td style="padding-left:64px"><a href="https://www.mercadolivre.com.br/p/'+m.mlb_id+'" target="_blank" class="mlb-link">'+tit+'</a></td>';
+          html += '<td class="num c-muted">—</td>';
+          html += '<td class="num c-muted">'+fmtBrl(m.receita_org)+'</td>';
+          html += '<td class="num c-white">'+fmtBrl(m.receita_ads)+'</td>';
+          html += '<td class="num c-red">'+fmtBrl(m.gasto)+'</td>';
+          html += '<td class="num '+acosClass(m.acos)+'">'+acosStr(m.acos)+'</td>';
+          html += '<td class="num '+roasClass(m.roas)+'">'+m.roas.toFixed(2)+'x</td>';
+          html += '<td class="num c-muted">'+fmtBrl(m.cpc)+'</td>';
+          html += '<td class="num '+mc2Class(m.mc2_com)+'">'+fmtBrl(m.mc2_com)+'</td>';
+          html += '<td class="num '+mc2Class(m.mc2_sem)+'">'+fmtBrl(m.mc2_sem)+'</td>';
+          html += '<td style="text-align:center">'+(m.is_full?'<span class="full-yes">SIM</span>':'<span class="full-no">NÃO</span>')+'</td>';
+          html += '</tr>';
+        });
+      });
+    });
+
+    document.getElementById('table-body').innerHTML = html;
+  }
+
+  /* ── toggle expand ── */
+  window.toggleConta = function(id){
+    expandedContas[id] = !expandedContas[id];
+    renderTable();
+  };
+  window.toggleCampanha = function(id){
+    expandedCampanhas[id] = !expandedCampanhas[id];
+    renderTable();
+  };
+
+  /* ── init ── */
+  async function init(){
+    await loadRefs();
+    var cf = document.getElementById('f-conta').value;
+    await Promise.all([loadWeeks(cf), loadData()]);
+  }
+
+  document.getElementById('f-conta').onchange = function(){
+    var cf = this.value;
+    loadWeeks(cf);
+    loadData();
+  };
+  document.getElementById('f-periodo').onchange = function(){ loadData(); };
+
+  init();
   </script>
 </body>
 </html>
