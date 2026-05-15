@@ -4,7 +4,7 @@
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABW0lEQVR4nN2Wv3XCMBDGP+elSn01tTcIhYdgCLOBC4bIBlBkGBXyBimoqFXTQpNThCJLZ53zeM5X2XDS/XT/ZGD1sv1Ns/xlKY6nAGzOhx6AKgrrjQCffkO0fwrAUloOoLIOqgB88fG7Ig3rS0F8ev870b4mDY1/sv1NW9ESXZw7AgC2pwYAGupay3+6j+4d0LdW1jEAGszIzz4CMciSEOw8dOzM1/YBIAUB6KIxdWp2/gsgBtFApJyHjrMAIcRcEMmpRQAxiLQu4nxPOWYV5wBvIE1DaFdyLgIAflIwR9I1RYCwFuZKslYUganwhwUnsU/pVWqYckyDGa9ArxlcxS6I74jUVGO9fe5OsR3P/CoA6lrLm+bGKdsCj+16ce5Igxlz3SCqgZLz8J0GM07VRkr5FHzf75KJFioe5aU0ZAGoa21NK/p1hY8U2V0gOHVpn9l7aAbQX+71/3QHEtvNzFvcqusAAAAASUVORK5CYII=">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard Catalogos - Controle Total GGE</title>
+  <title>Catálogos - Controle Total GGE</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -31,6 +31,22 @@
     @keyframes spin { to{transform:rotate(360deg)} }
     .sku-row { cursor:pointer; transition: background .15s; }
     .sku-row:hover { background: rgba(99,102,241,0.06); }
+    .row-hover:hover { background:rgba(99,102,241,.08); }
+    .sortable { cursor:pointer; user-select:none; }
+    .sortable:hover { color:#6366f1; }
+    .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center; }
+    .modal-box { background:#1a1d2e;border:1px solid #2a2d3e;border-radius:16px;max-width:900px;width:95%;max-height:85vh;overflow-y:auto;padding:24px; }
+    .badge { display:inline-block;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px; }
+    .badge-critico { background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3); }
+    .badge-atencao { background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3); }
+    .badge-margem_baixa { background:rgba(234,179,8,.15);color:#eab308;border:1px solid rgba(234,179,8,.3); }
+    .badge-ok { background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3); }
+    .badge-sem_vendas { background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.2); }
+    .filter-active select { border-color:#6366f1 !important; color:#fff !important; font-weight:600; }
+    .tab-bar { position:sticky; top:0; z-index:50; background:#0f1117; border-bottom:1px solid #2a2d3e; }
+    .account-badge-green { display:inline-block;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600;background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);margin:1px 2px; }
+    .account-badge-orange { display:inline-block;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600;background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3);margin:1px 2px; }
+    .highlight-row { background:rgba(34,197,94,.06); }
   </style>
   <script src="/sidebar.js" defer></script>
 </head>
@@ -46,7 +62,7 @@
     <div id="root">
       <div id="loading-fallback">
         <div class="spinner"></div>
-        <span>Carregando Dashboard Catalogos...</span>
+        <span>Carregando Catalogos...</span>
       </div>
     </div>
   </div>
@@ -65,11 +81,12 @@
 
   <script type="text/babel">
     clearTimeout(window._ggeTimeout);
-    const { useState, useEffect, useMemo } = React;
-    const { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } = Recharts;
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
+    const { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, Cell } = Recharts;
 
     const sb = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
+    /* ═══ Helpers ═══ */
     const fmtN = n => n == null ? '-' : Number(n).toLocaleString('pt-BR');
     const fmtR = n => n == null ? '-' : 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtP = n => n == null ? '-' : Number(n).toFixed(1) + '%';
@@ -79,14 +96,82 @@
     const STATUS_LABEL = { winning: 'Vencendo', sharing_first_place: 'Empatando', competing: 'Perdendo' };
     const STATUS_COLOR = { winning: 'text-gge-green', sharing_first_place: 'text-gge-cyan', competing: 'text-gge-orange' };
     const STATUS_BG = { winning: 'bg-green-900/30 text-green-400 border-green-700/50', sharing_first_place: 'bg-cyan-900/30 text-cyan-400 border-cyan-700/50', competing: 'bg-orange-900/30 text-orange-400 border-orange-700/50' };
+    const CLASSIF_LABEL = { critico: 'Critico', atencao: 'Atencao', margem_baixa: 'Margem Baixa', ok: 'Ok', sem_vendas: 'Sem Vendas' };
+    const CLASSIF_ORDER = { critico: 0, atencao: 1, margem_baixa: 2, ok: 3, sem_vendas: 4 };
+    const FONTE_ICON = { real: '', poucas_vendas: ' ~', media_sku: ' ~', estimativa_calculada: ' ≈', media_conta: ' ~', sem_dados: ' ?' };
+    const FONTE_TITLE = { real: 'Dados reais', poucas_vendas: 'Poucas vendas', media_sku: 'Media do SKU', estimativa_calculada: 'Estimativa calculada', media_conta: 'Media da conta', sem_dados: 'Sem dados' };
+    const PERIODOS = [{ value: 3, label: '3d' },{ value: 7, label: '7d' },{ value: 10, label: '10d' },{ value: 14, label: '14d' },{ value: 30, label: '30d' }];
 
-    function App() {
+    /* ═══ Shared Components ═══ */
+    function Skeleton({ rows = 4, height = 'h-24' }) {
+      return (
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          {Array.from({length: rows}).map((_, i) => <div key={i} className={`bg-gge-card border border-gge-border rounded-xl ${height} animate-pulse`} />)}
+        </div>
+      );
+    }
+
+    function ErrorCard({ message, onReload }) {
+      return (
+        <div className="bg-red-900/20 border border-red-700/40 rounded-xl p-4 text-red-400 fade-in">
+          <p className="font-semibold mb-1">Erro ao carregar dados</p>
+          <p className="text-sm">{message}</p>
+          <button onClick={onReload} className="mt-3 px-4 py-2 bg-gge-accent text-white rounded-lg text-sm">Recarregar</button>
+        </div>
+      );
+    }
+
+    function KpiCard({ title, value, sub, color, icon }) {
+      return (
+        <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+          <div className="flex items-center gap-2 mb-2">
+            {icon && <span className="text-lg">{icon}</span>}
+            <span className="text-xs text-gge-muted font-medium">{title}</span>
+          </div>
+          <div className={`text-2xl font-bold ${color || 'text-white'}`}>{value}</div>
+          {sub && <div className="text-xs text-gge-muted mt-1">{sub}</div>}
+        </div>
+      );
+    }
+
+    function Badge({ classificacao }) {
+      return <span className={`badge badge-${classificacao}`}>{CLASSIF_LABEL[classificacao] || classificacao}</span>;
+    }
+
+    function MargemBadge({ valor, fonte }) {
+      const v = Number(valor) || 0;
+      const color = v >= 5 ? 'text-gge-green' : v < 0 ? 'text-gge-red' : 'text-gge-yellow';
+      const icon = FONTE_ICON[fonte] || '';
+      const title = FONTE_TITLE[fonte] || '';
+      return <span className={`font-semibold ${color}`} title={title}>{fmtP(v)}{icon && <span className="text-gge-cyan text-[9px] ml-0.5" title={title}>{icon}</span>}</span>;
+    }
+
+    function FilterSelect({ label, value, onChange, options, isActive }) {
+      return (
+        <div className={`flex flex-col gap-1 ${isActive ? 'filter-active' : ''}`}>
+          <label className="text-xs text-gge-muted font-medium">{label}</label>
+          <select value={value} onChange={e => onChange(e.target.value)}
+                  className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
+            <option value="">Todos</option>
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TAB 1: DASHBOARD
+       ═══════════════════════════════════════════════════════════ */
+    function TabDashboard() {
       const [data, setData] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
       const [expandedSku, setExpandedSku] = useState(null);
+      const loaded = useRef(false);
 
       useEffect(() => {
+        if (loaded.current) return;
+        loaded.current = true;
         (async () => {
           try {
             const { data: result, error: err } = await sb.rpc('fn_catalogo_dash_v2');
@@ -98,27 +183,15 @@
       }, []);
 
       if (loading) return (
-        <div className="max-w-7xl mx-auto p-6">
-          <h1 className="text-2xl font-bold mb-6">Dashboard Catalogos</h1>
-          <div className="grid grid-cols-8 gap-3 mb-6">
+        <div className="max-w-[1400px] mx-auto p-6">
+          <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
             {[1,2,3,4,5,6,7,8].map(i => <div key={i} className="bg-gge-card border border-gge-border rounded-xl h-40 animate-pulse" />)}
           </div>
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            {[1,2,3,4].map(i => <div key={i} className="bg-gge-card border border-gge-border rounded-xl h-28 animate-pulse" />)}
-          </div>
+          <Skeleton rows={4} />
         </div>
       );
 
-      if (error) return (
-        <div className="max-w-7xl mx-auto p-6">
-          <h1 className="text-2xl font-bold mb-6">Dashboard Catalogos</h1>
-          <div className="bg-red-900/20 border border-red-700/40 rounded-xl p-4 text-red-400">
-            <p className="font-semibold mb-1">Erro ao carregar dados</p>
-            <p className="text-sm">{error}</p>
-            <button onClick={() => location.reload()} className="mt-3 px-4 py-2 bg-gge-accent text-white rounded-lg text-sm">Recarregar</button>
-          </div>
-        </div>
-      );
+      if (error) return <div className="max-w-[1400px] mx-auto p-6"><ErrorCard message={error} onReload={() => location.reload()} /></div>;
 
       const comp = data.competicao || {};
       const semanas = data.semanas || [];
@@ -127,28 +200,16 @@
       const detalhes = data.detalhes || [];
       const totalComp = (comp.winning || 0) + (comp.competing || 0) + (comp.sharing || 0);
 
-      const detalhePorSku = useMemo(() => {
-        const map = {};
-        detalhes.forEach(d => {
-          if (!d.sku_vendedor) return;
-          if (!map[d.sku_vendedor]) map[d.sku_vendedor] = [];
-          map[d.sku_vendedor].push(d);
-        });
-        return map;
-      }, [detalhes]);
+      const detalhePorSku = {};
+      detalhes.forEach(d => {
+        if (!d.sku_vendedor) return;
+        if (!detalhePorSku[d.sku_vendedor]) detalhePorSku[d.sku_vendedor] = [];
+        detalhePorSku[d.sku_vendedor].push(d);
+      });
 
       return (
-        <div className="max-w-[1400px] mx-auto p-6">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold">Dashboard Catalogos</h1>
-            <p className="text-sm text-gge-muted mt-1">
-              Visao consolidada da competicao e performance em catalogo
-              {comp.data && <span> · Dados: {fmtDate(comp.data)}</span>}
-            </p>
-          </div>
-
-          {/* === COMPARATIVO SEMANAL (8 semanas) === */}
+        <div className="max-w-[1400px] mx-auto p-6 fade-in">
+          {/* Weekly comparison */}
           <div className="mb-6">
             <div className="text-xs font-semibold text-gge-muted uppercase tracking-wider mb-3">Evolucao Semanal</div>
             <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
@@ -161,7 +222,6 @@
                       {isLast ? 'Esta Semana' : 'Sem ' + s.semana}
                     </div>
                     <div className="text-[9px] text-gge-muted/60 mb-2">{fmtDate(s.inicio)} - {fmtDate(s.fim)}</div>
-
                     {s.total > 0 ? (
                       <>
                         <div className="text-[10px] text-gge-muted mb-1">Catalogos: <span className="text-white font-semibold">{s.total}</span></div>
@@ -174,7 +234,6 @@
                     ) : (
                       <div className="text-[10px] text-gge-muted/40 mb-2 py-1">sem coleta</div>
                     )}
-
                     <div className="border-t border-gge-border/50 pt-2 mt-1">
                       <div className="text-xs font-bold text-white">{fmtR(s.faturamento)}</div>
                       <div className={`text-[11px] font-semibold mt-0.5 ${s.mc2 >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
@@ -195,7 +254,7 @@
             </div>
           </div>
 
-          {/* === KPI CARDS (Vencendo | Empatados | Perdendo | Total) === */}
+          {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
               <div className="text-xs text-gge-muted font-medium mb-1">Vencendo</div>
@@ -219,7 +278,7 @@
             </div>
           </div>
 
-          {/* === BARRA BUY BOX === */}
+          {/* Buy Box bar */}
           <div className="bg-gge-card border border-gge-border rounded-xl p-5 mb-6 fade-in">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Distribuicao Buy Box</h3>
@@ -249,7 +308,7 @@
             </div>
           </div>
 
-          {/* === GRAFICO EVOLUCAO === */}
+          {/* Evolution chart */}
           {evolucao.length > 1 && (
             <div className="bg-gge-card border border-gge-border rounded-xl p-5 mb-6 fade-in">
               <h3 className="text-sm font-semibold text-white mb-3">Evolucao da Competicao</h3>
@@ -268,11 +327,11 @@
             </div>
           )}
 
-          {/* === TABELA SKU === */}
+          {/* SKU table */}
           <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-white">Catalogos por SKU</h3>
-              <span className="text-xs text-gge-muted">{skus.length} SKUs em catalogo · clique para expandir</span>
+              <span className="text-xs text-gge-muted">{skus.length} SKUs em catalogo - clique para expandir</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -387,6 +446,600 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TAB 2: ANUNCIOS
+       ═══════════════════════════════════════════════════════════ */
+    function SkuModal({ sku, items, onClose }) {
+      const sorted = [...items].sort((a, b) => Number(b.lucro_30d || 0) - Number(a.lucro_30d || 0));
+      const totalLucro = sorted.reduce((s, i) => s + Number(i.lucro_30d || 0), 0);
+      const totalVendas = sorted.reduce((s, i) => s + Number(i.vendas_30d || 0), 0);
+      const totalReceita = sorted.reduce((s, i) => s + Number(i.receita_30d || 0), 0);
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-white">SKU: {sku}</h2>
+                <p className="text-xs text-gge-muted mt-1">{sorted[0]?.titulo}</p>
+              </div>
+              <button onClick={onClose} className="text-gge-muted hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+            <div className="grid grid-cols-4 gap-3 mb-5">
+              <div className="bg-gge-bg rounded-lg p-3 text-center">
+                <div className="text-xs text-gge-muted">Anuncios</div>
+                <div className="text-xl font-bold text-white">{sorted.length}</div>
+              </div>
+              <div className="bg-gge-bg rounded-lg p-3 text-center">
+                <div className="text-xs text-gge-muted">Vendas 30d</div>
+                <div className="text-xl font-bold text-white">{fmtN(totalVendas)}</div>
+              </div>
+              <div className="bg-gge-bg rounded-lg p-3 text-center">
+                <div className="text-xs text-gge-muted">Receita 30d</div>
+                <div className="text-xl font-bold text-white">{fmtR(totalReceita)}</div>
+              </div>
+              <div className="bg-gge-bg rounded-lg p-3 text-center">
+                <div className="text-xs text-gge-muted">Lucro 30d</div>
+                <div className={`text-xl font-bold ${totalLucro >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(totalLucro)}</div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {sorted.map((item, idx) => {
+                const lucro = Number(item.lucro_30d || 0);
+                const isBest = idx === 0 && lucro > 0;
+                const isWorst = lucro < 0;
+                return (
+                  <div key={item.mlb_id} className={`rounded-xl border p-4 ${isWorst ? 'border-red-700/40 bg-red-900/10' : isBest ? 'border-green-700/40 bg-green-900/10' : 'border-gge-border bg-gge-bg'}`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${item.modo_logistica === 'fulfillment' ? 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50' : 'bg-gge-bg text-gge-muted border-gge-border'}`}>
+                          {item.modo_logistica === 'fulfillment' ? 'FULL' : 'COLETA'}
+                        </span>
+                        <Badge classificacao={item.classificacao} />
+                        <span className="text-xs text-gge-muted">{item.conta_nome}</span>
+                      </div>
+                      <a href={item.permalink} target="_blank" rel="noopener" className="text-xs text-gge-accent hover:underline">Ver no ML</a>
+                    </div>
+                    <div className="text-xs text-gge-muted mb-2">{item.mlb_id}</div>
+                    <div className="grid grid-cols-6 gap-3 text-center">
+                      <div><div className="text-[10px] text-gge-muted">Preco</div><div className="text-sm font-bold text-white">{fmtR(item.preco_atual)}</div></div>
+                      <div><div className="text-[10px] text-gge-muted">Vendas 30d</div><div className="text-sm font-bold text-white">{fmtN(item.vendas_30d)}</div></div>
+                      <div><div className="text-[10px] text-gge-muted">Margem</div><div className="text-sm font-bold"><MargemBadge valor={item.margem_pct} fonte={item.margem_fonte} /></div></div>
+                      <div><div className="text-[10px] text-gge-muted">Lucro 30d</div><div className={`text-sm font-bold ${lucro >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(lucro)}</div></div>
+                      <div><div className="text-[10px] text-gge-muted">Estoque</div><div className="text-sm font-bold text-white">{fmtN(item.estoque_declarado)}</div></div>
+                      <div><div className="text-[10px] text-gge-muted">Cobertura</div><div className="text-sm font-bold text-white">{item.modo_logistica === 'fulfillment' && item.cobertura_dias ? `${fmtN(item.cobertura_dias)}d` : '-'}</div></div>
+                    </div>
+                    {item.custo_unitario > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gge-border/50 text-[10px] text-gge-muted">
+                        Custo unitario: {fmtR(item.custo_unitario)} - Frete medio: {fmtR(item.frete_medio)} - Comissao media: {fmtR(item.comissao_media)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function TabAnuncios() {
+      const [data, setData] = useState([]);
+      const [compData, setCompData] = useState({});
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [periodo, setPeriodo] = useState(30);
+      const [sortCol, setSortCol] = useState('lucro_30d');
+      const [sortDir, setSortDir] = useState('asc');
+      const [contaSel, setContaSel] = useState('');
+      const [modoSel, setModoSel] = useState('');
+      const [classSel, setClassSel] = useState('');
+      const [searchSku, setSearchSku] = useState('');
+      const [selectedSku, setSelectedSku] = useState(null);
+
+      useEffect(() => {
+        (async () => {
+          setLoading(true);
+          try {
+            const [catalogResult, compResult] = await Promise.all([
+              sb.rpc('fn_catalogo_dashboard', { p_dias: periodo }),
+              (async () => {
+                const { data: latestRows } = await sb.from('catalogo_competicao')
+                  .select('data_coleta').order('data_coleta', { ascending: false }).limit(1);
+                if (!latestRows || !latestRows.length) return {};
+                const latestDate = latestRows[0].data_coleta;
+                const { data: comp } = await sb.from('catalogo_competicao')
+                  .select('mlb_id, status_competicao, price_to_win, nosso_preco, gap_preco, gap_pct')
+                  .eq('data_coleta', latestDate);
+                const map = {};
+                (comp || []).forEach(c => { map[c.mlb_id] = c; });
+                return map;
+              })()
+            ]);
+            if (catalogResult.error) throw catalogResult.error;
+            setData(catalogResult.data || []);
+            setCompData(compResult || {});
+          } catch (e) { setError(e.message); }
+          setLoading(false);
+        })();
+      }, [periodo]);
+
+      const filtered = useMemo(() => {
+        return data.filter(d => {
+          if (contaSel && d.conta_nome !== contaSel) return false;
+          if (modoSel && d.modo_logistica !== modoSel) return false;
+          if (classSel && d.classificacao !== classSel) return false;
+          if (searchSku && !(d.sku_vendedor || '').toLowerCase().includes(searchSku.toLowerCase()) && !(d.titulo || '').toLowerCase().includes(searchSku.toLowerCase())) return false;
+          return true;
+        });
+      }, [data, contaSel, modoSel, classSel, searchSku]);
+
+      const sorted = useMemo(() => {
+        const bbOrder = { winning: 0, sharing_first_place: 1, competing: 2, not_listed: 3 };
+        return [...filtered].sort((a, b) => {
+          let va, vb;
+          if (sortCol === '_buybox') {
+            const ca = compData[a.mlb_id], cb = compData[b.mlb_id];
+            va = ca ? (bbOrder[ca.status_competicao] ?? 9) : 9;
+            vb = cb ? (bbOrder[cb.status_competicao] ?? 9) : 9;
+          } else { va = a[sortCol]; vb = b[sortCol]; }
+          if (['lucro_30d','margem_pct','receita_30d','vendas_30d','preco_atual','estoque_declarado','cobertura_dias','vendas_dia'].includes(sortCol)) {
+            va = Number(va) || 0; vb = Number(vb) || 0;
+          }
+          if (sortCol === 'classificacao') { va = CLASSIF_ORDER[va] ?? 5; vb = CLASSIF_ORDER[vb] ?? 5; }
+          if (va < vb) return sortDir === 'asc' ? -1 : 1;
+          if (va > vb) return sortDir === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }, [filtered, sortCol, sortDir, compData]);
+
+      const handleSort = col => {
+        if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortCol(col); setSortDir(col === 'lucro_30d' || col === 'margem_pct' ? 'asc' : 'desc'); }
+      };
+      const sortIcon = col => sortCol !== col ? '' : sortDir === 'asc' ? ' ▲' : ' ▼';
+
+      const totals = useMemo(() => {
+        const t = { count: filtered.length, vendas: 0, receita: 0, lucro: 0, criticos: 0, sangramento: 0,
+          gge: { count: 0, vendas: 0, receita: 0, lucro: 0 }, toow: { count: 0, vendas: 0, receita: 0, lucro: 0 }, ggesp: { count: 0, vendas: 0, receita: 0, lucro: 0 } };
+        filtered.forEach(d => {
+          t.vendas += Number(d.vendas_30d) || 0;
+          t.receita += Number(d.receita_30d) || 0;
+          t.lucro += Number(d.lucro_30d) || 0;
+          if (d.classificacao === 'critico' || d.classificacao === 'atencao') t.criticos++;
+          if (Number(d.lucro_30d) < 0) t.sangramento += Number(d.lucro_30d);
+          const cn = (d.conta_nome || '').toLowerCase();
+          const bucket = cn.includes('toow') ? t.toow : cn.includes('sp') ? t.ggesp : t.gge;
+          bucket.count++; bucket.vendas += Number(d.vendas_30d) || 0;
+          bucket.receita += Number(d.receita_30d) || 0; bucket.lucro += Number(d.lucro_30d) || 0;
+        });
+        return t;
+      }, [filtered]);
+
+      const filterOpts = useMemo(() => ({
+        contas: [...new Set(data.map(d => d.conta_nome).filter(Boolean))].sort(),
+        modos: [...new Set(data.map(d => d.modo_logistica).filter(Boolean))].sort(),
+        classifs: Object.keys(CLASSIF_LABEL),
+      }), [data]);
+
+      const skuItems = useMemo(() => {
+        if (!selectedSku) return [];
+        return data.filter(d => d.sku_vendedor === selectedSku);
+      }, [data, selectedSku]);
+
+      const chartWorst = useMemo(() => {
+        const bysku = {};
+        filtered.forEach(d => { const k = d.sku_vendedor || d.mlb_id; if (!bysku[k]) bysku[k] = { sku: k, lucro: 0, vendas: 0 }; bysku[k].lucro += Number(d.lucro_30d) || 0; bysku[k].vendas += Number(d.vendas_30d) || 0; });
+        return Object.values(bysku).filter(d => d.vendas > 0 && d.lucro < 0).sort((a,b) => a.lucro - b.lucro).slice(0, 8);
+      }, [filtered]);
+
+      const chartBest = useMemo(() => {
+        const bysku = {};
+        filtered.forEach(d => { const k = d.sku_vendedor || d.mlb_id; if (!bysku[k]) bysku[k] = { sku: k, lucro: 0, vendas: 0 }; bysku[k].lucro += Number(d.lucro_30d) || 0; bysku[k].vendas += Number(d.vendas_30d) || 0; });
+        return Object.values(bysku).filter(d => d.vendas > 0 && d.lucro > 0).sort((a,b) => b.lucro - a.lucro).slice(0, 8).reverse();
+      }, [filtered]);
+
+      if (loading) return <div className="max-w-7xl mx-auto p-6"><Skeleton rows={4} /><div className="bg-gge-card border border-gge-border rounded-xl h-64 animate-pulse" /></div>;
+      if (error) return <div className="max-w-7xl mx-auto p-6"><ErrorCard message={error} onReload={() => location.reload()} /></div>;
+
+      return (
+        <div className="max-w-7xl mx-auto p-6 fade-in">
+          {/* Period selector + subtitle */}
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-sm text-gge-muted">Gestao de anuncios em catalogo - Ultimos {periodo} dias - ~ = margem estimada</p>
+            <div className="flex items-center gap-1 bg-gge-card border border-gge-border rounded-lg p-1">
+              {PERIODOS.map(p => (
+                <button key={p.value} onClick={() => setPeriodo(p.value)}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${periodo === p.value ? 'bg-gge-accent text-white' : 'text-gge-muted hover:text-white hover:bg-white/5'}`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <KpiCard icon="&#128230;" title="Anuncios em Catalogo" value={fmtN(totals.count)} sub={`${fmtN(totals.vendas)} vendas - ${fmtN(totals.criticos)} com problema`} />
+            <KpiCard icon="&#128176;" title={`Receita ${periodo}d`} value={fmtR(totals.receita)} sub={`Ticket medio ${totals.vendas > 0 ? fmtR(totals.receita / totals.vendas) : '-'}`} />
+            <KpiCard icon="&#128202;" title={`Lucro ${periodo}d`} value={fmtR(totals.lucro)} color={totals.lucro >= 0 ? 'text-gge-green' : 'text-gge-red'} sub={`Margem ${totals.receita > 0 ? fmtP(totals.lucro / totals.receita * 100) : '-'}`} />
+            <KpiCard icon="&#129656;" title="Sangramento" value={fmtR(totals.sangramento)} color="text-gge-red" sub={`${fmtN(totals.criticos)} anuncios no vermelho`} />
+          </div>
+
+          {/* Per-account comparison */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            {[
+              { label: 'GGE RJ', data: totals.gge, badgeClass: 'bg-yellow-900/40 text-yellow-400 border border-yellow-700/50' },
+              { label: 'TOOW', data: totals.toow, badgeClass: 'bg-green-900/40 text-green-400 border border-green-700/50' },
+              { label: 'GGE SP', data: totals.ggesp, badgeClass: 'bg-orange-900/40 text-orange-400 border border-orange-700/50' },
+            ].map(({ label, data: d, badgeClass }) => (
+              <div key={label} className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${badgeClass}`}>{label}</span>
+                  <span className="text-xs text-gge-muted">{d.count} anuncios - {fmtN(d.vendas)} vendas</span>
+                </div>
+                <div className={`text-xl font-bold ${d.lucro >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(d.lucro)}</div>
+                <div className="text-xs text-gge-muted mt-1">
+                  Receita {fmtR(d.receita)} - Margem {d.receita > 0 ? fmtP(d.lucro / d.receita * 100) : '-'}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {chartWorst.length > 0 && (
+              <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                <h3 className="text-sm font-semibold text-gge-red mb-3">Piores SKUs ({periodo}d)</h3>
+                <ResponsiveContainer width="100%" height={Math.max(160, chartWorst.length * 28)}>
+                  <BarChart data={chartWorst} layout="vertical" margin={{left:100,right:20,top:5,bottom:5}}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" horizontal={false} />
+                    <XAxis type="number" tick={{fill:'#94a3b8',fontSize:11}} tickFormatter={v => `R$${v}`} />
+                    <YAxis type="category" dataKey="sku" tick={{fill:'#94a3b8',fontSize:10}} width={95} />
+                    <Tooltip formatter={v => fmtR(v)} contentStyle={{background:'#1a1d2e',border:'1px solid #2a2d3e',borderRadius:'8px'}} labelStyle={{color:'#fff'}} />
+                    <Bar dataKey="lucro" name="Prejuizo" radius={[0,4,4,0]}>
+                      {chartWorst.map((d, i) => <Cell key={i} fill="#ef4444" />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {chartBest.length > 0 && (
+              <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+                <h3 className="text-sm font-semibold text-gge-green mb-3">Melhores SKUs ({periodo}d)</h3>
+                <ResponsiveContainer width="100%" height={Math.max(160, chartBest.length * 28)}>
+                  <BarChart data={chartBest} layout="vertical" margin={{left:100,right:20,top:5,bottom:5}}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" horizontal={false} />
+                    <XAxis type="number" tick={{fill:'#94a3b8',fontSize:11}} tickFormatter={v => `R$${v}`} />
+                    <YAxis type="category" dataKey="sku" tick={{fill:'#94a3b8',fontSize:10}} width={95} />
+                    <Tooltip formatter={v => fmtR(v)} contentStyle={{background:'#1a1d2e',border:'1px solid #2a2d3e',borderRadius:'8px'}} labelStyle={{color:'#fff'}} />
+                    <Bar dataKey="lucro" name="Lucro" radius={[0,4,4,0]}>
+                      {chartBest.map((d, i) => <Cell key={i} fill="#22c55e" />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {/* Filters */}
+          <div className="bg-gge-card border border-gge-border rounded-xl p-4 mb-4 fade-in">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gge-muted font-medium">Periodo</label>
+                <select value={periodo} onChange={e => setPeriodo(Number(e.target.value))}
+                        className="bg-gge-bg border border-gge-border rounded-lg px-2 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none">
+                  {PERIODOS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <FilterSelect label="Conta" value={contaSel} onChange={setContaSel} options={filterOpts.contas} isActive={!!contaSel} />
+              <FilterSelect label="Modo" value={modoSel} onChange={setModoSel} options={filterOpts.modos} isActive={!!modoSel} />
+              <FilterSelect label="Classificacao" value={classSel} onChange={setClassSel} options={filterOpts.classifs} isActive={!!classSel} />
+              <div className="flex flex-col gap-1 col-span-2">
+                <label className="text-xs text-gge-muted font-medium">Buscar SKU / Titulo</label>
+                <input type="text" value={searchSku} onChange={e => setSearchSku(e.target.value)} placeholder="Ex: PNF45CX5 ou pinador..."
+                  className="bg-gge-bg border border-gge-border rounded-lg px-3 py-2 text-sm text-gge-text focus:border-gge-accent focus:outline-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gge-border text-xs text-gge-muted">
+                    <th className="text-left py-3 px-4 font-medium sortable" onClick={() => handleSort('classificacao')}>Status{sortIcon('classificacao')}</th>
+                    <th className="text-center py-3 px-2 font-medium sortable" onClick={() => handleSort('_buybox')}>Buy Box{sortIcon('_buybox')}</th>
+                    <th className="text-left py-3 px-2 font-medium">Anuncio</th>
+                    <th className="text-left py-3 px-2 font-medium">Conta</th>
+                    <th className="text-center py-3 px-2 font-medium">Modo</th>
+                    <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('preco_atual')}>Preco{sortIcon('preco_atual')}</th>
+                    <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('vendas_30d')}>Vendas{sortIcon('vendas_30d')}</th>
+                    <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('margem_pct')}>Margem{sortIcon('margem_pct')}</th>
+                    <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('lucro_30d')}>Lucro {periodo}d{sortIcon('lucro_30d')}</th>
+                    <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('estoque_declarado')}>Estoque{sortIcon('estoque_declarado')}</th>
+                    <th className="text-right py-3 px-2 font-medium sortable" onClick={() => handleSort('vendas_dia')}>Vendas/dia{sortIcon('vendas_dia')}</th>
+                    <th className="text-center py-3 px-2 font-medium">Multi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((d, i) => {
+                    const lucro = Number(d.lucro_30d) || 0;
+                    const hasSku = d.sku_vendedor && d.qtd_anuncios_sku > 1;
+                    const comp = compData[d.mlb_id];
+                    const bbStatus = comp ? comp.status_competicao : null;
+                    const bbColors = { winning: 'text-gge-green', sharing_first_place: 'text-gge-cyan', competing: 'text-gge-orange', not_listed: 'text-gge-red' };
+                    const bbLabels = { winning: 'Ganhando', sharing_first_place: 'Dividindo', competing: 'Perdendo', not_listed: 'Sem dados' };
+                    return (
+                      <tr key={d.mlb_id} className={`border-b border-gge-border/50 row-hover cursor-pointer ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}
+                          onClick={() => d.sku_vendedor ? setSelectedSku(d.sku_vendedor) : null}>
+                        <td className="py-2 px-4"><Badge classificacao={d.classificacao} /></td>
+                        <td className={`py-2 px-2 text-center text-xs font-semibold ${bbStatus ? bbColors[bbStatus] || 'text-gge-muted' : 'text-gge-muted/40'}`}>
+                          {bbStatus ? bbLabels[bbStatus] || bbStatus : '-'}
+                        </td>
+                        <td className="py-2 px-2 max-w-[220px]">
+                          <div className="text-sm text-white truncate">{d.titulo || '-'}</div>
+                          <div className="text-xs text-gge-muted">{d.sku_vendedor || d.mlb_id}</div>
+                        </td>
+                        <td className="py-2 px-2 text-xs text-gge-muted">{d.conta_nome}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${d.modo_logistica === 'fulfillment' ? 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50' : 'bg-gge-bg text-gge-muted border-gge-border'}`}>
+                            {d.modo_logistica === 'fulfillment' ? 'Full' : 'Col'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-right text-white">{fmtR(d.preco_atual)}</td>
+                        <td className="py-2 px-2 text-right text-white">{fmtN(d.vendas_30d)}</td>
+                        <td className="py-2 px-2 text-right"><MargemBadge valor={d.margem_pct} fonte={d.margem_fonte} /></td>
+                        <td className={`py-2 px-2 text-right font-bold ${lucro >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{fmtR(lucro)}</td>
+                        <td className="py-2 px-2 text-right text-gge-muted">{d.modo_logistica === 'fulfillment' ? fmtN(d.estoque_declarado) : '-'}</td>
+                        <td className="py-2 px-2 text-right text-gge-muted">{d.vendas_dia > 0 ? d.vendas_dia : '-'}</td>
+                        <td className="py-2 px-2 text-center">
+                          {hasSku ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gge-accent/20 text-gge-accent border border-gge-accent/30 font-bold">
+                              {d.qtd_anuncios_sku}
+                            </span>
+                          ) : ''}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-3 text-xs text-gge-muted border-t border-gge-border">
+              {fmtN(sorted.length)} anuncios - Clique em uma linha para ver todos os catalogos desse SKU
+            </div>
+          </div>
+
+          {selectedSku && skuItems.length > 0 && (
+            <SkuModal sku={selectedSku} items={skuItems} onClose={() => setSelectedSku(null)} />
+          )}
+        </div>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TAB 3: OPORTUNIDADES
+       ═══════════════════════════════════════════════════════════ */
+    function TabOportunidades() {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const loaded = useRef(false);
+
+      useEffect(() => {
+        if (loaded.current) return;
+        loaded.current = true;
+        (async () => {
+          try {
+            const { data: result, error: err } = await sb.rpc('fn_catalogo_oportunidades');
+            if (err) throw err;
+            setData(result);
+          } catch(e) { setError(e.message); }
+          setLoading(false);
+        })();
+      }, []);
+
+      if (loading) return <div className="max-w-7xl mx-auto p-6"><Skeleton rows={4} /><div className="bg-gge-card border border-gge-border rounded-xl h-64 animate-pulse" /></div>;
+      if (error) return <div className="max-w-7xl mx-auto p-6"><ErrorCard message={error} onReload={() => location.reload()} /></div>;
+
+      const resumo = data.resumo || {};
+      const subexplorados = data.subexplorados || [];
+      const anunciosFora = data.anuncios_fora || [];
+      const jaVendendo = anunciosFora.filter(a => Number(a.vendas_30d) > 0).length;
+
+      return (
+        <div className="max-w-7xl mx-auto p-6 fade-in">
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-gge-card border border-gge-accent/40 rounded-xl p-4 fade-in ring-1 ring-gge-accent/20">
+              <div className="text-xs text-gge-muted font-medium mb-1">SKUs com Oportunidade</div>
+              <div className="text-3xl font-bold text-gge-accent">{fmtN(resumo.skus_com_oportunidade)}</div>
+              <div className="text-xs text-gge-muted mt-1">SKUs distintos com potencial</div>
+            </div>
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="text-xs text-gge-muted font-medium mb-1">Anuncios Fora de Catalogo</div>
+              <div className="text-3xl font-bold text-gge-orange">{fmtN(resumo.anuncios_fora_total)}</div>
+              <div className="text-xs text-gge-muted mt-1">poderiam estar em catalogo</div>
+            </div>
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="text-xs text-gge-muted font-medium mb-1">Ja Vendendo Fora</div>
+              <div className="text-3xl font-bold text-gge-green">{fmtN(jaVendendo)}</div>
+              <div className="text-xs text-gge-green/80 mt-1 font-semibold">alta prioridade - vendas sem catalogo</div>
+            </div>
+            <div className="bg-gge-card border border-gge-border rounded-xl p-4 fade-in">
+              <div className="text-xs text-gge-muted font-medium mb-1">Catalogos Subexplorados</div>
+              <div className="text-3xl font-bold text-gge-cyan">{fmtN(resumo.skus_subexplorados)}</div>
+              <div className="text-xs text-gge-muted mt-1">SKUs com contas faltando</div>
+            </div>
+          </div>
+
+          {/* Subexplorados table */}
+          {subexplorados.length > 0 && (
+            <div className="bg-gge-card border border-gge-border rounded-xl p-5 mb-6 fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white">Catalogos Subexplorados</h3>
+                <span className="text-xs text-gge-muted">{subexplorados.length} SKUs com contas faltando</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gge-border text-xs text-gge-muted">
+                      <th className="text-left py-2 px-3 font-medium">SKU</th>
+                      <th className="text-left py-2 px-3 font-medium">Titulo</th>
+                      <th className="text-center py-2 px-3 font-medium">No Catalogo</th>
+                      <th className="text-center py-2 px-3 font-medium">Fora</th>
+                      <th className="text-center py-2 px-3 font-medium">Acao</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subexplorados.map((s, idx) => (
+                      <tr key={s.sku_vendedor + '-' + idx} className="border-b border-gge-border/30 hover:bg-white/[0.02]">
+                        <td className="py-2.5 px-3 font-semibold text-white text-xs font-mono">{s.sku_vendedor}</td>
+                        <td className="py-2.5 px-3 text-xs text-gge-muted max-w-[250px] truncate">{s.titulo}</td>
+                        <td className="py-2.5 px-3 text-center">
+                          {(s.contas_no_catalogo || []).map(c => (
+                            <span key={c} className="account-badge-green">{CONTA_LABEL[c] || c}</span>
+                          ))}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          {(s.contas_fora || []).map(c => (
+                            <span key={c} className="account-badge-orange">{CONTA_LABEL[c] || c}</span>
+                          ))}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="text-[10px] px-2 py-1 rounded bg-gge-accent/20 text-gge-accent border border-gge-accent/30 font-semibold">
+                            Incluir {s.n_fora} conta{s.n_fora > 1 ? 's' : ''}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Anuncios Fora table */}
+          {anunciosFora.length > 0 && (
+            <div className="bg-gge-card border border-gge-border rounded-xl p-5 fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white">Anuncios Fora de Catalogo</h3>
+                <span className="text-xs text-gge-muted">{anunciosFora.length} anuncios - linhas verdes = ja vendendo</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gge-border text-xs text-gge-muted">
+                      <th className="text-left py-2 px-3 font-medium">MLB</th>
+                      <th className="text-left py-2 px-3 font-medium">SKU</th>
+                      <th className="text-left py-2 px-3 font-medium">Titulo</th>
+                      <th className="text-left py-2 px-3 font-medium">Conta</th>
+                      <th className="text-right py-2 px-3 font-medium">Preco</th>
+                      <th className="text-right py-2 px-3 font-medium">Vendas 30d</th>
+                      <th className="text-right py-2 px-3 font-medium">Preco Vencedor</th>
+                      <th className="text-center py-2 px-3 font-medium">Modo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {anunciosFora.map((a, idx) => {
+                      const vendendo = Number(a.vendas_30d) > 0;
+                      return (
+                        <tr key={a.mlb_id + '-' + idx} className={`border-b border-gge-border/30 hover:bg-white/[0.03] ${vendendo ? 'highlight-row' : ''}`}>
+                          <td className="py-2.5 px-3">
+                            <a href={a.permalink || `https://www.mercadolivre.com.br/MLB-${(a.mlb_id || '').replace('MLB','')}`}
+                               target="_blank" rel="noopener"
+                               className="text-gge-accent hover:underline font-mono text-[11px]">
+                              {a.mlb_id}
+                            </a>
+                          </td>
+                          <td className="py-2.5 px-3 text-xs text-white font-mono">{a.sku_vendedor || '-'}</td>
+                          <td className="py-2.5 px-3 text-xs text-gge-muted max-w-[200px] truncate">{a.titulo}</td>
+                          <td className="py-2.5 px-3 text-xs text-gge-muted">{CONTA_LABEL[a.conta_nome] || a.conta_nome}</td>
+                          <td className="py-2.5 px-3 text-right text-white text-xs">{fmtR(a.preco_atual)}</td>
+                          <td className={`py-2.5 px-3 text-right text-xs font-semibold ${vendendo ? 'text-gge-green' : 'text-gge-muted'}`}>
+                            {fmtN(a.vendas_30d)}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-xs text-gge-cyan">
+                            {a.price_to_win_ref ? fmtR(a.price_to_win_ref) : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${
+                              a.modo_logistica === 'fulfillment'
+                                ? 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50'
+                                : 'bg-gge-bg text-gge-muted border-gge-border'}`}>
+                              {a.modo_logistica === 'fulfillment' ? 'Full' : 'Col'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       MAIN APP WITH TABS
+       ═══════════════════════════════════════════════════════════ */
+    const TABS = [
+      { id: 'dashboard', label: 'Dashboard' },
+      { id: 'anuncios', label: 'Anuncios' },
+      { id: 'oportunidades', label: 'Oportunidades' },
+    ];
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('dashboard');
+      const [rendered, setRendered] = useState({ dashboard: true });
+
+      const switchTab = (tabId) => {
+        setActiveTab(tabId);
+        setRendered(prev => ({ ...prev, [tabId]: true }));
+      };
+
+      return (
+        <div>
+          {/* Header */}
+          <div className="max-w-[1400px] mx-auto px-6 pt-6 pb-0">
+            <h1 className="text-2xl font-bold">Catalogos</h1>
+            <p className="text-sm text-gge-muted mt-1">Gestao completa de catalogos do Mercado Livre</p>
+          </div>
+
+          {/* Tab bar */}
+          <div className="tab-bar">
+            <div className="max-w-[1400px] mx-auto px-6">
+              <div className="flex gap-0">
+                {TABS.map(tab => (
+                  <button key={tab.id} onClick={() => switchTab(tab.id)}
+                    className={`px-5 py-3 text-sm font-semibold transition-all border-b-2 ${
+                      activeTab === tab.id
+                        ? 'text-gge-accent border-gge-accent'
+                        : 'text-gge-muted border-transparent hover:text-white hover:border-white/20'
+                    }`}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Tab content — lazy rendered, hidden when not active */}
+          <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
+            {rendered.dashboard && <TabDashboard />}
+          </div>
+          <div style={{ display: activeTab === 'anuncios' ? 'block' : 'none' }}>
+            {rendered.anuncios && <TabAnuncios />}
+          </div>
+          <div style={{ display: activeTab === 'oportunidades' ? 'block' : 'none' }}>
+            {rendered.oportunidades && <TabOportunidades />}
           </div>
         </div>
       );
