@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oportunidades de Catálogo · Controle Total GGE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #0f1117;
+      color: #c9d1d9;
+      overflow-x: hidden;
+    }
+    .container {
+      margin-left: 48px;
+      transition: margin-left 0.3s;
+      min-height: 100vh;
+      background-color: #0f1117;
+    }
+    .header {
+      background-color: #161b22;
+      border-bottom: 1px solid #2a2d3a;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 12px; }
+    .header-sub { color: #8b949e; font-size: 13px; margin-top: 4px; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      padding: 20px 30px;
+    }
+    .kpi {
+      background-color: #161b22;
+      border: 1px solid #2a2d3a;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .kpi-label { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .kpi-value { font-size: 26px; font-weight: 600; color: #c9d1d9; }
+    .kpi-sub { font-size: 12px; color: #8b949e; margin-top: 4px; }
+    .kpi.success .kpi-value { color: #56d364; }
+    .kpi.warn .kpi-value { color: #e3b341; }
+    .kpi.danger .kpi-value { color: #f85149; }
+    .kpi.info .kpi-value { color: #58a6ff; }
+    .filters-bar {
+      background-color: #161b22;
+      border-bottom: 1px solid #2a2d3a;
+      padding: 16px 30px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; }
+    .filter-label { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+    .filter-select, .filter-input {
+      background-color: #0d1117;
+      border: 1px solid #2a2d3a;
+      color: #c9d1d9;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      min-width: 140px;
+    }
+    .filter-select:focus, .filter-input:focus { outline: none; border-color: #58a6ff; }
+    .table-wrap { padding: 0 30px 30px; }
+    .table {
+      width: 100%;
+      background-color: #161b22;
+      border: 1px solid #2a2d3a;
+      border-radius: 8px;
+      overflow: hidden;
+      border-collapse: collapse;
+    }
+    .table thead th {
+      background-color: #0d1117;
+      color: #8b949e;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #2a2d3a;
+      font-weight: 600;
+    }
+    .table tbody td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #2a2d3a;
+      font-size: 13px;
+    }
+    .table tbody tr:hover { background-color: #1c2128; }
+    .table tbody tr:last-child td { border-bottom: 0; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .mlb-link { color: #58a6ff; text-decoration: none; font-family: ui-monospace, monospace; font-size: 12px; }
+    .mlb-link:hover { text-decoration: underline; }
+    .titulo-cell { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .pill-success { background-color: rgba(86, 211, 100, 0.15); color: #56d364; border: 1px solid rgba(86, 211, 100, 0.3); }
+    .pill-warn { background-color: rgba(227, 179, 65, 0.15); color: #e3b341; border: 1px solid rgba(227, 179, 65, 0.3); }
+    .pill-danger { background-color: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
+    .pill-muted { background-color: rgba(139, 148, 158, 0.15); color: #8b949e; border: 1px solid rgba(139, 148, 158, 0.3); }
+    .pill-info { background-color: rgba(88, 166, 255, 0.15); color: #58a6ff; border: 1px solid rgba(88, 166, 255, 0.3); }
+    .empty { padding: 60px; text-align: center; color: #8b949e; }
+    .loading { padding: 60px; text-align: center; color: #8b949e; }
+    .conta-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; background-color: #21262d; color: #8b949e; border: 1px solid #2a2d3a; }
+    .updated-at { color: #8b949e; font-size: 12px; }
+    .delta-positive { color: #56d364; }
+    .delta-negative { color: #f85149; }
+    .row-baixar-com-seguranca { border-left: 3px solid #56d364; }
+    .row-baixar-margem-apertada { border-left: 3px solid #e3b341; }
+    .row-nao-baixar { border-left: 3px solid #f85149; }
+    .row-ja-vence { border-left: 3px solid #58a6ff; }
+    .header-actions { display: flex; gap: 8px; }
+    .btn {
+      background-color: #21262d;
+      border: 1px solid #2a2d3a;
+      color: #c9d1d9;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { background-color: #2a2d3a; border-color: #58a6ff; }
+    .btn-primary { background-color: #238636; border-color: #2ea043; color: white; }
+    .btn-primary:hover { background-color: #2ea043; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="container">
+    <div id="root"></div>
+  </div>
+  <script src="sidebar.js"></script>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const supabase = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+
+    const fmtBRL = (v) => v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const fmtPct = (v) => v == null ? '—' : v.toFixed(1) + '%';
+    const fmtNum = (v, d=2) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+    const RECOMENDACAO_LABEL = {
+      'baixar_com_seguranca': { txt: 'Baixar com segurança', cls: 'pill-success' },
+      'baixar_margem_apertada': { txt: 'Margem apertada', cls: 'pill-warn' },
+      'nao_baixar': { txt: 'Não baixar', cls: 'pill-danger' },
+      'ja_vence': { txt: 'Já vence', cls: 'pill-info' },
+      'sem_custo_cadastrado': { txt: 'Sem custo', cls: 'pill-muted' },
+      'sem_price_to_win': { txt: 'Sem PTW', cls: 'pill-muted' },
+      'erro_calculo': { txt: 'Erro', cls: 'pill-muted' },
+    };
+
+    const STATUS_LABEL = {
+      'winning': 'Vencendo',
+      'sharing_first_place': 'Empatando',
+      'competing': 'Perdendo',
+      'listed': 'Listado',
+      'not_listed': 'Não listado',
+    };
+
+    function App() {
+      const [rows, setRows] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [err, setErr] = useState(null);
+      const [updatedAt, setUpdatedAt] = useState(null);
+      const [filtros, setFiltros] = useState({
+        conta: 'todas',
+        recomendacao: 'todas',
+        status: 'todos',
+        busca: ''
+      });
+
+      const carregar = async () => {
+        setLoading(true);
+        setErr(null);
+        try {
+          const { data, error } = await supabase
+            .from('vw_catalogo_oportunidade')
+            .select('*')
+            .order('mc2_no_price_to_win', { ascending: false, nullsFirst: false });
+          if (error) throw error;
+          setRows(data || []);
+          setUpdatedAt(new Date());
+        } catch (e) {
+          setErr(e.message);
+        }
+        setLoading(false);
+      };
+
+      useEffect(() => { carregar(); }, []);
+
+      const filtered = useMemo(() => {
+        return rows.filter(r => {
+          if (filtros.conta !== 'todas' && r.conta_nome !== filtros.conta) return false;
+          if (filtros.recomendacao !== 'todas' && r.recomendacao !== filtros.recomendacao) return false;
+          if (filtros.status !== 'todos' && r.status_competicao !== filtros.status) return false;
+          if (filtros.busca) {
+            const q = filtros.busca.toLowerCase();
+            const inMlb = (r.mlb_id || '').toLowerCase().includes(q);
+            const inSku = (r.sku_vendedor || '').toLowerCase().includes(q);
+            const inTit = (r.titulo || '').toLowerCase().includes(q);
+            if (!inMlb && !inSku && !inTit) return false;
+          }
+          return true;
+        });
+      }, [rows, filtros]);
+
+      const kpis = useMemo(() => {
+        const k = {
+          baixar_com_seguranca: 0,
+          baixar_margem_apertada: 0,
+          nao_baixar: 0,
+          ja_vence: 0,
+          sem_custo: 0,
+          ganho_potencial_mc2: 0
+        };
+        for (const r of rows) {
+          if (r.recomendacao === 'baixar_com_seguranca') {
+            k.baixar_com_seguranca++;
+            k.ganho_potencial_mc2 += Number(r.mc2_no_price_to_win || 0);
+          } else if (r.recomendacao === 'baixar_margem_apertada') k.baixar_margem_apertada++;
+          else if (r.recomendacao === 'nao_baixar') k.nao_baixar++;
+          else if (r.recomendacao === 'ja_vence') k.ja_vence++;
+          else if (r.recomendacao === 'sem_custo_cadastrado') k.sem_custo++;
+        }
+        return k;
+      }, [rows]);
+
+      const contas = useMemo(() => {
+        const s = new Set(rows.map(r => r.conta_nome).filter(Boolean));
+        return Array.from(s).sort();
+      }, [rows]);
+
+      return (
+        <div>
+          <div className="header">
+            <div>
+              <h1>
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+                Oportunidades de Catálogo
+              </h1>
+              <div className="header-sub">
+                Anúncios em catálogo cruzados com price_to_win e MC2 hipotética via <code>calc_venda_fiscal</code>. Cálculo individual por MLB — sem médias.
+              </div>
+            </div>
+            <div className="header-actions">
+              {updatedAt && (
+                <span className="updated-at">
+                  Atualizado {updatedAt.toLocaleTimeString('pt-BR')}
+                </span>
+              )}
+              <button className="btn" onClick={carregar} disabled={loading}>
+                {loading ? 'Recarregando…' : '↻ Recarregar'}
+              </button>
+            </div>
+          </div>
+
+          <div className="kpi-grid">
+            <div className="kpi success">
+              <div className="kpi-label">Baixar com segurança</div>
+              <div className="kpi-value">{kpis.baixar_com_seguranca}</div>
+              <div className="kpi-sub">MC2 ≥ 10% no price_to_win</div>
+            </div>
+            <div className="kpi warn">
+              <div className="kpi-label">Margem apertada</div>
+              <div className="kpi-value">{kpis.baixar_margem_apertada}</div>
+              <div className="kpi-sub">MC2 positivo mas &lt; 10%</div>
+            </div>
+            <div className="kpi danger">
+              <div className="kpi-label">Não baixar</div>
+              <div className="kpi-value">{kpis.nao_baixar}</div>
+              <div className="kpi-sub">MC2 negativo no PTW</div>
+            </div>
+            <div className="kpi info">
+              <div className="kpi-label">Já vence</div>
+              <div className="kpi-value">{kpis.ja_vence}</div>
+              <div className="kpi-sub">winning + sharing_first</div>
+            </div>
+            <div className="kpi">
+              <div className="kpi-label">Sem custo</div>
+              <div className="kpi-value">{kpis.sem_custo}</div>
+              <div className="kpi-sub">Cadastrar NF</div>
+            </div>
+            <div className="kpi success">
+              <div className="kpi-label">Ganho potencial MC2</div>
+              <div className="kpi-value">{fmtBRL(kpis.ganho_potencial_mc2)}</div>
+              <div className="kpi-sub">somando os "baixar com segurança"</div>
+            </div>
+          </div>
+
+          <div className="filters-bar">
+            <div className="filter-group">
+              <label className="filter-label">Conta</label>
+              <select className="filter-select" value={filtros.conta}
+                      onChange={(e) => setFiltros({...filtros, conta: e.target.value})}>
+                <option value="todas">Todas ({rows.length})</option>
+                {contas.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label">Recomendação</label>
+              <select className="filter-select" value={filtros.recomendacao}
+                      onChange={(e) => setFiltros({...filtros, recomendacao: e.target.value})}>
+                <option value="todas">Todas</option>
+                <option value="baixar_com_seguranca">Baixar com segurança</option>
+                <option value="baixar_margem_apertada">Margem apertada</option>
+                <option value="nao_baixar">Não baixar</option>
+                <option value="ja_vence">Já vence</option>
+                <option value="sem_custo_cadastrado">Sem custo</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label">Status competição</label>
+              <select className="filter-select" value={filtros.status}
+                      onChange={(e) => setFiltros({...filtros, status: e.target.value})}>
+                <option value="todos">Todos</option>
+                <option value="winning">Vencendo</option>
+                <option value="sharing_first_place">Empatando</option>
+                <option value="competing">Perdendo</option>
+                <option value="listed">Listado</option>
+                <option value="not_listed">Não listado</option>
+              </select>
+            </div>
+            <div className="filter-group" style={{flex: 1, minWidth: 220}}>
+              <label className="filter-label">Buscar (MLB, SKU, título)</label>
+              <input type="text" className="filter-input" value={filtros.busca}
+                     placeholder="ex: Pinador, F-35, MLB123…"
+                     onChange={(e) => setFiltros({...filtros, busca: e.target.value})}/>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label">&nbsp;</label>
+              <span style={{fontSize:13, color:'#8b949e', padding:'8px 0'}}>
+                {filtered.length} de {rows.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            {loading && <div className="loading">Carregando…</div>}
+            {err && <div className="empty" style={{color:'#f85149'}}>Erro: {err}</div>}
+            {!loading && !err && filtered.length === 0 && <div className="empty">Nenhum resultado para os filtros atuais.</div>}
+            {!loading && !err && filtered.length > 0 && (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>MLB</th>
+                    <th>Título</th>
+                    <th>Conta</th>
+                    <th>Status</th>
+                    <th className="num">Nosso preço</th>
+                    <th className="num">Price to win</th>
+                    <th className="num">↓</th>
+                    <th className="num">MC2 no PTW</th>
+                    <th className="num">% no PTW</th>
+                    <th>Recomendação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(r => {
+                    const delta = (r.nosso_preco != null && r.price_to_win != null)
+                      ? r.nosso_preco - r.price_to_win
+                      : null;
+                    const rec = RECOMENDACAO_LABEL[r.recomendacao] || RECOMENDACAO_LABEL['erro_calculo'];
+                    return (
+                      <tr key={r.mlb_id} className={'row-' + (r.recomendacao || '').replace(/_/g, '-')}>
+                        <td><a className="mlb-link" href={'https://www.mercadolivre.com.br/' + r.mlb_id} target="_blank" rel="noreferrer">{r.mlb_id}</a></td>
+                        <td className="titulo-cell" title={r.titulo}>{r.titulo}</td>
+                        <td><span className="conta-badge">{r.conta_nome}</span></td>
+                        <td>{STATUS_LABEL[r.status_competicao] || r.status_competicao}</td>
+                        <td className="num">{fmtBRL(r.nosso_preco)}</td>
+                        <td className="num">{fmtBRL(r.price_to_win)}</td>
+                        <td className={'num ' + (delta > 0 ? 'delta-negative' : delta < 0 ? 'delta-positive' : '')}>
+                          {delta != null ? fmtBRL(delta) : '—'}
+                        </td>
+                        <td className="num"><strong>{fmtBRL(r.mc2_no_price_to_win)}</strong></td>
+                        <td className="num">{fmtPct(r.margem_pct_no_ptw)}</td>
+                        <td><span className={'pill ' + rec.cls}>{rec.txt}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
