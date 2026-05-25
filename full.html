@@ -84,6 +84,15 @@
     const fmtP = n => n == null ? '--' : Number(n).toFixed(1).replace('.', ',') + '%';
     const fmtR = n => n == null ? '--' : 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+    // Helper: para métricas estimadas (não vindas do scrape do site), tratar 0 como "N/D"
+    // Evita exibir "0 pts" / "0,0%" quando o cálculo nunca rodou direito
+    const metricaConfiavel = (sq, valor) => {
+      if (sq == null || valor == null) return false;
+      if (sq.fonte === 'site') return true; // dados do scrape são confiáveis
+      // Para fonte='calculado': 0 = formula ainda não calibrada
+      return Number(valor) !== 0;
+    };
+
     const PERIODOS = [
       { v: '7d', l: '7 dias' },
       { v: '15d', l: '15 dias' },
@@ -193,7 +202,6 @@
             });
 
             // 3. Buscar vendas do período (mat_margem_canonica tem dados históricos)
-            //    Colunas corretas: receita, margem_valor (NÃO receita_total, mc2)
             const vendasData = await fetchAll(() =>
               sb.from('mat_margem_canonica')
                 .select('mlb_id, receita, margem_valor, data_venda, quantidade')
@@ -215,7 +223,7 @@
               .order('id', { ascending: false })
               .limit(1000);
 
-            // 6. Stock Quality metrics (sistema em camadas: site > calculado)
+            // 6. Stock Quality metrics
             const { data: sqData } = await sb.from('stock_quality_metrics')
               .select('*')
               .eq('conta_id', 'e761652f-07fa-49d2-a6c7-1b738862ab08')
@@ -223,7 +231,6 @@
               .limit(10);
 
             if (sqData && sqData.length > 0) {
-              // Preferir fonte='site', senão usar 'calculado'
               const siteRow = sqData.find(r => r.fonte === 'site');
               const calcRow = sqData.find(r => r.fonte === 'calculado');
               setStockQuality(siteRow || calcRow);
@@ -250,7 +257,6 @@
 
       // Estoque dos itens Full
       const estoqueFull = useMemo(() => {
-        // Pegar ultimo registro por mlb_id
         const latest = {};
         estoqueDiario.forEach(e => {
           if (fullMlbs.has(e.mlb_id)) {
@@ -263,27 +269,28 @@
       }, [estoqueDiario, fullMlbs]);
 
       // KPIs
+      // FIX (Bug 1 e 4): para Full, usar SOMENTE qty_disponivel_full do Bling.
+      // SEM fallback para estoque_declarado — esse é inflado pela GGE e mascara rupturas reais.
       const kpis = useMemo(() => {
         const receita = vendasFull.reduce((s, v) => s + (Number(v.receita) || 0), 0);
         const margem = vendasFull.reduce((s, v) => s + (Number(v.margem_valor) || 0), 0);
         const margemPct = receita > 0 ? (margem / receita) * 100 : 0;
         const ativos = anunciosFull.length;
         const venderam = new Set(vendasFull.map(v => v.mlb_id)).size;
-        // Para Full: usar SOMENTE qty_disponivel_full (qty_disponivel_proprio é inflado)
-        const getEstoqueFull = (i) => {
-          const qf = Number(i.qty_disponivel_full) || 0;
-          if (qf > 0) return qf;
-          const an = anunciosFull.find(a => a.mlb_id === i.mlb_id);
-          return an ? (Number(an.estoque_declarado) || 0) : 0;
-        };
+        const getEstoqueFull = (i) => Number(i.qty_disponivel_full) || 0;
         const estoqueTotal = estoqueFull.reduce((s, i) => s + getEstoqueFull(i), 0);
-        const zerados = estoqueFull.filter(i => getEstoqueFull(i) === 0).length;
+        // Zerados: MLBs Full com estoque 0 (inclui os anuncios sem registro em estoque_diario)
+        const mlbsComRegistro = new Set(estoqueFull.map(i => i.mlb_id));
+        const zeradosComRegistro = estoqueFull.filter(i => getEstoqueFull(i) === 0).length;
+        const semRegistro = anunciosFull.filter(a => !mlbsComRegistro.has(a.mlb_id)).length;
+        const zerados = zeradosComRegistro + semRegistro;
         const qtdVendas = vendasFull.reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
         const ticket = qtdVendas > 0 ? receita / qtdVendas : 0;
         return { receita, margem, margemPct, ativos, venderam, estoqueTotal, zerados, ticket, qtdVendas };
       }, [vendasFull, anunciosFull, estoqueFull]);
 
       // Rupturas
+      // FIX (Bug 1): usar SOMENTE qty_disponivel_full. Sem fallback de estoque_declarado.
       const rupturas = useMemo(() => {
         const vendasFullLong = vendasLong.filter(v => fullMlbs.has(v.mlb_id));
         const vendasPorMlb = {};
@@ -298,15 +305,15 @@
         });
 
         const result = [];
+        const mlbsComRegistro = new Set(estoqueFull.map(i => i.mlb_id));
+
+        // (a) MLBs com registro: zerados em Full
         estoqueFull.forEach(item => {
-          // Para Full: usar SOMENTE qty_disponivel_full
           const qf = Number(item.qty_disponivel_full) || 0;
-          const an = anuncios.find(a => a.mlb_id === item.mlb_id);
-          const qtd = qf > 0 ? qf : (an ? (Number(an.estoque_declarado) || 0) : 0);
-          if (qtd > 0) return; // Não está em ruptura
+          if (qf > 0) return; // não está em ruptura
 
           const vs = vendasPorMlb[item.mlb_id];
-          if (!vs || vs.qty === 0) return; // Nunca vendeu, não é ruptura relevante
+          if (!vs || vs.qty === 0) return; // nunca vendeu, não é ruptura relevante
 
           const anuncio = anuncios.find(a => a.mlb_id === item.mlb_id) || {};
           const lastSaleDate = new Date(vs.lastSale);
@@ -325,8 +332,27 @@
           });
         });
 
+        // (b) MLBs Full SEM registro de estoque_diario — tratados como em ruptura se venderam
+        anunciosFull.forEach(a => {
+          if (mlbsComRegistro.has(a.mlb_id)) return;
+          const vs = vendasPorMlb[a.mlb_id];
+          if (!vs || vs.qty === 0) return;
+          const lastSaleDate = new Date(vs.lastSale);
+          const today = new Date();
+          const diasParado = Math.max(0, Math.floor((today - lastSaleDate) / 864e5));
+          result.push({
+            mlb_id: a.mlb_id,
+            sku: a.sku_vendedor || '--',
+            titulo: a.titulo || a.mlb_id,
+            vendas90: vs.qty,
+            receita90: vs.receita,
+            diasParado,
+            perdaDia: vs.receita / 90,
+          });
+        });
+
         return result.sort((a, b) => b.perdaDia - a.perdaDia);
-      }, [estoqueFull, anuncios, vendasLong, fullMlbs]);
+      }, [estoqueFull, anunciosFull, anuncios, vendasLong, fullMlbs]);
 
       const perdaRupturaTotal = useMemo(() => rupturas.reduce((s, r) => s + r.perdaDia * r.diasParado, 0), [rupturas]);
 
@@ -358,26 +384,21 @@
       }, [vendasFull, vendasColeta]);
 
       // Espaço Full atribuído
+      // FIX (Bug 3): limite ainda hardcoded — TODO: coletar via API ML. Marcado como "estimativa" no UI.
+      // FIX (Bug 4): emUso usa SOMENTE qty_disponivel_full (Bling), sem fallback.
       const LIMITE_FULL = 18020;
       const espacoFull = useMemo(() => {
-        // Para Full: usar SOMENTE qty_disponivel_full (qty_disponivel_proprio é inflado)
-        const getQty = (i) => {
-          const qf = Number(i.qty_disponivel_full) || 0;
-          if (qf > 0) return qf;
-          const an = anunciosFull.find(a => a.mlb_id === i.mlb_id);
-          return an ? (Number(an.estoque_declarado) || 0) : 0;
-        };
+        const getQty = (i) => Number(i.qty_disponivel_full) || 0;
         const emUso = estoqueFull.reduce((s, i) => s + getQty(i), 0);
         return { limite: LIMITE_FULL, emUso, pctUsado: LIMITE_FULL > 0 ? (emUso / LIMITE_FULL) * 100 : 0 };
-      }, [estoqueFull, anunciosFull]);
+      }, [estoqueFull]);
 
       // Estoque & Reposição tab
+      // FIX (Bug 1): estoque = SOMENTE qty_disponivel_full. MLBs Full sem registro vêm com 0.
       const estoqueData = useMemo(() => {
-        // Usar 30d fixo para velocidade de venda (independente do período selecionado)
         const range30 = getRange('30d');
         const dias30 = Math.max(1, Math.round((new Date(range30.to) - new Date(range30.from)) / 864e5));
 
-        // Vendas 30d para cálculo de velocidade (usa vendasLong que tem 90d)
         const vendasPorMlb = {};
         vendasLong.filter(v => fullMlbs.has(v.mlb_id)).forEach(v => {
           const dv = v.data_venda ? v.data_venda.slice(0, 10) : '';
@@ -392,7 +413,7 @@
         function calcItem(mlb, estoque, anuncio) {
           const vs = vendasPorMlb[mlb] || { qty: 0, receita: 0, margem: 0 };
           const velDia = vs.qty / dias30;
-          const emTransito = 0; // TODO: dados de envio inbound ainda não coletados
+          const emTransito = 0;
           const hojeTransito = estoque + emTransito;
           const falta7 = Math.max(0, Math.ceil(velDia * 7) - hojeTransito);
           const falta14 = Math.max(0, Math.ceil(velDia * 14) - hojeTransito);
@@ -421,23 +442,20 @@
         const items = [];
         const processed = new Set();
 
-        // Primeiro: itens com estoque registrado
-        // Para Full: usar SOMENTE qty_disponivel_full (qty_disponivel_proprio é inflado para algoritmo ML)
-        // Se qty_disponivel_full = 0, usar estoque_declarado do anúncio como fallback
+        // (a) MLBs Full com registro de estoque_diario
         estoqueFull.forEach(item => {
           const mlb = item.mlb_id;
           processed.add(mlb);
           const anuncio = anuncios.find(a => a.mlb_id === mlb);
-          const qtyFull = Number(item.qty_disponivel_full) || 0;
-          const estoque = qtyFull > 0 ? qtyFull : (anuncio ? (Number(anuncio.estoque_declarado) || 0) : 0);
+          // FIX: SEM fallback. Para Full, qty_disponivel_full é a fonte da verdade.
+          const estoque = Number(item.qty_disponivel_full) || 0;
           items.push(calcItem(mlb, estoque, anuncio));
         });
 
-        // Segundo: anúncios Full sem registro de estoque
+        // (b) MLBs Full SEM registro de estoque_diario → estoque = 0
         anunciosFull.forEach(a => {
           if (processed.has(a.mlb_id)) return;
-          const estoque = Number(a.estoque_declarado) || 0;
-          items.push(calcItem(a.mlb_id, estoque, a));
+          items.push(calcItem(a.mlb_id, 0, a));
         });
 
         return items.sort((a, b) => b.falta7 - a.falta7);
@@ -467,7 +485,6 @@
         return <span className="text-gge-accent ml-1">{sortDir === 'asc' ? '▲' : '▼'}</span>;
       };
 
-      // ── Custom Tooltip for chart ──
       const ChartTooltip = ({ active, payload, label }) => {
         if (!active || !payload) return null;
         return (
@@ -555,9 +572,13 @@
                           <span className="text-lg">&#9733;</span>
                           <span className="text-xs text-gge-muted font-medium">Pontuação</span>
                         </div>
-                        <div className={`text-2xl font-bold ${stockQuality.pontuacao != null ? (stockQuality.pontuacao >= 80 ? 'text-gge-green' : stockQuality.pontuacao >= 60 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
-                          {stockQuality.pontuacao != null ? stockQuality.pontuacao + ' pts' : '--'}
-                        </div>
+                        {metricaConfiavel(stockQuality, stockQuality.pontuacao) ? (
+                          <div className={`text-2xl font-bold ${stockQuality.pontuacao >= 80 ? 'text-gge-green' : stockQuality.pontuacao >= 60 ? 'text-gge-yellow' : 'text-gge-red'}`}>
+                            {stockQuality.pontuacao} pts
+                          </div>
+                        ) : (
+                          <div className="text-2xl font-bold text-gge-muted" title="Cálculo estimado não confiável — falta scrape do site ML">—</div>
+                        )}
                         <div className="text-[10px] text-gge-muted mt-1">
                           {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
                         </div>
@@ -568,9 +589,13 @@
                           <span className="text-lg">&#10060;</span>
                           <span className="text-xs text-gge-muted font-medium">Fora de venda</span>
                         </div>
-                        <div className={`text-2xl font-bold ${stockQuality.fora_de_venda_pct != null ? (Number(stockQuality.fora_de_venda_pct) <= 2 ? 'text-gge-green' : Number(stockQuality.fora_de_venda_pct) <= 5 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
-                          {stockQuality.fora_de_venda_pct != null ? Number(stockQuality.fora_de_venda_pct).toFixed(1).replace('.',',') + '%' : '--'}
-                        </div>
+                        {metricaConfiavel(stockQuality, stockQuality.fora_de_venda_pct) ? (
+                          <div className={`text-2xl font-bold ${Number(stockQuality.fora_de_venda_pct) <= 2 ? 'text-gge-green' : Number(stockQuality.fora_de_venda_pct) <= 5 ? 'text-gge-yellow' : 'text-gge-red'}`}>
+                            {Number(stockQuality.fora_de_venda_pct).toFixed(1).replace('.',',')}%
+                          </div>
+                        ) : (
+                          <div className="text-2xl font-bold text-gge-muted" title="Cálculo estimado não confiável — falta scrape do site ML">—</div>
+                        )}
                         <div className="text-[10px] text-gge-muted mt-1">
                           {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
                         </div>
@@ -582,7 +607,7 @@
                           <span className="text-xs text-gge-muted font-medium">Sem vendas 30d</span>
                         </div>
                         <div className={`text-2xl font-bold ${stockQuality.sem_vendas_30d_pct != null ? (Number(stockQuality.sem_vendas_30d_pct) <= 2 ? 'text-gge-green' : Number(stockQuality.sem_vendas_30d_pct) <= 5 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
-                          {stockQuality.sem_vendas_30d_pct != null ? Number(stockQuality.sem_vendas_30d_pct).toFixed(1).replace('.',',') + '%' : '--'}
+                          {stockQuality.sem_vendas_30d_pct != null ? Number(stockQuality.sem_vendas_30d_pct).toFixed(1).replace('.',',') + '%' : '—'}
                         </div>
                         <div className="text-[10px] text-gge-muted mt-1">
                           {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
@@ -595,7 +620,7 @@
                           <span className="text-xs text-gge-muted font-medium">Com tempo estoque</span>
                         </div>
                         <div className={`text-2xl font-bold ${stockQuality.com_tempo_estoque_pct != null ? (Number(stockQuality.com_tempo_estoque_pct) <= 5 ? 'text-gge-green' : Number(stockQuality.com_tempo_estoque_pct) <= 10 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
-                          {stockQuality.com_tempo_estoque_pct != null ? Number(stockQuality.com_tempo_estoque_pct).toFixed(1).replace('.',',') + '%' : '--'}
+                          {stockQuality.com_tempo_estoque_pct != null ? Number(stockQuality.com_tempo_estoque_pct).toFixed(1).replace('.',',') + '%' : '—'}
                         </div>
                         <div className="text-[10px] text-gge-muted mt-1">
                           {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
@@ -608,7 +633,7 @@
                           <span className="text-xs text-gge-muted font-medium">Excede projeção</span>
                         </div>
                         <div className={`text-2xl font-bold ${stockQuality.excede_projecao_pct != null ? (Number(stockQuality.excede_projecao_pct) <= 2 ? 'text-gge-green' : Number(stockQuality.excede_projecao_pct) <= 5 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
-                          {stockQuality.excede_projecao_pct != null ? Number(stockQuality.excede_projecao_pct).toFixed(1).replace('.',',') + '%' : '--'}
+                          {stockQuality.excede_projecao_pct != null ? Number(stockQuality.excede_projecao_pct).toFixed(1).replace('.',',') + '%' : '—'}
                         </div>
                         <div className="text-[10px] text-gge-muted mt-1">
                           {stockQuality.fonte === 'site' ? 'ML' : 'Est.'} · {new Date(stockQuality.coletado_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} {new Date(stockQuality.coletado_em).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
@@ -623,12 +648,14 @@
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-lg">&#128230;</span>
                     <h3 className="text-sm font-semibold text-white">Espaço Full Atribuído</h3>
+                    <Badge text="LIMITE ESTIMADO" color="yellow" />
                   </div>
                   <div className="flex items-center gap-4">
                     {/* Card 1: Limite */}
                     <div className="bg-gge-bg/60 rounded-lg px-4 py-3 text-center min-w-[120px]">
                       <div className="text-[10px] text-gge-muted uppercase tracking-wide mb-1">Limite</div>
-                      <div className="text-xl font-bold text-white">{fmtN(espacoFull.limite)}</div>
+                      <div className="text-xl font-bold text-white">≈ {fmtN(espacoFull.limite)}</div>
+                      <div className="text-[10px] text-gge-yellow mt-1">estimativa</div>
                     </div>
                     {/* Card 2: Em uso + trânsito */}
                     <div className="bg-gge-bg/60 rounded-lg px-4 py-3 text-center min-w-[120px]">
