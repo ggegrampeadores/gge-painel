@@ -19,6 +19,7 @@
     reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
     ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
     realinha:     svgIcon('<path d="M2 12h5l3-9 4 18 3-9h5"/>'),
+    financeiro:   svgIcon('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/>'),
     saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     operador:     svgIcon('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
     grupos:       svgIcon('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
@@ -49,6 +50,7 @@
     { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação',           key: 'reputacao' },
     { href: '/auditoria',           icon: icons.auditoria, label: 'Auditoria',           key: 'auditoria' },
     { href: '/saude',                icon: icons.saude,     label: 'Saúde',               key: 'saude' },
+    { href: '/financeiro',           icon: icons.financeiro, label: 'Financeiro',          key: 'financeiro' },
     { href: '/studio',               icon: icons.studio,    label: 'Studio',              key: 'studio' },
     { type: 'separator' },
     { href: '/precificacao',         icon: icons.tabelavd,  label: 'Tabela VD',           key: 'precificacao' }
