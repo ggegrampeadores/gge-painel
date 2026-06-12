@@ -15,18 +15,18 @@
     .bar { display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:16px; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px 16px; }
     .bar label { font-size:12px; color:#8b949e; margin-right:6px; }
     select, input { background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:7px 10px; font-size:13px; }
-    .pill { font-size:11px; padding:2px 8px; border-radius:20px; font-weight:600; }
+    .pill { font-size:11px; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
     .nac { background:rgba(63,185,80,.15); color:#3fb950; border:1px solid rgba(63,185,80,.4); }
     .imp { background:rgba(210,153,34,.15); color:#d29922; border:1px solid rgba(210,153,34,.4); }
     table { width:100%; border-collapse:collapse; font-size:13px; }
     thead th { text-align:right; padding:10px 12px; color:#8b949e; font-weight:600; border-bottom:2px solid #30363d; position:sticky; top:0; background:#0d1117; white-space:nowrap; }
     thead th.l, tbody td.l { text-align:left; }
     tbody td { padding:9px 12px; text-align:right; border-bottom:1px solid #21262d; white-space:nowrap; }
-    tbody tr:hover { background:#161b22; cursor:pointer; }
+    tbody tr.prod:hover { background:#161b22; cursor:pointer; }
+    .secao td { background:#10212f; color:#58a6ff; font-weight:700; font-size:12px; letter-spacing:.05em; text-transform:uppercase; padding:10px 12px; text-align:left; border-bottom:1px solid #30363d; }
     .muted { color:#8b949e; }
     .search { flex:1; min-width:180px; }
     .count { color:#8b949e; font-size:12px; }
-    /* modal */
     .ovl { position:fixed; inset:0; background:rgba(1,4,9,.7); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; z-index:50; }
     .ovl.open { display:flex; }
     .modal { background:#161b22; border:1px solid #30363d; border-radius:12px; max-width:880px; width:100%; padding:22px; }
@@ -35,7 +35,6 @@
     .quad h3 { font-size:13px; color:#58a6ff; text-transform:uppercase; letter-spacing:.04em; margin-bottom:10px; }
     .kv { display:grid; grid-template-columns:1fr auto; gap:4px 16px; font-size:13px; }
     .kv .k { color:#8b949e; }
-    .kv .v { text-align:right; }
     .modal table { font-size:12.5px; }
     .modal thead th { background:#0d1117; }
     .close { float:right; background:none; border:1px solid #30363d; color:#e6edf3; border-radius:6px; padding:4px 10px; cursor:pointer; }
@@ -47,7 +46,7 @@
   <div id="sidebar-container"></div>
   <div class="main-with-sidebar">
     <h1>Tabela VD — Precificação Venda Direta</h1>
-    <div class="sub">Venda direta B2B · GGE (Lucro Real) · saída SP · contribuinte (indústria/revenda) · sem comissão. Clique numa linha para a memória de cálculo completa.</div>
+    <div class="sub">Venda direta B2B · GGE (Lucro Real) · saída SP · contribuinte (indústria/revenda) · sem comissão. Clique num produto para a memória de cálculo completa.</div>
 
     <div class="bar">
       <div><label>UF destino</label><select id="uf"></select></div>
@@ -55,7 +54,7 @@
       <div class="count" id="count"></div>
     </div>
 
-    <div id="wrap"></div>
+    <div id="wrap">carregando…</div>
   </div>
 
   <div class="ovl" id="ovl"><div class="modal" id="modal"></div></div>
@@ -64,13 +63,12 @@
     (function(){ var a=sessionStorage.getItem('gge_auth'); if(a!=='gge2026'){ window.location.href='/'; } })();
     var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
-    // ---- Constantes fiscais (skill calculo-margem / regras do Neco 11/06/2026) ----
-    var PIS_COFINS = 0.0925;     // débito na venda
-    var DAS_TOOW   = 0.0865;     // Simples Nacional (substitui ICMS/PIS/COFINS)
-    var UF_ORIGEM  = 'SP';       // venda direta sai da filial SP
+    // ---- Constantes fiscais (skill calculo-margem + regras Neco 11/06/2026) ----
+    var PIS_COFINS = 0.0925;   // débito na venda
+    var DAS_TOOW   = 0.0865;   // Simples Nacional
+    var UF_ORIGEM  = 'SP';     // venda direta sai da filial SP
     var MCS = [0.50,0.45,0.40,0.35,0.30];
 
-    // Alíquotas internas por UF (fonte: icms_aliquotas_uf — snapshot). RJ já com +2% FCP. ES fora do grupo S/SE.
     var UFS = [
       {s:'AC',n:'Acre',i:19.0,ss:false},{s:'AL',n:'Alagoas',i:19.0,ss:false},{s:'AM',n:'Amazonas',i:20.0,ss:false},
       {s:'AP',n:'Amapá',i:18.0,ss:false},{s:'BA',n:'Bahia',i:19.5,ss:false},{s:'CE',n:'Ceará',i:20.0,ss:false},
@@ -83,155 +81,137 @@
       {s:'SE',n:'Sergipe',i:19.0,ss:false},{s:'SP',n:'São Paulo',i:18.0,ss:true},{s:'TO',n:'Tocantins',i:20.0,ss:false}
     ];
     function ufObj(s){ for(var k=0;k<UFS.length;k++){ if(UFS[k].s===s) return UFS[k]; } return null; }
-    var isImport = function(o){ return o && /^import/i.test(o); };  // origem ILIKE 'Import%'
+    var isImport = function(o){ return !!o && /^import/i.test(o); };
 
-    // ICMS de débito da NF (saída SP), seção 2.6 da skill
     function icmsAliq(origem, ufDest){
       var u = ufObj(ufDest); if(!u) return 18.0;
-      if(ufDest === UF_ORIGEM) return u.i;            // mesma UF: interna (SP 18%)
-      if(isImport(origem)) return 4.0;                // importado interestadual: 4% sempre
-      return u.ss ? 12.0 : 7.0;                       // nacional interestadual: S/SE 12% (exceto ES) | resto 7%
+      if(ufDest === UF_ORIGEM) return u.i;          // mesma UF: interna (SP 18%)
+      if(isImport(origem)) return 4.0;              // importado interestadual: 4%
+      return u.ss ? 12.0 : 7.0;                     // nacional: S/SE 12% (exceto ES) | resto 7%
     }
-    // Preço GGE: PV = custo / (1 - ICMS% - PIS/COFINS% - [DIFAL%] - MC%)
     function pvGGE(custo, origem, ufDest, mc, comFinal){
       if(!(custo>0)) return null;
-      var icms = icmsAliq(origem, ufDest)/100;
-      var difal = 0;
-      if(comFinal && ufDest!==UF_ORIGEM){ var u=ufObj(ufDest); difal = Math.max(0, (u.i - icmsAliq(origem,ufDest)))/100; }
+      var icms = icmsAliq(origem, ufDest)/100, difal=0;
+      if(comFinal && ufDest!==UF_ORIGEM){ var u=ufObj(ufDest); difal = Math.max(0,(u.i - icmsAliq(origem,ufDest)))/100; }
       var den = 1 - icms - PIS_COFINS - difal - mc;
-      if(den<=0) return null;
-      return custo/den;
+      return den>0 ? custo/den : null;
     }
     function pvTOOW(custo, mc){ if(!(custo>0)) return null; var den=1-DAS_TOOW-mc; return den>0?custo/den:null; }
-    function brl(v){ return v==null?'—':'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-    function pct(v){ return (v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+'%'; }
+    function brl(v){ return v==null?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+    function pct(v){ return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+'%'; }
 
-    // ---- carregamento de dados ----
-    async function fetchAll(table, cols, filterFn){
-      var out=[], from=0, step=1000;
-      while(true){
-        var q = sb.from(table).select(cols).range(from, from+step-1);
-        var r = await q; if(r.error){ throw r.error; }
-        out = out.concat(r.data||[]);
-        if(!r.data || r.data.length<step) break;
-        from += step;
-      }
-      return out;
-    }
-
-    var PRODUTOS = [];
+    var ITENS=[];   // linhas da tabela_vd_itens (titulo/produto) já com dados resolvidos
     async function load(){
       try{
-        var sc = await fetchAll('skus_custo','sku,descricao,origem,is_combo,custo_cif_sp');
-        var hist = await fetchAll('skus_custo_historico','sku,empresa,custo_cif_sp,preco_fob,ipi_valor,st_valor,frete,icms_credito,pis_cofins_credito,data_vigencia');
-        // último por sku+empresa
-        var latest={};
-        hist.sort(function(a,b){ return (a.data_vigencia<b.data_vigencia)?1:-1; });
-        hist.forEach(function(h){ var k=h.sku+'|'+h.empresa; if(!latest[k]) latest[k]=h; });
-        PRODUTOS = sc.filter(function(p){ return !p.is_combo; }).map(function(p){
-          var g = latest[p.sku+'|GGE'];
-          var t = latest[p.sku+'|TOOW'];
-          var custoSP = (g && g.custo_cif_sp) ? Number(g.custo_cif_sp) : (p.custo_cif_sp?Number(p.custo_cif_sp):null);
+        var vd = await sb.from('tabela_vd_itens').select('ordem,tipo,sku,descricao_titulo,custo_cif_override').eq('empresa','GGE').order('ordem');
+        if(vd.error) throw vd.error;
+        var rows = vd.data||[];
+        var skus = rows.filter(function(r){return r.tipo==='produto'&&r.sku;}).map(function(r){return r.sku;});
+        var sc = await sb.from('skus_custo').select('sku,descricao,origem').in('sku',skus);
+        var hg = await sb.from('skus_custo_historico').select('sku,custo_cif_sp,preco_fob,ipi_valor,st_valor,frete,icms_credito,pis_cofins_credito,data_vigencia').in('sku',skus).eq('empresa','GGE').order('data_vigencia',{ascending:false});
+        var ht = await sb.from('skus_custo_historico').select('sku,custo_cif_sp,data_vigencia').in('sku',skus).eq('empresa','TOOW').order('data_vigencia',{ascending:false});
+        var scM={}; (sc.data||[]).forEach(function(r){ scM[r.sku]=r; });
+        var hgM={}; (hg.data||[]).forEach(function(r){ if(!hgM[r.sku]) hgM[r.sku]=r; });
+        var htM={}; (ht.data||[]).forEach(function(r){ if(!htM[r.sku]) htM[r.sku]=Number(r.custo_cif_sp); });
+        ITENS = rows.map(function(r){
+          if(r.tipo!=='produto') return {titulo:r.descricao_titulo, secao:true};
+          var s=scM[r.sku]||{}, g=hgM[r.sku]||null;
+          var custo = (r.custo_cif_override!=null) ? Number(r.custo_cif_override)
+                    : (g&&g.custo_cif_sp) ? Number(g.custo_cif_sp)
+                    : null;
           return {
-            sku:p.sku, descricao:p.descricao||p.sku, origem:p.origem||'',
-            importado:isImport(p.origem),
-            custoSP:custoSP, gge:g||null, toow:t||null
+            secao:false, sku:r.sku,
+            descricao:r.descricao_titulo || s.descricao || r.sku,
+            origem:s.origem||'', importado:isImport(s.origem),
+            custo:custo, gge:g, toow:htM[r.sku]||null,
+            overr:(r.custo_cif_override!=null)
           };
-        }).filter(function(p){ return p.custoSP>0; })
-          .sort(function(a,b){ return a.descricao.localeCompare(b.descricao); });
+        });
         render();
       }catch(e){
-        document.getElementById('wrap').innerHTML='<div class="err">Erro ao carregar dados: '+(e.message||e)+'</div>';
+        document.getElementById('wrap').innerHTML='<div class="err">Erro ao carregar: '+(e.message||e)+'</div>';
       }
     }
 
     function render(){
-      var uf = document.getElementById('uf').value;
-      var termo = (document.getElementById('busca').value||'').toLowerCase();
-      var lista = PRODUTOS.filter(function(p){ return !termo || p.descricao.toLowerCase().indexOf(termo)>=0 || p.sku.toLowerCase().indexOf(termo)>=0; });
-      var h = '<table><thead><tr>'+
-        '<th class="l">PRODUTO</th><th class="l">SKU</th><th class="l">ORIGEM</th><th>ICMS</th><th>CUSTO CIF (SP)</th>'+
+      var uf=document.getElementById('uf').value;
+      var termo=(document.getElementById('busca').value||'').toLowerCase();
+      var h='<table><thead><tr><th class="l">PRODUTO</th><th class="l">SKU</th><th class="l">ORIGEM</th><th>ICMS</th><th>CUSTO CIF</th>'+
         MCS.map(function(m){return '<th>'+Math.round(m*100)+'% MC</th>';}).join('')+'</tr></thead><tbody>';
-      lista.forEach(function(p,idx){
-        var icms = icmsAliq(p.origem, uf);
-        h += '<tr data-i="'+PRODUTOS.indexOf(p)+'">'+
+      var nprod=0;
+      ITENS.forEach(function(p,idx){
+        if(p.secao){
+          if(termo) return; // ao buscar, esconde títulos
+          h+='<tr class="secao"><td colspan="'+(5+MCS.length)+'">'+p.titulo+'</td></tr>';
+          return;
+        }
+        if(termo && p.descricao.toLowerCase().indexOf(termo)<0 && p.sku.toLowerCase().indexOf(termo)<0) return;
+        nprod++;
+        var icms=icmsAliq(p.origem,uf);
+        h+='<tr class="prod" data-i="'+idx+'">'+
           '<td class="l">'+p.descricao+'</td>'+
           '<td class="l muted">'+p.sku+'</td>'+
-          '<td class="l"><span class="pill '+(p.importado?'imp':'nac')+'">'+(p.importado?'Importado':'Nacional')+'</span></td>'+
-          '<td>'+pct(icms)+'</td>'+
-          '<td>'+brl(p.custoSP)+'</td>'+
-          MCS.map(function(m){ return '<td>'+brl(pvGGE(p.custoSP,p.origem,uf,m,false))+'</td>'; }).join('')+
+          '<td class="l">'+(p.origem?'<span class="pill '+(p.importado?'imp':'nac')+'">'+(p.importado?'Importado':'Nacional')+'</span>':'<span class="muted">—</span>')+'</td>'+
+          '<td>'+(p.custo?pct(icms):'—')+'</td>'+
+          '<td>'+brl(p.custo)+'</td>'+
+          MCS.map(function(m){return '<td>'+brl(pvGGE(p.custo,p.origem,uf,m,false))+'</td>';}).join('')+
         '</tr>';
       });
-      h += '</tbody></table>';
-      document.getElementById('wrap').innerHTML = h;
-      document.getElementById('count').textContent = lista.length+' produtos · destino '+uf;
-      Array.prototype.forEach.call(document.querySelectorAll('#wrap tr[data-i]'), function(tr){
-        tr.addEventListener('click', function(){ openModal(PRODUTOS[+tr.getAttribute('data-i')]); });
+      h+='</tbody></table>';
+      document.getElementById('wrap').innerHTML=h;
+      document.getElementById('count').textContent=nprod+' produtos · destino '+uf;
+      Array.prototype.forEach.call(document.querySelectorAll('#wrap tr.prod'),function(tr){
+        tr.addEventListener('click',function(){ openModal(ITENS[+tr.getAttribute('data-i')]); });
       });
     }
 
-    function linhasMC(custo, origem, uf, comFinal){
-      return MCS.map(function(m){
-        return '<tr><td class="l">'+Math.round(m*100)+'% MC</td><td>'+brl(pvGGE(custo,origem,uf,m,comFinal))+'</td></tr>';
-      }).join('');
-    }
+    function linhasMC(custo,origem,uf,cf){ return MCS.map(function(m){ return '<tr><td class="l">'+Math.round(m*100)+'% MC</td><td>'+brl(pvGGE(custo,origem,uf,m,cf))+'</td></tr>'; }).join(''); }
 
     function openModal(p){
-      var uf = document.getElementById('uf').value, u=ufObj(uf);
-      var icms = icmsAliq(p.origem, uf);
-      var difal = (uf!==UF_ORIGEM)? Math.max(0, u.i - icms) : 0;
-      var g = p.gge||{};
-      // Quadro 2 — compra
-      var fob=Number(g.preco_fob)||0, ipi=Number(g.ipi_valor)||0, st=Number(g.st_valor)||0, fre=Number(g.frete)||0,
-          cicms=Number(g.icms_credito)||0, cpis=Number(g.pis_cofins_credito)||0;
-      var compra = '<div class="kv">'+
-        '<span class="k">Preço (FOB)</span><span class="v">'+brl(fob)+'</span>'+
-        '<span class="k">IPI</span><span class="v">'+brl(ipi)+'</span>'+
-        '<span class="k">ST</span><span class="v">'+brl(st)+'</span>'+
-        '<span class="k">Frete compra</span><span class="v">'+brl(fre)+'</span>'+
-        '<span class="k">(–) Crédito ICMS</span><span class="v">'+brl(-cicms)+'</span>'+
-        '<span class="k">(–) Crédito PIS/COFINS</span><span class="v">'+brl(-cpis)+'</span>'+
-        '<span class="k tot">Custo CIF (SP)</span><span class="v tot">'+brl(p.custoSP)+'</span>'+
-      '</div>';
-      var toowCusto = (p.toow && p.toow.custo_cif_sp)?Number(p.toow.custo_cif_sp):null;
-      var toowBloco = toowCusto>0
-        ? '<table><thead><tr><th class="l">MC</th><th>Preço Toow</th></tr></thead><tbody>'+
-          MCS.map(function(m){return '<tr><td class="l">'+Math.round(m*100)+'% MC</td><td>'+brl(pvTOOW(toowCusto,m))+'</td></tr>';}).join('')+
-          '</tbody></table><div class="sub" style="margin-top:8px">Custo próprio Toow: '+brl(toowCusto)+' · DAS 8,65% · sem ICMS/PIS/COFINS/DIFAL</div>'
-        : '<div class="muted">Sem custo próprio da Toow cadastrado — não calculado (regra: nunca usar custo GGE para a Toow).</div>';
-
-      var html = '<button class="close" onclick="document.getElementById(\'ovl\').classList.remove(\'open\')">fechar</button>'+
+      if(!p||p.secao) return;
+      var uf=document.getElementById('uf').value,u=ufObj(uf);
+      var icms=icmsAliq(p.origem,uf);
+      var difal=(uf!==UF_ORIGEM)?Math.max(0,u.i-icms):0;
+      var g=p.gge||{};
+      var fob=Number(g.preco_fob)||0,ipi=Number(g.ipi_valor)||0,st=Number(g.st_valor)||0,fre=Number(g.frete)||0,cic=Number(g.icms_credito)||0,cpc=Number(g.pis_cofins_credito)||0;
+      var compra = g.preco_fob!=null
+        ? '<div class="kv">'+
+            '<span class="k">Preço (FOB)</span><span>'+brl(fob)+'</span>'+
+            '<span class="k">IPI</span><span>'+brl(ipi)+'</span>'+
+            '<span class="k">ST</span><span>'+brl(st)+'</span>'+
+            '<span class="k">Frete compra</span><span>'+brl(fre)+'</span>'+
+            '<span class="k">(–) Crédito ICMS</span><span>'+brl(-cic)+'</span>'+
+            '<span class="k">(–) Crédito PIS/COFINS</span><span>'+brl(-cpc)+'</span>'+
+            '<span class="k tot">Custo CIF usado</span><span class="tot">'+brl(p.custo)+(p.overr?' (tabela)':'')+'</span>'+
+          '</div>'
+        : '<div class="muted">Sem detalhamento de NF. Custo CIF usado: '+brl(p.custo)+(p.overr?' (definido na tabela)':'')+'.</div>';
+      var tb = p.toow>0
+        ? '<table><thead><tr><th class="l">MC</th><th>Preço Toow</th></tr></thead><tbody>'+MCS.map(function(m){return '<tr><td class="l">'+Math.round(m*100)+'% MC</td><td>'+brl(pvTOOW(p.toow,m))+'</td></tr>';}).join('')+'</tbody></table><div class="sub" style="margin-top:8px">Custo próprio Toow: '+brl(p.toow)+' · DAS 8,65%</div>'
+        : '<div class="muted">Sem custo próprio da Toow cadastrado — não calculado (nunca usar custo GGE para a Toow).</div>';
+      var html='<button class="close" onclick="document.getElementById(\'ovl\').classList.remove(\'open\')">fechar</button>'+
         '<h2>'+p.descricao+'</h2><div class="sub">'+p.sku+'</div>'+
         '<div class="quad"><h3>1 · Produto</h3><div class="kv">'+
-          '<span class="k">Origem</span><span class="v"><span class="pill '+(p.importado?'imp':'nac')+'">'+(p.importado?'Importado':'Nacional')+'</span></span>'+
-          '<span class="k">UF de compra</span><span class="v">SP (filial)</span>'+
-          '<span class="k">Custo CIF (SP)</span><span class="v">'+brl(p.custoSP)+'</span>'+
-        '</div></div>'+
+          '<span class="k">Origem</span><span>'+(p.origem?'<span class="pill '+(p.importado?'imp':'nac')+'">'+(p.importado?'Importado':'Nacional')+'</span>':'—')+'</span>'+
+          '<span class="k">UF de compra</span><span>SP (filial)</span>'+
+          '<span class="k">Custo CIF</span><span>'+brl(p.custo)+'</span></div></div>'+
         '<div class="quad"><h3>2 · Memória da compra</h3>'+compra+'</div>'+
         '<div class="quad"><h3>3 · Venda — contribuinte, interestadual ('+uf+')</h3>'+
-          '<div class="kv"><span class="k">ICMS débito</span><span class="v">'+pct(icms)+'</span>'+
-          '<span class="k">PIS/COFINS</span><span class="v">9,25%</span>'+
-          '<span class="k">DIFAL</span><span class="v">0 (contribuinte)</span></div>'+
-          '<table style="margin-top:8px"><thead><tr><th class="l">MC</th><th>Preço</th></tr></thead><tbody>'+
-          linhasMC(p.custoSP,p.origem,uf,false)+'</tbody></table></div>'+
+          '<div class="kv"><span class="k">ICMS débito</span><span>'+pct(icms)+'</span>'+
+          '<span class="k">PIS/COFINS</span><span>9,25%</span><span class="k">DIFAL</span><span>0 (contribuinte)</span></div>'+
+          '<table style="margin-top:8px"><thead><tr><th class="l">MC</th><th>Preço</th></tr></thead><tbody>'+linhasMC(p.custo,p.origem,uf,false)+'</tbody></table></div>'+
         '<div class="quad"><h3>4 · Se for consumidor final ('+uf+')</h3>'+
-          '<div class="kv"><span class="k">ICMS débito</span><span class="v">'+pct(icms)+'</span>'+
-          '<span class="k">DIFAL</span><span class="v">'+(uf===UF_ORIGEM?'0 (mesma UF)':pct(difal))+'</span></div>'+
-          '<table style="margin-top:8px"><thead><tr><th class="l">MC</th><th>Preço</th></tr></thead><tbody>'+
-          linhasMC(p.custoSP,p.origem,uf,true)+'</tbody></table></div>'+
-        '<div class="quad"><h3>5 · Se fosse pela Toow</h3>'+toowBloco+'</div>';
-      document.getElementById('modal').innerHTML = html;
+          '<div class="kv"><span class="k">ICMS débito</span><span>'+pct(icms)+'</span><span class="k">DIFAL</span><span>'+(uf===UF_ORIGEM?'0 (mesma UF)':pct(difal))+'</span></div>'+
+          '<table style="margin-top:8px"><thead><tr><th class="l">MC</th><th>Preço</th></tr></thead><tbody>'+linhasMC(p.custo,p.origem,uf,true)+'</tbody></table></div>'+
+        '<div class="quad"><h3>5 · Se fosse pela Toow</h3>'+tb+'</div>';
+      document.getElementById('modal').innerHTML=html;
       document.getElementById('ovl').classList.add('open');
     }
-    document.getElementById('ovl').addEventListener('click', function(e){ if(e.target.id==='ovl') this.classList.remove('open'); });
+    document.getElementById('ovl').addEventListener('click',function(e){ if(e.target.id==='ovl') this.classList.remove('open'); });
 
-    // init UF selector
     var sel=document.getElementById('uf');
-    sel.innerHTML = UFS.filter(function(u){return u.s!=='SP';}).map(function(u){return '<option value="'+u.s+'"'+(u.s==='MG'?' selected':'')+'>'+u.n+' ('+u.s+')</option>';}).join('')
-      + '<option value="SP">São Paulo (SP) — mesma UF</option>';
-    sel.addEventListener('change', render);
-    document.getElementById('busca').addEventListener('input', render);
+    sel.innerHTML=UFS.filter(function(u){return u.s!=='SP';}).map(function(u){return '<option value="'+u.s+'"'+(u.s==='MG'?' selected':'')+'>'+u.n+' ('+u.s+')</option>';}).join('')+'<option value="SP">São Paulo (SP) — mesma UF</option>';
+    sel.addEventListener('change',render);
+    document.getElementById('busca').addEventListener('input',render);
     load();
   </script>
   <script src="sidebar.js" defer></script>
