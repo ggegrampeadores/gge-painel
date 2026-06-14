@@ -49,8 +49,7 @@
     { href: '/ads',                  icon: icons.ads,       label: 'ADs',                 key: 'ads' },
     { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação',           key: 'reputacao' },
     { href: '/auditoria',           icon: icons.auditoria, label: 'Auditoria',           key: 'auditoria' },
-    { href: '/qualidade',            icon: icons.qualidade, label: 'Saúde dos Dados',     key: 'qualidade' },
-    { href: '/saude',                icon: icons.saude,     label: 'Saúde',               key: 'saude' },
+    { href: '/saude',                icon: icons.qualidade, label: 'Saúde dos Dados',     key: 'saude' },
     { href: '/studio',               icon: icons.studio,    label: 'Studio',              key: 'studio' },
     { type: 'separator' },
     { href: '/precificacao',         icon: icons.tabelavd,  label: 'Tabela VD',           key: 'precificacao' }
