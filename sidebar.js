@@ -1,9 +1,9 @@
 // sidebar.js - Menu compartilhado do Controle Total GGE
-// Importar: <script src="sidebar.js" defer><\/script>
+// Importar: <script src="sidebar.js" defer></script>
 
 (function() {
   var svgIcon = function(path, extra) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + (extra || '') + '<\/svg>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + (extra || '') + '</svg>';
   };
 
   var icons = {
@@ -19,11 +19,11 @@
     reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
     ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
     realinha:     svgIcon('<path d="M2 12h5l3-9 4 18 3-9h5"/>'),
-    financeiro:   svgIcon('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/>'),
     saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     operador:     svgIcon('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
     grupos:       svgIcon('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
     auditoria:    svgIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
+    qualidade:    svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>'),
     studio:       svgIcon('<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'),
     chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
   };
@@ -49,8 +49,8 @@
     { href: '/ads',                  icon: icons.ads,       label: 'ADs',                 key: 'ads' },
     { href: '/reputacao',            icon: icons.reputacao,  label: 'Reputação',           key: 'reputacao' },
     { href: '/auditoria',           icon: icons.auditoria, label: 'Auditoria',           key: 'auditoria' },
+    { href: '/qualidade',            icon: icons.qualidade, label: 'Saúde dos Dados',     key: 'qualidade' },
     { href: '/saude',                icon: icons.saude,     label: 'Saúde',               key: 'saude' },
-    { href: '/financeiro',           icon: icons.financeiro, label: 'Financeiro',          key: 'financeiro' },
     { href: '/studio',               icon: icons.studio,    label: 'Studio',              key: 'studio' },
     { type: 'separator' },
     { href: '/precificacao',         icon: icons.tabelavd,  label: 'Tabela VD',           key: 'precificacao' }
@@ -187,9 +187,9 @@
 
   // Ícones de alerta
   var alertIcons = {
-    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/><\/svg>',
-    danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/><\/svg>',
-    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/><\/svg>'
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
   };
 
   function checkDataQuality() {
@@ -277,7 +277,7 @@
         '<span class="dq-alert-text">' + a.text +
         (a.detail ? '<span class="dq-alert-detail">— ' + a.detail + '</span>' : '') +
         '</span>' +
-        '<button class="dq-alert-close" title="Dispensar">×</button>';
+        '<button class="dq-alert-close" title="Dispensar">&times;</button>';
 
       div.querySelector('.dq-alert-close').addEventListener('click', function() {
         dismissed[a.text] = true;
