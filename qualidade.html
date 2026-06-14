@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saúde dos Dados - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0d1117; color:#e6edf3; }
+    .main-with-sidebar { margin-left:48px; min-height:100vh; padding:28px 32px; }
+    h1 { font-size:22px; margin-bottom:4px; }
+    .sub { color:#8b949e; font-size:13px; margin-bottom:24px; }
+    .kpis { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }
+    .kpi { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:18px 22px; min-width:170px; }
+    .kpi .label { color:#8b949e; font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+    .kpi .val { font-size:30px; font-weight:700; margin-top:6px; }
+    .green { color:#3fb950; } .red { color:#f85149; } .yellow { color:#d29922; } .blue { color:#58a6ff; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:20px 22px; margin-bottom:24px; }
+    .card h2 { font-size:15px; margin-bottom:14px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th,td { text-align:left; padding:9px 10px; border-bottom:1px solid #21262d; }
+    th { color:#8b949e; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+    .pill.pass { background:rgba(63,185,80,.15); color:#3fb950; }
+    .pill.fail { background:rgba(248,81,73,.15); color:#f85149; }
+    .pill.warn { background:rgba(210,153,34,.15); color:#d29922; }
+    .sev { font-size:11px; color:#8b949e; }
+    .sev.CRITICO { color:#f85149; font-weight:700; }
+    .sev.ALTO { color:#d29922; }
+    .empty { color:#3fb950; padding:16px 0; font-size:14px; }
+    .err { color:#f85149; padding:16px 0; }
+    .muted { color:#8b949e; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <h1>Saúde dos Dados</h1>
+    <div class="sub">Canário de qualidade e fila de custos bloqueados — atualiza ao abrir a página.</div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="label">Canário</div><div class="val" id="kpiPlacar">…</div></div>
+      <div class="kpi"><div class="label">Falhas críticas</div><div class="val" id="kpiCrit">…</div></div>
+      <div class="kpi"><div class="label">Custos em quarentena</div><div class="val" id="kpiQuar">…</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Canário (vw_margem_qa)</h2>
+      <div id="canarioBox" class="muted">Carregando…</div>
+    </div>
+
+    <div class="card">
+      <h2>Fila de quarentena (custo_quarentena)</h2>
+      <div class="muted" style="margin-bottom:10px;">Custos bloqueados na entrada por estarem acima de 1,8× o baseline Airfix.</div>
+      <div id="quarBox" class="muted">Carregando…</div>
+    </div>
+  </div>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+    (function(){ var a = sessionStorage.getItem('gge_auth'); if (a !== 'gge2026') { window.location.href='/'; return; } })();
+    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+    var SEV_ORDER = { CRITICO:0, ALTO:1, MEDIO:2 };
+
+    function statusClass(s){ if(s==='PASS') return 'pass'; if(s==='FAIL') return 'fail'; return 'warn'; }
+    function statusShort(s){ return s==='PASS' ? 'PASS' : (s==='FAIL' ? 'FAIL' : 'SEM DADOS'); }
+
+    async function loadCanario(){
+      var box = document.getElementById('canarioBox');
+      try {
+        const { data, error } = await sb.from('vw_margem_qa').select('*');
+        if (error) throw error;
+        var rows = (data||[]).slice().sort(function(a,b){
+          var af=(a.status!=='PASS')?0:1, bf=(b.status!=='PASS')?0:1;
+          if(af!==bf) return af-bf;
+          return (SEV_ORDER[a.severidade]??9)-(SEV_ORDER[b.severidade]??9);
+        });
+        var pass = rows.filter(function(r){return r.status==='PASS';}).length;
+        var fail = rows.filter(function(r){return r.status==='FAIL';}).length;
+        var crit = rows.filter(function(r){return r.severidade==='CRITICO' && r.status!=='PASS';}).length;
+        document.getElementById('kpiPlacar').innerHTML = '<span class="green">'+pass+'</span> / <span class="'+(fail>0?'red':'green')+'">'+fail+' falha'+(fail===1?'':'s')+'</span>';
+        var critEl = document.getElementById('kpiCrit');
+        critEl.textContent = crit; critEl.className = 'val ' + (crit>0?'red':'green');
+
+        var html = '<table><thead><tr><th>Regra</th><th>Severidade</th><th>Status</th><th>Violações</th></tr></thead><tbody>';
+        rows.forEach(function(r){
+          html += '<tr><td>'+r.id+' — '+(r.regra||'')+'</td>'+
+                  '<td class="sev '+r.severidade+'">'+r.severidade+'</td>'+
+                  '<td><span class="pill '+statusClass(r.status)+'">'+statusShort(r.status)+'</span></td>'+
+                  '<td>'+(r.violacoes||0)+'</td></tr>';
+        });
+        html += '</tbody></table>';
+        box.innerHTML = html;
+      } catch(e){ box.innerHTML = '<div class="err">Erro ao carregar canário: '+(e.message||e)+'</div>'; }
+    }
+
+    async function loadQuarentena(){
+      var box = document.getElementById('quarBox');
+      try {
+        const { data, error } = await sb.from('custo_quarentena').select('*').order('criado_em',{ascending:false}).limit(200);
+        if (error) throw error;
+        document.getElementById('kpiQuar').textContent = (data||[]).length;
+        document.getElementById('kpiQuar').className = 'val ' + ((data&&data.length>0)?'yellow':'green');
+        if(!data || data.length===0){ box.innerHTML = '<div class="empty">✓ Nenhum custo bloqueado. Os imports estão limpos.</div>'; return; }
+        var html = '<table><thead><tr><th>SKU</th><th>Empresa</th><th>Custo rejeitado</th><th>Baseline</th><th>Fonte</th><th>Quando</th></tr></thead><tbody>';
+        data.forEach(function(r){
+          html += '<tr><td>'+r.sku+'</td><td>'+r.empresa+'</td>'+
+                  '<td class="red">R$ '+Number(r.custo_rejeitado).toFixed(2)+'</td>'+
+                  '<td class="green">R$ '+Number(r.baseline).toFixed(2)+'</td>'+
+                  '<td>'+(r.fonte||'')+'</td>'+
+                  '<td class="muted">'+(r.criado_em? new Date(r.criado_em).toLocaleString('pt-BR'):'')+'</td></tr>';
+        });
+        html += '</tbody></table>';
+        box.innerHTML = html;
+      } catch(e){ box.innerHTML = '<div class="err">Erro ao carregar quarentena: '+(e.message||e)+'</div>'; }
+    }
+
+    loadCanario();
+    loadQuarentena();
+  </script>
+</body>
+</html>
