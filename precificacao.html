@@ -1,451 +1,219 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Financeiro - Controle Total GGE</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-           background: #0d1117; color: #e6edf3; }
-    .main-with-sidebar { margin-left: 48px; min-height: 100vh; padding: 24px 28px; }
-    h1 { font-size: 22px; margin-bottom: 4px; }
-    h2 { font-size: 16px; margin: 26px 0 12px; color: #58a6ff; }
-    .sub { color:#8b949e; font-size:13px; margin-bottom:18px; }
-    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
-    .card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:14px 16px; }
-    .card .lbl { font-size:11px; color:#8b949e; text-transform:uppercase; letter-spacing:.5px; }
-    .card .val { font-size:20px; font-weight:700; margin-top:4px; }
-    .card .det { font-size:11px; color:#8b949e; margin-top:4px; }
-    .red { color:#f85149; } .green { color:#3fb950; } .yellow { color:#d29922; } .blue { color:#58a6ff; }
-    .grid2 { display:grid; grid-template-columns: 340px 1fr; gap:18px; align-items:start; }
-    @media (max-width:1100px){ .grid2{grid-template-columns:1fr;} }
-    .panel { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:16px; }
-    .ctl { margin-bottom:13px; }
-    .ctl label { display:flex; justify-content:space-between; font-size:12px; color:#8b949e; margin-bottom:4px; }
-    .ctl label b { color:#e6edf3; font-size:13px; }
-    .ctl input[type=range] { width:100%; accent-color:#58a6ff; }
-    .ctl input[type=number] { width:100%; background:#0d1117; border:1px solid #30363d; color:#e6edf3;
-        border-radius:6px; padding:6px 8px; font-size:13px; }
-    .ctl-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .toggle { display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px; cursor:pointer; }
-    .toggle input { accent-color:#3fb950; width:15px; height:15px; }
-    .btn { background:#1f6feb; color:#fff; border:none; border-radius:6px; padding:7px 12px;
-           font-size:12px; cursor:pointer; font-weight:600; }
-    .btn:hover { background:#388bfd; }
-    table { width:100%; border-collapse:collapse; font-size:12.5px; }
-    th { text-align:right; color:#8b949e; font-weight:600; padding:6px 8px; border-bottom:1px solid #30363d;
-         position:sticky; top:0; background:#161b22; }
-    th:first-child, td:first-child { text-align:left; }
-    td { text-align:right; padding:5px 8px; border-bottom:1px solid #21262d; font-variant-numeric:tabular-nums; }
-    .tbl-wrap { max-height:480px; overflow-y:auto; }
-    .bars { display:flex; align-items:flex-end; gap:4px; height:140px; margin-top:8px; }
-    .bar { flex:1; background:#1f6feb55; border:1px solid #1f6feb; border-radius:3px 3px 0 0; position:relative; min-width:14px; }
-    .bar:hover { background:#1f6feb99; }
-    .bar .tip { display:none; position:absolute; bottom:103%; left:50%; transform:translateX(-50%);
-        background:#21262d; border:1px solid #30363d; padding:4px 8px; border-radius:5px;
-        font-size:11px; white-space:nowrap; z-index:5; }
-    .bar:hover .tip { display:block; }
-    .bar-lbls { display:flex; gap:4px; font-size:9px; color:#8b949e; margin-top:3px; }
-    .bar-lbls span { flex:1; text-align:center; min-width:14px; }
-    .matrix td { cursor:pointer; }
-    .m-ok  { background:#0f2e1a; color:#3fb950; }
-    .m-mid { background:#2d2308; color:#d29922; }
-    .m-bad { background:#2d0d0d; color:#f85149; }
-    .m-sel { outline:2px solid #58a6ff; outline-offset:-2px; }
-    .reco { border-left:3px solid #3fb950; }
-    .warn { border-left:3px solid #d29922; }
-    .danger { border-left:3px solid #f85149; }
-    .panel p { font-size:13px; line-height:1.55; color:#c9d1d9; margin-bottom:8px; }
-    .panel li { font-size:13px; line-height:1.55; color:#c9d1d9; margin:0 0 7px 18px; }
-    .small { font-size:11px; color:#8b949e; }
-    .pos { color:#3fb950; } .neg { color:#f85149; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabela VD — Precificação B2B Venda Direta | Controle Total GGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0d1117; color:#e6edf3; }
+.main-with-sidebar { margin-left:48px; min-height:100vh; padding:24px; }
+h1 { font-size:20px; margin-bottom:4px; }
+.sub { color:#8b949e; font-size:13px; margin-bottom:18px; }
+.bar { display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:16px; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px 16px; }
+.bar label { font-size:12px; color:#8b949e; margin-right:6px; }
+select, input { background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:7px 10px; font-size:13px; }
+.pill { font-size:11px; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+.nac { background:rgba(63,185,80,.15); color:#3fb950; border:1px solid rgba(63,185,80,.4); }
+.imp { background:rgba(210,153,34,.15); color:#d29922; border:1px solid rgba(210,153,34,.4); }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead th { text-align:right; padding:10px 12px; color:#8b949e; font-weight:600; border-bottom:2px solid #30363d; position:sticky; top:0; background:#0d1117; white-space:nowrap; }
+thead th.l, tbody td.l { text-align:left; }
+tbody td { padding:9px 12px; text-align:right; border-bottom:1px solid #21262d; white-space:nowrap; }
+tbody tr.prod:hover { background:#161b22; cursor:pointer; }
+.secao td { background:#10212f; color:#58a6ff; font-weight:700; font-size:12px; letter-spacing:.05em; text-transform:uppercase; padding:10px 12px; text-align:left; border-bottom:1px solid #30363d; }
+.muted { color:#8b949e; }
+.search { flex:1; min-width:180px; }
+.count { color:#8b949e; font-size:12px; }
+.ovl { position:fixed; inset:0; background:rgba(1,4,9,.7); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; z-index:50; }
+.ovl.open { display:flex; }
+.modal { background:#161b22; border:1px solid #30363d; border-radius:12px; max-width:880px; width:100%; padding:22px; }
+.modal h2 { font-size:17px; margin-bottom:2px; }
+.quad { background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:14px 16px; margin-top:14px; }
+.quad h3 { font-size:13px; color:#58a6ff; text-transform:uppercase; letter-spacing:.04em; margin-bottom:10px; }
+.kv { display:grid; grid-template-columns:1fr auto; gap:4px 16px; font-size:13px; }
+.kv .k { color:#8b949e; }
+.modal table { font-size:12.5px; }
+.modal thead th { background:#0d1117; }
+.close { float:right; background:none; border:1px solid #30363d; color:#e6edf3; border-radius:6px; padding:4px 10px; cursor:pointer; }
+.err { color:#f85149; padding:16px; }
+.tot { border-top:1px solid #30363d; font-weight:700; }
+</style>
 </head>
 <body>
-  <div id="sidebar-container"></div>
-  <div class="main-with-sidebar">
+<div id="sidebar-container"></div>
+<div class="main-with-sidebar">
+<h1>Tabela VD — Precificação Venda Direta</h1>
+<div class="sub">Venda direta B2B · GGE (Lucro Real) · saída SP · contribuinte (indústria/revenda) · sem comissão. Clique num produto para a memória de cálculo completa.</div>
 
-    <h1>Saúde Financeira — Decisão do Empréstimo ML</h1>
-    <div class="sub">Contas a pagar reais do Bling (snapshot de 12/06/2026, GGE + TOOW, 548 títulos em aberto) ·
-      simulador de fluxo de caixa semanal até meados de outubro. Premissas todas editáveis —
-      <b>antes de assinar, substitua a taxa/custo pelos números reais da oferta do ML.</b></div>
+<div class="bar">
+<div><label>UF destino</label><select id="uf"></select></div>
+<div class="search"><input id="busca" placeholder="buscar produto ou SKU..." style="width:100%"></div>
+<div class="count" id="count"></div>
+</div>
 
-    <div class="cards">
-      <div class="card"><div class="lbl">Total em aberto (Bling)</div><div class="val red" id="k-total"></div><div class="det" id="k-emp"></div></div>
-      <div class="card"><div class="lbl">Vencido (atrasado)</div><div class="val red" id="k-atras"></div><div class="det">+ R$ 30.000 Tecnofast em cartório (fora do Bling)</div></div>
-      <div class="card"><div class="lbl">Junho (12–30)</div><div class="val" id="k-jun"></div><div class="det">pico: semana 25 (13–19/06)</div></div>
-      <div class="card"><div class="lbl">Julho</div><div class="val" id="k-jul"></div><div class="det">Tecnofast R$ 93,2 mil concentrados</div></div>
-      <div class="card"><div class="lbl">Agosto</div><div class="val" id="k-ago"></div><div class="det">Tools World R$ 41,2 mil</div></div>
-      <div class="card"><div class="lbl">Set + Out (até 15)</div><div class="val" id="k-set"></div><div class="det">cauda alivia — janela de recuperação</div></div>
-      <div class="card"><div class="lbl">DIFAL não pago (acumulando)</div><div class="val yellow" id="k-difal"></div><div class="det">~8% × MKTP/mês. Reforça o caixa agora, mas é dívida fiscal crescendo.</div></div>
-    </div>
+<div id="wrap">carregando…</div>
+</div>
 
-    <h2>Boletos por semana (Bling — em aberto)</h2>
-    <div class="panel">
-      <div class="bars" id="bars"></div>
-      <div class="bar-lbls" id="barlbls"></div>
-      <div class="small" style="margin-top:8px">SEM 25 inclui R$ 97,0 mil de arrasto (boletos de 12/06 + vencidos).
-        Maiores credores: Tools World R$ 133,1k · Mercado Livre R$ 105,3k · Tecnofast (RJ+SP) R$ 127,4k ·
-        Bacchi R$ 67,5k · PDR R$ 27,8k.</div>
-    </div>
+<div class="ovl" id="ovl"><div class="modal" id="modal"></div></div>
 
-    <h2>Simulador do empréstimo</h2>
-    <div class="grid2">
-      <div class="panel">
-        <div class="ctl">
-          <label><span>Valor do empréstimo</span><b id="v-P"></b></label>
-          <input type="range" id="i-P" min="100000" max="300000" step="25000" value="200000">
-        </div>
-        <div class="ctl">
-          <label><span>% das vendas p/ pagamento</span><b id="v-p"></b></label>
-          <input type="range" id="i-p" min="10" max="40" step="5" value="20">
-        </div>
-        <div class="ctl-row">
-          <div class="ctl"><label><span>Juros % a.m.</span></label><input type="number" id="i-taxa" value="12" step="0.5"></div>
-          <div class="ctl"><label><span>Custo total real (R$)*</span></label><input type="number" id="i-custo" value="0" step="1000"></div>
-        </div>
-        <div class="small" style="margin-top:-6px;margin-bottom:12px">*Se a oferta do ML mostrar o valor total a devolver, coloque aqui a diferença (total − principal). Zera = usa estimativa 12% a.m. × prazo.</div>
-        <div class="ctl-row">
-          <div class="ctl"><label><span>Faturamento conta ML/mês</span></label><input type="number" id="i-fat" value="180000" step="5000"></div>
-          <div class="ctl"><label><span>Caixa inicial (R$)</span></label><input type="number" id="i-caixa" value="0" step="1000"></div>
-        </div>
-        <div class="ctl-row">
-          <div class="ctl"><label><span>Entrada MKTP/sem (estável)</span></label><input type="number" id="i-mktp" value="29000" step="500"></div>
-          <div class="ctl"><label><span>Venda direta/sem (bruta)</span></label><input type="number" id="i-vd" value="32000" step="500"></div>
-        </div>
-        <div class="ctl">
-          <label><span>Compra de mercadoria / semana</span><b id="v-B"></b></label>
-          <input type="range" id="i-B" min="0" max="45000" step="500" value="40000">
-          <button class="btn" style="margin-top:6px" id="btn-max">Usar máximo sustentável</button>
-        </div>
-        <label class="toggle"><input type="checkbox" id="t-tw" checked> Devolução Tools World (−R$ 50 mil nos boletos de jul/ago)</label>
-        <label class="toggle"><input type="checkbox" id="t-liq" checked> Recuperar estoque encalhado (entra <input type="number" id="i-liq" value="10000" style="width:75px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;padding:2px 4px"> /sem por 12 semanas ≈ 80% dos R$ 150 mil)</label>
-        <label class="toggle"><input type="checkbox" id="t-cresc" checked> Crescimento de vendas <input type="number" id="i-cresc" value="10" style="width:50px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;padding:2px 4px">% ao longo de 3 meses (histórico)</label>
-        <label class="toggle"><input type="checkbox" id="t-tec"> Alongar Tecnofast: metade de julho (R$ 46,6 mil) empurrada 45 dias</label>
-        <div class="small">Premissas fixas: retenção ML 23% (comissão+frete) · desconto de duplicatas VD −5% ·
-          antecipação MKTP já refletida nas entradas · <b>compras novas começam na semana 25 e são pagas em 5
-          parcelas iguais a 30/45/60/75/90 dias</b> · empréstimo cai na semana 25 (15/06) e os atrasos +
-          boletos de 12/06 são pagos nela.</div>
-      </div>
+<script>
+(function(){ var a=sessionStorage.getItem('gge_auth'); if(a!=='gge2026'){ window.location.href='/'; } })();
+var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
-      <div>
-        <div class="cards" style="margin-bottom:14px">
-          <div class="card"><div class="lbl">Custo do empréstimo</div><div class="val yellow" id="r-custo"></div><div class="det" id="r-total"></div></div>
-          <div class="card"><div class="lbl">Prazo p/ quitar</div><div class="val" id="r-prazo"></div><div class="det" id="r-parcela"></div></div>
-          <div class="card"><div class="lbl">Pior momento do caixa</div><div class="val" id="r-min"></div><div class="det" id="r-minsem"></div></div>
-          <div class="card"><div class="lbl">Caixa em 15/10</div><div class="val" id="r-fim"></div><div class="det" id="r-compra-mes"></div></div>
-          <div class="card"><div class="lbl">Compras a pagar após 15/10</div><div class="val blue" id="r-cauda"></div><div class="det" id="r-cauda-det"></div></div>
-        </div>
-        <div class="panel tbl-wrap">
-          <table id="fluxo">
-            <thead><tr><th>Semana</th><th>Entradas</th><th>Boletos</th><th>Parcela ML</th><th>Compras</th><th>Saldo sem.</th><th>Acumulado</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+// ---- Constantes fiscais (skill calculo-margem + regras Neco 11/06/2026) ----
+var PIS_COFINS = 0.0925; // débito na venda
+var DAS_TOOW = 0.0865; // Simples Nacional
+var UF_ORIGEM = 'SP'; // venda direta sai da filial SP
+var MCS = [0.50,0.45,0.40,0.35,0.30];
 
-    <h2>Matriz de cenários — compra máxima sustentável por semana (caixa nunca negativo)</h2>
-    <div class="panel">
-      <div class="tbl-wrap"><table class="matrix" id="matriz"></table></div>
-      <div class="small" style="margin-top:8px">Cada célula: <b>compra máx/semana</b> · custo e prazo quando o cenário se paga sozinho a 12% a.m. composto — já considerando as alavancas marcadas. Clique numa célula para carregá-la no simulador. Verde = sustenta a meta de R$ 40 mil/sem · amarelo &gt; 0 · vermelho = compra zero. "Custo: depende da oferta" = a parcela por % das vendas não cobre o juro composto; nesses casos o que vale é o total a devolver da oferta real do ML (campo "Custo total real").</div>
-    </div>
+var UFS = [
+{s:'AC',n:'Acre',i:19.0,ss:false},{s:'AL',n:'Alagoas',i:19.0,ss:false},{s:'AM',n:'Amazonas',i:20.0,ss:false},
+{s:'AP',n:'Amapá',i:18.0,ss:false},{s:'BA',n:'Bahia',i:19.5,ss:false},{s:'CE',n:'Ceará',i:20.0,ss:false},
+{s:'DF',n:'Distrito Federal',i:20.0,ss:false},{s:'ES',n:'Espírito Santo',i:17.0,ss:false},{s:'GO',n:'Goiás',i:19.0,ss:false},
+{s:'MA',n:'Maranhão',i:22.0,ss:false},{s:'MG',n:'Minas Gerais',i:18.0,ss:true},{s:'MS',n:'Mato Grosso do Sul',i:17.0,ss:false},
+{s:'MT',n:'Mato Grosso',i:17.0,ss:false},{s:'PA',n:'Pará',i:19.0,ss:false},{s:'PB',n:'Paraíba',i:20.0,ss:false},
+{s:'PE',n:'Pernambuco',i:20.5,ss:false},{s:'PI',n:'Piauí',i:21.0,ss:false},{s:'PR',n:'Paraná',i:19.5,ss:true},
+{s:'RJ',n:'Rio de Janeiro',i:22.0,ss:true},{s:'RN',n:'Rio Grande do Norte',i:20.0,ss:false},{s:'RO',n:'Rondônia',i:19.5,ss:false},
+{s:'RR',n:'Roraima',i:20.0,ss:false},{s:'RS',n:'Rio Grande do Sul',i:17.0,ss:true},{s:'SC',n:'Santa Catarina',i:17.0,ss:true},
+{s:'SE',n:'Sergipe',i:19.0,ss:false},{s:'SP',n:'São Paulo',i:18.0,ss:true},{s:'TO',n:'Tocantins',i:20.0,ss:false}
+];
+function ufObj(s){ for(var k=0;k<UFS.length;k++){ if(UFS[k].s===s) return UFS[k]; } return null; }
+var isImport = function(o){ return !!o && /^import/i.test(o); };
 
-    <h2>Leitura e recomendação</h2>
-    <div class="panel reco" id="reco-box">
-      <p id="reco-txt"></p>
-      <p><b>Plano de ação sugerido:</b></p>
-      <li><b>Semana 25 (13–19/06):</b> com o dinheiro em conta, pagar na ordem: cartório Tecnofast (R$ 30 mil), vencidos do Bling (R$ 44,1 mil — Simples, ML, Santander, Bacchi), folha/INSS/FGTS e aluguéis. Isso destrava fornecedores e para juros de mora.</li>
-      <li><b>Mesma semana:</b> ligar para a Tecnofast com dinheiro na mão — negociar os R$ 93 mil de julho em 3 parcelas (jul/ago/set). Pagar à vista o cartório dá força na negociação.</li>
-      <li><b>Formalizar a devolução de R$ 50 mil à Tools World</b> abatendo os títulos de agosto — são R$ 41,2 mil que somem do pico.</li>
-      <li><b>Vender o estoque encalhado (R$ 150 mil a custo):</b> recuperando 80% em 3 meses, vira ~R$ 10 mil/semana de caixa por 12 semanas (R$ 120 mil) e financia as compras da linha que gira. É a alavanca mais barata que existe — mais barata que qualquer empréstimo.</li>
-      <li><b>Retomar compras já na semana 25</b> no valor que o simulador indicar como sustentável, priorizando os itens de melhor giro (o estoque bom de R$ 250 mil cobre ~6 semanas de venda — a reposição não pode esperar o caixa "sobrar").</li>
-      <li><b>DIFAL:</b> os ~8% retidos (~R$ 18,7 mil/mês) são fôlego emprestado de imposto. Reservar a partir de setembro, quando a cauda de boletos alivia, antes que vire autuação.</li>
-    </div>
-    <div class="panel danger" style="margin-top:12px">
-      <p><b>Atenção ao custo:</b> o modelo de juros está calibrado pelo seu empréstimo de abril
-      (R$ 103.440 → R$ 130.139 em 2 meses = 12% a.m. composto, erro &lt; 1%). A essa taxa, a velocidade de
-      quitação importa mais que o valor captado. Pegar muito pagando % baixo é o pior dos mundos:
-      <span id="warn-ex"></span>. Confirme na oferta real do ML o <b>valor total a devolver</b> e digite no
-      campo "Custo total real" — se vier diferente, tudo recalcula.
-      Esta página é uma simulação para apoiar a decisão, não aconselhamento financeiro.</p>
-    </div>
+function icmsAliq(origem, ufDest){
+var u = ufObj(ufDest); if(!u) return 18.0;
+if(ufDest === UF_ORIGEM) return u.i; // mesma UF: interna (SP 18%)
+if(isImport(origem)) return 4.0; // importado interestadual: 4%
+return u.ss ? 12.0 : 7.0; // nacional: S/SE 12% (exceto ES) | resto 7%
+}
+function pvGGE(custo, origem, ufDest, mc, comFinal){
+if(!(custo>0)) return null;
+var icms = icmsAliq(origem, ufDest)/100, difal=0;
+if(comFinal && ufDest!==UF_ORIGEM){ var u=ufObj(ufDest); difal = Math.max(0,(u.i - icmsAliq(origem,ufDest)))/100; }
+var den = 1 - icms - PIS_COFINS - difal - mc;
+return den>0 ? custo/den : null;
+}
+function pvTOOW(custo, mc){ if(!(custo>0)) return null; var den=1-DAS_TOOW-mc; return den>0?custo/den:null; }
+function brl(v){ return v==null?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function pct(v){ return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+'%'; }
 
-  </div>
-  <script src="sidebar.js" defer></script>
-  <script>
-    (function() {
-      var auth = sessionStorage.getItem('gge_auth');
-      if (auth !== 'gge2026') { window.location.href = '/'; return; }
-    })();
-    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+var ITENS=[]; // linhas da tabela_vd_itens (titulo/produto) já com dados resolvidos
+async function load(){
+try{
+var vd = await sb.from('tabela_vd_itens').select('ordem,tipo,sku,descricao_titulo,custo_cif_override').eq('empresa','GGE').order('ordem');
+if(vd.error) throw vd.error;
+var rows = vd.data||[];
+var skus = rows.filter(function(r){return r.tipo==='produto'&&r.sku;}).map(function(r){return r.sku;});
+var sc = await sb.from('skus_custo').select('sku,descricao,origem').in('sku',skus);
+var hg = await sb.from('skus_custo_historico').select('sku,custo_cif_sp,preco_fob,ipi_valor,st_valor,frete,icms_credito,pis_cofins_credito,data_vigencia').in('sku',skus).eq('empresa','GGE').order('data_vigencia',{ascending:false});
+var ht = await sb.from('skus_custo_historico').select('sku,custo_cif_sp,data_vigencia').in('sku',skus).eq('empresa','TOOW').order('data_vigencia',{ascending:false});
+var scM={}; (sc.data||[]).forEach(function(r){ scM[r.sku]=r; });
+var hgM={}; (hg.data||[]).forEach(function(r){ if(!hgM[r.sku]) hgM[r.sku]=r; });
+var htM={}; (ht.data||[]).forEach(function(r){ if(!htM[r.sku]) htM[r.sku]=Number(r.custo_cif_sp); });
+ITENS = rows.map(function(r){
+if(r.tipo!=='produto') return {titulo:r.descricao_titulo, secao:true};
+var s=scM[r.sku]||{}, g=hgM[r.sku]||null;
+var custo = (r.custo_cif_override!=null) ? Number(r.custo_cif_override)
+: (g&&g.custo_cif_sp) ? Number(g.custo_cif_sp)
+: null;
+return {
+secao:false, sku:r.sku,
+descricao:r.descricao_titulo || s.descricao || r.sku,
+origem:s.origem||'', importado:isImport(s.origem),
+custo:custo, gge:g, toow:htM[r.sku]||null,
+overr:(r.custo_cif_override!=null)
+};
+});
+render();
+}catch(e){
+document.getElementById('wrap').innerHTML='<div class="err">Erro ao carregar: '+(e.message||e)+'</div>';
+}
+}
 
-    // ===== DADOS BLING (snapshot 12/06/2026) =====
-    var BOLETOS = {25:100655.51,26:46354.35,27:58707.25,28:53639.50,29:107796.77,
-      30:39423.40,31:61906.81,32:46865.97,33:62142.59,34:41276.20,35:47583.47,36:31803.87,
-      37:33625.57,38:15271.51,39:40371.78,40:25924.01,41:23673.93,42:25910.00};
-    var CARRY = 52903.70 + 44137.73;            // boletos 12/06 + vencidos -> pagos na sem 25
-    var TWA = {31:8826.02,33:20587.34,35:20587.34}; // devolução Tools World 50k
-    var TEC_JUL = {27:23299.38,29:23299.38};    // metade Tecnofast julho que pode alongar
-    var TEC_DEST = {33:23299.38,35:23299.38};   // ...cai 45 dias depois
-    var SEM_DATAS = {25:'13–19/06',26:'20–26/06',27:'27/06–03/07',28:'04–10/07',29:'11–17/07',
-      30:'18–24/07',31:'25–31/07',32:'01–07/08',33:'08–14/08',34:'15–21/08',35:'22–28/08',
-      36:'29/08–04/09',37:'05–11/09',38:'12–18/09',39:'19–25/09',40:'26/09–02/10',41:'03–09/10',42:'10–16/10'};
-    var MKTP_RAMP = {25:0.8534,26:0.8966,27:0.9310,28:0.9741,29:1};  // proporção da entrada estável
-    var VD_RAMP   = {25:0.8125,26:0.8438,27:0.8750,28:0.9063,29:0.9375,30:0.9688};
-    var TOTAIS = {total:959973.92, gge:791080.55, toow:168893.37, atras:44137.73,
-                  jun:229989.86, jul:291397.43, ago:208015.24, set:119051.20, out:67382.46};
+function render(){
+var uf=document.getElementById('uf').value;
+var termo=(document.getElementById('busca').value||'').toLowerCase();
+var h='<table><thead><tr><th class="l">PRODUTO</th><th class="l">SKU</th><th class="l">ORIGEM</th><th>ICMS</th><th>CUSTO CIF</th>'+
+MCS.map(function(m){return '<th>'+Math.round(m*100)+'% MC</th>';}).join('')+'</tr></thead><tbody>';
+var nprod=0;
+ITENS.forEach(function(p,idx){
+if(p.secao){
+if(termo) return; // ao buscar, esconde títulos
+h+='<tr class="secao"><td colspan="'+(5+MCS.length)+'">'+p.titulo+'</td></tr>';
+return;
+}
+if(termo && p.descricao.toLowerCase().indexOf(termo)<0 && p.sku.toLowerCase().indexOf(termo)<0) return;
+nprod++;
+var icms=icmsAliq(p.origem,uf);
+h+='<tr class="prod" data-i="'+idx+'">'+
+'<td class="l">'+p.descricao+'</td>'+
+'<td class="l muted">'+p.sku+'</td>'+
+'<td class="l">'+(p.origem?'<span class="pill '+(p.importado?'imp':'nac')+'">'+(p.importado?'Importado':'Nacional')+'</span>':'<span class="muted">—</span>')+'</td>'+
+'<td>'+(p.custo?pct(icms):'—')+'</td>'+
+'<td>'+brl(p.custo)+'</td>'+
+MCS.map(function(m){return '<td>'+brl(pvGGE(p.custo,p.origem,uf,m,false))+'</td>';}).join('')+
+'</tr>';
+});
+h+='</tbody></table>';
+document.getElementById('wrap').innerHTML=h;
+document.getElementById('count').textContent=nprod+' produtos · destino '+uf;
+Array.prototype.forEach.call(document.querySelectorAll('#wrap tr.prod'),function(tr){
+tr.addEventListener('click',function(){ openModal(ITENS[+tr.getAttribute('data-i')]); });
+});
+}
 
-    var fmt = function(v){ return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); };
-    var fmtK = function(v){ return 'R$ ' + (v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' mil'; };
+function linhasMC(custo,origem,uf,cf){ return MCS.map(function(m){ return '<tr><td class="l">'+Math.round(m*100)+'% MC</td><td>'+brl(pvGGE(custo,origem,uf,m,cf))+'</td></tr>'; }).join(''); }
 
-    // ===== MOTOR DE SIMULAÇÃO =====
-    var LAGS = [4,6,9,11,13];   // 30/45/60/75/90 dias em semanas, 20% cada
+function openModal(p){
+if(!p||p.secao) return;
+var uf=document.getElementById('uf').value,u=ufObj(uf);
+var icms=icmsAliq(p.origem,uf);
+var difal=(uf!==UF_ORIGEM)?Math.max(0,u.i-icms):0;
+var g=p.gge||{};
+var fob=Number(g.preco_fob)||0,ipi=Number(g.ipi_valor)||0,st=Number(g.st_valor)||0,fre=Number(g.frete)||0,cic=Number(g.icms_credito)||0,cpc=Number(g.pis_cofins_credito)||0;
+var compra = g.preco_fob!=null
+? '<div class="kv">'+
+'<span class="k">Preço (FOB)</span><span>'+brl(fob)+'</span>'+
+'<span class="k">IPI</span><span>'+brl(ipi)+'</span>'+
+'<span class="k">ST</span><span>'+brl(st)+'</span>'+
+'<span class="k">Frete compra</span><span>'+brl(fre)+'</span>'+
+'<span class="k">(–) Crédito ICMS</span><span>'+brl(-cic)+'</span>'+
+'<span class="k">(–) Crédito PIS/COFINS</span><span>'+brl(-cpc)+'</span>'+
+'<span class="k tot">Custo CIF usado</span><span class="tot">'+brl(p.custo)+(p.overr?' (tabela)':'')+'</span>'+
+'</div>'
+: '<div class="muted">Sem detalhamento de NF. Custo CIF usado: '+brl(p.custo)+(p.overr?' (definido na tabela)':'')+'.</div>';
+var tb = p.toow>0
+? '<table><thead><tr><th class="l">MC</th><th>Preço Toow</th></tr></thead><tbody>'+MCS.map(function(m){return '<tr><td class="l">'+Math.round(m*100)+'% MC</td><td>'+brl(pvTOOW(p.toow,m))+'</td></tr>';}).join('')+'</tbody></table><div class="sub" style="margin-top:8px">Custo próprio Toow: '+brl(p.toow)+' · DAS 8,65%</div>'
+: '<div class="muted">Sem custo próprio da Toow cadastrado — não calculado (nunca usar custo GGE para a Toow).</div>';
+var html='<button class="close" onclick="document.getElementById(\'ovl\').classList.remove(\'open\')">fechar</button>'+
+'<h2>'+p.descricao+'</h2><div class="sub">'+p.sku+'</div>'+
+'<div class="quad"><h3>1 · Produto</h3><div class="kv">'+
+'<span class="k">Origem</span><span>'+(p.origem?'<span class="pill '+(p.importado?'imp':'nac')+'">'+(p.importado?'Importado':'Nacional')+'</span>':'—')+'</span>'+
+'<span class="k">UF de compra</span><span>SP (filial)</span>'+
+'<span class="k">Custo CIF</span><span>'+brl(p.custo)+'</span></div></div>'+
+'<div class="quad"><h3>2 · Memória da compra</h3>'+compra+'</div>'+
+'<div class="quad"><h3>3 · Venda — contribuinte, interestadual ('+uf+')</h3>'+
+'<div class="kv"><span class="k">ICMS débito</span><span>'+pct(icms)+'</span>'+
+'<span class="k">PIS/COFINS</span><span>9,25%</span><span class="k">DIFAL</span><span>0 (contribuinte)</span></div>'+
+'<table style="margin-top:8px"><thead><tr><th class="l">MC</th><th>Preço</th></tr></thead><tbody>'+linhasMC(p.custo,p.origem,uf,false)+'</tbody></table></div>'+
+'<div class="quad"><h3>4 · Se for consumidor final ('+uf+')</h3>'+
+'<div class="kv"><span class="k">ICMS débito</span><span>'+pct(icms)+'</span><span class="k">DIFAL</span><span>'+(uf===UF_ORIGEM?'0 (mesma UF)':pct(difal))+'</span></div>'+
+'<table style="margin-top:8px"><thead><tr><th class="l">MC</th><th>Preço</th></tr></thead><tbody>'+linhasMC(p.custo,p.origem,uf,true)+'</tbody></table></div>'+
+'<div class="quad"><h3>5 · Se fosse pela Toow</h3>'+tb+'</div>';
+document.getElementById('modal').innerHTML=html;
+document.getElementById('ovl').classList.add('open');
+}
+document.getElementById('ovl').addEventListener('click',function(e){ if(e.target.id==='ovl') this.classList.remove('open'); });
 
-    function getOpts(){
-      return {
-        P:+document.getElementById('i-P').value,
-        p:+document.getElementById('i-p').value/100,
-        taxa:+document.getElementById('i-taxa').value/100,
-        custoReal:+document.getElementById('i-custo').value,
-        fat:+document.getElementById('i-fat').value,
-        caixa:+document.getElementById('i-caixa').value,
-        mktp:+document.getElementById('i-mktp').value,
-        vd:+document.getElementById('i-vd').value,
-        B:+document.getElementById('i-B').value,
-        tw:document.getElementById('t-tw').checked,
-        liq:document.getElementById('t-liq').checked ? +document.getElementById('i-liq').value : 0,
-        cresc:document.getElementById('t-cresc').checked ? +document.getElementById('i-cresc').value/100 : 0,
-        tec:document.getElementById('t-tec').checked
-      };
-    }
-
-    // Custo composto calibrado pelo empréstimo real de abril/2026:
-    // R$ 103.440 -> R$ 130.139 em 2 meses (= 1,12² ≈ 25,4%; real 25,8%)
-    function custoEmprestimo(P, paceMes, taxa){
-      if (paceMes <= 0) return {ok:false};
-      var m = P / paceMes;
-      for (var i = 0; i < 80; i++){
-        var t = P * Math.pow(1 + taxa, m);
-        var m2 = t / paceMes;
-        if (m2 > 36) return {ok:false};          // nunca quita (juro cresce mais rápido que a parcela)
-        if (Math.abs(m2 - m) < 0.001){ m = m2; break; }
-        m = m2;
-      }
-      var total = P * Math.pow(1 + taxa, m);
-      return {ok:true, custo: total - P, total: total, m: m};
-    }
-
-    function sim(o, B){
-      if (B === undefined) B = o.B;
-      var baseSem = o.fat * 0.77 * 12 / 52;          // 77% líquido da conta ML, por semana
-      var paceMes = o.p * baseSem * 52 / 12;
-      var ok, custo, total, prazo;
-      if (o.custoReal > 0){
-        ok = true; custo = o.custoReal; total = o.P + custo; prazo = total / paceMes;
-      } else {
-        var ce = custoEmprestimo(o.P, paceMes, o.taxa);
-        ok = ce.ok;
-        custo = ok ? ce.custo : Infinity;
-        total = ok ? ce.total : Infinity;
-        prazo = ok ? ce.m : Infinity;
-      }
-      var acum = o.caixa, mn = Infinity, mnSem = 25, pago = 0, rows = [];
-      var comprado = 0, pagoCompra = 0;
-      for (var s = 25; s <= 42; s++){
-        var g = 1 + o.cresc * Math.min(1, Math.max(0, s - 25) / 12);   // rampa de crescimento em 12 semanas
-        var e = (o.mktp * (MKTP_RAMP[s] || 1) + o.vd * (VD_RAMP[s] || 1) * 0.95) * g;
-        if (o.liq && s >= 26 && s <= 37) e += o.liq;                   // encalhado: 12 semanas
-        if (s === 25) e += o.P;
-        var bol = BOLETOS[s] || 0;
-        if (o.tw) bol -= (TWA[s] || 0);
-        if (o.tec) { bol -= (TEC_JUL[s] || 0); bol += (TEC_DEST[s] || 0); }
-        if (s === 25) bol += CARRY;
-        var parc = 0;
-        if (pago < total){ parc = Math.min(o.p * baseSem * g, total - pago); pago += parc; }
-        // compras: B/semana desde a sem 25, pagas 20% a 30/45/60/75/90 dias
-        comprado += B;
-        var comp = 0;
-        for (var l = 0; l < LAGS.length; l++) if (s - LAGS[l] >= 25) comp += B * 0.2;
-        pagoCompra += comp;
-        acum += e - bol - parc - comp;
-        if (acum < mn){ mn = acum; mnSem = s; }
-        rows.push({s:s, e:e, bol:bol, parc:parc, comp:comp, acum:acum});
-      }
-      return {ok:ok, custo:custo, total:total, prazo:prazo, mn:mn, mnSem:mnSem, fim:acum,
-              rows:rows, parcSem:o.p*baseSem, cauda:comprado-pagoCompra};
-    }
-
-    function maxB(o){
-      var lo = 0, hi = 45000;    // teto = compra de manutenção (~R$ 195 mil/mês)
-      if (sim(o, hi).mn >= 0) return hi;
-      for (var i = 0; i < 42; i++){
-        var mid = (lo + hi) / 2;
-        if (sim(o, mid).mn >= 0) lo = mid; else hi = mid;
-      }
-      return Math.floor(lo / 100) * 100;
-    }
-
-    // ===== RENDER =====
-    function render(){
-      var o = getOpts();
-      var r = sim(o);
-      document.getElementById('v-P').textContent = fmt(o.P);
-      document.getElementById('v-p').textContent = (o.p*100) + '% das vendas';
-      document.getElementById('v-B').textContent = fmt(o.B) + '/sem (' + fmtK(o.B*52/12) + '/mês)';
-      var elC = document.getElementById('r-custo');
-      if (r.ok){
-        elC.textContent = fmt(r.custo); elC.className = 'val yellow';
-        document.getElementById('r-total').textContent = 'devolve ' + fmt(r.total) + ' no total (12% a.m. composto)';
-        document.getElementById('r-prazo').textContent = r.prazo.toFixed(1) + ' meses';
-      } else {
-        elC.textContent = 'DEPENDE DA OFERTA'; elC.className = 'val red'; elC.style.fontSize = '15px';
-        document.getElementById('r-total').textContent = 'a 12% a.m. composto a parcela não cobre o juro — digite o total real da oferta no campo acima';
-        document.getElementById('r-prazo').textContent = '—';
-      }
-      document.getElementById('r-parcela').textContent = 'parcela ~' + fmt(r.parcSem) + '/semana';
-      document.getElementById('r-cauda').textContent = fmt(r.cauda);
-      document.getElementById('r-cauda-det').textContent = 'carteira rolante normal de quem compra ' +
-        fmtK(o.B*52/12) + '/mês a prazo médio de 60 dias (~2 meses de compra)';
-      var elMin = document.getElementById('r-min');
-      elMin.textContent = fmt(r.mn);
-      elMin.className = 'val ' + (r.mn >= 0 ? 'green' : 'red');
-      document.getElementById('r-minsem').textContent = 'semana ' + r.mnSem + ' (' + SEM_DATAS[r.mnSem] + ')';
-      var elFim = document.getElementById('r-fim');
-      elFim.textContent = fmt(r.fim);
-      elFim.className = 'val ' + (r.fim >= 0 ? 'green' : 'red');
-      document.getElementById('r-compra-mes').textContent = 'comprando ' + fmtK(o.B*52/12) + '/mês (meta manutenção: R$ 176 mil/mês)';
-
-      var tb = document.querySelector('#fluxo tbody'); tb.innerHTML = '';
-      r.rows.forEach(function(w){
-        var tr = document.createElement('tr');
-        var entradas = w.e + (w.s === 25 ? 0 : 0);
-        tr.innerHTML = '<td>SEM ' + w.s + ' <span class="small">' + SEM_DATAS[w.s] + '</span>' +
-          (w.s === 25 ? ' <span class="blue small">+empréstimo</span>' : '') + '</td>' +
-          '<td>' + fmt(w.e) + '</td><td>' + fmt(w.bol) + '</td><td>' + fmt(w.parc) + '</td>' +
-          '<td>' + fmt(w.comp) + '</td>' +
-          '<td class="' + ((w.e - w.bol - w.parc - w.comp) >= 0 ? 'pos' : 'neg') + '">' + fmt(w.e - w.bol - w.parc - w.comp) + '</td>' +
-          '<td class="' + (w.acum >= 0 ? 'pos' : 'neg') + '"><b>' + fmt(w.acum) + '</b></td>';
-        tb.appendChild(tr);
-      });
-      renderMatriz(o);
-      var ex = sim(Object.assign({}, o, {P:300000, p:0.10, custoReal:0, B:0}));
-      document.getElementById('warn-ex').textContent = ex.ok
-        ? ('R$ 300 mil a 10% leva ' + ex.prazo.toFixed(0) + ' meses e custa ' + fmt(ex.custo) + ' de juros')
-        : ('R$ 300 mil a 10% NUNCA quita — a parcela (~R$ 13,9 mil/mês) não cobre o juro composto (~R$ 36 mil/mês)');
-      renderReco(o);
-    }
-
-    function renderMatriz(o){
-      var Ps = [100000,150000,200000,250000,300000];
-      var ps = [0.10,0.15,0.20,0.25,0.30,0.35,0.40];
-      var html = '<thead><tr><th>Empréstimo \\ % pgto</th>';
-      ps.forEach(function(p){ html += '<th>' + (p*100) + '%</th>'; });
-      html += '</tr></thead><tbody>';
-      Ps.forEach(function(P){
-        html += '<tr><td><b>' + fmtK(P) + '</b></td>';
-        ps.forEach(function(p){
-          var oo = Object.assign({}, o, {P:P, p:p, custoReal:0});
-          var b = maxB(oo);
-          var rr = sim(oo, b);
-          var cls = (!rr.ok) ? 'm-bad' : (b >= 40000 ? 'm-ok' : (b > 0 ? 'm-mid' : 'm-bad'));
-          if (P === o.P && Math.abs(p - o.p) < 0.001) cls += ' m-sel';
-          var sub = rr.ok ? (fmtK(rr.custo) + ' · ' + rr.prazo.toFixed(1) + 'm') : 'custo: depende da oferta';
-          html += '<td class="' + cls + '" data-p="' + P + '" data-pct="' + (p*100) + '"><b>' +
-            (b > 0 ? fmtK(b) : 'R$ 0') + '</b><br><span class="small">' + sub + '</span></td>';
-        });
-        html += '</tr>';
-      });
-      html += '</tbody>';
-      document.getElementById('matriz').innerHTML = html;
-      document.querySelectorAll('#matriz td[data-p]').forEach(function(td){
-        td.addEventListener('click', function(){
-          document.getElementById('i-P').value = td.dataset.p;
-          document.getElementById('i-p').value = td.dataset.pct;
-          render();
-        });
-      });
-    }
-
-    function renderReco(o){
-      var META = 40000;   // meta do Neco: R$ 40 mil/semana de compra
-      var baseSem = o.fat * 0.77 * 12 / 52;
-      // para cada valor, o MAIOR % de retenção que o caixa aguenta mantendo compra >= meta
-      var combos = [];
-      [200000,250000,300000].forEach(function(P){
-        var melhorP = null;
-        [0.40,0.35,0.30,0.25,0.20,0.15,0.10].forEach(function(p){
-          if (melhorP) return;
-          var oo = Object.assign({}, o, {P:P, p:p, custoReal:0});
-          if (maxB(oo) >= META) melhorP = p;
-        });
-        if (melhorP){
-          var pace = melhorP * baseSem * 52 / 12;
-          combos.push({P:P, p:melhorP, total12: pace*12, pace:pace});
-        }
-      });
-      var t = 'Sua meta é comprar <b>R$ 40 mil/semana</b>. Pela capacidade de caixa, ela é atingível com: ' +
-        (combos.length ? combos.map(function(c){
-          return fmtK(c.P) + ' a até ' + (c.p*100) + '%';
-        }).join(' · ') : 'nenhum cenário (ajuste as alavancas)') + '. ';
-      t += 'Porém, a 12% a.m. composto (calibrado pelo empréstimo de abril: R$ 103,4 mil → R$ 130,1 mil em ' +
-        '2 meses, erro do modelo &lt;1%), <b>nenhum valor acima de R$ 150 mil se paga sozinho via % das vendas</b> ' +
-        '— o juro cresce mais rápido que a parcela. Quem decide é o <b>valor total a devolver</b> que o ML ' +
-        'mostrar amanhã na oferta. Régua de decisão (quitação em até 12 meses): ';
-      if (combos.length){
-        t += combos.map(function(c){
-          return 'pegando ' + fmtK(c.P) + ' a ' + (c.p*100) + '%, só assine se o total a devolver for ' +
-            '<b>≤ ' + fmtK(c.total12) + '</b>';
-        }).join('; ') + '. Quanto mais perto do principal, melhor — o de abril custou 26% em 2 meses. ';
-      }
-      t += 'Digite o total real da oferta no campo "Custo total real" e o painel recalcula tudo. ' +
-        'Sem nenhum empréstimo — mesmo com devolução Tools World, recuperação do encalhado e crescimento de 10% — ' +
-        'o buraco chega a <b>−R$ 152 mil</b> entre fim de junho e julho: esse é o tamanho real do problema. ' +
-        'R$ 100–150 mil paga os atrasos mas deixa <b>compra zero</b>. Com o parcelamento das compras em 30–90 dias, ' +
-        'a capacidade real começa em <b>R$ 200 mil</b>. A devolução à Tools World e a venda do encalhado são ' +
-        '"empréstimos de si mesmo" a custo zero — são elas que fazem os R$ 200 mil bastarem. ' +
-        'O card "Compras a pagar após 15/10" não é dívida nova: é a carteira rolante normal de quem compra a prazo.';
-      document.getElementById('reco-txt').innerHTML = t;
-    }
-
-    // ===== KPIs e barras =====
-    document.getElementById('k-total').textContent = fmt(TOTAIS.total);
-    document.getElementById('k-emp').textContent = 'GGE ' + fmtK(TOTAIS.gge) + ' · TOOW ' + fmtK(TOTAIS.toow);
-    document.getElementById('k-atras').textContent = fmt(TOTAIS.atras);
-    document.getElementById('k-jun').textContent = fmt(TOTAIS.jun);
-    document.getElementById('k-jul').textContent = fmt(TOTAIS.jul);
-    document.getElementById('k-ago').textContent = fmt(TOTAIS.ago);
-    document.getElementById('k-set').textContent = fmt(TOTAIS.set + TOTAIS.out);
-    document.getElementById('k-difal').textContent = '~' + fmtK(18700) + '/mês';
-
-    (function(){
-      var bars = document.getElementById('bars'), lbls = document.getElementById('barlbls');
-      var vals = []; for (var s = 25; s <= 42; s++) vals.push({s:s, v:(BOLETOS[s]||0) + (s===25?CARRY:0)});
-      var max = Math.max.apply(null, vals.map(function(x){return x.v;}));
-      vals.forEach(function(x){
-        var d = document.createElement('div');
-        d.className = 'bar'; d.style.height = Math.max(3, x.v/max*100) + '%';
-        d.innerHTML = '<span class="tip">SEM ' + x.s + ' (' + SEM_DATAS[x.s] + '): ' + fmt(x.v) + '</span>';
-        bars.appendChild(d);
-        var l = document.createElement('span'); l.textContent = x.s; lbls.appendChild(l);
-      });
-    })();
-
-    // ===== eventos =====
-    ['i-P','i-p','i-taxa','i-custo','i-fat','i-caixa','i-mktp','i-vd','i-B','i-liq','i-cresc'].forEach(function(id){
-      document.getElementById(id).addEventListener('input', render);
-    });
-    ['t-tw','t-liq','t-cresc','t-tec'].forEach(function(id){
-      document.getElementById(id).addEventListener('change', render);
-    });
-    document.getElementById('btn-max').addEventListener('click', function(){
-      document.getElementById('i-B').value = maxB(getOpts());
-      render();
-    });
-    render();
-  </script>
+var sel=document.getElementById('uf');
+sel.innerHTML=UFS.filter(function(u){return u.s!=='SP';}).map(function(u){return '<option value="'+u.s+'"'+(u.s==='MG'?' selected':'')+'>'+u.n+' ('+u.s+')</option>';}).join('')+'<option value="SP">São Paulo (SP) — mesma UF</option>';
+sel.addEventListener('change',render);
+document.getElementById('busca').addEventListener('input',render);
+load();
+</script>
+<script src="sidebar.js" defer></script>
 </body>
 </html>
