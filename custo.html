@@ -142,7 +142,7 @@
       <!-- ============ VENDENDO ============ -->
       <div class="block">
         <div class="block-title"><span class="pill pill-sell">PASSO 2</span> Vendendo um produto pela GGE <span style="font-size:12px;font-weight:500;color:#8b949e">(venda direta)</span></div>
-        <p class="block-help">Venda direta (fora do marketplace): <b>sem comissão e sem frete</b> neste exemplo. O preço de venda se divide em ICMS, PIS/COFINS, DIFAL (quando há) e o que sobra é a <b>Margem de Contribuição</b>.</p>
+        <p class="block-help">Venda direta (fora do marketplace): <b>sem comissão e sem frete</b> neste exemplo. Informe o <b>custo do produto</b> e a <b>margem de contribuição</b> desejada — o <b>preço de venda</b> é formado somando custo + impostos (ICMS, PIS/COFINS, DIFAL quando há) + margem.</p>
 
         <div class="grid">
           <div class="field">
@@ -170,9 +170,14 @@
 
         <hr class="sep">
         <div class="grid">
-          <div class="field full">
-            <label>5) Preço de Venda <span class="hint">(R$)</span></label>
-            <input type="text" id="v_pv" inputmode="decimal" placeholder="0,00">
+          <div class="field">
+            <label>5) Custo do Produto <span class="hint">(R$)</span></label>
+            <input type="text" id="v_custo" inputmode="decimal" placeholder="0,00">
+            <span class="hint"><a href="#" id="v_usar_custo" style="color:#58a6ff;text-decoration:none">↑ usar o Custo Final calculado na compra</a></span>
+          </div>
+          <div class="field">
+            <label>6) Margem de Contribuição desejada <span class="hint">(%)</span></label>
+            <input type="text" id="v_mc" inputmode="decimal" placeholder="0,00">
           </div>
         </div>
 
@@ -188,13 +193,15 @@
           </div>
           <div class="card span">
             <div class="card-h">Memória de cálculo</div>
-            <div class="row"><span class="lbl">Preço de Venda</span><span class="val" id="v_v_pv">R$ 0,00</span></div>
-            <div class="row minus"><span class="lbl">ICMS <small id="v_lbl_icms">0%</small></span><span class="val" id="v_v_icms">- R$ 0,00</span></div>
-            <div class="row minus"><span class="lbl">PIS/COFINS <small>9,25%</small></span><span class="val" id="v_v_pc">- R$ 0,00</span></div>
-            <div class="row minus" id="v_row_difal"><span class="lbl">DIFAL <small id="v_lbl_difal">0%</small></span><span class="val" id="v_v_difal">- R$ 0,00</span></div>
-            <div class="row total"><span class="lbl">Margem de Contribuição <small id="v_lbl_mc" style="font-weight:400;color:#8b949e">0%</small></span><span class="val" id="v_v_mc">R$ 0,00</span></div>
+            <div class="row"><span class="lbl">Custo do Produto</span><span class="val" id="v_v_custo">R$ 0,00</span></div>
+            <div class="row"><span class="lbl">+ ICMS <small id="v_lbl_icms">0% sobre o PV</small></span><span class="val" id="v_v_icms">R$ 0,00</span></div>
+            <div class="row"><span class="lbl">+ PIS/COFINS <small>9,25% sobre o PV</small></span><span class="val" id="v_v_pc">R$ 0,00</span></div>
+            <div class="row" id="v_row_difal"><span class="lbl">+ DIFAL <small id="v_lbl_difal">0% sobre o PV</small></span><span class="val" id="v_v_difal">R$ 0,00</span></div>
+            <div class="row"><span class="lbl">+ Margem de Contribuição <small id="v_lbl_mc">0% sobre o PV</small></span><span class="val" id="v_v_mc">R$ 0,00</span></div>
+            <div class="row total"><span class="lbl">= Preço de Venda</span><span class="val" id="v_v_pv">R$ 0,00</span></div>
+            <div class="foot" id="v_warn"></div>
             <div class="foot">* não há IPI &nbsp;·&nbsp; * não há ST &nbsp;·&nbsp; * sem comissão e sem frete (venda direta)</div>
-            <div class="formula">Preço de Venda − ICMS − PIS/COFINS − DIFAL = Margem de Contribuição</div>
+            <div class="formula">PV = Custo ÷ (1 − ICMS% − PIS/COFINS% − DIFAL% − Margem%)</div>
           </div>
         </div>
       </div>
@@ -276,25 +283,33 @@
       document.getElementById('c_v_icms').textContent = '- '+brl(icmsCred);
       document.getElementById('c_v_pc').textContent = '- '+brl(pcCred);
       document.getElementById('c_v_total').textContent = brl(custo);
+      window.__custoCompra = custo;
     }
 
     // ---------- VENDA ----------
+    // VENDA DIRETA — precificação (seção 4 calculo-margem): PV = Custo / (1 - ICMS% - PIS/COFINS% - DIFAL% - MC%).
+    // Sem comissão/frete/ads -> crédito PIS/COFINS = 0 -> PIS/COFINS líquido = 9,25%.
     function calcVenda(){
       var ufo=val('v_ufo'), ufd=val('v_ufd'), origem=val('v_origem'), comprador=val('v_comprador');
       var importado = origem==='importado';
-      var pv=parseN(val('v_pv'));
+      var custo=parseN(val('v_custo')), mcP=parseN(val('v_mc'));
 
       var icmsA = icmsAliq(ufo, ufd, importado);
-      var icmsV = pv*icmsA/100;
-      var pcV = pv*PC/100;
 
       // DIFAL: só GGE (Lucro Real) + consumidor final (CPF) + UF destino != origem (seção 2.6)
       var temDifal = (comprador==='final') && (ufo!==ufd);
       var difalA = temDifal ? Math.max(0, UF[ufd].i - icmsA) : 0;
-      var difalV = pv*difalA/100;
 
-      var mc = pv - icmsV - pcV - difalV;
-      var mcP = pv>0 ? mc/pv*100 : 0;
+      // Alíquotas "por dentro" (incidem sobre o PV)
+      var somaPct = icmsA + PC + difalA + mcP;     // %
+      var denom = 1 - somaPct/100;
+      var valido = denom > 0;
+
+      var pv=0, icmsV=0, pcV=0, difalV=0, mcV=0;
+      if (valido){
+        pv = custo/denom;
+        icmsV = pv*icmsA/100; pcV = pv*PC/100; difalV = pv*difalA/100; mcV = pv*mcP/100;
+      }
 
       document.getElementById('v_resumo').innerHTML =
         'Sai de <b>'+UF[ufo].n+'</b>;<br>'+
@@ -314,20 +329,34 @@
           : (ufo===ufd ? 'Mesma UF → operação interna, sem DIFAL.' : 'Sem DIFAL.');
       }
 
-      document.getElementById('v_v_pv').textContent = brl(pv);
-      document.getElementById('v_lbl_icms').textContent = pct(icmsA);
-      document.getElementById('v_v_icms').textContent = '- '+brl(icmsV);
-      document.getElementById('v_v_pc').textContent = '- '+brl(pcV);
+      var warn=document.getElementById('v_warn');
+      warn.textContent = valido ? '' : '⚠ Impossível: ICMS + PIS/COFINS + DIFAL + Margem somam '+pct(somaPct)+' (≥ 100% do preço). Reduza a margem desejada.';
+      warn.style.color = valido ? '' : '#f85149';
+
+      document.getElementById('v_v_custo').textContent = brl(custo);
+      document.getElementById('v_lbl_icms').textContent = pct(icmsA)+' sobre o PV';
+      document.getElementById('v_v_icms').textContent = brl(icmsV);
+      document.getElementById('v_v_pc').textContent = brl(pcV);
       document.getElementById('v_row_difal').style.display = temDifal ? 'flex' : 'none';
-      document.getElementById('v_lbl_difal').textContent = pct(difalA);
-      document.getElementById('v_v_difal').textContent = '- '+brl(difalV);
-      document.getElementById('v_lbl_mc').textContent = pct(mcP);
-      document.getElementById('v_v_mc').textContent = brl(mc);
+      document.getElementById('v_lbl_difal').textContent = pct(difalA)+' sobre o PV';
+      document.getElementById('v_v_difal').textContent = brl(difalV);
+      document.getElementById('v_lbl_mc').textContent = pct(mcP)+' sobre o PV';
+      document.getElementById('v_v_mc').textContent = brl(mcV);
+      document.getElementById('v_v_pv').textContent = valido ? brl(pv) : '—';
     }
 
     function val(id){ return document.getElementById(id).value; }
     function recalc(){ calcCompra(); calcVenda(); }
     document.querySelectorAll('select,input').forEach(function(el){ el.addEventListener('input', recalc); el.addEventListener('change', recalc); });
+
+    // Atalho: copiar o Custo Final calculado na compra para o campo de custo da venda
+    document.getElementById('v_usar_custo').addEventListener('click', function(e){
+      e.preventDefault();
+      var c = window.__custoCompra || 0;
+      document.getElementById('v_custo').value = c.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      recalc();
+    });
+
     recalc();
   </script>
 </body>
