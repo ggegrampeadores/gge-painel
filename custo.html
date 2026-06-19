@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Custo - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0d1117; color:#e6edf3; }
+    .main-with-sidebar { margin-left:48px; min-height:100vh; }
+    .wrap { max-width:1080px; margin:0 auto; padding:32px 24px 80px; }
+    h1 { font-size:24px; font-weight:700; margin-bottom:4px; }
+    .subtitle { color:#8b949e; font-size:14px; margin-bottom:28px; }
+
+    .block { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:24px; margin-bottom:24px; }
+    .block-title { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:700; margin-bottom:6px; }
+    .block-title .pill { font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; }
+    .pill-buy { background:#1a3a5c; color:#58a6ff; }
+    .pill-sell { background:#10331f; color:#3fb950; }
+    .block-help { color:#8b949e; font-size:13px; margin-bottom:20px; line-height:1.5; }
+
+    .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+    @media(max-width:680px){ .grid{ grid-template-columns:1fr; } }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field.full { grid-column:1/-1; }
+    label { font-size:13px; font-weight:600; color:#c9d1d9; }
+    .hint { font-size:11px; color:#8b949e; font-weight:400; }
+    select, input[type=text] {
+      background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3;
+      padding:11px 12px; font-size:14px; outline:none; transition:border-color .15s; width:100%;
+    }
+    select:focus, input:focus { border-color:#58a6ff; }
+    .sep { height:1px; background:#30363d; margin:20px 0; border:none; }
+
+    .cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:24px; }
+    @media(max-width:680px){ .cards{ grid-template-columns:1fr; } }
+    .card { background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:18px; }
+    .card.span { grid-column:1/-1; }
+    .card-h { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#8b949e; margin-bottom:14px; }
+    .card-desc { font-size:14px; line-height:1.9; }
+    .card-desc b { color:#e6edf3; }
+
+    .row { display:flex; justify-content:space-between; align-items:baseline; padding:7px 0; font-size:14px; }
+    .row .lbl { color:#c9d1d9; }
+    .row .lbl small { color:#8b949e; font-size:11px; display:block; }
+    .row .val { font-variant-numeric:tabular-nums; font-weight:600; }
+    .row.minus .val { color:#f85149; }
+    .row.plus .val { color:#3fb950; }
+    .row.total { border-top:2px solid #30363d; margin-top:8px; padding-top:14px; font-size:17px; }
+    .row.total .lbl { font-weight:700; color:#e6edf3; }
+    .row.total .val { font-weight:800; color:#3fb950; font-size:19px; }
+
+    .difal-badge { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:8px; font-weight:700; font-size:15px; }
+    .difal-yes { background:#3a1d00; color:#d29922; border:1px solid #5c3a0f; }
+    .difal-no  { background:#10331f; color:#3fb950; border:1px solid #1f5c34; }
+    .difal-why { font-size:12px; color:#8b949e; margin-top:10px; line-height:1.5; }
+
+    .foot { font-size:12px; color:#6e7681; margin-top:14px; line-height:1.6; }
+    .formula { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:#8b949e;
+      background:#0d1117; border:1px solid #21262d; border-radius:6px; padding:10px 12px; margin-top:12px; }
+    .divider-big { display:flex; align-items:center; gap:16px; margin:8px 0 28px; color:#484f58; }
+    .divider-big::before, .divider-big::after { content:''; flex:1; height:1px; background:#21262d; }
+    .divider-big span { font-size:11px; letter-spacing:3px; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <div class="wrap">
+      <h1>Calculadora de Custo</h1>
+      <p class="subtitle">Ferramenta didática para a equipe — entenda passo a passo como se forma o custo de um produto na compra e como os impostos pesam na venda direta.</p>
+
+      <!-- ============ COMPRANDO ============ -->
+      <div class="block">
+        <div class="block-title"><span class="pill pill-buy">PASSO 1</span> Comprando um produto pela GGE</div>
+        <p class="block-help">Aqui montamos o <b>custo final do produto</b> (sem frete). A GGE é Lucro Real, então credita ICMS e PIS/COFINS na compra — quanto maior o crédito, menor o custo.</p>
+
+        <div class="grid">
+          <div class="field">
+            <label>1) UF que sai o produto <span class="hint">(fornecedor)</span></label>
+            <select id="c_ufo"></select>
+          </div>
+          <div class="field">
+            <label>2) UF para onde vai o produto <span class="hint">(entrada GGE)</span></label>
+            <select id="c_ufd"></select>
+          </div>
+        </div>
+        <p class="hint" id="c_mesmauf" style="margin-top:8px"></p>
+
+        <hr class="sep">
+        <div class="grid">
+          <div class="field">
+            <label>3) Origem do produto</label>
+            <select id="c_origem"><option value="nacional">Nacional</option><option value="importado">Importado</option></select>
+          </div>
+          <div class="field">
+            <label>4) Comprador</label>
+            <select id="c_comprador"><option value="revenda">Indústria / Revenda</option><option value="final">Consumidor final</option></select>
+            <span class="hint">GGE comprando é sempre revenda. Se fosse consumidor final, poderia haver DIFAL.</span>
+          </div>
+        </div>
+
+        <hr class="sep">
+        <div class="grid">
+          <div class="field">
+            <label>5) Preço FOB do produto <span class="hint">(R$)</span></label>
+            <input type="text" id="c_fob" inputmode="decimal" placeholder="0,00">
+          </div>
+          <div class="field">
+            <label>6) IPI, se tiver <span class="hint">(% — deixe 0 se não houver)</span></label>
+            <input type="text" id="c_ipi" inputmode="decimal" placeholder="0,00">
+          </div>
+          <div class="field">
+            <label>7) ST, se tiver <span class="hint">(% sobre FOB+IPI — deixe 0 se não houver)</span></label>
+            <input type="text" id="c_st" inputmode="decimal" placeholder="0,00">
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="card-h">Resumo da operação</div>
+            <div class="card-desc" id="c_resumo"></div>
+          </div>
+          <div class="card">
+            <div class="card-h">Memória de cálculo</div>
+            <div class="row"><span class="lbl">Preço FOB</span><span class="val" id="c_v_fob">R$ 0,00</span></div>
+            <div class="row"><span class="lbl">IPI <small id="c_lbl_ipi">0%</small></span><span class="val" id="c_v_ipi">R$ 0,00</span></div>
+            <div class="row"><span class="lbl">ST <small id="c_lbl_st">0% sobre FOB+IPI</small></span><span class="val" id="c_v_st">R$ 0,00</span></div>
+            <hr class="sep" style="margin:10px 0">
+            <div class="row minus"><span class="lbl">Crédito ICMS <small id="c_lbl_icms">0% sobre FOB</small></span><span class="val" id="c_v_icms">- R$ 0,00</span></div>
+            <div class="row minus"><span class="lbl">Crédito PIS/COFINS <small>9,25% sobre FOB+IPI</small></span><span class="val" id="c_v_pc">- R$ 0,00</span></div>
+            <div class="row total"><span class="lbl">Custo Final do Produto <small style="font-weight:400;color:#8b949e">*sem frete</small></span><span class="val" id="c_v_total">R$ 0,00</span></div>
+            <div class="formula">FOB + IPI + ST − Crédito ICMS − Crédito PIS/COFINS = CUSTO</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider-big"><span>VENDA</span></div>
+
+      <!-- ============ VENDENDO ============ -->
+      <div class="block">
+        <div class="block-title"><span class="pill pill-sell">PASSO 2</span> Vendendo um produto pela GGE <span style="font-size:12px;font-weight:500;color:#8b949e">(venda direta)</span></div>
+        <p class="block-help">Venda direta (fora do marketplace): <b>sem comissão e sem frete</b> neste exemplo. O preço de venda se divide em ICMS, PIS/COFINS, DIFAL (quando há) e o que sobra é a <b>Margem de Contribuição</b>.</p>
+
+        <div class="grid">
+          <div class="field">
+            <label>1) UF que sai o produto da GGE</label>
+            <select id="v_ufo"><option value="SP">São Paulo (SP)</option><option value="RJ">Rio de Janeiro (RJ)</option></select>
+          </div>
+          <div class="field">
+            <label>2) UF de onde está o comprador</label>
+            <select id="v_ufd"></select>
+          </div>
+        </div>
+
+        <hr class="sep">
+        <div class="grid">
+          <div class="field">
+            <label>3) Origem do produto</label>
+            <select id="v_origem"><option value="nacional">Nacional</option><option value="importado">Importado</option></select>
+          </div>
+          <div class="field">
+            <label>4) Comprador</label>
+            <select id="v_comprador"><option value="revenda">Indústria / Revenda</option><option value="final">Consumidor final</option></select>
+            <span class="hint">Se for consumidor final e outra UF, pode haver DIFAL.</span>
+          </div>
+        </div>
+
+        <hr class="sep">
+        <div class="grid">
+          <div class="field full">
+            <label>5) Preço de Venda <span class="hint">(R$)</span></label>
+            <input type="text" id="v_pv" inputmode="decimal" placeholder="0,00">
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="card-h">Resumo da operação</div>
+            <div class="card-desc" id="v_resumo"></div>
+          </div>
+          <div class="card">
+            <div class="card-h">DIFAL</div>
+            <div id="v_difal_badge"></div>
+            <div class="difal-why" id="v_difal_why"></div>
+          </div>
+          <div class="card span">
+            <div class="card-h">Memória de cálculo</div>
+            <div class="row"><span class="lbl">Preço de Venda</span><span class="val" id="v_v_pv">R$ 0,00</span></div>
+            <div class="row minus"><span class="lbl">ICMS <small id="v_lbl_icms">0%</small></span><span class="val" id="v_v_icms">- R$ 0,00</span></div>
+            <div class="row minus"><span class="lbl">PIS/COFINS <small>9,25%</small></span><span class="val" id="v_v_pc">- R$ 0,00</span></div>
+            <div class="row minus" id="v_row_difal"><span class="lbl">DIFAL <small id="v_lbl_difal">0%</small></span><span class="val" id="v_v_difal">- R$ 0,00</span></div>
+            <div class="row total"><span class="lbl">Margem de Contribuição <small id="v_lbl_mc" style="font-weight:400;color:#8b949e">0%</small></span><span class="val" id="v_v_mc">R$ 0,00</span></div>
+            <div class="foot">* não há IPI &nbsp;·&nbsp; * não há ST &nbsp;·&nbsp; * sem comissão e sem frete (venda direta)</div>
+            <div class="formula">Preço de Venda − ICMS − PIS/COFINS − DIFAL = Margem de Contribuição</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+    (function(){ var a=sessionStorage.getItem('gge_auth'); if(a!=='gge2026'){ window.location.href='/'; return; } })();
+    if (window.GGE_SUPABASE_URL) { try { window.sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY); } catch(e){} }
+
+    // Tabela ICMS — fonte: icms_aliquotas_uf (Supabase, 19/06/2026). interna = alíquota interna; ss = região Sul/Sudeste (12% interestadual nacional).
+    var UF = {
+      AC:{n:'Acre',i:19.0,ss:false}, AL:{n:'Alagoas',i:19.0,ss:false}, AM:{n:'Amazonas',i:20.0,ss:false},
+      AP:{n:'Amapá',i:18.0,ss:false}, BA:{n:'Bahia',i:19.5,ss:false}, CE:{n:'Ceará',i:20.0,ss:false},
+      DF:{n:'Distrito Federal',i:20.0,ss:false}, ES:{n:'Espírito Santo',i:17.0,ss:false}, GO:{n:'Goiás',i:19.0,ss:false},
+      MA:{n:'Maranhão',i:22.0,ss:false}, MG:{n:'Minas Gerais',i:18.0,ss:true}, MS:{n:'Mato Grosso do Sul',i:17.0,ss:false},
+      MT:{n:'Mato Grosso',i:17.0,ss:false}, PA:{n:'Pará',i:19.0,ss:false}, PB:{n:'Paraíba',i:20.0,ss:false},
+      PE:{n:'Pernambuco',i:20.5,ss:false}, PI:{n:'Piauí',i:21.0,ss:false}, PR:{n:'Paraná',i:19.5,ss:true},
+      RJ:{n:'Rio de Janeiro',i:22.0,ss:true}, RN:{n:'Rio Grande do Norte',i:20.0,ss:false}, RO:{n:'Rondônia',i:19.5,ss:false},
+      RR:{n:'Roraima',i:20.0,ss:false}, RS:{n:'Rio Grande do Sul',i:17.0,ss:true}, SC:{n:'Santa Catarina',i:17.0,ss:true},
+      SE:{n:'Sergipe',i:19.0,ss:false}, SP:{n:'São Paulo',i:18.0,ss:true}, TO:{n:'Tocantins',i:20.0,ss:false}
+    };
+    var PC = 9.25; // PIS/COFINS
+
+    // Alíquota de ICMS da operação (seção 2.6 calculo-margem):
+    // mesma UF -> interna; interestadual importado -> 4%; interestadual nacional -> 12% (destino S/SE) ou 7% (demais).
+    function icmsAliq(ufo, ufd, importado){
+      if (ufo === ufd) return UF[ufd].i;
+      if (importado) return 4.0;
+      return UF[ufd].ss ? 12.0 : 7.0;
+    }
+
+    function parseN(v){ if(!v) return 0; var x=parseFloat(String(v).replace(/\./g,'').replace(',','.')); return isNaN(x)?0:x; }
+    function brl(v){ return 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+    function pct(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%'; }
+
+    var BUY_UFS = ['RS','SC','PR','SP','RJ','MG','ES'];
+    var ALL_UFS = Object.keys(UF).sort(function(a,b){ return UF[a].n.localeCompare(UF[b].n,'pt-BR'); });
+
+    function fillSelect(id, list, def){
+      var s=document.getElementById(id);
+      s.innerHTML = list.map(function(u){ return '<option value="'+u+'"'+(u===def?' selected':'')+'>'+UF[u].n+' ('+u+')</option>'; }).join('');
+    }
+    fillSelect('c_ufo', BUY_UFS, 'SP');
+    fillSelect('c_ufd', BUY_UFS, 'SP');
+    fillSelect('v_ufd', ALL_UFS, 'RJ');
+
+    // ---------- COMPRA ----------
+    function calcCompra(){
+      var ufo=val('c_ufo'), ufd=val('c_ufd'), origem=val('c_origem'), comprador=val('c_comprador');
+      var importado = origem==='importado';
+      var fob=parseN(val('c_fob')), ipiP=parseN(val('c_ipi')), stP=parseN(val('c_st'));
+
+      var ipiV = fob*ipiP/100;
+      var stBase = fob+ipiV;
+      var stV = stBase*stP/100;
+      var icmsA = icmsAliq(ufo, ufd, importado);
+      var icmsCred = fob*icmsA/100;          // crédito ICMS sobre FOB
+      var pcCred = (fob+ipiV)*PC/100;        // crédito PIS/COFINS sobre FOB+IPI
+      var custo = fob + ipiV + stV - icmsCred - pcCred;
+
+      document.getElementById('c_mesmauf').textContent = (ufo===ufd)
+        ? '✓ Mesma UF: o crédito de ICMS é o maior possível (alíquota interna de '+ufo+' = '+pct(UF[ufd].i)+').'
+        : 'UFs diferentes: crédito de ICMS pela alíquota interestadual ('+pct(icmsA)+').';
+
+      document.getElementById('c_resumo').innerHTML =
+        'Sai de <b>'+UF[ufo].n+'</b> para <b>'+UF[ufd].n+'</b>;<br>'+
+        'Produto <b>'+(importado?'Importado':'Nacional')+'</b>;<br>'+
+        'Comprador é <b>'+(comprador==='revenda'?'Indústria / Revenda':'Consumidor final')+'</b>';
+
+      document.getElementById('c_v_fob').textContent = brl(fob);
+      document.getElementById('c_v_ipi').textContent = brl(ipiV);
+      document.getElementById('c_v_st').textContent = brl(stV);
+      document.getElementById('c_lbl_ipi').textContent = pct(ipiP);
+      document.getElementById('c_lbl_st').textContent = pct(stP)+' sobre FOB+IPI';
+      document.getElementById('c_lbl_icms').textContent = pct(icmsA)+' sobre FOB';
+      document.getElementById('c_v_icms').textContent = '- '+brl(icmsCred);
+      document.getElementById('c_v_pc').textContent = '- '+brl(pcCred);
+      document.getElementById('c_v_total').textContent = brl(custo);
+    }
+
+    // ---------- VENDA ----------
+    function calcVenda(){
+      var ufo=val('v_ufo'), ufd=val('v_ufd'), origem=val('v_origem'), comprador=val('v_comprador');
+      var importado = origem==='importado';
+      var pv=parseN(val('v_pv'));
+
+      var icmsA = icmsAliq(ufo, ufd, importado);
+      var icmsV = pv*icmsA/100;
+      var pcV = pv*PC/100;
+
+      // DIFAL: só GGE (Lucro Real) + consumidor final (CPF) + UF destino != origem (seção 2.6)
+      var temDifal = (comprador==='final') && (ufo!==ufd);
+      var difalA = temDifal ? Math.max(0, UF[ufd].i - icmsA) : 0;
+      var difalV = pv*difalA/100;
+
+      var mc = pv - icmsV - pcV - difalV;
+      var mcP = pv>0 ? mc/pv*100 : 0;
+
+      document.getElementById('v_resumo').innerHTML =
+        'Sai de <b>'+UF[ufo].n+'</b>;<br>'+
+        'Vai para <b>'+UF[ufd].n+'</b>;<br>'+
+        'Produto <b>'+(importado?'Importado':'Nacional')+'</b>;<br>'+
+        'Comprador é <b>'+(comprador==='revenda'?'Indústria / Revenda':'Consumidor final')+'</b>';
+
+      var badge=document.getElementById('v_difal_badge'), why=document.getElementById('v_difal_why');
+      if (temDifal){
+        badge.innerHTML = '<span class="difal-badge difal-yes">⚠ Há DIFAL</span>';
+        why.innerHTML = 'UFs diferentes <b>e</b> consumidor final → há DIFAL. '+
+          'Diferença: interna de '+ufd+' ('+pct(UF[ufd].i)+') − ICMS interestadual ('+pct(icmsA)+') = <b>'+pct(difalA)+'</b>.';
+      } else {
+        badge.innerHTML = '<span class="difal-badge difal-no">✓ Não há DIFAL</span>';
+        why.innerHTML = (comprador!=='final')
+          ? 'Comprador é Indústria/Revenda (contribuinte) → o comprador recolhe, GGE não tem DIFAL.'
+          : (ufo===ufd ? 'Mesma UF → operação interna, sem DIFAL.' : 'Sem DIFAL.');
+      }
+
+      document.getElementById('v_v_pv').textContent = brl(pv);
+      document.getElementById('v_lbl_icms').textContent = pct(icmsA);
+      document.getElementById('v_v_icms').textContent = '- '+brl(icmsV);
+      document.getElementById('v_v_pc').textContent = '- '+brl(pcV);
+      document.getElementById('v_row_difal').style.display = temDifal ? 'flex' : 'none';
+      document.getElementById('v_lbl_difal').textContent = pct(difalA);
+      document.getElementById('v_v_difal').textContent = '- '+brl(difalV);
+      document.getElementById('v_lbl_mc').textContent = pct(mcP);
+      document.getElementById('v_v_mc').textContent = brl(mc);
+    }
+
+    function val(id){ return document.getElementById(id).value; }
+    function recalc(){ calcCompra(); calcVenda(); }
+    document.querySelectorAll('select,input').forEach(function(el){ el.addEventListener('input', recalc); el.addEventListener('change', recalc); });
+    recalc();
+  </script>
+</body>
+</html>
