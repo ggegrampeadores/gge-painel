@@ -10,59 +10,59 @@
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0d1117; color:#e6edf3; }
     .main-with-sidebar { margin-left:48px; min-height:100vh; }
-    .wrap { max-width:1080px; margin:0 auto; padding:32px 24px 80px; }
-    h1 { font-size:24px; font-weight:700; margin-bottom:4px; }
-    .subtitle { color:#8b949e; font-size:14px; margin-bottom:28px; }
+    .wrap { max-width:1120px; margin:0 auto; padding:36px 28px 90px; }
+    h1 { font-size:30px; font-weight:700; margin-bottom:6px; }
+    .subtitle { color:#8b949e; font-size:17px; margin-bottom:32px; line-height:1.5; }
 
-    .block { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:24px; margin-bottom:24px; }
-    .block-title { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:700; margin-bottom:6px; }
-    .block-title .pill { font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; }
+    .block { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:28px; margin-bottom:28px; }
+    .block-title { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:700; margin-bottom:8px; }
+    .block-title .pill { font-size:13px; font-weight:600; padding:4px 12px; border-radius:20px; }
     .pill-buy { background:#1a3a5c; color:#58a6ff; }
     .pill-sell { background:#10331f; color:#3fb950; }
-    .block-help { color:#8b949e; font-size:13px; margin-bottom:20px; line-height:1.5; }
+    .block-help { color:#8b949e; font-size:16px; margin-bottom:24px; line-height:1.55; }
 
-    .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+    .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
     @media(max-width:680px){ .grid{ grid-template-columns:1fr; } }
-    .field { display:flex; flex-direction:column; gap:6px; }
+    .field { display:flex; flex-direction:column; gap:7px; }
     .field.full { grid-column:1/-1; }
-    label { font-size:13px; font-weight:600; color:#c9d1d9; }
-    .hint { font-size:11px; color:#8b949e; font-weight:400; }
+    label { font-size:16px; font-weight:600; color:#c9d1d9; }
+    .hint { font-size:14px; color:#8b949e; font-weight:400; }
     select, input[type=text] {
       background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3;
-      padding:11px 12px; font-size:14px; outline:none; transition:border-color .15s; width:100%;
+      padding:13px 14px; font-size:18px; outline:none; transition:border-color .15s; width:100%;
     }
     select:focus, input:focus { border-color:#58a6ff; }
-    .sep { height:1px; background:#30363d; margin:20px 0; border:none; }
+    .sep { height:1px; background:#30363d; margin:22px 0; border:none; }
 
-    .cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:24px; }
+    .cards { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:28px; }
     @media(max-width:680px){ .cards{ grid-template-columns:1fr; } }
-    .card { background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:18px; }
+    .card { background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:22px; }
     .card.span { grid-column:1/-1; }
-    .card-h { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#8b949e; margin-bottom:14px; }
-    .card-desc { font-size:14px; line-height:1.9; }
+    .card-h { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#8b949e; margin-bottom:16px; }
+    .card-desc { font-size:17px; line-height:1.95; }
     .card-desc b { color:#e6edf3; }
 
-    .row { display:flex; justify-content:space-between; align-items:baseline; padding:7px 0; font-size:14px; }
+    .row { display:flex; justify-content:space-between; align-items:baseline; padding:9px 0; font-size:17px; }
     .row .lbl { color:#c9d1d9; }
-    .row .lbl small { color:#8b949e; font-size:11px; display:block; }
+    .row .lbl small { color:#8b949e; font-size:13px; display:block; }
     .row .val { font-variant-numeric:tabular-nums; font-weight:600; }
     .row.minus .val { color:#f85149; }
     .row.plus .val { color:#3fb950; }
-    .row.total { border-top:2px solid #30363d; margin-top:8px; padding-top:14px; font-size:17px; }
+    .row.total { border-top:2px solid #30363d; margin-top:10px; padding-top:16px; font-size:20px; }
     .row.total .lbl { font-weight:700; color:#e6edf3; }
-    .row.total .val { font-weight:800; color:#3fb950; font-size:19px; }
+    .row.total .val { font-weight:800; color:#3fb950; font-size:24px; }
 
-    .difal-badge { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:8px; font-weight:700; font-size:15px; }
+    .difal-badge { display:inline-flex; align-items:center; gap:8px; padding:11px 16px; border-radius:8px; font-weight:700; font-size:18px; }
     .difal-yes { background:#3a1d00; color:#d29922; border:1px solid #5c3a0f; }
     .difal-no  { background:#10331f; color:#3fb950; border:1px solid #1f5c34; }
-    .difal-why { font-size:12px; color:#8b949e; margin-top:10px; line-height:1.5; }
+    .difal-why { font-size:15px; color:#8b949e; margin-top:12px; line-height:1.55; }
 
-    .foot { font-size:12px; color:#6e7681; margin-top:14px; line-height:1.6; }
-    .formula { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:#8b949e;
-      background:#0d1117; border:1px solid #21262d; border-radius:6px; padding:10px 12px; margin-top:12px; }
-    .divider-big { display:flex; align-items:center; gap:16px; margin:8px 0 28px; color:#484f58; }
+    .foot { font-size:14px; color:#6e7681; margin-top:16px; line-height:1.6; }
+    .formula { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:14px; color:#8b949e;
+      background:#0d1117; border:1px solid #21262d; border-radius:6px; padding:12px 14px; margin-top:14px; }
+    .divider-big { display:flex; align-items:center; gap:16px; margin:10px 0 30px; color:#484f58; }
     .divider-big::before, .divider-big::after { content:''; flex:1; height:1px; background:#21262d; }
-    .divider-big span { font-size:11px; letter-spacing:3px; }
+    .divider-big span { font-size:13px; letter-spacing:3px; }
   </style>
 </head>
 <body>
@@ -141,7 +141,7 @@
 
       <!-- ============ VENDENDO ============ -->
       <div class="block">
-        <div class="block-title"><span class="pill pill-sell">PASSO 2</span> Vendendo um produto pela GGE <span style="font-size:12px;font-weight:500;color:#8b949e">(venda direta)</span></div>
+        <div class="block-title"><span class="pill pill-sell">PASSO 2</span> Vendendo um produto pela GGE <span style="font-size:15px;font-weight:500;color:#8b949e">(venda direta)</span></div>
         <p class="block-help">Venda direta (fora do marketplace): <b>sem comissão e sem frete</b> neste exemplo. Informe o <b>custo do produto</b> e a <b>margem de contribuição</b> desejada — o <b>preço de venda</b> é formado somando custo + impostos (ICMS, PIS/COFINS, DIFAL quando há) + margem.</p>
 
         <div class="grid">
@@ -173,11 +173,11 @@
           <div class="field">
             <label>5) Custo do Produto <span class="hint">(R$)</span></label>
             <input type="text" id="v_custo" inputmode="decimal" placeholder="0,00">
-            <span class="hint"><a href="#" id="v_usar_custo" style="color:#58a6ff;text-decoration:none">↑ usar o Custo Final calculado na compra</a></span>
+            <span class="hint">Preenchido automaticamente com o Custo Final da compra. <a href="#" id="v_usar_custo" style="color:#58a6ff;text-decoration:none">↻ restaurar</a></span>
           </div>
           <div class="field">
             <label>6) Margem de Contribuição desejada <span class="hint">(%)</span></label>
-            <input type="text" id="v_mc" inputmode="decimal" placeholder="0,00">
+            <input type="text" id="v_mc" inputmode="decimal" placeholder="0,00" value="30">
           </div>
         </div>
 
@@ -227,6 +227,7 @@
       SE:{n:'Sergipe',i:19.0,ss:false}, SP:{n:'São Paulo',i:18.0,ss:true}, TO:{n:'Tocantins',i:20.0,ss:false}
     };
     var PC = 9.25; // PIS/COFINS
+    var custoManual = false; // vira true quando o vendedor edita o custo na venda manualmente
 
     // Alíquota de ICMS da operação (seção 2.6 calculo-margem):
     // mesma UF -> interna; interestadual importado -> 4%; interestadual nacional -> 12% (destino S/SE) ou 7% (demais).
@@ -284,6 +285,10 @@
       document.getElementById('c_v_pc').textContent = '- '+brl(pcCred);
       document.getElementById('c_v_total').textContent = brl(custo);
       window.__custoCompra = custo;
+      // Preenche automaticamente o custo da venda, a menos que o vendedor tenha digitado outro valor
+      if (!custoManual) {
+        document.getElementById('v_custo').value = custo.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      }
     }
 
     // ---------- VENDA ----------
@@ -347,13 +352,16 @@
 
     function val(id){ return document.getElementById(id).value; }
     function recalc(){ calcCompra(); calcVenda(); }
+
+    // Se o vendedor digitar no custo da venda, para de sincronizar com a compra (registrado antes do recalc)
+    document.getElementById('v_custo').addEventListener('input', function(){ custoManual = true; });
+
     document.querySelectorAll('select,input').forEach(function(el){ el.addEventListener('input', recalc); el.addEventListener('change', recalc); });
 
-    // Atalho: copiar o Custo Final calculado na compra para o campo de custo da venda
+    // Restaurar: voltar a usar automaticamente o Custo Final calculado na compra
     document.getElementById('v_usar_custo').addEventListener('click', function(e){
       e.preventDefault();
-      var c = window.__custoCompra || 0;
-      document.getElementById('v_custo').value = c.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      custoManual = false;
       recalc();
     });
 
