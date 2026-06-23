@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custos para Mercado Livre - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0d1117; color:#e6edf3; }
+    .main-with-sidebar { margin-left:48px; min-height:100vh; padding:24px; }
+    a { color:#58a6ff; }
+    h1 { font-size:24px; margin-bottom:4px; }
+    h2 { font-size:18px; }
+    .sub { color:#8b949e; font-size:14px; margin-bottom:20px; max-width:900px; line-height:1.5; }
+    .wrap { max-width:1080px; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:20px; margin-bottom:18px; }
+    .step-badge { display:inline-block; background:#1f6feb; color:#fff; font-size:11px; font-weight:700;
+      padding:3px 9px; border-radius:20px; letter-spacing:.5px; margin-right:8px; vertical-align:middle; }
+    .card .desc { color:#8b949e; font-size:13px; margin:10px 0 18px; line-height:1.5; }
+    .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px 20px; }
+    .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 20px; }
+    .field label { display:block; font-size:12px; color:#8b949e; margin-bottom:5px; font-weight:600; }
+    .field .hint { font-size:11px; color:#6e7681; margin-top:3px; font-weight:400; }
+    input, select { width:100%; background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+      padding:9px 10px; border-radius:7px; font-size:14px; }
+    input:focus, select:focus { outline:none; border-color:#58a6ff; }
+    .seg { display:flex; gap:0; border:1px solid #30363d; border-radius:7px; overflow:hidden; }
+    .seg button { flex:1; background:#0d1117; color:#8b949e; border:none; padding:9px 6px; cursor:pointer; font-size:13px; }
+    .seg button.active { background:#1f6feb; color:#fff; font-weight:600; }
+    .divider { height:1px; background:#21262d; margin:18px 0; }
+    .result-box { background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; }
+    .memo { font-size:13px; }
+    .memo .row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed #21262d; }
+    .memo .row:last-child { border-bottom:none; }
+    .memo .lbl { color:#8b949e; }
+    .memo .val { font-variant-numeric:tabular-nums; }
+    .memo .neg { color:#f85149; }
+    .memo .pos { color:#3fb950; }
+    .memo .total { font-weight:700; font-size:15px; border-top:2px solid #30363d; margin-top:4px; padding-top:8px; }
+    .big-price { font-size:30px; font-weight:800; color:#3fb950; font-variant-numeric:tabular-nums; }
+    .mc-pill { display:inline-block; background:#1a2b1a; color:#3fb950; border:1px solid #2ea04326;
+      padding:3px 10px; border-radius:20px; font-size:13px; font-weight:600; margin-left:6px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+    th, td { padding:9px 8px; text-align:right; border-bottom:1px solid #21262d; font-variant-numeric:tabular-nums; }
+    th { color:#8b949e; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.3px; }
+    th:first-child, td:first-child { text-align:left; }
+    tr.qty1 td { background:#161b2255; font-weight:600; }
+    .note { font-size:12px; color:#8b949e; margin-top:10px; line-height:1.5; }
+    .tag { font-size:11px; padding:2px 7px; border-radius:5px; background:#21262d; color:#8b949e; }
+    .tag.warn { background:#3a2a0a; color:#d29922; }
+    .formula { font-family:ui-monospace,monospace; font-size:12px; color:#6e7681; margin-top:8px; }
+    .muted { color:#6e7681; font-size:12px; }
+    .pcards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+    .pcard { background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:12px 14px; }
+    .pcard .k { font-size:11px; color:#8b949e; text-transform:uppercase; letter-spacing:.3px; }
+    .pcard .v { font-size:18px; font-weight:700; margin-top:3px; font-variant-numeric:tabular-nums; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+  <div class="wrap">
+    <h1>Custos para Mercado Livre</h1>
+    <p class="sub">Calculadora didática para a equipe que cuida do Marketplace. Mesma lógica da
+      <a href="/custo">Calc. Custo</a> da Venda Direta, com os acréscimos do ML: comissão, frete por SKU,
+      e os dois modos de precificação (convencional e preço sem imposto), com preços de atacado.</p>
+
+    <!-- ====================== PASSO 1 — COMPRA ====================== -->
+    <div class="card">
+      <h2><span class="step-badge">PASSO 1</span>Comprando um produto pela GGE</h2>
+      <p class="desc">Monta o <b>custo final do produto</b> (sem frete). A GGE é Lucro Real, então credita
+        ICMS e PIS/COFINS na compra — quanto maior o crédito, menor o custo. A compra é sempre da GGE.</p>
+
+      <div class="grid">
+        <div class="field">
+          <label>1) UF de onde sai o produto (fornecedor)</label>
+          <select id="ufFornecedor"></select>
+        </div>
+        <div class="field">
+          <label>2) Para onde vai o produto (entrada GGE)</label>
+          <div class="seg" id="entradaGGE">
+            <button data-v="SP" class="active">GGE SP</button>
+            <button data-v="RJ">GGE RJ</button>
+          </div>
+          <div class="hint">A compra é sempre GGE — só muda se entra por SP ou RJ.</div>
+        </div>
+        <div class="field">
+          <label>3) Origem do produto</label>
+          <div class="seg" id="origemProd">
+            <button data-v="nacional" class="active">Nacional</button>
+            <button data-v="importado">Importado</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>4) Comprador</label>
+          <input value="GGE (sempre revenda)" disabled style="opacity:.6">
+          <div class="hint">A GGE comprando é sempre revenda — não há DIFAL na compra.</div>
+        </div>
+        <div class="field">
+          <label>5) Preço FOB do produto (R$)</label>
+          <input type="number" id="fob" value="0" step="0.01" min="0">
+        </div>
+        <div class="field">
+          <label>6) IPI, se tiver (% — deixe 0 se não houver)</label>
+          <input type="number" id="ipi" value="0" step="0.1" min="0">
+        </div>
+        <div class="field">
+          <label>7) ST, se tiver (% sobre FOB+IPI — deixe 0 se não houver)</label>
+          <input type="number" id="st" value="0" step="0.1" min="0">
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="result-box">
+        <div class="memo" id="memoCompra"></div>
+        <div class="formula">FOB + IPI + ST − Crédito ICMS − Crédito PIS/COFINS = CUSTO</div>
+      </div>
+    </div>
+
+    <!-- ====================== PASSO 2 — VENDA ML ====================== -->
+    <div class="card">
+      <h2><span class="step-badge">PASSO 2</span>Vendendo no Mercado Livre</h2>
+      <p class="desc">Aqui entram a comissão do ML, o frete (puxado pelo SKU) e os impostos. Escolha o modo de
+        precificação e a margem desejada — a calculadora forma o preço de venda e mostra o preço para atacado.</p>
+
+      <div class="grid-3">
+        <div class="field">
+          <label>SKU do produto / kit</label>
+          <input id="sku" placeholder="ex.: KTPN5X1000" autocomplete="off">
+          <div class="hint" id="skuInfo">Informe o SKU para puxar peso e custo de referência.</div>
+        </div>
+        <div class="field">
+          <label>De onde sai o produto (venda)</label>
+          <select id="origemVenda">
+            <option value="coletaRJ">Coleta RJ</option>
+            <option value="coletaSP">Coleta SP</option>
+            <option value="fullSP">Full SP</option>
+          </select>
+          <div class="hint" id="origemInfo"></div>
+        </div>
+        <div class="field">
+          <label>Tipo de anúncio (comissão)</label>
+          <div class="seg" id="tipoAnuncio">
+            <button data-v="classico" class="active">Clássico</button>
+            <button data-v="premium">Premium</button>
+          </div>
+          <div class="hint">Clássico 12% · Premium 17% &nbsp;|&nbsp; acima de R$ 200: 11% / 14%</div>
+        </div>
+        <div class="field">
+          <label>Custo do produto (R$)</label>
+          <input type="number" id="custoVenda" value="0" step="0.01" min="0">
+          <div class="hint">Vem do PASSO 1. <a href="#" id="restCusto">↻ restaurar do PASSO 1</a> · <span id="custoBanco"></span></div>
+        </div>
+        <div class="field">
+          <label>Modo de precificação</label>
+          <div class="seg" id="modoPreco">
+            <button data-v="conv" class="active">Convencional (c/ imposto)</button>
+            <button data-v="semimp">Preço sem imposto</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Margem de contribuição desejada (%)</label>
+          <input type="number" id="margem" value="15" step="0.5">
+          <div class="hint" id="margemHint">Convencional: ~15%. Sem imposto: ~20% (≈ 15% com imposto).</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Resultado unitário -->
+      <div class="pcards">
+        <div class="pcard"><div class="k">Preço de venda (1 un.)</div><div class="v" id="pvUnit" style="color:#3fb950">R$ 0,00</div></div>
+        <div class="pcard"><div class="k">MC unitária</div><div class="v" id="mcUnit">R$ 0,00 <span class="mc-pill" id="mcUnitPct">0%</span></div></div>
+        <div class="pcard"><div class="k">Frete + comissão</div><div class="v" id="custoVar">R$ 0,00</div></div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 1fr;">
+        <div class="result-box">
+          <div style="font-size:12px;color:#8b949e;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px;">Memória de cálculo (1 unidade)</div>
+          <div class="memo" id="memoVenda"></div>
+        </div>
+        <div class="result-box">
+          <div style="font-size:12px;color:#8b949e;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px;">Impostos / parâmetros usados</div>
+          <div class="memo" id="memoParam"></div>
+        </div>
+      </div>
+
+      <!-- Atacado -->
+      <div style="margin-top:22px;">
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Preço para atacado (preço unitário por quantidade)</div>
+        <div class="muted">Frete é cobrado uma vez por pedido (as unidades vão juntas) e rateado por unidade. O limiar de
+          R$ 79 (frete grátis) é avaliado sobre o <b>valor total do pedido</b> — por isso o preço unitário cai conforme a quantidade.</div>
+        <table id="tblAtacado">
+          <thead><tr>
+            <th>Qtd</th><th>Preço unit.</th><th>Total pedido</th><th>Frete pedido</th>
+            <th>MC unit.</th><th>MC total</th><th>MC %</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="note" id="rodape"></p>
+  </div>
+  </div>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+  (function(){ var a=sessionStorage.getItem('gge_auth'); if(a!=='gge2026'){ window.location.href='/'; return; } })();
+
+  const sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+  const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+  const SUL_SUDESTE = ['MG','RJ','SP','PR','RS','SC','ES'];
+  const ICMS_INTERNA = { 'SP':18, 'RJ':20 };
+  const fmt = v => 'R$ ' + (isFinite(v)?v:0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pct = v => (isFinite(v)?v:0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+
+  // Estado
+  const ST = {
+    entrada:'SP', origemProd:'nacional', tipo:'classico', modo:'conv',
+    origemVenda:'coletaRJ', peso:null, custoBanco:null, custoCompra:0
+  };
+  let FRETE=[];          // tabela_frete_ml (todas as linhas)
+  let IMP={};            // {RJ:{icms,difal,janela,n}, SP:{...}}
+  let FRETE_MEDIA=null;  // média <79 do SKU atual (modo corrente)
+
+  // ---------- Fiscal compra (PASSO 1) ----------
+  function aliqCreditoICMS(){
+    if(ST.origemProd==='importado') return 4;
+    const f = document.getElementById('ufFornecedor').value;
+    if(f === ST.entrada) return ICMS_INTERNA[ST.entrada]; // mesma UF -> interna
+    return 12; // interestadual com destino SP/RJ (Sul/Sudeste)
+  }
+  function calcCompra(){
+    const fob = +document.getElementById('fob').value||0;
+    const ipiP = +document.getElementById('ipi').value||0;
+    const stP = +document.getElementById('st').value||0;
+    const ipiV = fob*ipiP/100;
+    const stV = (fob+ipiV)*stP/100;
+    const aICMS = aliqCreditoICMS();
+    const credICMS = fob*aICMS/100;
+    const credPIS = (fob+ipiV)*0.0925;
+    const custo = fob + ipiV + stV - credICMS - credPIS;
+    ST.custoCompra = custo;
+    const m = document.getElementById('memoCompra');
+    m.innerHTML =
+      row('Preço FOB', fmt(fob)) +
+      row('IPI '+pct(ipiP), fmt(ipiV)) +
+      row('ST '+pct(stP)+' sobre FOB+IPI', fmt(stV)) +
+      row('Crédito ICMS '+pct(aICMS)+' sobre FOB', '− '+fmt(credICMS), 'neg') +
+      row('Crédito PIS/COFINS 9,25% sobre FOB+IPI', '− '+fmt(credPIS), 'neg') +
+      row('Custo final do produto (sem frete)', fmt(custo), '', true);
+    return custo;
+  }
+  function row(l,v,cls,total){
+    return '<div class="row'+(total?' total':'')+'"><span class="lbl">'+l+'</span><span class="val '+(cls||'')+'">'+v+'</span></div>';
+  }
+
+  // ---------- Frete ----------
+  function modoFrete(){ return ST.origemVenda==='fullSP' ? 'fulfillment' : 'coleta'; }
+  function ufVenda(){ return ST.origemVenda==='coletaRJ' ? 'RJ' : 'SP'; }
+  function freteTabela(modo, peso, preco){
+    const cand = FRETE.filter(r => r.modo===modo && peso<=+r.peso_max_kg && preco>=+r.preco_min && preco<=+r.preco_max);
+    if(cand.length){ cand.sort((a,b)=>a.peso_max_kg-b.peso_max_kg); return +cand[0].frete; }
+    // fora de faixa de preço: usa a maior faixa de preço para aquele peso
+    const byPeso = FRETE.filter(r=>r.modo===modo && peso<=+r.peso_max_kg).sort((a,b)=> (a.peso_max_kg-b.peso_max_kg)||(b.preco_max-a.preco_max));
+    return byPeso.length ? +byPeso[0].frete : 0;
+  }
+  // Frete de um PEDIDO (peso total, valor total). <79 -> média do SKU; >=79 -> tabela por peso.
+  function fretePedido(modo, pesoTotal, valorTotal){
+    if(valorTotal>=79) return freteTabela(modo, pesoTotal, valorTotal);
+    return FRETE_MEDIA!=null ? FRETE_MEDIA : freteTabela(modo, pesoTotal, valorTotal);
+  }
+
+  // ---------- Comissão ----------
+  function comissaoPct(pvUnit){
+    const prem = ST.tipo==='premium';
+    if(pvUnit>200) return prem?0.14:0.11;
+    return prem?0.17:0.12;
+  }
+
+  // ---------- Solver: preço unitário para N unidades ----------
+  function solve(N, custo, pesoUnit){
+    const modo=modoFrete(), uf=ufVenda();
+    const i = (ST.modo==='conv') ? (IMP[uf]?IMP[uf].icms:0)/100 : 0;
+    const d = (ST.modo==='conv') ? (IMP[uf]?IMP[uf].difal:0)/100 : 0;
+    const m = (+document.getElementById('margem').value||0)/100;
+    let pv = Math.max(custo*1.6, 10);
+    let frPed=0;
+    for(let k=0;k<60;k++){
+      const total = N*pv;
+      const com = comissaoPct(pv);
+      frPed = fretePedido(modo, N*pesoUnit, total);
+      const frUnit = frPed/N;
+      let denom, num;
+      if(ST.modo==='conv'){
+        denom = 1 - com - i - d - m - 0.0925*(1-com);
+        num = custo + frUnit*(1-0.0925);
+      } else {
+        denom = 1 - com - m;
+        num = custo + frUnit;
+      }
+      if(denom<=0) return {viavel:false};
+      const np = num/denom;
+      if(Math.abs(np-pv)<0.005){ pv=np; break; }
+      pv=np;
+    }
+    const com = comissaoPct(pv);
+    const frUnit = frPed/N;
+    const comV=com*pv;
+    let icmsV=0,difalV=0,pisliq=0;
+    if(ST.modo==='conv'){ icmsV=i*pv; difalV=d*pv; pisliq=0.0925*pv - 0.0925*(comV+frUnit); }
+    const mcUnit = pv - comV - frUnit - icmsV - difalV - pisliq - custo;
+    return {viavel:true, pv, frPed, frUnit, com, comV, icmsV, difalV, pisliq, mcUnit, total:N*pv};
+  }
+
+  // ---------- Render ----------
+  function render(){
+    const custo = calcCompra();
+    // custo da venda: segue o PASSO 1 até o usuário editar manualmente
+    const cvEl = document.getElementById('custoVenda');
+    if(cvEl.dataset.touched!=='1'){ cvEl.value = ST.custoCompra.toFixed(2); }
+    const custoVenda = +cvEl.value||0;
+    const peso = ST.peso!=null ? ST.peso : 1; // 1kg default se sem peso (calculo-margem 2.3)
+    const r1 = solve(1, custoVenda, peso);
+    const uf=ufVenda();
+
+    if(!r1.viavel){
+      document.getElementById('pvUnit').textContent='inviável';
+      document.getElementById('memoVenda').innerHTML='<div class="note">Margem + impostos + comissão ≥ 100%. Reduza a margem desejada.</div>';
+    } else {
+      document.getElementById('pvUnit').textContent=fmt(r1.pv);
+      document.getElementById('mcUnit').innerHTML=fmt(r1.mcUnit)+' <span class="mc-pill">'+pct(r1.mcUnit/r1.pv*100)+'</span>';
+      document.getElementById('custoVar').textContent=fmt(r1.comV+r1.frUnit);
+      const fr79 = r1.pv>=79;
+      let mv = row('Preço de venda', fmt(r1.pv), '', false);
+      mv += row('(−) Comissão ML '+pct(r1.com*100), '− '+fmt(r1.comV),'neg');
+      mv += row('(−) Frete '+(fr79?'(tabela, ≥R$79)':'(média SKU, <R$79)'), '− '+fmt(r1.frUnit),'neg');
+      if(ST.modo==='conv'){
+        mv += row('(−) ICMS '+pct(IMP[uf]?IMP[uf].icms:0)+' (média '+uf+')', '− '+fmt(r1.icmsV),'neg');
+        mv += row('(−) DIFAL '+pct(IMP[uf]?IMP[uf].difal:0)+' (média '+uf+')', '− '+fmt(r1.difalV),'neg');
+        mv += row('(−) PIS/COFINS líquido', '− '+fmt(r1.pisliq),'neg');
+      } else {
+        mv += row('Impostos', 'isento (modo sem imposto)','muted');
+      }
+      mv += row('(−) Custo do produto', '− '+fmt(custoVenda),'neg');
+      mv += row('= Margem de contribuição', fmt(r1.mcUnit),'pos',true);
+      document.getElementById('memoVenda').innerHTML=mv;
+    }
+
+    // Painel parâmetros
+    let mp='';
+    mp += row('Origem da venda', ({coletaRJ:'Coleta RJ',coletaSP:'Coleta SP',fullSP:'Full SP'})[ST.origemVenda]);
+    mp += row('Modo de frete', modoFrete()==='fulfillment'?'Fulfillment (Full)':'Coleta');
+    mp += row('Peso do produto', ST.peso!=null?(ST.peso.toLocaleString('pt-BR')+' kg'):'1,00 kg (default)');
+    if(ST.modo==='conv'){
+      const w = IMP[uf]?IMP[uf].janela:'—';
+      mp += row('ICMS médio '+uf+' ('+w+')', pct(IMP[uf]?IMP[uf].icms:0));
+      mp += row('DIFAL médio '+uf+' ('+w+')', pct(IMP[uf]?IMP[uf].difal:0));
+      mp += '<div class="note">ICMS e DIFAL são <b>médias efetivas da conta GGE-GRAMPEADORES</b> (por estado de saída), calculadas ao vivo no Supabase. O cálculo canônico é por venda; aqui usamos média porque o preço no ML é único.</div>';
+    }
+    if(FRETE_MEDIA!=null) mp += row('Frete médio <R$79 (SKU)', fmt(FRETE_MEDIA));
+    document.getElementById('memoParam').innerHTML=mp;
+
+    // Atacado
+    const qts=[1,2,3,4,6,10];
+    const tb=document.querySelector('#tblAtacado tbody'); tb.innerHTML='';
+    qts.forEach(N=>{
+      const r=solve(N, custoVenda, peso);
+      const tr=document.createElement('tr'); if(N===1) tr.className='qty1';
+      if(!r.viavel){ tr.innerHTML='<td>'+N+'</td><td colspan="6" class="muted">inviável</td>'; tb.appendChild(tr); return; }
+      tr.innerHTML='<td>'+N+'</td><td>'+fmt(r.pv)+'</td><td>'+fmt(r.total)+'</td><td>'+fmt(r.frPed)+'</td>'+
+        '<td>'+fmt(r.mcUnit)+'</td><td>'+fmt(r.mcUnit*N)+'</td><td>'+pct(r.mcUnit/r.pv*100)+'</td>';
+      tb.appendChild(tr);
+    });
+  }
+
+  // ---------- SKU lookup ----------
+  async function lookupSKU(){
+    const sku=document.getElementById('sku').value.trim();
+    FRETE_MEDIA=null; ST.peso=null; ST.custoBanco=null;
+    document.getElementById('custoBanco').textContent='';
+    if(!sku){ document.getElementById('skuInfo').textContent='Informe o SKU para puxar peso e custo de referência.'; render(); return; }
+    document.getElementById('skuInfo').textContent='buscando…';
+    try{
+      const {data:scs} = await sb.from('skus_custo').select('sku,peso,custo_cif_rj,custo_cif_sp,origem,is_combo').eq('sku',sku).limit(1);
+      if(scs && scs.length){
+        const s=scs[0];
+        ST.peso = s.peso!=null ? +s.peso : null;
+        ST.custoBanco = ufVenda()==='RJ' ? s.custo_cif_rj : s.custo_cif_sp;
+        document.getElementById('skuInfo').innerHTML='Peso: <b>'+(ST.peso!=null?ST.peso+' kg':'—')+'</b>'+(s.is_combo?' · <span class="tag">kit</span>':'')+' · origem: '+(s.origem||'—');
+        document.getElementById('custoBanco').innerHTML='banco ('+ufVenda()+'): <b>'+fmt(+ST.custoBanco||0)+'</b> <span class="tag warn">conferir</span>';
+      } else {
+        document.getElementById('skuInfo').textContent='SKU não encontrado em skus_custo.';
+      }
+      await loadFreteMedia();
+    }catch(e){ document.getElementById('skuInfo').textContent='erro ao buscar: '+e.message; }
+    render();
+  }
+  async function loadFreteMedia(){
+    const sku=document.getElementById('sku').value.trim(); if(!sku){ FRETE_MEDIA=null; return; }
+    const full = modoFrete()==='fulfillment';
+    try{
+      const {data} = await sb.rpc('rpc_frete_medio_sku',{p_sku:sku,p_fulfillment:full});
+      if(data && data.length){
+        const d=data[0];
+        FRETE_MEDIA = (d.n_modo>0 && d.frete_modo!=null) ? +d.frete_modo : (d.frete_geral!=null?+d.frete_geral:null);
+      } else FRETE_MEDIA=null;
+    }catch(e){ FRETE_MEDIA=null; }
+  }
+
+  // ---------- Init / listeners ----------
+  function seg(id, key, after){
+    document.getElementById(id).addEventListener('click', e=>{
+      if(e.target.tagName!=='BUTTON') return;
+      [...e.currentTarget.children].forEach(b=>b.classList.remove('active'));
+      e.target.classList.add('active');
+      ST[key]=e.target.dataset.v;
+      if(after) after();
+    });
+  }
+  function refreshOrigemInfo(){
+    document.getElementById('origemInfo').textContent =
+      modoFrete()==='fulfillment' ? 'Full SP → frete fulfillment, ICMS/DIFAL média SP' :
+      (ufVenda()==='RJ' ? 'Coleta RJ → frete coleta, ICMS/DIFAL média RJ' : 'Coleta SP → frete coleta, ICMS/DIFAL média SP');
+  }
+
+  async function init(){
+    // UF fornecedor
+    const sel=document.getElementById('ufFornecedor');
+    UFS.forEach(u=>{ const o=document.createElement('option'); o.value=u; o.textContent=u; if(u==='SP')o.selected=true; sel.appendChild(o); });
+
+    // segmentos
+    document.getElementById('entradaGGE').addEventListener('click',e=>{ if(e.target.tagName!=='BUTTON')return;
+      [...e.currentTarget.children].forEach(b=>b.classList.remove('active')); e.target.classList.add('active'); ST.entrada=e.target.dataset.v; render(); });
+    seg('origemProd','origemProd',render);
+    seg('tipoAnuncio','tipo',render);
+    seg('modoPreco','modo',()=>{
+      document.getElementById('margem').value = ST.modo==='semimp' ? 20 : 15;
+      document.getElementById('margemHint').textContent = ST.modo==='semimp'
+        ? 'Sem imposto: padrão 20% (≈ 15% com imposto incluído).' : 'Convencional: padrão ~15% (impostos inclusos).';
+      render();
+    });
+
+    document.getElementById('origemVenda').addEventListener('change', async e=>{
+      ST.origemVenda=e.target.value; refreshOrigemInfo(); await loadFreteMedia();
+      render();
+    });
+    document.getElementById('sku').addEventListener('change', lookupSKU);
+    document.getElementById('sku').addEventListener('blur', lookupSKU);
+    ['fob','ipi','st','custoVenda','margem'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+    document.getElementById('ufFornecedor').addEventListener('change',render);
+    document.getElementById('restCusto').addEventListener('click',e=>{ e.preventDefault();
+      const cv=document.getElementById('custoVenda'); cv.dataset.touched='0'; cv.value=ST.custoCompra.toFixed(2); render(); });
+    document.getElementById('custoVenda').addEventListener('input',e=>{ e.target.dataset.touched='1'; });
+
+    refreshOrigemInfo();
+
+    // Carrega tabela de frete + impostos médios
+    try{
+      const {data:fr} = await sb.from('tabela_frete_ml').select('modo,peso_max_kg,preco_min,preco_max,frete').limit(2000);
+      FRETE = fr||[];
+    }catch(e){ FRETE=[]; }
+    try{
+      const {data:im} = await sb.rpc('rpc_impostos_medios_ggegram');
+      const by={};
+      (im||[]).forEach(r=>{ by[r.uf]=by[r.uf]||{}; by[r.uf][r.janela]=r; });
+      ['RJ','SP'].forEach(uf=>{
+        const r = (by[uf]&&by[uf]['30d']&&by[uf]['30d'].n>0) ? by[uf]['30d'] : (by[uf]&&by[uf]['90d']?by[uf]['90d']:null);
+        IMP[uf] = r ? {icms:+r.icms_pct, difal:+r.difal_pct, janela:r.janela, n:r.n} : {icms:0,difal:0,janela:'—',n:0};
+      });
+    }catch(e){ IMP={RJ:{icms:0,difal:0,janela:'—'},SP:{icms:0,difal:0,janela:'—'}}; }
+
+    document.getElementById('custoVenda').value='0';
+    document.getElementById('rodape').innerHTML='Comissões e o limiar de R$ 79/R$ 200 são regras didáticas do ML; '+
+      'as taxas reais por categoria estão em comissoes_ml. Frete = senders[0].cost real (calculo-margem 2.3). '+
+      'Custo do banco pode estar desatualizado (conferir) — prefira o custo do PASSO 1.';
+    render();
+  }
+  init();
+  </script>
+</body>
+</html>
