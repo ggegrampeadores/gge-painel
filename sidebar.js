@@ -53,7 +53,8 @@
     { href: '/studio',               icon: icons.studio,    label: 'Studio',              key: 'studio' },
     { type: 'separator' },
     { href: '/precificacao',         icon: icons.tabelavd,  label: 'Tabela VD',           key: 'precificacao' },
-    { href: '/custo',                icon: icons.custo,     label: 'Calc. Custo',         key: 'custo' }
+    { href: '/custo',                icon: icons.custo,     label: 'Calc. Custo',         key: 'custo' },
+    { href: '/custo-mktp', icon: icons.precomktp, label: 'Custos MKTP', key: 'custo-mktp' }
   ];
 
   var path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
