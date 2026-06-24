@@ -66,13 +66,11 @@
     <p class="sub">Calculadora didática para a equipe que cuida do Marketplace. Mesma lógica da
       <a href="/custo">Calc. Custo</a> da Venda Direta, com os acréscimos do ML: comissão, frete por SKU,
       e os dois modos de precificação (convencional e preço sem imposto), com preços de atacado.</p>
-
     <!-- ====================== PASSO 1 — COMPRA ====================== -->
     <div class="card">
       <h2><span class="step-badge">PASSO 1</span>Comprando um produto pela GGE</h2>
       <p class="desc">Monta o <b>custo final do produto</b> (sem frete). A GGE é Lucro Real, então credita
         ICMS e PIS/COFINS na compra — quanto maior o crédito, menor o custo. A compra é sempre da GGE.</p>
-
       <div class="grid">
         <div class="field">
           <label>1) UF de onde sai o produto (fornecedor)</label>
@@ -111,25 +109,27 @@
           <input type="number" id="st" value="0" step="0.1" min="0">
         </div>
       </div>
-
       <div class="divider"></div>
       <div class="result-box">
         <div class="memo" id="memoCompra"></div>
         <div class="formula">FOB + IPI + ST − Crédito ICMS − Crédito PIS/COFINS = CUSTO</div>
       </div>
     </div>
-
     <!-- ====================== PASSO 2 — VENDA ML ====================== -->
     <div class="card">
       <h2><span class="step-badge">PASSO 2</span>Vendendo no Mercado Livre</h2>
       <p class="desc">Aqui entram a comissão do ML, o frete (puxado pelo SKU) e os impostos. Escolha o modo de
         precificação e a margem desejada — a calculadora forma o preço de venda e mostra o preço para atacado.</p>
-
       <div class="grid-3">
         <div class="field">
           <label>SKU do produto / kit</label>
           <input id="sku" placeholder="ex.: KTPN5X1000" autocomplete="off">
           <div class="hint" id="skuInfo">Informe o SKU para puxar peso e custo de referência.</div>
+        </div>
+        <div class="field">
+          <label>Peso do produto (kg)</label>
+          <input type="number" id="pesoVenda" value="1" step="0.01" min="0">
+          <div class="hint">Puxado do SKU; edite à mão se precisar. Usado no frete por tabela (≥ R$ 79). <a href="#" id="restPeso">↻ restaurar do SKU</a></div>
         </div>
         <div class="field">
           <label>De onde sai o produto (venda)</label>
@@ -166,16 +166,13 @@
           <div class="hint" id="margemHint">Convencional: ~15%. Sem imposto: ~20% (≈ 15% com imposto).</div>
         </div>
       </div>
-
       <div class="divider"></div>
-
       <!-- Resultado unitário -->
       <div class="pcards">
         <div class="pcard"><div class="k">Preço de venda (1 un.)</div><div class="v" id="pvUnit" style="color:#3fb950">R$ 0,00</div></div>
         <div class="pcard"><div class="k">MC unitária</div><div class="v" id="mcUnit">R$ 0,00 <span class="mc-pill" id="mcUnitPct">0%</span></div></div>
         <div class="pcard"><div class="k">Frete + comissão</div><div class="v" id="custoVar">R$ 0,00</div></div>
       </div>
-
       <div class="grid" style="grid-template-columns:1fr 1fr;">
         <div class="result-box">
           <div style="font-size:12px;color:#8b949e;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px;">Memória de cálculo (1 unidade)</div>
@@ -186,7 +183,6 @@
           <div class="memo" id="memoParam"></div>
         </div>
       </div>
-
       <!-- Atacado -->
       <div style="margin-top:22px;">
         <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Preço para atacado (preço unitário por quantidade)</div>
@@ -201,22 +197,18 @@
         </table>
       </div>
     </div>
-
     <p class="note" id="rodape"></p>
   </div>
   </div>
-
   <script src="sidebar.js" defer></script>
   <script>
   (function(){ var a=sessionStorage.getItem('gge_auth'); if(a!=='gge2026'){ window.location.href='/'; return; } })();
-
   const sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
   const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
   const SUL_SUDESTE = ['MG','RJ','SP','PR','RS','SC','ES'];
   const ICMS_INTERNA = { 'SP':18, 'RJ':20 };
   const fmt = v => 'R$ ' + (isFinite(v)?v:0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const pct = v => (isFinite(v)?v:0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
-
   // Estado
   const ST = {
     entrada:'SP', origemProd:'nacional', tipo:'classico', modo:'conv',
@@ -225,13 +217,16 @@
   let FRETE=[];          // tabela_frete_ml (todas as linhas)
   let IMP={};            // {RJ:{icms,difal,janela,n}, SP:{...}}
   let FRETE_MEDIA=null;  // média <79 do SKU atual (modo corrente)
-
   // ---------- Fiscal compra (PASSO 1) ----------
+  // Crédito de ICMS na compra = alíquota que o fornecedor destacou na NF.
+  // [calculo-margem 2.6] Mesma UF -> alíquota INTERNA do estado (independe de o produto ser importado).
+  //                      Interestadual + importado -> 4% (Resolução 13 do Senado).
+  //                      Interestadual + nacional, destino SP/RJ (Sul/Sudeste) -> 12%.
   function aliqCreditoICMS(){
-    if(ST.origemProd==='importado') return 4;
     const f = document.getElementById('ufFornecedor').value;
-    if(f === ST.entrada) return ICMS_INTERNA[ST.entrada]; // mesma UF -> interna
-    return 12; // interestadual com destino SP/RJ (Sul/Sudeste)
+    if(f === ST.entrada) return ICMS_INTERNA[ST.entrada];   // mesma UF -> interna (18% SP / 20% RJ), vale p/ importado tb
+    if(ST.origemProd==='importado') return 4;               // interestadual + importado -> Resolução 13 (4%)
+    return 12;                                              // interestadual nacional, destino SP/RJ -> 12%
   }
   function calcCompra(){
     const fob = +document.getElementById('fob').value||0;
@@ -244,12 +239,15 @@
     const credPIS = (fob+ipiV)*0.0925;
     const custo = fob + ipiV + stV - credICMS - credPIS;
     ST.custoCompra = custo;
+    const f = document.getElementById('ufFornecedor').value;
+    const baseCred = (f===ST.entrada) ? 'mesma UF '+ST.entrada+', interna' :
+                     (ST.origemProd==='importado' ? 'interestadual importado (Res. 13)' : 'interestadual nacional S/SE');
     const m = document.getElementById('memoCompra');
     m.innerHTML =
       row('Preço FOB', fmt(fob)) +
       row('IPI '+pct(ipiP), fmt(ipiV)) +
       row('ST '+pct(stP)+' sobre FOB+IPI', fmt(stV)) +
-      row('Crédito ICMS '+pct(aICMS)+' sobre FOB', '− '+fmt(credICMS), 'neg') +
+      row('Crédito ICMS '+pct(aICMS)+' sobre FOB ('+baseCred+')', '− '+fmt(credICMS), 'neg') +
       row('Crédito PIS/COFINS 9,25% sobre FOB+IPI', '− '+fmt(credPIS), 'neg') +
       row('Custo final do produto (sem frete)', fmt(custo), '', true);
     return custo;
@@ -257,7 +255,6 @@
   function row(l,v,cls,total){
     return '<div class="row'+(total?' total':'')+'"><span class="lbl">'+l+'</span><span class="val '+(cls||'')+'">'+v+'</span></div>';
   }
-
   // ---------- Frete ----------
   function modoFrete(){ return ST.origemVenda==='fullSP' ? 'fulfillment' : 'coleta'; }
   function ufVenda(){ return ST.origemVenda==='coletaRJ' ? 'RJ' : 'SP'; }
@@ -273,14 +270,17 @@
     if(valorTotal>=79) return freteTabela(modo, pesoTotal, valorTotal);
     return FRETE_MEDIA!=null ? FRETE_MEDIA : freteTabela(modo, pesoTotal, valorTotal);
   }
-
   // ---------- Comissão ----------
   function comissaoPct(pvUnit){
     const prem = ST.tipo==='premium';
     if(pvUnit>200) return prem?0.14:0.11;
     return prem?0.17:0.12;
   }
-
+  // ---------- Peso efetivo usado no frete ----------
+  function pesoVenda(){
+    const p = +document.getElementById('pesoVenda').value;
+    return (p>0) ? p : 1; // 1kg default se vazio (calculo-margem 2.3)
+  }
   // ---------- Solver: preço unitário para N unidades ----------
   function solve(N, custo, pesoUnit){
     const modo=modoFrete(), uf=ufVenda();
@@ -315,7 +315,6 @@
     const mcUnit = pv - comV - frUnit - icmsV - difalV - pisliq - custo;
     return {viavel:true, pv, frPed, frUnit, com, comV, icmsV, difalV, pisliq, mcUnit, total:N*pv};
   }
-
   // ---------- Render ----------
   function render(){
     const custo = calcCompra();
@@ -323,10 +322,9 @@
     const cvEl = document.getElementById('custoVenda');
     if(cvEl.dataset.touched!=='1'){ cvEl.value = ST.custoCompra.toFixed(2); }
     const custoVenda = +cvEl.value||0;
-    const peso = ST.peso!=null ? ST.peso : 1; // 1kg default se sem peso (calculo-margem 2.3)
+    const peso = pesoVenda(); // peso editável do campo (puxado do SKU, ajustável à mão)
     const r1 = solve(1, custoVenda, peso);
     const uf=ufVenda();
-
     if(!r1.viavel){
       document.getElementById('pvUnit').textContent='inviável';
       document.getElementById('memoVenda').innerHTML='<div class="note">Margem + impostos + comissão ≥ 100%. Reduza a margem desejada.</div>';
@@ -337,7 +335,7 @@
       const fr79 = r1.pv>=79;
       let mv = row('Preço de venda', fmt(r1.pv), '', false);
       mv += row('(−) Comissão ML '+pct(r1.com*100), '− '+fmt(r1.comV),'neg');
-      mv += row('(−) Frete '+(fr79?'(tabela, ≥R$79)':'(média SKU, <R$79)'), '− '+fmt(r1.frUnit),'neg');
+      mv += row('(−) Frete '+(fr79?'(tabela por peso, ≥R$79)':'(média SKU, <R$79)'), '− '+fmt(r1.frUnit),'neg');
       if(ST.modo==='conv'){
         mv += row('(−) ICMS '+pct(IMP[uf]?IMP[uf].icms:0)+' (média '+uf+')', '− '+fmt(r1.icmsV),'neg');
         mv += row('(−) DIFAL '+pct(IMP[uf]?IMP[uf].difal:0)+' (média '+uf+')', '− '+fmt(r1.difalV),'neg');
@@ -349,12 +347,11 @@
       mv += row('= Margem de contribuição', fmt(r1.mcUnit),'pos',true);
       document.getElementById('memoVenda').innerHTML=mv;
     }
-
     // Painel parâmetros
     let mp='';
     mp += row('Origem da venda', ({coletaRJ:'Coleta RJ',coletaSP:'Coleta SP',fullSP:'Full SP'})[ST.origemVenda]);
     mp += row('Modo de frete', modoFrete()==='fulfillment'?'Fulfillment (Full)':'Coleta');
-    mp += row('Peso do produto', ST.peso!=null?(ST.peso.toLocaleString('pt-BR')+' kg'):'1,00 kg (default)');
+    mp += row('Peso usado no frete', peso.toLocaleString('pt-BR')+' kg' + (ST.peso!=null ? '' : (+document.getElementById('pesoVenda').value>0 ? ' (manual)' : ' (default)')));
     if(ST.modo==='conv'){
       const w = IMP[uf]?IMP[uf].janela:'—';
       mp += row('ICMS médio '+uf+' ('+w+')', pct(IMP[uf]?IMP[uf].icms:0));
@@ -363,7 +360,6 @@
     }
     if(FRETE_MEDIA!=null) mp += row('Frete médio <R$79 (SKU)', fmt(FRETE_MEDIA));
     document.getElementById('memoParam').innerHTML=mp;
-
     // Atacado
     const qts=[1,2,3,4,6,10];
     const tb=document.querySelector('#tblAtacado tbody'); tb.innerHTML='';
@@ -376,7 +372,6 @@
       tb.appendChild(tr);
     });
   }
-
   // ---------- SKU lookup ----------
   async function lookupSKU(){
     const sku=document.getElementById('sku').value.trim();
@@ -390,6 +385,9 @@
         const s=scs[0];
         ST.peso = s.peso!=null ? +s.peso : null;
         ST.custoBanco = ufVenda()==='RJ' ? s.custo_cif_rj : s.custo_cif_sp;
+        // Preenche o campo de peso com o valor do SKU, a menos que o usuário tenha editado à mão
+        const pe=document.getElementById('pesoVenda');
+        if(pe.dataset.touched!=='1' && ST.peso!=null){ pe.value = ST.peso; }
         document.getElementById('skuInfo').innerHTML='Peso: <b>'+(ST.peso!=null?ST.peso+' kg':'—')+'</b>'+(s.is_combo?' · <span class="tag">kit</span>':'')+' · origem: '+(s.origem||'—');
         document.getElementById('custoBanco').innerHTML='banco ('+ufVenda()+'): <b>'+fmt(+ST.custoBanco||0)+'</b> <span class="tag warn">conferir</span>';
       } else {
@@ -410,7 +408,6 @@
       } else FRETE_MEDIA=null;
     }catch(e){ FRETE_MEDIA=null; }
   }
-
   // ---------- Init / listeners ----------
   function seg(id, key, after){
     document.getElementById(id).addEventListener('click', e=>{
@@ -426,12 +423,10 @@
       modoFrete()==='fulfillment' ? 'Full SP → frete fulfillment, ICMS/DIFAL média SP' :
       (ufVenda()==='RJ' ? 'Coleta RJ → frete coleta, ICMS/DIFAL média RJ' : 'Coleta SP → frete coleta, ICMS/DIFAL média SP');
   }
-
   async function init(){
     // UF fornecedor
     const sel=document.getElementById('ufFornecedor');
     UFS.forEach(u=>{ const o=document.createElement('option'); o.value=u; o.textContent=u; if(u==='SP')o.selected=true; sel.appendChild(o); });
-
     // segmentos
     document.getElementById('entradaGGE').addEventListener('click',e=>{ if(e.target.tagName!=='BUTTON')return;
       [...e.currentTarget.children].forEach(b=>b.classList.remove('active')); e.target.classList.add('active'); ST.entrada=e.target.dataset.v; render(); });
@@ -443,7 +438,6 @@
         ? 'Sem imposto: padrão 20% (≈ 15% com imposto incluído).' : 'Convencional: padrão ~15% (impostos inclusos).';
       render();
     });
-
     document.getElementById('origemVenda').addEventListener('change', async e=>{
       ST.origemVenda=e.target.value; refreshOrigemInfo(); await loadFreteMedia();
       render();
@@ -455,9 +449,11 @@
     document.getElementById('restCusto').addEventListener('click',e=>{ e.preventDefault();
       const cv=document.getElementById('custoVenda'); cv.dataset.touched='0'; cv.value=ST.custoCompra.toFixed(2); render(); });
     document.getElementById('custoVenda').addEventListener('input',e=>{ e.target.dataset.touched='1'; });
-
+    // peso editável: marca como manual ao editar; recalcula no input
+    document.getElementById('pesoVenda').addEventListener('input',e=>{ e.target.dataset.touched='1'; render(); });
+    document.getElementById('restPeso').addEventListener('click',e=>{ e.preventDefault();
+      const pe=document.getElementById('pesoVenda'); pe.dataset.touched='0'; pe.value = ST.peso!=null ? ST.peso : 1; render(); });
     refreshOrigemInfo();
-
     // Carrega tabela de frete + impostos médios
     try{
       const {data:fr} = await sb.from('tabela_frete_ml').select('modo,peso_max_kg,preco_min,preco_max,frete').limit(2000);
@@ -472,7 +468,6 @@
         IMP[uf] = r ? {icms:+r.icms_pct, difal:+r.difal_pct, janela:r.janela, n:r.n} : {icms:0,difal:0,janela:'—',n:0};
       });
     }catch(e){ IMP={RJ:{icms:0,difal:0,janela:'—'},SP:{icms:0,difal:0,janela:'—'}}; }
-
     document.getElementById('custoVenda').value='0';
     document.getElementById('rodape').innerHTML='Comissões e o limiar de R$ 79/R$ 200 são regras didáticas do ML; '+
       'as taxas reais por categoria estão em comissoes_ml. Frete = senders[0].cost real (calculo-margem 2.3). '+
