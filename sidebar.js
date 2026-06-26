@@ -1,11 +1,9 @@
 // sidebar.js - Menu compartilhado do Controle Total GGE
 // Importar: <script src="sidebar.js" defer></script>
-
 (function() {
   var svgIcon = function(path, extra) {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + (extra || '') + '</svg>';
   };
-
   var icons = {
     dashboard:    svgIcon('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
     margem:       svgIcon('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
@@ -16,6 +14,7 @@
     catalogoitem: svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/>'),
     automacao:    svgIcon('<path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 4.76 2.83-2.83"/><circle cx="12" cy="12" r="4"/>'),
     full:         svgIcon('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'),
+    fluxocaixa:   svgIcon('<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>'),
     reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
     ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
     realinha:     svgIcon('<path d="M2 12h5l3-9 4 18 3-9h5"/>'),
@@ -27,7 +26,6 @@
     custo:        svgIcon('<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="10" x2="16" y2="18"/>'),
     chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
   };
-
   // Menu na ordem definida pelo Neco (06/05/2026)
   // Catálogo tem sub-menu: Dashboard, Catálogo, Oportunidades, Automação
   var pages = [
@@ -37,6 +35,7 @@
     { href: '/margem',               icon: icons.margem,    label: 'Margem',              key: 'margem' },
     { href: '/preco-mktp',           icon: icons.precomktp, label: 'Preço MKTP',          key: 'preco-mktp' },
     { href: '/full',                 icon: icons.full,      label: 'Controle Full',       key: 'full' },
+    { href: '/fluxo-caixa',          icon: icons.fluxocaixa, label: 'Fluxo de Caixa',     key: 'fluxo-caixa' },
     {
       icon: icons.catalogo, label: 'Catálogo', key: 'catalogo-group',
       children: [
@@ -56,21 +55,17 @@
     { href: '/custo',                icon: icons.custo,     label: 'Calc. Custo',         key: 'custo' },
     { href: '/custo-mktp', icon: icons.precomktp, label: 'Custos MKTP', key: 'custo-mktp' }
   ];
-
   var path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
-
   function isActive(href) {
     if (href === '/') return path === '/' || path === '' || path === '/index';
     return path === href;
   }
-
   function isGroupActive(children) {
     for (var i = 0; i < children.length; i++) {
       if (isActive(children[i].href)) return true;
     }
     return false;
   }
-
   // CSS
   if (!document.querySelector('#sidebar-shared-styles')) {
     var style = document.createElement('style');
@@ -104,7 +99,6 @@
     ].join('\n');
     document.head.appendChild(style);
   }
-
   // Build HTML
   var navHtml = '';
   for (var i = 0; i < pages.length; i++) {
@@ -138,7 +132,6 @@
       navHtml += '<span class="nav-item-label">' + p.label + '</span></a>';
     }
   }
-
   // Toggle expanded groups on hover
   var expandScript = '<script>' +
     'document.addEventListener("DOMContentLoaded",function(){' +
@@ -150,23 +143,19 @@
     'sb.addEventListener("mouseleave",function(){groups.forEach(function(g){' +
     'if(!g.querySelector(".nav-item.active")){g.querySelector(".nav-sub-items").style.maxHeight="0"}})})' +
     '});<\/script>';
-
   var html = '<div class="sidebar" id="sidebar">' +
     '<div class="sidebar-header"><div class="sidebar-logo">' +
     '<span class="sidebar-logo-text">GGE</span>' +
     '<span class="sidebar-logo-sub">Controle Total</span>' +
     '</div></div>' +
     '<nav class="sidebar-nav">' + navHtml + '</nav></div>' + expandScript;
-
   var el = document.getElementById('sidebar-container');
   if (el) { el.innerHTML = html; }
   else { document.body.insertAdjacentHTML('afterbegin', html); }
-
   // ═══════════════════════════════════════════════════════════
   // DATA QUALITY ALERT SYSTEM
   // Consulta vw_data_quality e mostra banners de alerta
   // ═══════════════════════════════════════════════════════════
-
   // CSS dos banners
   var alertStyle = document.createElement('style');
   alertStyle.id = 'data-quality-alert-styles';
@@ -185,20 +174,17 @@
     '.main-with-sidebar.has-alerts { padding-top:var(--dq-alerts-height, 0px) }'
   ].join('\n');
   document.head.appendChild(alertStyle);
-
   // Ícones de alerta
   var alertIcons = {
     warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
     danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
     info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
   };
-
   function checkDataQuality() {
     if (!window.GGE_SUPABASE_URL || !window.GGE_SUPABASE_KEY) {
       setTimeout(checkDataQuality, 2000);
       return;
     }
-
     var url = window.GGE_SUPABASE_URL + '/rest/v1/vw_data_quality?select=*&limit=1';
     fetch(url, {
       headers: {
@@ -211,7 +197,6 @@
       if (!rows || !rows.length) return;
       var d = rows[0];
       var alerts = [];
-
       if (d.tokens_expirados > 0) {
         alerts.push({
           type: 'danger',
@@ -219,7 +204,6 @@
           detail: d.tokens_expirados + ' conta(s) com token vencido. Coletas paradas.'
         });
       }
-
       if (d.alerta_frete && d.frete_zero > 0) {
         var pctRecente = d.total_envios_30d > 0
           ? Math.round(100 * d.frete_zero_30d / d.total_envios_30d)
@@ -232,7 +216,6 @@
           });
         }
       }
-
       if (d.vendas_sem_custo_30d > 10) {
         alerts.push({
           type: 'warning',
@@ -240,7 +223,6 @@
           detail: d.vendas_sem_custo_30d + ' vendas nos últimos 30 dias sem custo cadastrado. Margem usa estimativa 50%.'
         });
       }
-
       if (d.ativos_sem_sku > 5) {
         alerts.push({
           type: 'info',
@@ -248,29 +230,22 @@
           detail: d.ativos_sem_sku + ' anúncio(s) ativo(s) sem sku_vendedor. Sem vínculo com custo.'
         });
       }
-
       renderAlerts(alerts);
     })
     .catch(function(err) {
       console.warn('[DataQuality] Erro ao consultar:', err);
     });
   }
-
   function renderAlerts(alerts) {
     var old = document.getElementById('dq-alert-container');
     if (old) old.remove();
-
     if (!alerts.length) return;
-
     var dismissed = {};
     try { dismissed = JSON.parse(sessionStorage.getItem('dq_dismissed') || '{}'); } catch(e) {}
-
     var visibleAlerts = alerts.filter(function(a) { return !dismissed[a.text]; });
     if (!visibleAlerts.length) return;
-
     var container = document.createElement('div');
     container.id = 'dq-alert-container';
-
     visibleAlerts.forEach(function(a) {
       var div = document.createElement('div');
       div.className = 'dq-alert dq-alert-' + a.type;
@@ -279,7 +254,6 @@
         (a.detail ? '<span class="dq-alert-detail">— ' + a.detail + '</span>' : '') +
         '</span>' +
         '<button class="dq-alert-close" title="Dispensar">&times;</button>';
-
       div.querySelector('.dq-alert-close').addEventListener('click', function() {
         dismissed[a.text] = true;
         try { sessionStorage.setItem('dq_dismissed', JSON.stringify(dismissed)); } catch(e) {}
@@ -293,15 +267,11 @@
           updateMainPadding();
         }, 200);
       });
-
       container.appendChild(div);
     });
-
     document.body.appendChild(container);
-
     requestAnimationFrame(function() { updateMainPadding(); });
   }
-
   function updateMainPadding() {
     var container = document.getElementById('dq-alert-container');
     var main = document.querySelector('.main-with-sidebar') || document.querySelector('main') || document.querySelector('.dashboard');
@@ -315,11 +285,9 @@
       main.classList.remove('has-alerts');
     }
   }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(checkDataQuality, 1000); });
   } else {
     setTimeout(checkDataQuality, 1000);
   }
-
 })();
