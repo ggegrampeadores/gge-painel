@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fluxo de Caixa - Controle Total GGE</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- config.js define window.GGE_SUPABASE_URL / KEY no site. Fallback abaixo p/ preview local. -->
 <script src="config.js" onerror="void 0"></script>
 <style>
   :root{
@@ -19,8 +18,6 @@
   a{color:var(--blue)}
   h1{font-size:20px;font-weight:700;letter-spacing:-.2px}
   .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
-
-  /* ===== Header em chips ===== */
   .topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 14px}
   .seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
   .seg button{background:var(--panel);color:var(--muted);border:0;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
@@ -30,14 +27,12 @@
   .chip:hover{border-color:var(--blue)}
   .chip .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
   .chip .v{font-weight:700}
-  .chip svg{opacity:.6}
   .btn{background:#1f6feb;color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:13px}
   .btn.ghost{background:var(--panel);border:1px solid var(--border);color:var(--txt)}
   .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.5;cursor:default}
   .spacer{flex:1}
   .stamp{color:var(--muted);font-size:11.5px}
-
-  /* ===== Cards Bloco 1 ===== */
   .row1{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:8px}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
   .card .lbl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
@@ -48,8 +43,6 @@
   .pill.ok{background:rgba(63,185,80,.15);color:var(--green)}
   .pill.bad{background:rgba(248,81,73,.15);color:var(--red)}
   .pill.mid{background:rgba(210,153,34,.15);color:var(--yellow)}
-
-  /* ===== Tabuleiro ===== */
   .section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:22px 0 10px}
   .board-wrap{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
   table{border-collapse:collapse;width:100%;font-size:13px}
@@ -59,22 +52,17 @@
   tbody td.l{text-align:left;color:var(--muted)}
   tbody tr:hover{background:#1c2230}
   tbody tr.broke{background:rgba(248,81,73,.07)}
-  tbody tr.broke:hover{background:rgba(248,81,73,.12)}
   td.in{color:var(--green)} td.out{color:var(--red)}
   td.bold{font-weight:800}
   .wk{font-weight:700;color:var(--txt)!important}
   .wkd{font-size:11px;color:var(--muted)}
   .folga-bar{display:inline-block;height:8px;border-radius:4px;vertical-align:middle;margin-left:8px}
-
-  /* ===== Distribuição ===== */
   .grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
   .barrow{display:flex;align-items:center;gap:10px;margin:7px 0}
-  .barrow .nm{width:150px;color:var(--muted);font-size:12.5px}
+  .barrow .nm{width:160px;color:var(--muted);font-size:12.5px}
   .barrow .track{flex:1;background:#21262d;border-radius:6px;height:14px;overflow:hidden}
   .barrow .fill{height:100%;border-radius:6px}
   .barrow .vl{width:90px;text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px}
-
-  /* ===== Modal ===== */
   .overlay{position:fixed;inset:0;background:rgba(1,4,9,.66);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
   .overlay.show{display:flex}
   .modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:min(560px,96vw);max-height:88vh;overflow:auto;box-shadow:0 16px 50px rgba(0,0,0,.5)}
@@ -93,9 +81,11 @@
   .addbtn{background:none;border:1px dashed var(--border);color:var(--muted);border-radius:8px;padding:8px;width:100%;cursor:pointer;font-size:13px}
   .note{font-size:11.5px;color:var(--muted);margin-top:8px}
   .wklbl{font-size:11px;color:var(--muted)}
-  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f6feb;color:#fff;padding:11px 18px;border-radius:9px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;z-index:80}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f6feb;color:#fff;padding:11px 18px;border-radius:9px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;z-index:80;max-width:80vw;text-align:center}
   .toast.show{opacity:1}
-  .banner{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.3);border-radius:10px;padding:10px 14px;font-size:12.5px;color:#a9c7ff;margin-bottom:14px}
+  .toast.err{background:var(--red)}
+  .banner{background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.3);border-radius:10px;padding:10px 14px;font-size:12.5px;color:#e3c275;margin-bottom:14px}
+  .loading{padding:40px;text-align:center;color:var(--muted)}
   @media(max-width:1000px){.row1{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
 </style>
 </head>
@@ -106,95 +96,65 @@
   <h1>Fluxo de Caixa <span style="color:var(--muted);font-weight:400">· 13 semanas</span></h1>
   <div class="sub">O tabuleiro do caixa — equilibrar entradas e saídas, ver onde aperta antes de apertar.</div>
 
-  <div class="banner" id="demoBanner">
-    ⚙️ <b>Modo demonstração</b> — rodando com dados de exemplo. Entradas (Marketplace, Venda Direta), saídas confirmadas (Bling) e compras projetadas são calculadas pelo motor. A ligação com dados vivos do Bling/painel ML é o próximo passo.
+  <div class="banner" id="vdBanner">
+    📌 <b>Venda Direta em modo manual.</b> Marketplace e saídas (Bling) são ao vivo. A Venda Direta ainda não tem fonte confiável no banco (NFs sem valor e sem separar marketplace), então é informada manualmente no chip "Venda Direta" até a coleta ser corrigida (Fase 2).
   </div>
 
-  <!-- ===== HEADER CHIPS ===== -->
   <div class="topbar">
     <div class="seg" id="segEmpresa">
-      <button data-emp="consolidado" class="active">Consolidado</button>
-      <button data-emp="gge">GGE</button>
-      <button data-emp="toow">Toow</button>
+      <button data-emp="CONSOLIDADO" class="active">Consolidado</button>
+      <button data-emp="GGE">GGE</button>
+      <button data-emp="TOOW">Toow</button>
     </div>
-
-    <div class="chip" data-modal="mSaldo">
-      <span><span class="k">Saldo hoje</span><br><span class="v" id="chipSaldo">—</span></span>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-    </div>
-    <div class="chip" data-modal="mSaldo">
-      <span><span class="k">Piso de caixa</span><br><span class="v" id="chipPiso">—</span></span>
-    </div>
-    <div class="chip" data-modal="mRecompra">
-      <span><span class="k">Recompra ML / VD</span><br><span class="v" id="chipRecompra">—</span></span>
-    </div>
-    <div class="chip" data-modal="mCorrecoes">
-      <span><span class="k">Correções de entrada</span><br><span class="v" id="chipCorr">automático</span></span>
-    </div>
-    <div class="chip" data-modal="mExtras">
-      <span><span class="k">Entradas/Saídas extras</span><br><span class="v" id="chipExtras">0 lançam.</span></span>
-    </div>
-    <div class="chip" data-modal="mSim" style="border-color:#bc8cff55">
-      <span><span class="k" style="color:var(--purple)">Simular compra</span><br><span class="v" id="chipSim">—</span></span>
-    </div>
-
+    <div class="chip" data-modal="mSaldo"><span><span class="k">Saldo hoje</span><br><span class="v" id="chipSaldo">—</span></span></div>
+    <div class="chip" data-modal="mSaldo"><span><span class="k">Piso de caixa</span><br><span class="v" id="chipPiso">—</span></span></div>
+    <div class="chip" data-modal="mRecompra"><span><span class="k">Recompra ML / VD</span><br><span class="v" id="chipRecompra">—</span></span></div>
+    <div class="chip" data-modal="mVD"><span><span class="k">Venda Direta (manual)</span><br><span class="v" id="chipVD">—</span></span></div>
+    <div class="chip" data-modal="mCorrecoes"><span><span class="k">Correções de entrada</span><br><span class="v" id="chipCorr">automático</span></span></div>
+    <div class="chip" data-modal="mExtras"><span><span class="k">Entradas/Saídas extras</span><br><span class="v" id="chipExtras">0 lançam.</span></span></div>
+    <div class="chip" data-modal="mSim" style="border-color:#bc8cff55"><span><span class="k" style="color:var(--purple)">Simular compra</span><br><span class="v" id="chipSim">—</span></span></div>
     <div class="spacer"></div>
     <button class="btn ghost" id="btnAtualizar">↻ Atualizar (Bling)</button>
     <span class="stamp" id="stamp"></span>
   </div>
 
-  <!-- ===== BLOCO 1 ===== -->
   <div class="row1">
     <div class="card"><div class="lbl">Saldo hoje</div><div class="big" id="c1Saldo">—</div><div class="hint">Saldo bancário inicial</div></div>
-    <div class="card"><div class="lbl">Entradas da semana</div><div class="big pos" id="c1In">—</div><div class="hint" id="c1InH">ML + Venda Direta + extras</div></div>
-    <div class="card"><div class="lbl">Saídas da semana</div><div class="big neg" id="c1Out">—</div><div class="hint" id="c1OutH">Bling + compras + extras</div></div>
+    <div class="card"><div class="lbl">Entradas da semana</div><div class="big pos" id="c1In">—</div><div class="hint">ML + Venda Direta + extras</div></div>
+    <div class="card"><div class="lbl">Saídas da semana</div><div class="big neg" id="c1Out">—</div><div class="hint">Bling + compras + extras</div></div>
     <div class="card"><div class="lbl">Saldo no domingo</div><div class="big" id="c1End">—</div><div class="hint">Projetado p/ fim da semana</div></div>
     <div class="card"><div class="lbl">Folga real</div><div class="big" id="c1Folga">—</div><div class="hint">Saldo no domingo − piso</div><span class="pill" id="c1Pill">—</span></div>
   </div>
 
-  <!-- ===== TABULEIRO ===== -->
   <div class="section-title">Tabuleiro de 13 semanas (seg → dom)</div>
   <div class="board-wrap">
     <table>
       <thead><tr>
-        <th class="l">Semana</th>
-        <th>Saldo inic.</th>
-        <th>Marketplace</th>
-        <th>Venda Direta</th>
-        <th>Extras</th>
-        <th>Saídas Bling</th>
-        <th>Compras proj.</th>
-        <th>Saldo final</th>
-        <th>Folga (− piso)</th>
+        <th class="l">Semana</th><th>Saldo inic.</th><th>Marketplace</th><th>Venda Direta</th>
+        <th>Extras</th><th>Saídas Bling</th><th>Compras proj.</th><th>Saldo final</th><th>Folga (− piso)</th>
       </tr></thead>
-      <tbody id="boardBody"></tbody>
+      <tbody id="boardBody"><tr><td colspan="9" class="loading">Carregando dados ao vivo…</td></tr></tbody>
     </table>
   </div>
-  <div class="note">Linhas em vermelho = semana que fura o piso. Compras projetadas = 45% do Marketplace + 55% da Venda Direta da semana, lançadas na quarta e pagas em 30/45/60 dias — somadas por cima das saídas já confirmadas no Bling.</div>
+  <div class="note">Linhas em vermelho = semana que fura o piso. Marketplace = projeção das vendas ML (tabela vendas). Saídas Bling = contas a pagar em aberto (sincronizadas). Compras projetadas = 45% do ML + 55% da VD, lançadas na quarta e pagas em 30/45/60 dias.</div>
 
-  <!-- ===== DISTRIBUIÇÃO ===== -->
   <div class="section-title">Distribuição das saídas</div>
   <div class="grid2">
-    <div class="card">
-      <div class="lbl" style="margin-bottom:10px">Por categoria (13 semanas)</div>
-      <div id="catBars"></div>
-    </div>
-    <div class="card">
-      <div class="lbl" style="margin-bottom:10px">Por semana (total de saídas)</div>
-      <div id="wkBars"></div>
-    </div>
+    <div class="card"><div class="lbl" style="margin-bottom:10px">Por origem (13 semanas)</div><div id="catBars"></div></div>
+    <div class="card"><div class="lbl" style="margin-bottom:10px">Por semana (total de saídas)</div><div id="wkBars"></div></div>
   </div>
 </div>
 
-<!-- ===================== MODAIS ===================== -->
+<!-- MODAIS -->
 <div class="overlay" id="mSaldo"><div class="modal">
   <h3>Saldo &amp; Piso <span class="x" data-close>×</span></h3>
   <div class="body">
-    <div class="desc">O <b>saldo de hoje</b> você digita todo dia (default 0). O <b>piso de caixa</b> é o mínimo que você nunca quer furar — a "folga" é tudo acima dele.</div>
+    <div class="desc">Saldo bancário de hoje (digite todo dia). É salvo com a data de hoje. O piso é o mínimo que você nunca quer furar.</div>
     <div class="twocol">
-      <div class="fld"><label>Saldo bancário hoje (R$)</label><input type="number" id="inSaldo" step="100"></div>
-      <div class="fld"><label>Piso de caixa (R$)</label><input type="number" id="inPiso" step="500"></div>
+      <div class="fld"><label>Saldo GGE hoje (R$)</label><input type="number" id="inSaldoGGE" step="100"></div>
+      <div class="fld"><label>Saldo Toow hoje (R$)</label><input type="number" id="inSaldoTOOW" step="100"></div>
     </div>
+    <div class="fld"><label>Piso de caixa (R$)</label><input type="number" id="inPiso" step="500"></div>
   </div>
   <div class="foot"><button class="btn ghost" data-close>Cancelar</button><button class="btn" id="saveSaldo">Salvar</button></div>
 </div></div>
@@ -202,7 +162,7 @@
 <div class="overlay" id="mRecompra"><div class="modal">
   <h3>Recompra (compras como % das vendas) <span class="x" data-close>×</span></h3>
   <div class="body">
-    <div class="desc">Quanto você recompra do que vende, por canal. Define as <b>compras projetadas</b> (lançadas na quarta, pagas em 30/45/60 dias).</div>
+    <div class="desc">Quanto você recompra do que vende, por canal. Define as compras projetadas (lançadas na quarta, pagas em 30/45/60 dias).</div>
     <div class="twocol">
       <div class="fld"><label>% sobre Marketplace</label><input type="number" id="inRecML" step="1"></div>
       <div class="fld"><label>% sobre Venda Direta</label><input type="number" id="inRecVD" step="1"></div>
@@ -211,15 +171,27 @@
   <div class="foot"><button class="btn ghost" data-close>Cancelar</button><button class="btn" id="saveRecompra">Salvar</button></div>
 </div></div>
 
+<div class="overlay" id="mVD"><div class="modal">
+  <h3>Venda Direta — faturamento mensal (manual) <span class="x" data-close>×</span></h3>
+  <div class="body">
+    <div class="desc">Enquanto a coleta de NF não traz o valor real da Venda Direta, informe o faturamento dos 2 últimos meses (só GGE — Toow não tem VD). A projeção usa: (média dos 2 meses ×1 + mês passado ×2) / 3.</div>
+    <div class="twocol">
+      <div class="fld"><label id="lblVDm1">Mês passado (R$)</label><input type="number" id="inVDm1" step="500"></div>
+      <div class="fld"><label id="lblVDm2">Dois meses atrás (R$)</label><input type="number" id="inVDm2" step="500"></div>
+    </div>
+    <div class="note">Deixe 0 se ainda não quer projetar a Venda Direta.</div>
+  </div>
+  <div class="foot"><button class="btn ghost" data-close>Cancelar</button><button class="btn" id="saveVD">Salvar</button></div>
+</div></div>
+
 <div class="overlay" id="mCorrecoes"><div class="modal">
   <h3>Correção das próximas entradas <span class="x" data-close>×</span></h3>
   <div class="body">
-    <div class="desc">As vendas são incertas. O motor projeta um valor, mas você corrige as <b>próximas 4 semanas</b> conforme vê o movimento subir ou cair. Campo vazio = valor calculado. A correção <b>cascateia</b> para as compras daquela semana.</div>
+    <div class="desc">O motor projeta um valor, mas você corrige as próximas 4 semanas conforme vê o movimento subir ou cair. Campo vazio = valor calculado. A correção cascateia para as compras daquela semana.</div>
     <div style="font-weight:700;margin:6px 0 8px;color:var(--blue)">Marketplace</div>
-    <div id="corrML" class="twocol" style="grid-template-columns:1fr 1fr;gap:10px"></div>
+    <div id="corrML" class="twocol" style="gap:10px"></div>
     <div style="font-weight:700;margin:16px 0 8px;color:var(--blue)">Venda Direta</div>
-    <div id="corrVD" class="twocol" style="grid-template-columns:1fr 1fr;gap:10px"></div>
-    <div class="note">Valores em R$ por semana. O placeholder mostra o valor calculado pelo motor.</div>
+    <div id="corrVD" class="twocol" style="gap:10px"></div>
   </div>
   <div class="foot"><button class="btn ghost" id="clearCorr">Voltar ao calculado</button><button class="btn" id="saveCorr">Salvar correções</button></div>
 </div></div>
@@ -227,7 +199,7 @@
 <div class="overlay" id="mExtras"><div class="modal">
   <h3>Entradas / Saídas extras <span class="x" data-close>×</span></h3>
   <div class="body">
-    <div class="desc">Eventos pontuais fora do padrão. Use <b>sinal negativo</b> para saída (ex.: −15000). A data é quando o evento bate no caixa.</div>
+    <div class="desc">Eventos pontuais fora do padrão. Use sinal negativo para saída (ex.: −15000). A data é quando o evento bate no caixa.</div>
     <div id="extrasList"></div>
     <button class="addbtn" id="addExtra">+ adicionar lançamento</button>
   </div>
@@ -237,7 +209,7 @@
 <div class="overlay" id="mSim"><div class="modal">
   <h3>Simular compra — "e se eu comprar?" <span class="x" data-close>×</span></h3>
   <div class="body">
-    <div class="desc">Lance uma compra hipotética e veja o impacto no tabuleiro. As semanas que <b>passarem</b> a furar o piso por causa dela acendem em vermelho.</div>
+    <div class="desc">Lance uma compra hipotética e veja o impacto. As semanas que passarem a furar o piso por causa dela acendem em vermelho (▲sim). Não é salvo.</div>
     <div class="twocol">
       <div class="fld"><label>Valor total (R$)</label><input type="number" id="simValor" step="500" placeholder="ex.: 60000"></div>
       <div class="fld"><label>Nº de parcelas</label><input type="number" id="simParc" step="1" value="3" min="1"></div>
@@ -246,358 +218,270 @@
       <div class="fld"><label>1º vencimento</label><input type="date" id="simData"></div>
       <div class="fld"><label>Dias entre parcelas</label><input type="number" id="simGap" step="1" value="30"></div>
     </div>
-    <div class="note">Ex.: importação de R$ 60.000 em 3x, primeira em 30 dias, espaçadas 30 dias.</div>
   </div>
-  <div class="foot">
-    <button class="btn ghost" id="clearSim">Limpar simulação</button>
-    <button class="btn" id="saveSim" style="background:#8957e5">Simular</button>
-  </div>
+  <div class="foot"><button class="btn ghost" id="clearSim">Limpar</button><button class="btn" id="saveSim" style="background:#8957e5">Simular</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
 
 <script src="sidebar.js" defer onerror="void 0"></script>
 <script>
-/* =========================================================
-   AUTENTICAÇÃO (padrão do projeto) — lenient em preview local
-   ========================================================= */
-(function(){
-  var local = location.protocol === 'file:' || location.hostname === 'localhost';
-  var auth = sessionStorage.getItem('gge_auth');
-  if(!local && auth !== 'gge2026'){ location.href='/'; }
-})();
+/* ===== Auth (padrão do projeto) — lenient em preview local ===== */
+(function(){ var local=location.protocol==='file:'||location.hostname==='localhost';
+  if(!local && sessionStorage.getItem('gge_auth')!=='gge2026'){ location.href='/'; } })();
 
-/* Supabase opcional (não usado no modo demo; pronto p/ ligar) */
-var sb = null;
-try { if(window.GGE_SUPABASE_URL && window.supabase){ sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY); } } catch(e){}
+/* ===== Supabase ===== */
+var SB_URL = window.GGE_SUPABASE_URL || 'https://opceujqpqyvxsatzdarg.supabase.co';
+var SB_KEY = window.GGE_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
+var sb = supabase.createClient(SB_URL, SB_KEY);
 
-/* =========================================================
-   DADOS DE EXEMPLO  (TODO: trocar por Bling + painel ML)
-   ========================================================= */
-// MOCK.<empresa>:
-//  - mlDaily: faturamento ML dos últimos 14 dias (mais antigo -> mais novo)
-//  - vd: faturamento da Venda Direta dos 2 meses anteriores
-//  - recorrentes (folha/fixas/impostos/forn) viram contas a pagar semanais
-//  - parcelas: boletos de compras JÁ feitas, já existentes no Bling (front-loaded)
-// genBling() monta a lista "contas a pagar do Bling" a partir disso.
-var MOCK = {
-  gge: {
-    saldo: 6000,
-    mlDaily:[2800,3100,2600,2900,3300,1200,1000, 3000,3400,2700,3100,3500,1300,1100],
-    vd:{ mesPassado:72000, doisMesesAtras:60000 },
-    folha:7000, fixas:4000, impostos:3000, forn:1000,
-    parcelas:[
-      {d:1,v:7500},{d:4,v:7500},{d:8,v:7500},{d:11,v:7500},{d:15,v:7500},
-      {d:18,v:7500},{d:23,v:40000,cat:'Importação'},{d:23,v:5000},{d:26,v:5000},
-      {d:31,v:3500},{d:36,v:2000}
-    ]
-  },
-  toow: {
-    saldo: 4000,
-    mlDaily:[1200,1400,1100,1300,1500,600,500, 1300,1450,1200,1350,1550,650,520],
-    vd:{ mesPassado:28000, doisMesesAtras:24000 },
-    folha:4500, fixas:2500, impostos:1500, forn:500,
-    parcelas:[
-      {d:2,v:4500},{d:5,v:4500},{d:9,v:4500},{d:12,v:4500},{d:16,v:4500},
-      {d:19,v:4500},{d:24,v:3000},{d:27,v:3000},{d:33,v:2000},{d:38,v:1200}
-    ]
-  }
-};
-// Gera as contas a pagar (mock do Bling): recorrentes espalhados na semana + parcelas existentes
-function genBling(p){
-  var out=[], hoje=todayMid();
-  for(var d=0; d<95; d++){
-    var dt=addDays(hoje,d), wd=dt.getDay();
-    if(wd===1) out.push({d:d,v:p.folha,cat:'Folha'});
-    if(wd===3) out.push({d:d,v:p.fixas,cat:'Despesas fixas'});
-    if(wd===5) out.push({d:d,v:p.impostos,cat:'Impostos'});
-    if(wd===2) out.push({d:d,v:p.forn,cat:'Frete'});
-  }
-  (p.parcelas||[]).forEach(function(x){ out.push({d:x.d,v:x.v,cat:x.cat||'Fornecedores'}); });
-  return out;
-}
-MOCK.gge.bling = genBling(MOCK.gge);
-MOCK.toow.bling = genBling(MOCK.toow);
-
-/* =========================================================
-   ESTADO (config do header) — por visão (consolidado/gge/toow)
-   ========================================================= */
-var WEEKS = 13;
+var WEEKS=13;
 var state = {
-  emp:'consolidado',
-  piso: 5000,
-  recML: 45, recVD: 55,
-  saldo: { consolidado:null, gge:null, toow:null },   // null => usa mock
-  corr: { consolidado:{ml:[null,null,null,null],vd:[null,null,null,null]},
-          gge:{ml:[null,null,null,null],vd:[null,null,null,null]},
-          toow:{ml:[null,null,null,null],vd:[null,null,null,null]} },
-  extras: [],     // {data:'YYYY-MM-DD', v:number(signed), desc:string}
-  sim: null       // {valor, parc, data, gap}
+  emp:'CONSOLIDADO',
+  config:{ piso:5000, recML:45, recVD:55 },
+  saldo:{ GGE:0, TOOW:0 },
+  vd:{ GGE:{m1:0,m2:0}, TOOW:{m1:0,m2:0} },
+  corr:[],      // {empresa,canal,semana_inicio,valor}
+  extras:[],    // {id?,empresa,data,valor,descricao}
+  sim:null
 };
+var DATA = { mlDaily:{GGE:new Array(14).fill(0),TOOW:new Array(14).fill(0)}, bling:{GGE:[],TOOW:[]} };
 
-/* =========================================================
-   HELPERS
-   ========================================================= */
-function brl(n){ return (n<0?'-':'') + 'R$ ' + Math.abs(Math.round(n)).toLocaleString('pt-BR'); }
-function brlK(n){ var s=n<0?'-':''; var a=Math.abs(n); if(a<1000) return s+'R$ '+Math.round(a); var k=a/1000; var str=(a>=10000)?Math.round(k).toString():(Math.round(k*10)/10).toString(); return s+'R$ '+str+'k'; }
-function mondayOf(date){ var d=new Date(date); var g=d.getDay(); var diff=(g===0?-6:1-g); d.setDate(d.getDate()+diff); d.setHours(0,0,0,0); return d; }
-function addDays(date,n){ var d=new Date(date); d.setDate(d.getDate()+n); return d; }
-function fmtDM(date){ return date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }
-function todayMid(){ var d=new Date(); d.setHours(0,0,0,0); return d; }
+/* ===== Helpers ===== */
+function brl(n){ return (n<0?'-':'')+'R$ '+Math.abs(Math.round(n)).toLocaleString('pt-BR'); }
+function brlK(n){ var s=n<0?'-':'';var a=Math.abs(n);if(a<1000)return s+'R$ '+Math.round(a);var k=a/1000;var str=(a>=10000)?Math.round(k).toString():(Math.round(k*10)/10).toString();return s+'R$ '+str+'k'; }
+function mondayOf(d){d=new Date(d);var g=d.getDay();d.setDate(d.getDate()+(g===0?-6:1-g));d.setHours(0,0,0,0);return d;}
+function addDays(d,n){d=new Date(d);d.setDate(d.getDate()+n);return d;}
+function fmtDM(d){return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});}
+function todayMid(){var d=new Date();d.setHours(0,0,0,0);return d;}
+function isoDate(d){var y=d.getFullYear(),m=('0'+(d.getMonth()+1)).slice(-2),dy=('0'+d.getDate()).slice(-2);return y+'-'+m+'-'+dy;}
+function anoMes(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);}
+function empKeyFrom(s){return /toow/i.test(s||'')?'TOOW':'GGE';}
+function buildWeeks(){var m=mondayOf(todayMid()),a=[];for(var i=0;i<WEEKS;i++){var s=addDays(m,i*7);a.push({i:i,start:s,end:addDays(s,6)});}return a;}
+function weekIndex(weeks,d){var t=new Date(d);t.setHours(0,0,0,0);for(var i=0;i<weeks.length;i++){if(t>=weeks[i].start&&t<=addDays(weeks[i].end,1))return i;}return -1;}
+function members(emp){return emp==='CONSOLIDADO'?['GGE','TOOW']:[emp];}
 
-function buildWeeks(){
-  var m0 = mondayOf(todayMid()); var arr=[];
-  for(var i=0;i<WEEKS;i++){ var s=addDays(m0,i*7); arr.push({i:i,start:s,end:addDays(s,6)}); }
-  return arr;
-}
-function weekIndex(weeks,date){
-  var t=new Date(date); t.setHours(0,0,0,0);
-  for(var i=0;i<weeks.length;i++){ if(t>=weeks[i].start && t<=addDays(weeks[i].end,1)) return i; }
-  return -1;
-}
+/* ===== Projeções ===== */
+function mlWeek(k){var a=DATA.mlDaily[k]||[];var l=0,p=0;for(var i=7;i<14;i++)l+=(a[i]||0);for(var j=0;j<7;j++)p+=(a[j]||0);return (l*2+p)/3;}
+function vdWeek(k){var v=state.vd[k]||{m1:0,m2:0};var m2=(Number(v.m1||0)+Number(v.m2||0))/2;return ((m2*1+Number(v.m1||0)*2)/3)/4.33;}
+function startBalance(emp){return members(emp).reduce(function(s,k){return s+Number(state.saldo[k]||0);},0);}
+function corrVal(canal,semISO){var f=state.corr.find(function(c){return c.empresa===state.emp&&c.canal===canal&&c.semana_inicio===semISO;});return f?Number(f.valor):null;}
 
-/* projeções por empresa */
-function mlWeek(emp){
-  var a=MOCK[emp].mlDaily;
-  var last7=0, prev7=0;
-  for(var i=7;i<14;i++) last7+=a[i];
-  for(var j=0;j<7;j++) prev7+=a[j];
-  return (last7*2 + prev7*1)/3;      // [regra ML: peso 2 nos últimos 7, peso 1 nos 7 anteriores]
-}
-function vdWeek(emp){
-  var v=MOCK[emp].vd;
-  var media2=(v.mesPassado+v.doisMesesAtras)/2;
-  var mes=(media2*1 + v.mesPassado*2)/3; // [regra VD: média 2m peso1 + mês passado peso2]
-  return mes/4.33;
-}
-function members(emp){ return emp==='consolidado'?['gge','toow']:[emp]; }
-function startBalance(emp){
-  if(state.saldo[emp]!=null) return state.saldo[emp];
-  return members(emp).reduce(function(s,m){return s+MOCK[m].saldo;},0);
-}
-
-/* =========================================================
-   MOTOR — calcula o tabuleiro da visão atual
-   ========================================================= */
+/* ===== Motor ===== */
 function compute(withSim){
   var emp=state.emp, weeks=buildWeeks(), mem=members(emp);
-  var baseML=mem.reduce(function(s,m){return s+mlWeek(m);},0);
-  var baseVD=mem.reduce(function(s,m){return s+vdWeek(m);},0);
-  var recML=state.recML/100, recVD=state.recVD/100, piso=state.piso;
-  var corr=state.corr[emp];
-
-  // arrays por semana
-  var ml=[],vd=[],compraBoletos=new Array(WEEKS).fill(0),bling=new Array(WEEKS).fill(0),
-      extras=new Array(WEEKS).fill(0), simArr=new Array(WEEKS).fill(0),
-      catTotals={};
-
+  var baseML=mem.reduce(function(s,k){return s+mlWeek(k);},0);
+  var baseVD=mem.reduce(function(s,k){return s+vdWeek(k);},0);
+  var recML=state.config.recML/100, recVD=state.config.recVD/100, piso=Number(state.config.piso)||0;
+  var ml=[],vd=[],compra=new Array(WEEKS).fill(0),bling=new Array(WEEKS).fill(0),extras=new Array(WEEKS).fill(0),simA=new Array(WEEKS).fill(0);
   for(var i=0;i<WEEKS;i++){
-    var mlv = (i<4 && corr.ml[i]!=null)? corr.ml[i] : baseML;
-    var vdv = (i<4 && corr.vd[i]!=null)? corr.vd[i] : baseVD;
+    var sISO=isoDate(weeks[i].start);
+    var mlv=(i<4)?(corrVal('ml',sISO)!=null?corrVal('ml',sISO):baseML):baseML;
+    var vdv=(i<4)?(corrVal('vd',sISO)!=null?corrVal('vd',sISO):baseVD):baseVD;
     ml.push(mlv); vd.push(vdv);
-    // compras desta semana -> lançadas na quarta (start+2) -> boletos +30/+45/+60
-    var compra = recML*mlv + recVD*vdv;
-    var wed = addDays(weeks[i].start,2);
-    [30,45,60].forEach(function(off){
-      var idx=weekIndex(weeks, addDays(wed,off));
-      if(idx>=0) compraBoletos[idx]+= compra/3;
-    });
+    var c=recML*mlv+recVD*vdv, wed=addDays(weeks[i].start,2);
+    [30,45,60].forEach(function(off){var idx=weekIndex(weeks,addDays(wed,off));if(idx>=0)compra[idx]+=c/3;});
   }
-  // Bling confirmado
-  mem.forEach(function(m){
-    MOCK[m].bling.forEach(function(b){
-      var idx=weekIndex(weeks, addDays(todayMid(),b.d));
-      if(idx>=0){ bling[idx]+=b.v; catTotals[b.cat]=(catTotals[b.cat]||0)+b.v; }
-    });
-  });
-  // compras projetadas entram como categoria
-  var totalCompras=compraBoletos.reduce(function(a,b){return a+b;},0);
-  if(totalCompras>0) catTotals['Compras (projeção)']=totalCompras;
-
-  // extras
-  state.extras.forEach(function(e){
-    if(!e.data) return; var idx=weekIndex(weeks,new Date(e.data+'T00:00:00'));
-    if(idx>=0) extras[idx]+=Number(e.v||0);
-  });
-  // simulação
-  if(withSim && state.sim && state.sim.valor){
-    var s=state.sim, n=Math.max(1,parseInt(s.parc||1)), per=s.valor/n, gap=parseInt(s.gap||30);
-    var base=s.data? new Date(s.data+'T00:00:00') : addDays(todayMid(),30);
-    for(var p=0;p<n;p++){ var idx=weekIndex(weeks,addDays(base,p*gap)); if(idx>=0) simArr[idx]+=per; }
-  }
-
-  // rollup
-  var rows=[], saldo=startBalance(emp);
+  mem.forEach(function(k){ (DATA.bling[k]||[]).forEach(function(b){var idx=weekIndex(weeks,b.d);if(idx>=0)bling[idx]+=b.v;}); });
+  state.extras.forEach(function(e){ if(!e.data)return; if(e.empresa&&emp!=='CONSOLIDADO'&&e.empresa!==emp)return; var idx=weekIndex(weeks,new Date(e.data+'T00:00:00'));if(idx>=0)extras[idx]+=Number(e.valor||0);});
+  if(withSim&&state.sim&&state.sim.valor){var s=state.sim,n=Math.max(1,parseInt(s.parc||1)),per=s.valor/n,gap=parseInt(s.gap||30);var base=s.data?new Date(s.data+'T00:00:00'):addDays(todayMid(),30);for(var p=0;p<n;p++){var idx=weekIndex(weeks,addDays(base,p*gap));if(idx>=0)simA[idx]+=per;}}
+  var rows=[],saldo=startBalance(emp);
+  var totBling=0,totCompra=0;
   for(var w=0;w<WEEKS;w++){
-    var inic=saldo;
-    var extraPos=extras[w]>0?extras[w]:0, extraNeg=extras[w]<0?-extras[w]:0;
-    var entradas=ml[w]+vd[w]+extraPos;
-    var saidas=bling[w]+compraBoletos[w]+extraNeg+simArr[w];
-    var fim=inic+entradas-saidas;
-    rows.push({
-      i:w, start:weeks[w].start, end:weeks[w].end, inic:inic,
-      ml:ml[w], vd:vd[w], extras:extras[w], bling:bling[w],
-      compra:compraBoletos[w], sim:simArr[w], fim:fim, folga:fim-piso,
-      broke:(fim-piso)<0
-    });
+    var inic=saldo, ePos=extras[w]>0?extras[w]:0, eNeg=extras[w]<0?-extras[w]:0;
+    var ent=ml[w]+vd[w]+ePos, sai=bling[w]+compra[w]+eNeg+simA[w], fim=inic+ent-sai;
+    totBling+=bling[w]; totCompra+=compra[w];
+    rows.push({i:w,start:weeks[w].start,end:weeks[w].end,inic:inic,ml:ml[w],vd:vd[w],extras:extras[w],bling:bling[w],compra:compra[w],sim:simA[w],fim:fim,folga:fim-piso,broke:(fim-piso)<0});
     saldo=fim;
   }
-  return {rows:rows, cats:catTotals, piso:piso, saldoHoje:startBalance(emp)};
+  return {rows:rows,piso:piso,saldoHoje:startBalance(emp),totBling:totBling,totCompra:totCompra};
 }
 
-/* =========================================================
-   RENDER
-   ========================================================= */
+/* ===== Render ===== */
 function render(){
-  var withSim = !!(state.sim && state.sim.valor);
-  var base = compute(false);          // sem simulação (para detectar novas quebras)
-  var data = compute(withSim);        // visão exibida
-  var rows=data.rows;
-
-  // chips
+  var withSim=!!(state.sim&&state.sim.valor);
+  var base=compute(false), data=compute(withSim), rows=data.rows, piso=Number(state.config.piso)||0;
   document.getElementById('chipSaldo').textContent=brlK(startBalance(state.emp));
-  document.getElementById('chipPiso').textContent=brlK(state.piso);
-  document.getElementById('chipRecompra').textContent=state.recML+'% / '+state.recVD+'%';
-  var nCorr=0; ['ml','vd'].forEach(function(k){ state.corr[state.emp][k].forEach(function(x){if(x!=null)nCorr++;}); });
-  document.getElementById('chipCorr').textContent = nCorr? (nCorr+' corrigida(s)') : 'automático';
-  document.getElementById('chipExtras').textContent = state.extras.length+' lançam.';
-  document.getElementById('chipSim').textContent = withSim? brlK(state.sim.valor)+' em '+state.sim.parc+'x' : '—';
+  document.getElementById('chipPiso').textContent=brlK(piso);
+  document.getElementById('chipRecompra').textContent=state.config.recML+'% / '+state.config.recVD+'%';
+  var vdk=members(state.emp).reduce(function(s,k){return s+vdWeek(k)*4.33;},0);
+  document.getElementById('chipVD').textContent=vdk>0?brlK(vdk)+'/mês':'não informado';
+  var nC=state.corr.filter(function(c){return c.empresa===state.emp;}).length;
+  document.getElementById('chipCorr').textContent=nC?(nC+' corrigida(s)'):'automático';
+  document.getElementById('chipExtras').textContent=state.extras.length+' lançam.';
+  document.getElementById('chipSim').textContent=withSim?brlK(state.sim.valor)+' em '+state.sim.parc+'x':'—';
 
-  // bloco 1 (semana 0)
   var r0=rows[0];
-  var inWk=r0.ml+r0.vd+(r0.extras>0?r0.extras:0);
-  var outWk=r0.bling+r0.compra+(r0.extras<0?-r0.extras:0)+r0.sim;
+  var inWk=r0.ml+r0.vd+(r0.extras>0?r0.extras:0), outWk=r0.bling+r0.compra+(r0.extras<0?-r0.extras:0)+r0.sim;
   document.getElementById('c1Saldo').textContent=brl(data.saldoHoje);
   document.getElementById('c1In').textContent=brl(inWk);
   document.getElementById('c1Out').textContent=brl(outWk);
   document.getElementById('c1End').textContent=brl(r0.fim);
   document.getElementById('c1End').className='big '+(r0.fim<0?'neg':'');
   document.getElementById('c1Folga').textContent=brl(r0.folga);
-  document.getElementById('c1Folga').className='big '+(r0.folga<0?'neg':(r0.folga<state.piso?'warn':'pos'));
+  document.getElementById('c1Folga').className='big '+(r0.folga<0?'neg':(r0.folga<piso?'warn':'pos'));
   var pill=document.getElementById('c1Pill');
   if(r0.folga<0){pill.className='pill bad';pill.textContent='ABAIXO DO PISO';}
-  else if(r0.folga<state.piso){pill.className='pill mid';pill.textContent='FOLGA APERTADA';}
-  else {pill.className='pill ok';pill.textContent='CAIXA SAUDÁVEL';}
+  else if(r0.folga<piso){pill.className='pill mid';pill.textContent='FOLGA APERTADA';}
+  else{pill.className='pill ok';pill.textContent='CAIXA SAUDÁVEL';}
 
-  // tabuleiro
-  var maxFolga=Math.max.apply(null,rows.map(function(r){return Math.abs(r.folga);}).concat([1]));
-  var tb=document.getElementById('boardBody'); tb.innerHTML='';
+  var maxF=Math.max.apply(null,rows.map(function(r){return Math.abs(r.folga);}).concat([1]));
+  var tb=document.getElementById('boardBody');tb.innerHTML='';
   rows.forEach(function(r){
-    var newBreak = r.broke && !base.rows[r.i].broke; // quebrou por causa da simulação
-    var folgaColor = r.folga<0?'var(--red)':(r.folga<state.piso?'var(--yellow)':'var(--green)');
-    var barW=Math.max(3,Math.round(Math.abs(r.folga)/maxFolga*60));
-    var tr=document.createElement('tr'); if(r.broke) tr.className='broke';
-    tr.innerHTML=
-      '<td class="l"><span class="wk">Sem '+(r.i+1)+'</span> <span class="wkd">'+fmtDM(r.start)+'–'+fmtDM(r.end)+'</span>'+(newBreak?' <span style="color:var(--purple)">▲sim</span>':'')+'</td>'+
-      '<td>'+brl(r.inic)+'</td>'+
-      '<td class="in">'+brl(r.ml)+'</td>'+
-      '<td class="in">'+brl(r.vd)+'</td>'+
+    var newBreak=r.broke&&!base.rows[r.i].broke;
+    var col=r.folga<0?'var(--red)':(r.folga<piso?'var(--yellow)':'var(--green)');
+    var bw=Math.max(3,Math.round(Math.abs(r.folga)/maxF*60));
+    var tr=document.createElement('tr');if(r.broke)tr.className='broke';
+    tr.innerHTML='<td class="l"><span class="wk">Sem '+(r.i+1)+'</span> <span class="wkd">'+fmtDM(r.start)+'–'+fmtDM(r.end)+'</span>'+(newBreak?' <span style="color:var(--purple)">▲sim</span>':'')+'</td>'+
+      '<td>'+brl(r.inic)+'</td><td class="in">'+brl(r.ml)+'</td><td class="in">'+(r.vd?brl(r.vd):'—')+'</td>'+
       '<td class="'+(r.extras>=0?'in':'out')+'">'+(r.extras?brl(r.extras):'—')+'</td>'+
       '<td class="out">'+(r.bling?brl(-r.bling):'—')+'</td>'+
-      '<td class="out">'+(r.compra?brl(-(r.compra+r.sim)):'—')+'</td>'+
+      '<td class="out">'+((r.compra+r.sim)?brl(-(r.compra+r.sim)):'—')+'</td>'+
       '<td class="bold" style="color:'+(r.fim<0?'var(--red)':'var(--txt)')+'">'+brl(r.fim)+'</td>'+
-      '<td class="bold" style="color:'+folgaColor+'">'+brl(r.folga)+'<span class="folga-bar" style="width:'+barW+'px;background:'+folgaColor+'"></span></td>';
+      '<td class="bold" style="color:'+col+'">'+brl(r.folga)+'<span class="folga-bar" style="width:'+bw+'px;background:'+col+'"></span></td>';
     tb.appendChild(tr);
   });
 
-  // distribuição por categoria
-  var cats=Object.keys(data.cats).map(function(k){return {nm:k,v:data.cats[k]};}).sort(function(a,b){return b.v-a.v;});
-  var maxCat=Math.max.apply(null,cats.map(function(c){return c.v;}).concat([1]));
-  var palette={'Fornecedores':'#58a6ff','Compras (projeção)':'#bc8cff','Impostos':'#f85149','Folha':'#d29922','Frete':'#3fb950','Despesas fixas':'#8b949e','Importação':'#db61a2'};
-  document.getElementById('catBars').innerHTML=cats.map(function(c){
-    return '<div class="barrow"><div class="nm">'+c.nm+'</div><div class="track"><div class="fill" style="width:'+(c.v/maxCat*100)+'%;background:'+(palette[c.nm]||'#8b949e')+'"></div></div><div class="vl">'+brlK(c.v)+'</div></div>';
-  }).join('');
-
-  // distribuição por semana
-  var maxWk=Math.max.apply(null,rows.map(function(r){return r.bling+r.compra+r.sim+(r.extras<0?-r.extras:0);}).concat([1]));
-  document.getElementById('wkBars').innerHTML=rows.map(function(r){
-    var out=r.bling+r.compra+r.sim+(r.extras<0?-r.extras:0);
-    return '<div class="barrow"><div class="nm" style="width:120px">Sem '+(r.i+1)+' · '+fmtDM(r.start)+'</div><div class="track"><div class="fill" style="width:'+(out/maxWk*100)+'%;background:'+(r.broke?'var(--red)':'#58a6ff')+'"></div></div><div class="vl">'+brlK(out)+'</div></div>';
-  }).join('');
+  var cats=[{nm:'Contas a pagar (Bling)',v:data.totBling,c:'#58a6ff'},{nm:'Compras projetadas',v:data.totCompra,c:'#bc8cff'}].filter(function(x){return x.v>0;});
+  var maxc=Math.max.apply(null,cats.map(function(c){return c.v;}).concat([1]));
+  document.getElementById('catBars').innerHTML=cats.map(function(c){return '<div class="barrow"><div class="nm">'+c.nm+'</div><div class="track"><div class="fill" style="width:'+(c.v/maxc*100)+'%;background:'+c.c+'"></div></div><div class="vl">'+brlK(c.v)+'</div></div>';}).join('')||'<div class="note">Sem saídas projetadas.</div>';
+  var maxw=Math.max.apply(null,rows.map(function(r){return r.bling+r.compra+r.sim+(r.extras<0?-r.extras:0);}).concat([1]));
+  document.getElementById('wkBars').innerHTML=rows.map(function(r){var out=r.bling+r.compra+r.sim+(r.extras<0?-r.extras:0);return '<div class="barrow"><div class="nm" style="width:120px">Sem '+(r.i+1)+' · '+fmtDM(r.start)+'</div><div class="track"><div class="fill" style="width:'+(out/maxw*100)+'%;background:'+(r.broke?'var(--red)':'#58a6ff')+'"></div></div><div class="vl">'+brlK(out)+'</div></div>';}).join('');
 }
 
-/* =========================================================
-   MODAIS + INTERAÇÕES
-   ========================================================= */
-function openModal(id){ fillModal(id); document.getElementById(id).classList.add('show'); }
-function closeModals(){ document.querySelectorAll('.overlay').forEach(function(o){o.classList.remove('show');}); }
-document.querySelectorAll('.chip[data-modal]').forEach(function(ch){ ch.onclick=function(){openModal(ch.dataset.modal);}; });
-document.querySelectorAll('[data-close]').forEach(function(b){ b.onclick=closeModals; });
-document.querySelectorAll('.overlay').forEach(function(o){ o.onclick=function(e){ if(e.target===o) closeModals(); }; });
+/* ===== Carga de dados ao vivo ===== */
+async function loadAll(){
+  var hoje=todayMid(), ini14=isoDate(addDays(hoje,-14)), hojeISO=isoDate(hoje);
+  var contasMap={};
+  try{
+    var res=await Promise.all([
+      sb.from('contas').select('id,empresa'),
+      sb.from('vendas').select('data_venda,preco_total,conta_id,status').gte('data_venda',ini14).limit(5000),
+      sb.from('fcx_bling_pagar').select('vencimento,valor,empresa,status').eq('status','1').gte('vencimento',hojeISO).limit(3000),
+      sb.from('fcx_config').select('chave,valor'),
+      sb.from('fcx_saldo').select('empresa,data,saldo').order('data',{ascending:false}).limit(200),
+      sb.from('fcx_vd_mensal').select('empresa,ano_mes,valor'),
+      sb.from('fcx_extra').select('*').order('data'),
+      sb.from('fcx_correcao').select('*')
+    ]);
+    (res[0].data||[]).forEach(function(c){contasMap[c.id]=empKeyFrom(c.empresa);});
+    // ML diário (14 dias)
+    DATA.mlDaily={GGE:new Array(14).fill(0),TOOW:new Array(14).fill(0)};
+    (res[1].data||[]).forEach(function(v){
+      if((v.status||'')==='cancelled')return;
+      var k=contasMap[v.conta_id]||'GGE';
+      var d=new Date(v.data_venda);d.setHours(0,0,0,0);
+      var age=Math.floor((hoje-d)/86400000); if(age<0||age>13)return;
+      DATA.mlDaily[k][13-age]+=Number(v.preco_total||0);
+    });
+    // Bling a pagar
+    DATA.bling={GGE:[],TOOW:[]};
+    (res[2].data||[]).forEach(function(b){var k=(b.empresa||'GGE').toUpperCase();if(!DATA.bling[k])DATA.bling[k]=[];DATA.bling[k].push({d:new Date(b.vencimento+'T00:00:00'),v:Number(b.valor||0)});});
+    // config
+    (res[3].data||[]).forEach(function(c){if(c.chave==='piso')state.config.piso=Number(c.valor);if(c.chave==='recompra_ml_pct')state.config.recML=Number(c.valor);if(c.chave==='recompra_vd_pct')state.config.recVD=Number(c.valor);});
+    // saldo (último por empresa)
+    var seen={};state.saldo={GGE:0,TOOW:0};
+    (res[4].data||[]).forEach(function(s){var k=(s.empresa||'').toUpperCase();if(!seen[k]){seen[k]=true;state.saldo[k]=Number(s.saldo||0);}});
+    // VD mensal
+    var mp=anoMes(addDays(mondayOf(hoje),-20)); // mês passado aprox
+    var d1=new Date(hoje);d1.setDate(1);d1.setMonth(d1.getMonth()-1);var mes1=anoMes(d1);
+    var d2=new Date(hoje);d2.setDate(1);d2.setMonth(d2.getMonth()-2);var mes2=anoMes(d2);
+    state.vd={GGE:{m1:0,m2:0},TOOW:{m1:0,m2:0}};
+    (res[5].data||[]).forEach(function(r){var k=(r.empresa||'GGE').toUpperCase();if(!state.vd[k])state.vd[k]={m1:0,m2:0};if(r.ano_mes===mes1)state.vd[k].m1=Number(r.valor);if(r.ano_mes===mes2)state.vd[k].m2=Number(r.valor);});
+    state._mes1=mes1; state._mes2=mes2;
+    // extras / correcao
+    state.extras=(res[6].data||[]).map(function(e){return {id:e.id,empresa:e.empresa,data:e.data,valor:Number(e.valor),descricao:e.descricao};});
+    state.corr=(res[7].data||[]).map(function(c){return {empresa:c.empresa,canal:c.canal,semana_inicio:c.semana_inicio,valor:Number(c.valor)};});
+    return true;
+  }catch(err){ console.error(err); toast('Erro ao carregar dados: '+(err.message||err),true); return false; }
+}
 
+/* ===== Modais ===== */
+function openModal(id){fillModal(id);document.getElementById(id).classList.add('show');}
+function closeModals(){document.querySelectorAll('.overlay').forEach(function(o){o.classList.remove('show');});}
+document.querySelectorAll('.chip[data-modal]').forEach(function(ch){ch.onclick=function(){openModal(ch.dataset.modal);};});
+document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=closeModals;});
+document.querySelectorAll('.overlay').forEach(function(o){o.onclick=function(e){if(e.target===o)closeModals();};});
 function fillModal(id){
-  if(id==='mSaldo'){ document.getElementById('inSaldo').value=startBalance(state.emp); document.getElementById('inPiso').value=state.piso; }
-  if(id==='mRecompra'){ document.getElementById('inRecML').value=state.recML; document.getElementById('inRecVD').value=state.recVD; }
-  if(id==='mCorrecoes'){ buildCorr(); }
-  if(id==='mExtras'){ buildExtras(); }
-  if(id==='mSim'){ if(state.sim){document.getElementById('simValor').value=state.sim.valor;document.getElementById('simParc').value=state.sim.parc;document.getElementById('simData').value=state.sim.data||'';document.getElementById('simGap').value=state.sim.gap;} }
+  if(id==='mSaldo'){document.getElementById('inSaldoGGE').value=state.saldo.GGE||'';document.getElementById('inSaldoTOOW').value=state.saldo.TOOW||'';document.getElementById('inPiso').value=state.config.piso;}
+  if(id==='mRecompra'){document.getElementById('inRecML').value=state.config.recML;document.getElementById('inRecVD').value=state.config.recVD;}
+  if(id==='mVD'){document.getElementById('inVDm1').value=state.vd.GGE.m1||'';document.getElementById('inVDm2').value=state.vd.GGE.m2||'';
+    document.getElementById('lblVDm1').textContent='Mês passado ('+(state._mes1||'')+') R$';document.getElementById('lblVDm2').textContent='Dois meses atrás ('+(state._mes2||'')+') R$';}
+  if(id==='mCorrecoes')buildCorr();
+  if(id==='mExtras')buildExtras();
+  if(id==='mSim'){if(state.sim){document.getElementById('simValor').value=state.sim.valor;document.getElementById('simParc').value=state.sim.parc;document.getElementById('simData').value=state.sim.data||'';document.getElementById('simGap').value=state.sim.gap;}}
 }
 function buildCorr(){
-  var weeks=buildWeeks(), c=state.corr[state.emp];
-  var emp=state.emp, baseML=members(emp).reduce(function(s,m){return s+mlWeek(m);},0), baseVD=members(emp).reduce(function(s,m){return s+vdWeek(m);},0);
-  function block(kind,base){
-    var html='';
-    for(var i=0;i<4;i++){
-      html+='<div class="fld"><label class="wklbl">Sem '+(i+1)+' · '+fmtDM(weeks[i].start)+'</label>'+
-            '<input type="number" data-k="'+kind+'" data-i="'+i+'" placeholder="'+Math.round(base)+'" value="'+(c[kind][i]!=null?c[kind][i]:'')+'"></div>';
-    }
-    return html;
-  }
-  document.getElementById('corrML').innerHTML=block('ml',baseML);
-  document.getElementById('corrVD').innerHTML=block('vd',baseVD);
+  var weeks=buildWeeks();
+  var baseML=members(state.emp).reduce(function(s,k){return s+mlWeek(k);},0), baseVD=members(state.emp).reduce(function(s,k){return s+vdWeek(k);},0);
+  function blk(canal,base){var h='';for(var i=0;i<4;i++){var sISO=isoDate(weeks[i].start);var cur=corrVal(canal,sISO);h+='<div class="fld"><label class="wklbl">Sem '+(i+1)+' · '+fmtDM(weeks[i].start)+'</label><input type="number" data-k="'+canal+'" data-s="'+sISO+'" placeholder="'+Math.round(base)+'" value="'+(cur!=null?cur:'')+'"></div>';}return h;}
+  document.getElementById('corrML').innerHTML=blk('ml',baseML);
+  document.getElementById('corrVD').innerHTML=blk('vd',baseVD);
 }
 function buildExtras(){
   var box=document.getElementById('extrasList');
-  box.innerHTML = state.extras.map(function(e,idx){
-    return '<div class="minirow"><input type="date" data-ei="'+idx+'" data-f="data" value="'+(e.data||'')+'">'+
-      '<input type="number" data-ei="'+idx+'" data-f="v" value="'+(e.v||'')+'" placeholder="± R$">'+
-      '<input type="text" data-ei="'+idx+'" data-f="desc" value="'+(e.desc||'')+'" placeholder="descrição">'+
-      '<button class="del" data-del="'+idx+'">✕</button></div>';
-  }).join('') || '<div class="note" style="margin:6px 0 10px">Nenhum lançamento ainda.</div>';
-  box.querySelectorAll('.del').forEach(function(b){ b.onclick=function(){ state.extras.splice(+b.dataset.del,1); buildExtras(); }; });
+  box.innerHTML=state.extras.map(function(e,idx){return '<div class="minirow"><input type="date" data-ei="'+idx+'" data-f="data" value="'+(e.data||'')+'"><input type="number" data-ei="'+idx+'" data-f="valor" value="'+(e.valor||'')+'" placeholder="± R$"><input type="text" data-ei="'+idx+'" data-f="descricao" value="'+(e.descricao||'').replace(/"/g,'&quot;')+'" placeholder="descrição"><button class="del" data-del="'+idx+'">✕</button></div>';}).join('')||'<div class="note" style="margin:6px 0 10px">Nenhum lançamento ainda.</div>';
+  box.querySelectorAll('.del').forEach(function(b){b.onclick=function(){state.extras.splice(+b.dataset.del,1);buildExtras();};});
 }
 
-document.getElementById('saveSaldo').onclick=function(){ state.saldo[state.emp]=Number(document.getElementById('inSaldo').value)||0; state.piso=Number(document.getElementById('inPiso').value)||0; closeModals(); render(); toast('Saldo e piso atualizados'); };
-document.getElementById('saveRecompra').onclick=function(){ state.recML=Number(document.getElementById('inRecML').value)||0; state.recVD=Number(document.getElementById('inRecVD').value)||0; closeModals(); render(); toast('Percentuais de recompra atualizados'); };
-document.getElementById('saveCorr').onclick=function(){
-  document.querySelectorAll('#corrML input,#corrVD input').forEach(function(inp){
-    var k=inp.dataset.k,i=+inp.dataset.i,val=inp.value.trim();
-    state.corr[state.emp][k][i]= val===''? null : Number(val);
-  });
-  closeModals(); render(); toast('Correções aplicadas (cascateiam p/ compras)');
+/* ===== Persistência ===== */
+async function withSaving(btn,fn,msg){btn.disabled=true;try{await fn();toast(msg);}catch(e){toast('Erro ao salvar: '+(e.message||e),true);}btn.disabled=false;}
+document.getElementById('saveSaldo').onclick=function(){var b=this;withSaving(b,async function(){
+  var hojeISO=isoDate(todayMid());
+  var g=Number(document.getElementById('inSaldoGGE').value)||0, t=Number(document.getElementById('inSaldoTOOW').value)||0, piso=Number(document.getElementById('inPiso').value)||0;
+  await sb.from('fcx_saldo').upsert([{empresa:'GGE',data:hojeISO,saldo:g,atualizado_em:new Date().toISOString()},{empresa:'TOOW',data:hojeISO,saldo:t,atualizado_em:new Date().toISOString()}],{onConflict:'empresa,data'});
+  await sb.from('fcx_config').upsert([{chave:'piso',valor:piso,atualizado_em:new Date().toISOString()}],{onConflict:'chave'});
+  await loadAll();closeModals();render();
+},'Saldo e piso salvos');};
+document.getElementById('saveRecompra').onclick=function(){var b=this;withSaving(b,async function(){
+  var ml=Number(document.getElementById('inRecML').value)||0, vd=Number(document.getElementById('inRecVD').value)||0;
+  await sb.from('fcx_config').upsert([{chave:'recompra_ml_pct',valor:ml,atualizado_em:new Date().toISOString()},{chave:'recompra_vd_pct',valor:vd,atualizado_em:new Date().toISOString()}],{onConflict:'chave'});
+  await loadAll();closeModals();render();
+},'Recompra salva');};
+document.getElementById('saveVD').onclick=function(){var b=this;withSaving(b,async function(){
+  var m1=Number(document.getElementById('inVDm1').value)||0, m2=Number(document.getElementById('inVDm2').value)||0;
+  await sb.from('fcx_vd_mensal').upsert([{empresa:'GGE',ano_mes:state._mes1,valor:m1,atualizado_em:new Date().toISOString()},{empresa:'GGE',ano_mes:state._mes2,valor:m2,atualizado_em:new Date().toISOString()}],{onConflict:'empresa,ano_mes'});
+  await loadAll();closeModals();render();
+},'Venda Direta salva');};
+document.getElementById('saveCorr').onclick=function(){var b=this;withSaving(b,async function(){
+  var ups=[],dels=[];
+  document.querySelectorAll('#corrML input,#corrVD input').forEach(function(inp){var canal=inp.dataset.k,sISO=inp.dataset.s,val=inp.value.trim();
+    if(val===''){dels.push({canal:canal,s:sISO});}else{ups.push({empresa:state.emp,canal:canal,semana_inicio:sISO,valor:Number(val),atualizado_em:new Date().toISOString()});}});
+  if(ups.length)await sb.from('fcx_correcao').upsert(ups,{onConflict:'empresa,canal,semana_inicio'});
+  for(const d of dels){await sb.from('fcx_correcao').delete().eq('empresa',state.emp).eq('canal',d.canal).eq('semana_inicio',d.s);}
+  await loadAll();closeModals();render();
+},'Correções salvas');};
+document.getElementById('clearCorr').onclick=function(){var b=this;withSaving(b,async function(){
+  await sb.from('fcx_correcao').delete().eq('empresa',state.emp);
+  await loadAll();buildCorr();render();
+},'Correções removidas');};
+document.getElementById('addExtra').onclick=function(){state.extras.push({data:'',valor:'',descricao:'',empresa:(state.emp==='CONSOLIDADO'?null:state.emp)});buildExtras();};
+document.getElementById('saveExtras').onclick=function(){var b=this;withSaving(b,async function(){
+  document.querySelectorAll('#extrasList input').forEach(function(inp){var i=+inp.dataset.ei,f=inp.dataset.f;if(!state.extras[i])return;state.extras[i][f]=(f==='valor')?(inp.value===''?'':Number(inp.value)):inp.value;});
+  var rows=state.extras.filter(function(e){return e.data&&e.valor!=='';}).map(function(e){return {empresa:e.empresa||null,data:e.data,valor:Number(e.valor),descricao:e.descricao||null};});
+  await sb.from('fcx_extra').delete().gte('data','1900-01-01');
+  if(rows.length)await sb.from('fcx_extra').insert(rows);
+  await loadAll();closeModals();render();
+},'Extras salvos');};
+document.getElementById('saveSim').onclick=function(){var v=Number(document.getElementById('simValor').value)||0;if(!v){toast('Informe o valor',true);return;}state.sim={valor:v,parc:Number(document.getElementById('simParc').value)||1,data:document.getElementById('simData').value,gap:Number(document.getElementById('simGap').value)||30};closeModals();render();toast('Simulação aplicada — veja ▲sim');};
+document.getElementById('clearSim').onclick=function(){state.sim=null;document.getElementById('simValor').value='';closeModals();render();toast('Simulação limpa');};
+
+document.querySelectorAll('#segEmpresa button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#segEmpresa button').forEach(function(x){x.classList.remove('active');});b.classList.add('active');state.emp=b.dataset.emp;render();};});
+
+document.getElementById('btnAtualizar').onclick=async function(){var b=this;b.disabled=true;toast('Sincronizando Bling…');
+  try{
+    await fetch(SB_URL+'/functions/v1/fcx-sync-bling-pagar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:'{}'});
+    await loadAll();render();stamp();toast('Atualizado do Bling');
+  }catch(e){toast('Falha ao atualizar: '+(e.message||e),true);}
+  b.disabled=false;
 };
-document.getElementById('clearCorr').onclick=function(){ state.corr[state.emp]={ml:[null,null,null,null],vd:[null,null,null,null]}; buildCorr(); render(); toast('Voltou ao calculado'); };
-document.getElementById('addExtra').onclick=function(){ state.extras.push({data:'',v:'',desc:''}); buildExtras(); };
-document.getElementById('saveExtras').onclick=function(){
-  document.querySelectorAll('#extrasList input').forEach(function(inp){
-    var i=+inp.dataset.ei,f=inp.dataset.f; if(!state.extras[i])return;
-    state.extras[i][f]= f==='v'? (inp.value===''?'':Number(inp.value)) : inp.value;
-  });
-  state.extras=state.extras.filter(function(e){return e.data && e.v!=='';});
-  closeModals(); render(); toast('Extras salvos');
-};
-document.getElementById('saveSim').onclick=function(){
-  var v=Number(document.getElementById('simValor').value)||0;
-  if(!v){ toast('Informe o valor da compra'); return; }
-  state.sim={valor:v,parc:Number(document.getElementById('simParc').value)||1,data:document.getElementById('simData').value,gap:Number(document.getElementById('simGap').value)||30};
-  closeModals(); render(); toast('Simulação aplicada — veja ▲sim no tabuleiro');
-};
-document.getElementById('clearSim').onclick=function(){ state.sim=null; document.getElementById('simValor').value=''; closeModals(); render(); toast('Simulação limpa'); };
 
-// seletor empresa
-document.querySelectorAll('#segEmpresa button').forEach(function(b){
-  b.onclick=function(){ document.querySelectorAll('#segEmpresa button').forEach(function(x){x.classList.remove('active');}); b.classList.add('active'); state.emp=b.dataset.emp; render(); };
-});
-// atualizar (mock)
-document.getElementById('btnAtualizar').onclick=function(){ toast('No site: puxaria contas a pagar do Bling (automático 07:00)'); stamp(); };
+function toast(msg,err){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(t._t);t._t=setTimeout(function(){t.className='toast';},err?4000:2400);}
+function stamp(){document.getElementById('stamp').textContent='Atualizado '+new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModals();});
 
-function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove('show');},2400); }
-function stamp(){ document.getElementById('stamp').textContent='Atualizado '+new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
-
-document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeModals(); });
-
-/* INIT */
-stamp(); render();
+/* ===== Init ===== */
+(async function(){ await loadAll(); stamp(); render(); })();
 </script>
 </body>
 </html>
