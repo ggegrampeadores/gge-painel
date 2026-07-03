@@ -1,339 +1,339 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Automacao · Controle Total GGE</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
-  <script src="/config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/dados.js" onerror="console.warn('dados.js not found, continuing without it')"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: {
-      'gge-bg':'#0f1117','gge-card':'#1a1d2e','gge-border':'#2a2d3e',
-      'gge-text':'#e2e8f0','gge-muted':'#94a3b8','gge-accent':'#6366f1',
-      'gge-green':'#22c55e','gge-red':'#ef4444','gge-yellow':'#eab308',
-      'gge-orange':'#f97316','gge-cyan':'#22d3ee',
-    }}}}
-  </script>
-  <style>
-    body { background:#0f1117; color:#e2e8f0; font-family:'Inter',system-ui,sans-serif; }
-    .fade-in { animation: fadeIn .3s ease-out; }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-    .toggle { position:relative;width:44px;height:24px;border-radius:12px;cursor:pointer;transition:all .2s; }
-    .toggle.off { background:#374151; }
-    .toggle.on { background:#22c55e; }
-    .toggle::after { content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s; }
-    .toggle.on::after { transform:translateX(20px); }
-  </style>
-  <script src="sidebar.js" defer></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Automacao · Controle Total GGE</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<script src="/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/dados.js" onerror="console.warn('dados.js not found, continuing without it')"></script>
+<script>
+tailwind.config = { theme: { extend: { colors: {
+'gge-bg':'#0f1117','gge-card':'#1a1d2e','gge-border':'#2a2d3e',
+'gge-text':'#e2e8f0','gge-muted':'#94a3b8','gge-accent':'#6366f1',
+'gge-green':'#22c55e','gge-red':'#ef4444','gge-yellow':'#eab308',
+'gge-orange':'#f97316','gge-cyan':'#22d3ee',
+}}}}
+</script>
+<style>
+body { background:#0f1117; color:#e2e8f0; font-family:'Inter',system-ui,sans-serif; }
+.fade-in { animation: fadeIn .3s ease-out; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.toggle { position:relative;width:44px;height:24px;border-radius:12px;cursor:pointer;transition:all .2s; }
+.toggle.off { background:#374151; }
+.toggle.on { background:#22c55e; }
+.toggle::after { content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s; }
+.toggle.on::after { transform:translateX(20px); }
+</style>
+<script src="sidebar.js" defer></script>
 </head>
 <body>
 <script>
-  (function() {
-    var auth = sessionStorage.getItem('gge_auth');
-    if (auth !== 'gge2026') { window.location.href = '/'; return; }
-  })();
+(function() {
+var auth = sessionStorage.getItem('gge_auth');
+if (auth !== 'gge2026') { window.location.href = '/'; return; }
+})();
 </script>
-  <div id="sidebar-container"></div>
-  <div class="main-with-sidebar">
-    <div id="root"><div style="display:flex;align-items:center;justify-content:center;height:60vh;color:#94a3b8;font-size:14px"><span style="margin-right:8px" class="spinner"></span>Carregando Automação...</div></div>
-  </div>
-  <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
-    const sb = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+<div id="sidebar-container"></div>
+<div class="main-with-sidebar">
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:60vh;color:#94a3b8;font-size:14px"><span style="margin-right:8px" class="spinner"></span>Carregando Automação...</div></div>
+</div>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+const sb = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
-    const fmtR = n => n == null ? '—' : 'R$ ' + Number(n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-    const fmtN = n => n == null ? '—' : Number(n).toLocaleString('pt-BR');
-    const fmtP = n => n == null ? '—' : Number(n).toFixed(1) + '%';
-    const fmtDate = d => d ? new Date(d).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+const fmtR = n => n == null ? '—' : 'R$ ' + Number(n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtN = n => n == null ? '—' : Number(n).toLocaleString('pt-BR');
+const fmtP = n => n == null ? '—' : Number(n).toFixed(1) + '%';
+const fmtDate = d => d ? new Date(d).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
 
-    const STATUS_LABEL = { winning:'Winning', competing:'Competing', sharing_first_place:'Dividindo 1º', not_listed:'Não listado', unknown:'—' };
-    const STATUS_COLOR = { winning:'text-gge-green', competing:'text-gge-orange', sharing_first_place:'text-gge-cyan', not_listed:'text-gge-red' };
+const STATUS_LABEL = { winning:'Winning', competing:'Competing', sharing_first_place:'Dividindo 1º', not_listed:'Não listado', unknown:'—' };
+const STATUS_COLOR = { winning:'text-gge-green', competing:'text-gge-orange', sharing_first_place:'text-gge-cyan', not_listed:'text-gge-red' };
 
-    // Calcula margem estimada no Price to Win
-    function calcMargemPTW(anuncio, comp) {
-      if (!comp || !comp.price_to_win || !anuncio.custo_unitario) return null;
-      const ptw = Number(comp.price_to_win);
-      const custo = Number(anuncio.custo_unitario);
-      const frete = Number(anuncio.frete_medio) || 0;
-      // Estima taxa de comissao a partir dos dados atuais
-      const precoAtual = Number(anuncio.preco_atual) || 1;
-      const comissaoAtual = Number(anuncio.comissao_media) || 0;
-      const taxaComissao = comissaoAtual > 0 ? (comissaoAtual / precoAtual) : 0.12;
-      const comissaoPTW = ptw * taxaComissao;
-      const mc = ptw - custo - comissaoPTW - frete;
-      return ptw > 0 ? (mc / ptw * 100) : null;
-    }
+// Calcula margem estimada no Price to Win
+function calcMargemPTW(anuncio, comp) {
+if (!comp || !comp.price_to_win || !anuncio.custo_unitario) return null;
+const ptw = Number(comp.price_to_win);
+const custo = Number(anuncio.custo_unitario);
+const frete = Number(anuncio.frete_individual) || 0;
+// Estima taxa de comissao a partir dos dados atuais
+const precoAtual = Number(anuncio.preco_atual) || 1;
+const comissaoAtual = Number(anuncio.comissao_individual) || 0;
+const taxaComissao = comissaoAtual > 0 ? (comissaoAtual / precoAtual) : 0.12;
+const comissaoPTW = ptw * taxaComissao;
+const mc = ptw - custo - comissaoPTW - frete;
+return ptw > 0 ? (mc / ptw * 100) : null;
+}
 
-    function App() {
-      const [params, setParams] = useState([]);
-      const [anuncios, setAnuncios] = useState([]);
-      const [logs, setLogs] = useState([]);
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState(null);
-      const [saving, setSaving] = useState(null);
-      const [tab, setTab] = useState('parametros');
-      const [compDate, setCompDate] = useState(null);
+function App() {
+const [params, setParams] = useState([]);
+const [anuncios, setAnuncios] = useState([]);
+const [logs, setLogs] = useState([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+const [saving, setSaving] = useState(null);
+const [tab, setTab] = useState('parametros');
+const [compDate, setCompDate] = useState(null);
 
-      useEffect(() => {
-        async function load() {
-          try {
-          const [pRes, aRes, lRes] = await Promise.all([
-            sb.from('parametros_catalogo').select('*').order('parametro'),
-            sb.from('vw_catalogo_dashboard').select('mlb_id, titulo, sku_vendedor, preco_atual, conta_nome, modo_logistica, margem_pct, vendas_30d, classificacao, custo_unitario, comissao_media, frete_medio')
-              .order('vendas_30d', {ascending: false}),
-            sb.from('log_automacao').select('*').order('criado_em', {ascending: false}).limit(50),
-          ]);
-          if (pRes.error) throw pRes.error;
-          if (aRes.error) throw aRes.error;
-          if (lRes.error) throw lRes.error;
-          setParams(pRes.data || []);
+useEffect(() => {
+async function load() {
+try {
+const [pRes, aRes, lRes] = await Promise.all([
+sb.from('parametros_catalogo').select('*').order('parametro'),
+sb.from('vw_catalogo_dashboard').select('mlb_id, titulo, sku_vendedor, preco_atual, conta_nome, modo_logistica, margem_pct, vendas_30d, classificacao, custo_unitario, comissao_individual, frete_individual')
+.order('vendas_30d', {ascending: false}),
+sb.from('log_automacao').select('*').order('criado_em', {ascending: false}).limit(50),
+]);
+if (pRes.error) throw pRes.error;
+if (aRes.error) throw aRes.error;
+if (lRes.error) throw lRes.error;
+setParams(pRes.data || []);
 
-          // Get modo_auto from anuncios
-          const { data: autoFlags } = await sb.from('anuncios').select('mlb_id, modo_auto').eq('em_catalogo', true).eq('status', 'active');
-          const autoMap = {};
-          (autoFlags || []).forEach(a => { autoMap[a.mlb_id] = a.modo_auto || false; });
+// Get modo_auto from anuncios
+const { data: autoFlags } = await sb.from('anuncios').select('mlb_id, modo_auto').eq('em_catalogo', true).eq('status', 'active');
+const autoMap = {};
+(autoFlags || []).forEach(a => { autoMap[a.mlb_id] = a.modo_auto || false; });
 
-          // CORRECAO: Buscar data mais recente de competicao (nao apenas "hoje")
-          const { data: latestDateRows } = await sb.from('catalogo_competicao')
-            .select('data_coleta')
-            .order('data_coleta', { ascending: false })
-            .limit(1);
-          const latestDate = latestDateRows && latestDateRows.length > 0 ? latestDateRows[0].data_coleta : null;
-          setCompDate(latestDate);
+// CORRECAO: Buscar data mais recente de competicao (nao apenas "hoje")
+const { data: latestDateRows } = await sb.from('catalogo_competicao')
+.select('data_coleta')
+.order('data_coleta', { ascending: false })
+.limit(1);
+const latestDate = latestDateRows && latestDateRows.length > 0 ? latestDateRows[0].data_coleta : null;
+setCompDate(latestDate);
 
-          let compMap = {};
-          if (latestDate) {
-            const { data: compData } = await sb.from('catalogo_competicao').select('*').eq('data_coleta', latestDate);
-            (compData || []).forEach(c => { compMap[c.mlb_id] = c; });
-          }
+let compMap = {};
+if (latestDate) {
+const { data: compData } = await sb.from('catalogo_competicao').select('*').eq('data_coleta', latestDate);
+(compData || []).forEach(c => { compMap[c.mlb_id] = c; });
+}
 
-          const enriched = (aRes.data || []).map(a => ({
-            ...a,
-            modo_auto: autoMap[a.mlb_id] || false,
-            comp: compMap[a.mlb_id] || null,
-            margem_ptw: calcMargemPTW(a, compMap[a.mlb_id]),
-          }));
-          setAnuncios(enriched);
-          setLogs(lRes.data || []);
-          } catch(e) {
-            console.error('Erro ao carregar automacao:', e);
-            setError(e.message || 'Erro ao carregar dados');
-          }
-          setLoading(false);
-        }
-        load();
-      }, []);
+const enriched = (aRes.data || []).map(a => ({
+...a,
+modo_auto: autoMap[a.mlb_id] || false,
+comp: compMap[a.mlb_id] || null,
+margem_ptw: calcMargemPTW(a, compMap[a.mlb_id]),
+}));
+setAnuncios(enriched);
+setLogs(lRes.data || []);
+} catch(e) {
+console.error('Erro ao carregar automacao:', e);
+setError(e.message || 'Erro ao carregar dados');
+}
+setLoading(false);
+}
+load();
+}, []);
 
-      async function updateParam(parametro, valor) {
-        setSaving(parametro);
-        await sb.from('parametros_catalogo').update({ valor, atualizado_em: new Date().toISOString() }).eq('parametro', parametro);
-        setParams(p => p.map(pp => pp.parametro === parametro ? {...pp, valor} : pp));
-        setSaving(null);
-      }
+async function updateParam(parametro, valor) {
+setSaving(parametro);
+await sb.from('parametros_catalogo').update({ valor, atualizado_em: new Date().toISOString() }).eq('parametro', parametro);
+setParams(p => p.map(pp => pp.parametro === parametro ? {...pp, valor} : pp));
+setSaving(null);
+}
 
-      async function toggleAuto(mlbId, current) {
-        const novo = !current;
-        await sb.from('anuncios').update({ modo_auto: novo }).eq('mlb_id', mlbId);
-        setAnuncios(a => a.map(aa => aa.mlb_id === mlbId ? {...aa, modo_auto: novo} : aa));
-      }
+async function toggleAuto(mlbId, current) {
+const novo = !current;
+await sb.from('anuncios').update({ modo_auto: novo }).eq('mlb_id', mlbId);
+setAnuncios(a => a.map(aa => aa.mlb_id === mlbId ? {...aa, modo_auto: novo} : aa));
+}
 
-      async function toggleAllAuto(on) {
-        const mlbs = anuncios.map(a => a.mlb_id);
-        await sb.from('anuncios').update({ modo_auto: on }).in('mlb_id', mlbs);
-        setAnuncios(a => a.map(aa => ({...aa, modo_auto: on})));
-      }
+async function toggleAllAuto(on) {
+const mlbs = anuncios.map(a => a.mlb_id);
+await sb.from('anuncios').update({ modo_auto: on }).in('mlb_id', mlbs);
+setAnuncios(a => a.map(aa => ({...aa, modo_auto: on})));
+}
 
-      const autoCount = anuncios.filter(a => a.modo_auto).length;
+const autoCount = anuncios.filter(a => a.modo_auto).length;
 
-      if (loading) return (
-        <div className="max-w-6xl mx-auto p-6">
-          <h1 className="text-2xl font-bold mb-6">Automacao</h1>
-          <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="bg-gge-card border border-gge-border rounded-xl h-32 animate-pulse" />)}</div>
-        </div>
-      );
+if (loading) return (
+<div className="max-w-6xl mx-auto p-6">
+<h1 className="text-2xl font-bold mb-6">Automacao</h1>
+<div className="space-y-4">{[1,2,3].map(i => <div key={i} className="bg-gge-card border border-gge-border rounded-xl h-32 animate-pulse" />)}</div>
+</div>
+);
 
-      if (error) return (
-        <div className="max-w-6xl mx-auto p-6">
-          <h1 className="text-2xl font-bold mb-6">Automacao</h1>
-          <div className="bg-red-900/30 border border-red-700 rounded-xl p-6 text-center">
-            <div className="text-red-400 text-lg font-bold mb-2">Erro ao carregar dados</div>
-            <div className="text-gge-muted text-sm mb-4">{error}</div>
-            <button onClick={() => { setError(null); setLoading(true); window.location.reload(); }}
-              className="px-4 py-2 bg-gge-accent text-white rounded-lg text-sm">Tentar novamente</button>
-          </div>
-        </div>
-      );
+if (error) return (
+<div className="max-w-6xl mx-auto p-6">
+<h1 className="text-2xl font-bold mb-6">Automacao</h1>
+<div className="bg-red-900/30 border border-red-700 rounded-xl p-6 text-center">
+<div className="text-red-400 text-lg font-bold mb-2">Erro ao carregar dados</div>
+<div className="text-gge-muted text-sm mb-4">{error}</div>
+<button onClick={() => { setError(null); setLoading(true); window.location.reload(); }}
+className="px-4 py-2 bg-gge-accent text-white rounded-lg text-sm">Tentar novamente</button>
+</div>
+</div>
+);
 
-      return (
-        <div className="max-w-6xl mx-auto p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">Automacao de Catalogos</h1>
-              <p className="text-sm text-gge-muted mt-1">
-                {autoCount} de {anuncios.length} anuncios no automatico
-                {compDate && <span> · Dados de competicao: {new Date(compDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {['parametros','anuncios','log'].map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
-                  {t === 'parametros' ? 'Parametros' : t === 'anuncios' ? 'Anuncios' : 'Log de Acoes'}
-                </button>
-              ))}
-            </div>
-          </div>
+return (
+<div className="max-w-6xl mx-auto p-6">
+<div className="flex items-center justify-between mb-6">
+<div>
+<h1 className="text-2xl font-bold">Automacao de Catalogos</h1>
+<p className="text-sm text-gge-muted mt-1">
+{autoCount} de {anuncios.length} anuncios no automatico
+{compDate && <span> · Dados de competicao: {new Date(compDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+</p>
+</div>
+<div className="flex gap-2">
+{['parametros','anuncios','log'].map(t => (
+<button key={t} onClick={() => setTab(t)}
+className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? 'bg-gge-accent text-white' : 'bg-gge-card border border-gge-border text-gge-muted hover:text-white'}`}>
+{t === 'parametros' ? 'Parametros' : t === 'anuncios' ? 'Anuncios' : 'Log de Acoes'}
+</button>
+))}
+</div>
+</div>
 
-          {tab === 'parametros' && (
-            <div className="space-y-4 fade-in">
-              <div className="bg-gge-card border border-gge-border rounded-xl p-5">
-                <h2 className="text-lg font-semibold text-white mb-4">Parametros de Decisao</h2>
-                <p className="text-xs text-gge-muted mb-4">Estes valores controlam quando o sistema sobe, desce ou mantem precos. Altere e o proximo ciclo ja usa os novos valores.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {params.map(p => (
-                    <div key={p.parametro} className="bg-gge-bg border border-gge-border/50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-medium text-white">{p.parametro.replace(/_/g, ' ')}</label>
-                        {saving === p.parametro && <span className="text-[10px] text-gge-accent">Salvando...</span>}
-                      </div>
-                      <p className="text-xs text-gge-muted mb-3">{p.descricao}</p>
-                      <input type="number" value={p.valor} step="0.1"
-                        onChange={e => {
-                          const v = Number(e.target.value);
-                          setParams(pp => pp.map(x => x.parametro === p.parametro ? {...x, valor: v} : x));
-                        }}
-                        onBlur={e => updateParam(p.parametro, Number(e.target.value))}
-                        className="w-full bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-white text-sm focus:border-gge-accent focus:outline-none" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+{tab === 'parametros' && (
+<div className="space-y-4 fade-in">
+<div className="bg-gge-card border border-gge-border rounded-xl p-5">
+<h2 className="text-lg font-semibold text-white mb-4">Parametros de Decisao</h2>
+<p className="text-xs text-gge-muted mb-4">Estes valores controlam quando o sistema sobe, desce ou mantem precos. Altere e o proximo ciclo ja usa os novos valores.</p>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+{params.map(p => (
+<div key={p.parametro} className="bg-gge-bg border border-gge-border/50 rounded-lg p-4">
+<div className="flex items-center justify-between mb-2">
+<label className="text-sm font-medium text-white">{p.parametro.replace(/_/g, ' ')}</label>
+{saving === p.parametro && <span className="text-[10px] text-gge-accent">Salvando...</span>}
+</div>
+<p className="text-xs text-gge-muted mb-3">{p.descricao}</p>
+<input type="number" value={p.valor} step="0.1"
+onChange={e => {
+const v = Number(e.target.value);
+setParams(pp => pp.map(x => x.parametro === p.parametro ? {...x, valor: v} : x));
+}}
+onBlur={e => updateParam(p.parametro, Number(e.target.value))}
+className="w-full bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-white text-sm focus:border-gge-accent focus:outline-none" />
+</div>
+))}
+</div>
+</div>
+</div>
+)}
 
-          {tab === 'anuncios' && (
-            <div className="space-y-4 fade-in">
-              <div className="bg-gge-card border border-gge-border rounded-xl p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-white">Controle por Anuncio</h2>
-                  <div className="flex gap-2">
-                    <button onClick={() => toggleAllAuto(true)} className="px-3 py-1.5 text-xs bg-gge-green/20 text-gge-green border border-gge-green/30 rounded-lg hover:bg-gge-green/30">
-                      Ligar todos
-                    </button>
-                    <button onClick={() => toggleAllAuto(false)} className="px-3 py-1.5 text-xs bg-gge-red/20 text-gge-red border border-gge-red/30 rounded-lg hover:bg-gge-red/30">
-                      Desligar todos
-                    </button>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gge-border text-xs text-gge-muted">
-                        <th className="text-center py-3 px-2 w-16">Auto</th>
-                        <th className="text-left py-3 px-2">Anuncio</th>
-                        <th className="text-left py-3 px-2">Conta</th>
-                        <th className="text-center py-3 px-2">Status</th>
-                        <th className="text-right py-3 px-2">Price to Win</th>
-                        <th className="text-right py-3 px-2">Margem PTW</th>
-                        <th className="text-right py-3 px-2">Nosso PV</th>
-                        <th className="text-right py-3 px-2">Margem PV</th>
-                        <th className="text-right py-3 px-2">Gap</th>
-                        <th className="text-right py-3 px-2">Vendas</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {anuncios.map((a, i) => {
-                        const comp = a.comp;
-                        const gap = comp?.gap_preco || 0;
-                        const margemPTW = a.margem_ptw;
-                        return (
-                          <tr key={a.mlb_id} className={`border-b border-gge-border/50 ${i % 2 ? 'bg-white/[0.02]' : ''}`}>
-                            <td className="py-2 px-2 text-center">
-                              <div className={`toggle ${a.modo_auto ? 'on' : 'off'}`}
-                                   onClick={() => toggleAuto(a.mlb_id, a.modo_auto)} />
-                            </td>
-                            <td className="py-2 px-2">
-                              <div className="text-sm text-white truncate max-w-[200px]">{a.titulo || '—'}</div>
-                              <div className="text-xs text-gge-muted">{a.sku_vendedor || a.mlb_id}</div>
-                            </td>
-                            <td className="py-2 px-2 text-xs text-gge-muted">{a.conta_nome}</td>
-                            <td className="py-2 px-2 text-center">
-                              <span className={`text-xs font-bold ${STATUS_COLOR[comp?.status_competicao] || 'text-gge-muted'}`}>
-                                {STATUS_LABEL[comp?.status_competicao] || '—'}
-                              </span>
-                            </td>
-                            <td className="py-2 px-2 text-right text-gge-cyan">{comp?.price_to_win ? fmtR(comp.price_to_win) : '—'}</td>
-                            <td className={`py-2 px-2 text-right font-semibold ${margemPTW != null ? (margemPTW >= 5 ? 'text-gge-green' : margemPTW >= 0 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
-                              {margemPTW != null ? fmtP(margemPTW) : '—'}
-                            </td>
-                            <td className="py-2 px-2 text-right text-white">{fmtR(a.preco_atual)}</td>
-                            <td className={`py-2 px-2 text-right ${Number(a.margem_pct) >= 5 ? 'text-gge-green' : Number(a.margem_pct) < 0 ? 'text-gge-red' : 'text-gge-yellow'}`}>
-                              {fmtP(a.margem_pct)}
-                            </td>
-                            <td className={`py-2 px-2 text-right font-bold ${gap > 0 ? 'text-gge-red' : gap < 0 ? 'text-gge-green' : 'text-gge-muted'}`}>
-                              {gap ? fmtR(gap) : '—'}
-                            </td>
-                            <td className="py-2 px-2 text-right text-gge-muted">{fmtN(a.vendas_30d)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {!compDate && (
-                  <div className="mt-3 p-3 bg-gge-yellow/10 border border-gge-yellow/20 rounded-lg text-xs text-gge-yellow">
-                    Sem dados de competicao disponveis. Verifique se a coleta de catalogo esta rodando.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+{tab === 'anuncios' && (
+<div className="space-y-4 fade-in">
+<div className="bg-gge-card border border-gge-border rounded-xl p-4">
+<div className="flex items-center justify-between mb-4">
+<h2 className="text-lg font-semibold text-white">Controle por Anuncio</h2>
+<div className="flex gap-2">
+<button onClick={() => toggleAllAuto(true)} className="px-3 py-1.5 text-xs bg-gge-green/20 text-gge-green border border-gge-green/30 rounded-lg hover:bg-gge-green/30">
+Ligar todos
+</button>
+<button onClick={() => toggleAllAuto(false)} className="px-3 py-1.5 text-xs bg-gge-red/20 text-gge-red border border-gge-red/30 rounded-lg hover:bg-gge-red/30">
+Desligar todos
+</button>
+</div>
+</div>
+<div className="overflow-x-auto">
+<table className="w-full text-sm">
+<thead>
+<tr className="border-b border-gge-border text-xs text-gge-muted">
+<th className="text-center py-3 px-2 w-16">Auto</th>
+<th className="text-left py-3 px-2">Anuncio</th>
+<th className="text-left py-3 px-2">Conta</th>
+<th className="text-center py-3 px-2">Status</th>
+<th className="text-right py-3 px-2">Price to Win</th>
+<th className="text-right py-3 px-2">Margem PTW</th>
+<th className="text-right py-3 px-2">Nosso PV</th>
+<th className="text-right py-3 px-2">Margem PV</th>
+<th className="text-right py-3 px-2">Gap</th>
+<th className="text-right py-3 px-2">Vendas</th>
+</tr>
+</thead>
+<tbody>
+{anuncios.map((a, i) => {
+const comp = a.comp;
+const gap = comp?.gap_preco || 0;
+const margemPTW = a.margem_ptw;
+return (
+<tr key={a.mlb_id} className={`border-b border-gge-border/50 ${i % 2 ? 'bg-white/[0.02]' : ''}`}>
+<td className="py-2 px-2 text-center">
+<div className={`toggle ${a.modo_auto ? 'on' : 'off'}`}
+onClick={() => toggleAuto(a.mlb_id, a.modo_auto)} />
+</td>
+<td className="py-2 px-2">
+<div className="text-sm text-white truncate max-w-[200px]">{a.titulo || '—'}</div>
+<div className="text-xs text-gge-muted">{a.sku_vendedor || a.mlb_id}</div>
+</td>
+<td className="py-2 px-2 text-xs text-gge-muted">{a.conta_nome}</td>
+<td className="py-2 px-2 text-center">
+<span className={`text-xs font-bold ${STATUS_COLOR[comp?.status_competicao] || 'text-gge-muted'}`}>
+{STATUS_LABEL[comp?.status_competicao] || '—'}
+</span>
+</td>
+<td className="py-2 px-2 text-right text-gge-cyan">{comp?.price_to_win ? fmtR(comp.price_to_win) : '—'}</td>
+<td className={`py-2 px-2 text-right font-semibold ${margemPTW != null ? (margemPTW >= 5 ? 'text-gge-green' : margemPTW >= 0 ? 'text-gge-yellow' : 'text-gge-red') : 'text-gge-muted'}`}>
+{margemPTW != null ? fmtP(margemPTW) : '—'}
+</td>
+<td className="py-2 px-2 text-right text-white">{fmtR(a.preco_atual)}</td>
+<td className={`py-2 px-2 text-right ${Number(a.margem_pct) >= 5 ? 'text-gge-green' : Number(a.margem_pct) < 0 ? 'text-gge-red' : 'text-gge-yellow'}`}>
+{fmtP(a.margem_pct)}
+</td>
+<td className={`py-2 px-2 text-right font-bold ${gap > 0 ? 'text-gge-red' : gap < 0 ? 'text-gge-green' : 'text-gge-muted'}`}>
+{gap ? fmtR(gap) : '—'}
+</td>
+<td className="py-2 px-2 text-right text-gge-muted">{fmtN(a.vendas_30d)}</td>
+</tr>
+);
+})}
+</tbody>
+</table>
+</div>
+{!compDate && (
+<div className="mt-3 p-3 bg-gge-yellow/10 border border-gge-yellow/20 rounded-lg text-xs text-gge-yellow">
+Sem dados de competicao disponveis. Verifique se a coleta de catalogo esta rodando.
+</div>
+)}
+</div>
+</div>
+)}
 
-          {tab === 'log' && (
-            <div className="space-y-4 fade-in">
-              <div className="bg-gge-card border border-gge-border rounded-xl p-4">
-                <h2 className="text-lg font-semibold text-white mb-4">Log de Acoes</h2>
-                {logs.length === 0 ? (
-                  <p className="text-gge-muted text-sm py-8 text-center">Nenhuma acao registrada ainda. O motor de automacao roda diariamente as 7h.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {logs.map(l => (
-                      <div key={l.id} className={`border rounded-lg p-3 ${l.executado ? 'border-gge-green/30 bg-green-900/10' : 'border-gge-border bg-gge-bg'}`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${l.executado ? 'bg-gge-green/20 text-gge-green' : 'bg-gge-accent/20 text-gge-accent'}`}>
-                              {l.executado ? 'EXECUTADO' : 'RECOMENDACAO'}
-                            </span>
-                            <span className="text-xs text-gge-muted">{l.modo === 'auto' ? 'Automatico' : 'Manual'}</span>
-                            <span className="text-xs font-bold text-white">{l.acao?.replace(/_/g, ' ')}</span>
-                          </div>
-                          <span className="text-xs text-gge-muted">{fmtDate(l.criado_em)}</span>
-                        </div>
-                        <div className="text-xs text-gge-muted mb-1">{l.sku_vendedor} · {l.mlb_id} · {l.conta_nome}</div>
-                        <div className="text-sm text-gge-text">{l.motivo}</div>
-                        {l.preco_anterior && l.preco_novo && (
-                          <div className="text-xs text-gge-muted mt-1">
-                            Preco: {fmtR(l.preco_anterior)} &rarr; {fmtR(l.preco_novo)}
-                            {l.margem_estimada && ` · Margem estimada: ${fmtP(l.margem_estimada)}`}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
+{tab === 'log' && (
+<div className="space-y-4 fade-in">
+<div className="bg-gge-card border border-gge-border rounded-xl p-4">
+<h2 className="text-lg font-semibold text-white mb-4">Log de Acoes</h2>
+{logs.length === 0 ? (
+<p className="text-gge-muted text-sm py-8 text-center">Nenhuma acao registrada ainda. O motor de automacao roda diariamente as 7h.</p>
+) : (
+<div className="space-y-2">
+{logs.map(l => (
+<div key={l.id} className={`border rounded-lg p-3 ${l.executado ? 'border-gge-green/30 bg-green-900/10' : 'border-gge-border bg-gge-bg'}`}>
+<div className="flex items-center justify-between mb-1">
+<div className="flex items-center gap-2">
+<span className={`text-[10px] px-2 py-0.5 rounded font-bold ${l.executado ? 'bg-gge-green/20 text-gge-green' : 'bg-gge-accent/20 text-gge-accent'}`}>
+{l.executado ? 'EXECUTADO' : 'RECOMENDACAO'}
+</span>
+<span className="text-xs text-gge-muted">{l.modo === 'auto' ? 'Automatico' : 'Manual'}</span>
+<span className="text-xs font-bold text-white">{l.acao?.replace(/_/g, ' ')}</span>
+</div>
+<span className="text-xs text-gge-muted">{fmtDate(l.criado_em)}</span>
+</div>
+<div className="text-xs text-gge-muted mb-1">{l.sku_vendedor} · {l.mlb_id} · {l.conta_nome}</div>
+<div className="text-sm text-gge-text">{l.motivo}</div>
+{l.preco_anterior && l.preco_novo && (
+<div className="text-xs text-gge-muted mt-1">
+Preco: {fmtR(l.preco_anterior)} &rarr; {fmtR(l.preco_novo)}
+{l.margem_estimada && ` · Margem estimada: ${fmtP(l.margem_estimada)}`}
+</div>
+)}
+</div>
+))}
+</div>
+)}
+</div>
+</div>
+)}
+</div>
+);
+}
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
 </body>
 </html>
