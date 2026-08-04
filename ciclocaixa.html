@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ciclo de Caixa - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #0d1117; color: #e6edf3; }
+    .main-with-sidebar { margin-left: 48px; min-height: 100vh; padding: 24px 28px; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    .subtitle { color:#8b949e; font-size:13px; margin-bottom:20px; }
+    .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-bottom:22px; }
+    .kpi { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:14px 16px; }
+    .kpi .label { color:#8b949e; font-size:12px; margin-bottom:6px; }
+    .kpi .value { font-size:20px; font-weight:700; }
+    .kpi .detail { color:#8b949e; font-size:12px; margin-top:4px; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:18px; margin-bottom:20px; overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; color:#8b949e; font-weight:600; padding:8px 10px; border-bottom:1px solid #30363d; white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid #21262d; white-space:nowrap; }
+    tr:hover td { background:#1c2128; }
+    .num { text-align:right; font-variant-numeric:tabular-nums; }
+    th.num { text-align:right; }
+    .badge { display:inline-block; padding:3px 10px; border-radius:12px; font-weight:700; font-size:12px; }
+    .b-verde { background:rgba(63,185,80,.15); color:#3fb950; }
+    .b-amarelo { background:rgba(210,153,34,.15); color:#d29922; }
+    .b-vermelho { background:rgba(248,81,73,.15); color:#f85149; }
+    .b-cinza { background:rgba(139,148,158,.15); color:#8b949e; }
+    .barwrap { display:flex; align-items:center; gap:8px; min-width:180px; }
+    .bar { height:8px; border-radius:4px; }
+    .bar-pos { background:#3fb950; }
+    .bar-neg { background:#f85149; }
+    .muted { color:#8b949e; }
+    .nota { color:#8b949e; font-size:12px; line-height:1.6; }
+    .nota b { color:#c9d1d9; }
+    .loading { color:#8b949e; padding:30px; text-align:center; }
+    .origem-nome { font-weight:600; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <h1>Ciclo de Caixa por Fornecedor</h1>
+    <div class="subtitle">Giro (dias entre a NF de compra e a venda no ML) × Prazo (dias entre a emissão da NF e o vencimento das duplicatas). Ciclo positivo = o fornecedor financia a operação; negativo = a GGE banca o estoque.</div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <table id="tabela">
+        <thead>
+          <tr>
+            <th>Origem</th>
+            <th class="num">Giro (dias)</th>
+            <th class="num">Giro 12m</th>
+            <th class="num">Prazo médio</th>
+            <th class="num">Prazo mediana</th>
+            <th class="num">Prazo 12m</th>
+            <th>Ciclo de caixa</th>
+            <th class="num">Vendas ML</th>
+            <th class="num">Receita atribuída</th>
+            <th class="num">Títulos</th>
+            <th class="num">Última compra</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><tr><td colspan="11" class="loading">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card nota">
+      <b>Como ler:</b> <b>Giro</b> = média ponderada por receita dos dias entre a emissão da NF de compra mais recente do SKU e cada venda ML (só marketplace; B2B não entra; kits não são explodidos em componentes).
+      <b>Prazo</b> = média ponderada por valor dos dias entre a emissão da NF e o vencimento de cada duplicata (histórico completo do Bling, títulos pagos e abertos; vencimentos prorrogados contam com a data prorrogada).
+      <b>Ciclo</b> = Prazo − Giro. Fontes: mat_ciclo_caixa_fornecedor (nfs_entrada + vendas + bling_pagar_historico), atualizada diariamente às 2h30 UTC via pg_cron. Coleta pontual do histórico via função fcx-backfill-pagar-hist; títulos novos entram pelo cache do fluxo de caixa.
+    </div>
+  </div>
+  <script src="sidebar.js" defer></script>
+  <script>
+    (function() {
+      var auth = sessionStorage.getItem('gge_auth');
+      if (auth !== 'gge2026') { window.location.href = '/'; return; }
+    })();
+    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+
+    function fmtBR(n, dec) {
+      if (n === null || n === undefined) return '—';
+      return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: dec||0, maximumFractionDigits: dec||0 });
+    }
+    function fmtData(d) {
+      if (!d) return '—';
+      var p = d.split('-');
+      return p[2] + '/' + p[1] + '/' + p[0].slice(2);
+    }
+    function cicloBadge(c) {
+      if (c === null || c === undefined) return '<span class="badge b-cinza">sem dado</span>';
+      var v = Number(c);
+      var cls = v >= 15 ? 'b-verde' : (v <= -15 ? 'b-vermelho' : 'b-amarelo');
+      var sinal = v > 0 ? '+' : '';
+      return '<span class="badge ' + cls + '">' + sinal + fmtBR(v) + ' dias</span>';
+    }
+    function cicloBar(c, maxAbs) {
+      if (c === null || c === undefined) return '';
+      var v = Number(c);
+      var w = Math.max(4, Math.round(Math.abs(v) / maxAbs * 90));
+      var cls = v >= 0 ? 'bar-pos' : 'bar-neg';
+      return '<div class="bar ' + cls + '" style="width:' + w + 'px"></div>';
+    }
+
+    async function carregar() {
+      var r = await sb.from('mat_ciclo_caixa_fornecedor').select('*');
+      if (r.error) {
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="11" class="loading">Erro: ' + r.error.message + '</td></tr>';
+        return;
+      }
+      var rows = (r.data || []).filter(function(x){ return x.origem && x.origem.indexOf('n/i') === -1; });
+      rows.sort(function(a,b){
+        var ca = a.ciclo_caixa_dias === null ? -9999 : Number(a.ciclo_caixa_dias);
+        var cb = b.ciclo_caixa_dias === null ? -9999 : Number(b.ciclo_caixa_dias);
+        return cb - ca;
+      });
+      var maxAbs = 1;
+      rows.forEach(function(x){ if (x.ciclo_caixa_dias !== null) maxAbs = Math.max(maxAbs, Math.abs(Number(x.ciclo_caixa_dias))); });
+
+      // KPIs
+      var comCiclo = rows.filter(function(x){ return x.ciclo_caixa_dias !== null; });
+      var melhor = comCiclo[0], pior = comCiclo[comCiclo.length-1];
+      var financiam = comCiclo.filter(function(x){ return Number(x.ciclo_caixa_dias) > 0; }).length;
+      var kpis = '';
+      if (melhor) kpis += '<div class="kpi"><div class="label">Melhor origem (fornecedor financia)</div><div class="value" style="color:#3fb950">' + melhor.origem.split('–')[0] + '</div><div class="detail">' + cicloBadge(melhor.ciclo_caixa_dias) + '</div></div>';
+      if (pior) kpis += '<div class="kpi"><div class="label">Pior origem (GGE banca o estoque)</div><div class="value" style="color:#f85149">' + pior.origem.split('–')[0] + '</div><div class="detail">' + cicloBadge(pior.ciclo_caixa_dias) + '</div></div>';
+      kpis += '<div class="kpi"><div class="label">Origens autofinanciadas</div><div class="value">' + financiam + ' de ' + comCiclo.length + '</div><div class="detail">ciclo positivo = vende antes de pagar</div></div>';
+      document.getElementById('kpis').innerHTML = kpis;
+
+      // Tabela
+      var html = '';
+      rows.forEach(function(x) {
+        html += '<tr>' +
+          '<td class="origem-nome">' + x.origem + '</td>' +
+          '<td class="num">' + fmtBR(x.giro_dias_pond) + '</td>' +
+          '<td class="num muted">' + fmtBR(x.giro_12m) + '</td>' +
+          '<td class="num">' + fmtBR(x.prazo_dias_pond) + '</td>' +
+          '<td class="num muted">' + fmtBR(x.prazo_mediana) + '</td>' +
+          '<td class="num muted">' + fmtBR(x.prazo_12m) + '</td>' +
+          '<td><div class="barwrap">' + cicloBadge(x.ciclo_caixa_dias) + cicloBar(x.ciclo_caixa_dias, maxAbs) + '</div></td>' +
+          '<td class="num">' + fmtBR(x.vendas) + '</td>' +
+          '<td class="num">' + (x.receita_atribuida !== null ? 'R$ ' + fmtBR(x.receita_atribuida) : '—') + '</td>' +
+          '<td class="num">' + fmtBR(x.titulos) + '</td>' +
+          '<td class="num muted">' + fmtData(x.ultima_compra) + '</td>' +
+        '</tr>';
+      });
+      document.getElementById('tbody').innerHTML = html || '<tr><td colspan="11" class="loading">Sem dados</td></tr>';
+    }
+    carregar();
+  </script>
+</body>
+</html>
