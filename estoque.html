@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estoque & Compras - Controle Total GGE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0d1117; color:#e6edf3; }
+    .main-with-sidebar { margin-left:48px; min-height:100vh; padding:24px 28px; }
+    h1 { font-size:22px; margin-bottom:4px; }
+    .subtitle { color:#8b949e; font-size:13px; margin-bottom:18px; }
+    .tabs { display:flex; gap:8px; margin-bottom:18px; }
+    .tab { padding:8px 18px; border-radius:6px; background:#161b22; border:1px solid #30363d; color:#8b949e; cursor:pointer; font-size:14px; font-weight:600; }
+    .tab.active { background:#1a3a5c; color:#58a6ff; border-color:#58a6ff; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:16px; margin-bottom:18px; overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; color:#8b949e; font-weight:600; padding:8px 9px; border-bottom:1px solid #30363d; white-space:nowrap; cursor:pointer; }
+    td { padding:8px 9px; border-bottom:1px solid #21262d; white-space:nowrap; }
+    tr:hover td { background:#1c2128; }
+    .num { text-align:right; font-variant-numeric:tabular-nums; }
+    th.num { text-align:right; }
+    .muted { color:#8b949e; }
+    .pos { color:#3fb950; } .neg { color:#f85149; } .warn { color:#d29922; }
+    .badge { display:inline-block; padding:2px 9px; border-radius:11px; font-weight:700; font-size:11px; }
+    .b-verde { background:rgba(63,185,80,.15); color:#3fb950; }
+    .b-amarelo { background:rgba(210,153,34,.15); color:#d29922; }
+    .b-vermelho { background:rgba(248,81,73,.15); color:#f85149; }
+    .b-azul { background:rgba(88,166,255,.15); color:#58a6ff; }
+    input[type=text], input[type=number], select {
+      background:#0d1117; border:1px solid #30363d; color:#e6edf3; border-radius:6px; padding:7px 10px; font-size:13px; }
+    .toolbar { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+    button { background:#238636; color:#fff; border:none; border-radius:6px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+    button.sec { background:#21262d; border:1px solid #30363d; color:#c9d1d9; }
+    .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; align-items:center; justify-content:center; }
+    .modal { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:22px; width:380px; }
+    .modal h3 { margin-bottom:14px; font-size:16px; }
+    .modal label { display:block; color:#8b949e; font-size:12px; margin:10px 0 4px; }
+    .modal input, .modal select { width:100%; }
+    .modal .acts { display:flex; gap:10px; margin-top:18px; justify-content:flex-end; }
+    .nota { color:#8b949e; font-size:12px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <h1>Estoque & Compras</h1>
+    <div class="subtitle">Saldo em tempo real por unidade — âncora de contagem física + entradas/saídas por NF (Toow debita o Rio). Full pelo Mercado Livre. Fase 1: famílias Airfix/Tecnofast.</div>
+
+    <div class="tabs">
+      <div class="tab active" id="tab-est" onclick="mostrar('est')">Estoque em Tempo Real</div>
+      <div class="tab" id="tab-rep" onclick="mostrar('rep')">Reposição — Comprar & Enviar</div>
+    </div>
+
+    <div id="pane-est">
+      <div class="toolbar">
+        <input type="text" id="busca" placeholder="Buscar SKU..." oninput="renderEstoque()" style="width:220px">
+        <label class="muted" style="font-size:13px"><input type="checkbox" id="soDivergentes" onchange="renderEstoque()"> só divergências vs Bling</label>
+        <span class="muted" id="info-est" style="font-size:12px"></span>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr>
+            <th>SKU</th><th class="num">Rio (ledger)</th><th class="num">Rio (Bling)</th><th class="num">Δ Rio</th>
+            <th class="num">Mooca (ledger)</th><th class="num">Mooca (Bling)</th><th class="num">Δ Mooca</th>
+            <th class="num">Full (ML)</th><th>Âncora</th><th></th>
+          </tr></thead>
+          <tbody id="tb-est"><tr><td colspan="10" class="muted" style="padding:26px;text-align:center">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card nota">
+        <b style="color:#c9d1d9">Como funciona:</b> o saldo "ledger" parte da última contagem física (âncora) e anda sozinho com as NFs — entradas de fornecedores somam no Rio; vendas de todos os pontos (Rio, Mooca, Full e Toow) debitam; transferências Rio→Mooca movem entre unidades. Divergência contra o Bling em destaque. Clique <b>Ajustar</b> após uma contagem física: o valor contado vira a nova âncora daquele SKU/unidade.
+      </div>
+    </div>
+
+    <div id="pane-rep" style="display:none">
+      <div class="card">
+        <table>
+          <thead><tr>
+            <th>SKU</th><th class="num">Dem/dia (un)</th><th class="num">Cobertura</th>
+            <th class="num">COMPRAR (SCX)</th><th>Chegada Rio</th><th>Disponível</th>
+            <th class="num">→ FULL (cx)</th><th>Sai do Rio</th>
+            <th class="num">→ MOOCA (cx)</th><th>Sai do Rio</th>
+          </tr></thead>
+          <tbody id="tb-rep"><tr><td colspan="10" class="muted" style="padding:26px;text-align:center">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card nota">
+        <b style="color:#c9d1d9">Regras:</b> demanda = últimos 21 dias, todas as origens, kits explodidos, em unidades-base (milheiros × 1.000 nos insumos). Compra dispara quando a cobertura rompe o ponto de pedido antes da próxima quarta; sugestão em <b>sobrecaixas inteiras, arredondadas para cima</b>. Chegada prevista = pedido + 9 dias; disponível soma +7 dias quando há reembalagem. Envios ao Full (lead 9d) e à Mooca (4d) com data de saída do Rio calculada pela cobertura do destino. Sem ajuste sazonal nesta fase (agosto tende a +22%).
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="modal">
+    <div class="modal">
+      <h3>Registrar contagem física</h3>
+      <label>SKU</label><input type="text" id="m-sku" readonly>
+      <label>Unidade</label>
+      <select id="m-dep"><option value="RIO">Rio (Matriz)</option><option value="MOOCA">Mooca (Filial SP)</option></select>
+      <label>Quantidade contada (na unidade do SKU)</label><input type="number" id="m-qtd" step="any">
+      <label>Motivo / observação</label><input type="text" id="m-motivo" placeholder="contagem física" value="contagem física">
+      <div class="acts">
+        <button class="sec" onclick="fecharModal()">Cancelar</button>
+        <button onclick="salvarAjuste()">Salvar âncora</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+    (function() {
+      var auth = sessionStorage.getItem('gge_auth');
+      if (auth !== 'gge2026') { window.location.href = '/'; return; }
+    })();
+    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+    var ledger = {}, bling = {}, full = {}, sugestoes = [];
+
+    function fmt(n, dec) {
+      if (n === null || n === undefined) return '—';
+      return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: dec || 0 });
+    }
+    function fmtData(d) { if (!d) return '—'; var p = d.split('-'); return p[2] + '/' + p[1]; }
+
+    function mostrar(qual) {
+      document.getElementById('pane-est').style.display = qual === 'est' ? '' : 'none';
+      document.getElementById('pane-rep').style.display = qual === 'rep' ? '' : 'none';
+      document.getElementById('tab-est').classList.toggle('active', qual === 'est');
+      document.getElementById('tab-rep').classList.toggle('active', qual === 'rep');
+    }
+
+    async function carregar() {
+      var [rl, rs, rf, rr] = await Promise.all([
+        sb.from('vw_estoque_tempo_real').select('*'),
+        sb.from('estoque_snapshot').select('sku,deposito_id,saldo_fisico,data').order('data', { ascending:false }).limit(400),
+        sb.from('vw_estoque_full_sku').select('*').gt('qtd_full', 0),
+        sb.from('vw_sugestao_reposicao').select('*').order('cobertura_total_dias', { ascending:true, nullsFirst:false })
+      ]);
+      (rl.data || []).forEach(function(x){ ledger[x.sku] = ledger[x.sku] || {}; ledger[x.sku][x.deposito] = x; });
+      var vistos = {};
+      (rs.data || []).forEach(function(x){
+        var dep = x.deposito_id === '125953709' ? 'RIO' : (x.deposito_id === '14888666000' ? 'MOOCA' : null);
+        if (!dep) return;
+        var k = x.sku + '|' + dep;
+        if (vistos[k]) return; vistos[k] = 1;
+        bling[x.sku] = bling[x.sku] || {}; bling[x.sku][dep] = Number(x.saldo_fisico);
+      });
+      (rf.data || []).forEach(function(x){ full[x.sku] = Number(x.qtd_full); });
+      sugestoes = rr.data || [];
+      renderEstoque(); renderReposicao();
+    }
+
+    function renderEstoque() {
+      var busca = (document.getElementById('busca').value || '').toUpperCase();
+      var soDiv = document.getElementById('soDivergentes').checked;
+      var skus = Object.keys(ledger).sort();
+      var html = '', mostrados = 0;
+      skus.forEach(function(sku) {
+        if (busca && sku.toUpperCase().indexOf(busca) === -1) return;
+        var L = ledger[sku];
+        var rioL = L.RIO ? Number(L.RIO.saldo_atual) : null;
+        var mocL = L.MOOCA ? Number(L.MOOCA.saldo_atual) : null;
+        var rioB = (bling[sku]||{}).RIO, mocB = (bling[sku]||{}).MOOCA;
+        var dRio = (rioL !== null && rioB !== undefined) ? rioL - rioB : null;
+        var dMoc = (mocL !== null && mocB !== undefined) ? mocL - mocB : null;
+        var temDiv = (dRio !== null && Math.abs(dRio) > 0.01) || (dMoc !== null && Math.abs(dMoc) > 0.01);
+        if (soDiv && !temDiv) return;
+        mostrados++;
+        var anc = (L.RIO || L.MOOCA || {});
+        function dCls(v){ return v === null ? 'muted' : (Math.abs(v) < 0.01 ? 'muted' : (v > 0 ? 'warn' : 'neg')); }
+        html += '<tr>' +
+          '<td><b>' + sku + '</b></td>' +
+          '<td class="num">' + fmt(rioL) + '</td><td class="num muted">' + fmt(rioB) + '</td>' +
+          '<td class="num ' + dCls(dRio) + '">' + (dRio === null ? '—' : (dRio > 0 ? '+' : '') + fmt(dRio)) + '</td>' +
+          '<td class="num">' + fmt(mocL) + '</td><td class="num muted">' + fmt(mocB) + '</td>' +
+          '<td class="num ' + dCls(dMoc) + '">' + (dMoc === null ? '—' : (dMoc > 0 ? '+' : '') + fmt(dMoc)) + '</td>' +
+          '<td class="num">' + fmt(full[sku]) + '</td>' +
+          '<td class="muted" style="font-size:11px">' + (anc.ancora_em ? anc.ancora_em.slice(0,10).split('-').reverse().join('/') : '—') + '</td>' +
+          '<td><button class="sec" onclick="abrirModal(\'' + sku + '\')">Ajustar</button></td>' +
+        '</tr>';
+      });
+      document.getElementById('tb-est').innerHTML = html || '<tr><td colspan="10" class="muted" style="padding:20px;text-align:center">Nada encontrado</td></tr>';
+      document.getElementById('info-est').textContent = mostrados + ' SKUs';
+    }
+
+    function renderReposicao() {
+      var html = '';
+      sugestoes.forEach(function(s) {
+        var comprar = Number(s.comprar_scx || 0), efull = Number(s.enviar_full_cx || 0), emoc = Number(s.enviar_mooca_cx || 0);
+        var cob = s.cobertura_total_dias;
+        var cobBadge = cob === null ? '<span class="badge b-azul">sem venda</span>'
+          : cob <= 21 ? '<span class="badge b-vermelho">' + fmt(cob) + 'd</span>'
+          : cob <= 45 ? '<span class="badge b-amarelo">' + fmt(cob) + 'd</span>'
+          : '<span class="badge b-verde">' + fmt(cob) + 'd</span>';
+        html += '<tr>' +
+          '<td><b>' + s.sku + '</b>' + (s.reembala ? ' <span class="badge b-azul" title="passa pela reembalagem">R</span>' : '') + '</td>' +
+          '<td class="num">' + fmt(s.dem_total_dia, 1) + '</td>' +
+          '<td class="num">' + cobBadge + '</td>' +
+          '<td class="num">' + (comprar > 0 ? '<b class="pos">' + comprar + ' SCX</b> <span class="muted">(' + fmt(comprar * s.scx_milheiros) + ' mil)</span>' : '—') + '</td>' +
+          '<td>' + (comprar > 0 ? fmtData(s.compra_chegada_prevista) : '—') + '</td>' +
+          '<td class="muted">' + (comprar > 0 ? fmtData(s.compra_disponivel_em) : '—') + '</td>' +
+          '<td class="num">' + (efull > 0 ? '<b class="pos">' + efull + ' cx</b>' : '—') + '</td>' +
+          '<td>' + (efull > 0 ? fmtData(s.full_data_saida_rio) : '—') + '</td>' +
+          '<td class="num">' + (emoc > 0 ? '<b class="pos">' + emoc + ' cx</b>' : '—') + '</td>' +
+          '<td>' + (emoc > 0 ? fmtData(s.mooca_data_saida_rio) : '—') + '</td>' +
+        '</tr>';
+      });
+      document.getElementById('tb-rep').innerHTML = html || '<tr><td colspan="10" class="muted" style="padding:20px;text-align:center">Sem dados</td></tr>';
+    }
+
+    function abrirModal(sku) {
+      document.getElementById('m-sku').value = sku;
+      document.getElementById('m-qtd').value = '';
+      document.getElementById('modal').style.display = 'flex';
+    }
+    function fecharModal() { document.getElementById('modal').style.display = 'none'; }
+    async function salvarAjuste() {
+      var sku = document.getElementById('m-sku').value;
+      var dep = document.getElementById('m-dep').value;
+      var qtd = parseFloat(document.getElementById('m-qtd').value);
+      var motivo = document.getElementById('m-motivo').value || 'contagem física';
+      if (isNaN(qtd)) { alert('Informe a quantidade contada.'); return; }
+      var r = await sb.from('estoque_ajustes').insert({ sku: sku, deposito: dep, qtd_contada: qtd, motivo: motivo, criado_por: 'painel' });
+      if (r.error) { alert('Erro: ' + r.error.message); return; }
+      fecharModal();
+      ledger = {}; bling = {}; full = {};
+      carregar();
+    }
+    carregar();
+  </script>
+</body>
+</html>
