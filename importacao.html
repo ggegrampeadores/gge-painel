@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importação - Controle Total GGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#e6edf3;font-size:14px;}
+  .main-with-sidebar{margin-left:48px;min-height:100vh;}
+  .page{max-width:1180px;margin:0 auto;padding:26px 22px 90px;display:flex;flex-direction:column;gap:18px;}
+
+  .head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;
+        border-bottom:1px solid #30363d;padding-bottom:14px;}
+  .head h1{font-size:24px;font-weight:700;color:#e6edf3;}
+  .head p{color:#8b949e;font-size:13px;margin-top:5px;max-width:62ch;}
+  .head .ref{font-size:11.5px;color:#8b949e;text-align:right;line-height:1.8;font-variant-numeric:tabular-nums;}
+  .head .ref b{color:#c9d1d9;}
+
+  .card{background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;}
+  .card > .ch{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+              padding:11px 16px;border-bottom:1px solid #30363d;background:#11161d;}
+  .card > .ch h2{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#c9d1d9;}
+  .card > .ch .hint{font-size:12px;color:#8b949e;}
+  .card .cb{padding:14px 16px;}
+
+  .grid{display:grid;gap:12px 16px;}
+  .g4{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));}
+  .g5{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));}
+  label.f{display:flex;flex-direction:column;gap:5px;min-width:0;}
+  label.f > span{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8b949e;}
+  input[type=text],select{width:100%;font-size:13.5px;font-variant-numeric:tabular-nums;
+    padding:7px 9px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#e6edf3;}
+  input[type=text]:focus,select:focus{outline:none;border-color:#58a6ff;}
+  input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid #58a6ff;outline-offset:1px;}
+  .u{position:relative;}
+  .u input{padding-left:30px;}
+  .u .pre{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:#6e7681;pointer-events:none;}
+  .u.s input{padding-left:9px;padding-right:26px;}
+  .u .suf{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:#6e7681;pointer-events:none;}
+  .chk{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:#8b949e;line-height:1.4;}
+  .chk input{margin-top:2px;accent-color:#58a6ff;}
+  .btn{font-size:12px;padding:7px 12px;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;
+       border-radius:6px;cursor:pointer;}
+  .btn:hover{border-color:#58a6ff;color:#58a6ff;}
+  .btn.gh{border-color:#58a6ff;color:#58a6ff;}
+
+  .scroll{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
+  th,td{padding:7px 10px;text-align:right;border-bottom:1px solid #21262d;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:#8b949e;font-weight:500;
+           white-space:nowrap;border-bottom:1px solid #30363d;}
+  tbody td{font-size:13px;}
+  #prodBody td{padding:5px 6px;}
+  #prodBody input{padding:6px 8px;font-size:12.5px;}
+  .icon-btn{background:none;border:1px solid #30363d;color:#8b949e;border-radius:6px;
+            width:26px;height:26px;cursor:pointer;font-size:15px;line-height:1;}
+  .icon-btn:hover{border-color:#f85149;color:#f85149;}
+
+  .cmp th.c-cour{color:#d29922;}
+  .cmp th.c-form{color:#58a6ff;}
+  .cmp td.c-cour{background:rgba(210,153,34,.07);}
+  .cmp td.c-form{background:rgba(88,166,255,.07);}
+  .cmp tr.sub td{color:#8b949e;font-size:12.5px;}
+  .cmp tr.sub td:first-child{padding-left:24px;}
+  .cmp tr.tot td{font-weight:600;color:#c9d1d9;border-top:1px solid #30363d;border-bottom:none;}
+  .cmp tr.grand td{font-weight:700;font-size:14.5px;color:#e6edf3;border-top:2px solid #30363d;
+                   border-bottom:none;padding-top:10px;padding-bottom:10px;}
+  .cmp tr.credit td{color:#3fb950;}
+  .cmp tr.sec td{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#6e7681;
+                 padding-top:14px;border-bottom:1px solid #30363d;}
+  .pos{color:#3fb950;}
+  .neg{color:#f85149;}
+
+  .kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));}
+  .kpi{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;
+       display:flex;flex-direction:column;gap:3px;}
+  .kpi .k{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:#8b949e;}
+  .kpi .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;}
+  .kpi .s{font-size:11.5px;color:#6e7681;}
+  .kpi.cour{border-left:3px solid #d29922;}
+  .kpi.form{border-left:3px solid #58a6ff;}
+
+  .fx{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12px;color:#8b949e;}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+        background:#0d1117;border:1px solid #30363d;font-size:11.5px;font-variant-numeric:tabular-nums;}
+  .pill b{color:#c9d1d9;}
+  .dot{width:6px;height:6px;border-radius:50%;background:#6e7681;}
+  .dot.ok{background:#3fb950;}
+  .dot.err{background:#f85149;}
+
+  details{border:1px solid #30363d;border-radius:8px;background:#161b22;}
+  details summary{cursor:pointer;padding:11px 16px;font-size:12px;letter-spacing:.08em;
+                  text-transform:uppercase;color:#8b949e;}
+  details summary:hover{color:#58a6ff;}
+  details .note{padding:0 16px 16px;font-size:13px;color:#8b949e;line-height:1.65;max-width:82ch;}
+  details .note p{margin-bottom:10px;}
+  details .note strong{color:#c9d1d9;}
+  details .note code{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:1px 5px;
+                     font-size:12px;color:#c9d1d9;}
+  @media (max-width:640px){ .head .ref{text-align:left;} }
+</style>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-with-sidebar">
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>Custo de importação</h1>
+      <p>Compara o custo desembarcado por courier (remessa expressa DHL) com o de uma importação formal por DI,
+         onde a GGE credita ICMS, PIS e COFINS. A coluna courier reproduz a ND 6637037 e a fatura RIOIR02480134.</p>
+    </div>
+    <div class="ref">
+      NCM <b>8472.90.40</b><br>
+      GGE · Lucro Real · entrada <b>RJ</b><br>
+      Rateio de despesas por <b>valor FOB</b>
+    </div>
+  </div>
+
+  <!-- CÂMBIO -->
+  <section class="card">
+    <div class="ch"><h2>Câmbio e cenário</h2><span class="hint" id="fxHint">Buscando PTAX no Banco Central…</span></div>
+    <div class="cb" style="display:flex;flex-direction:column;gap:13px">
+      <div class="grid g4">
+        <label class="f"><span>Dólar (R$/US$)</span>
+          <div class="u"><span class="pre">R$</span><input type="text" id="cambio" value="5,1625"></div>
+        </label>
+        <label class="f"><span>Modal na formal</span>
+          <select id="modal"><option value="aereo">Aéreo</option><option value="maritimo">Marítimo (AFRMM 8%)</option></select>
+        </label>
+        <label class="f"><span>Rateio entre produtos</span>
+          <select id="rateio"><option value="fob">Por valor FOB</option><option value="peso">Por peso</option></select>
+        </label>
+        <label class="f"><span>Frete internacional</span>
+          <select id="freteModo"><option value="valor">Valor fechado</option><option value="kg">Tabela R$/kg</option></select>
+        </label>
+      </div>
+      <div class="fx">
+        <span class="pill"><span class="dot" id="fxDot"></span>PTAX venda <b id="fxPtax">—</b> <span id="fxData"></span></span>
+        <span class="pill">Comercial <b id="fxCom">—</b></span>
+        <button class="btn" id="usarPtax">Usar PTAX</button>
+        <button class="btn" id="presetND">Reproduzir a ND 6637037</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRODUTOS -->
+  <section class="card">
+    <div class="ch"><h2>Produtos do embarque</h2><span class="hint">FOB unitário em dólar, quantidade e peso unitário</span></div>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th style="min-width:180px">Produto / SKU</th>
+          <th style="width:106px">FOB un. US$</th>
+          <th style="width:106px">FOB un. R$</th>
+          <th style="width:82px">Qtd</th>
+          <th style="width:100px">Peso un. kg</th>
+          <th style="width:112px">FOB total R$</th>
+          <th style="width:96px">Peso total</th>
+          <th style="width:34px"></th>
+        </tr></thead>
+        <tbody id="prodBody"></tbody>
+        <tfoot><tr class="tot">
+          <td>Total do embarque</td><td id="tFobUsd">—</td><td></td>
+          <td id="tQtd">—</td><td></td><td id="tFobBrl">—</td><td id="tPeso">—</td><td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div style="padding:11px 16px;border-top:1px solid #30363d;display:flex;gap:9px">
+      <button class="btn" id="addRow">+ Adicionar produto</button>
+      <button class="btn" id="reset">Restaurar padrão</button>
+    </div>
+  </section>
+
+  <!-- VARIÁVEIS -->
+  <section class="card">
+    <div class="ch"><h2>Variáveis · frete e despesas</h2><span class="hint">Valores em reais</span></div>
+    <div class="cb grid g4">
+      <label class="f"><span>Frete courier DHL</span><div class="u"><span class="pre">R$</span><input type="text" id="freteCour" value="1.560,82"></div></label>
+      <label class="f"><span>Frete internacional formal</span><div class="u"><span class="pre">R$</span><input type="text" id="freteForm" value="900,00"></div></label>
+      <label class="f" id="wrapKg" hidden><span>Tarifa por kg (formal)</span><div class="u"><span class="pre">R$</span><input type="text" id="freteKg" value="60,00"></div></label>
+      <label class="f"><span>Frete interno origem (inland)</span><div class="u"><span class="pre">R$</span><input type="text" id="inland" value="0,00"></div></label>
+      <label class="f"><span>Seguro internacional</span><div class="u s"><input type="text" id="seguroPct" value="0,00"><span class="suf">%</span></div></label>
+      <label class="f"><span>Terminal Rio (Teka) → GGE</span><div class="u"><span class="pre">R$</span><input type="text" id="terminal" value="350,00"></div></label>
+      <label class="f"><span>Despachante aduaneiro</span><div class="u"><span class="pre">R$</span><input type="text" id="despachante" value="800,00"></div></label>
+      <label class="f"><span>Armazenagem e capatazia</span><div class="u"><span class="pre">R$</span><input type="text" id="armazenagem" value="450,00"></div></label>
+      <label class="f"><span>Taxa Siscomex</span><div class="u"><span class="pre">R$</span><input type="text" id="siscomex" value="154,23"></div></label>
+      <label class="f"><span>Outras despesas (formal)</span><div class="u"><span class="pre">R$</span><input type="text" id="outrasForm" value="0,00"></div></label>
+      <label class="f"><span>Serviços adm. DHL</span><div class="u"><span class="pre">R$</span><input type="text" id="admCour" value="134,90"></div></label>
+      <label class="f"><span>Outras despesas (courier)</span><div class="u"><span class="pre">R$</span><input type="text" id="outrasCour" value="0,00"></div></label>
+    </div>
+  </section>
+
+  <!-- ALÍQUOTAS -->
+  <section class="card">
+    <div class="ch"><h2>Alíquotas</h2><span class="hint">Courier segue o RTS da remessa expressa; formal segue a TEC da NCM 8472.90.40</span></div>
+    <div class="cb" style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <div style="font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:#d29922;margin-bottom:8px">Courier</div>
+        <div class="grid g5">
+          <label class="f"><span>II</span><div class="u s"><input type="text" id="iiCour" value="60,00"><span class="suf">%</span></div></label>
+          <label class="f"><span>ICMS</span><div class="u s"><input type="text" id="icmsCour" value="16,00"><span class="suf">%</span></div></label>
+          <label class="f"><span>FECP</span><div class="u s"><input type="text" id="fecpCour" value="1,00"><span class="suf">%</span></div></label>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:#58a6ff;margin-bottom:8px">Importação formal</div>
+        <div class="grid g5">
+          <label class="f"><span>II</span><div class="u s"><input type="text" id="iiForm" value="16,20"><span class="suf">%</span></div></label>
+          <label class="f"><span>IPI</span><div class="u s"><input type="text" id="ipiForm" value="13,00"><span class="suf">%</span></div></label>
+          <label class="f"><span>PIS-imp</span><div class="u s"><input type="text" id="pisForm" value="2,10"><span class="suf">%</span></div></label>
+          <label class="f"><span>COFINS-imp</span><div class="u s"><input type="text" id="cofinsForm" value="9,65"><span class="suf">%</span></div></label>
+          <label class="f"><span>ICMS-imp RJ</span><div class="u s"><input type="text" id="icmsForm" value="20,00"><span class="suf">%</span></div></label>
+          <label class="f"><span>Do qual FECP</span><div class="u s"><input type="text" id="fecpForm" value="2,00"><span class="suf">%</span></div></label>
+        </div>
+      </div>
+      <label class="chk"><input type="checkbox" id="creditaIpi" checked>
+        <span>IPI gera crédito — GGE é equiparada a industrial na revenda do importado. Desmarque para tratar o IPI como custo.</span></label>
+      <label class="chk"><input type="checkbox" id="creditaIcmsCour">
+        <span>Creditar o ICMS do courier. Desmarcado por padrão: no RTS o desembaraço sai no CNPJ da DHL (IN 1.737/2017, art. 62) e a GGE não tem DI própria para amparar o crédito.</span></label>
+    </div>
+  </section>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi cour"><span class="k">Custo líquido un. · courier</span><span class="v" id="vCour">—</span><span class="s" id="vCourS">—</span></div>
+    <div class="kpi form"><span class="k">Custo líquido un. · formal</span><span class="v" id="vForm">—</span><span class="s" id="vFormS">—</span></div>
+    <div class="kpi"><span class="k">Diferença por unidade</span><span class="v" id="vDif">—</span><span class="s" id="vDifS">—</span></div>
+    <div class="kpi"><span class="k">Diferença no embarque</span><span class="v" id="vDifTot">—</span><span class="s" id="vDifTotS">—</span></div>
+  </div>
+
+  <!-- COMPARATIVO -->
+  <section class="card">
+    <div class="ch"><h2>Composição do custo, linha a linha</h2><span class="hint">Δ negativo = a formal sai mais barata</span></div>
+    <div class="scroll">
+      <table class="cmp">
+        <thead><tr>
+          <th style="min-width:236px">Componente</th>
+          <th class="c-cour" style="width:150px">Courier (DHL)</th>
+          <th class="c-form" style="width:150px">Importação formal</th>
+          <th style="width:132px">Δ formal − courier</th>
+        </tr></thead>
+        <tbody id="cmpBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- POR PRODUTO -->
+  <section class="card">
+    <div class="ch"><h2>Custo final por produto</h2><span class="hint" id="rateioHint">Rateio proporcional ao valor FOB</span></div>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th style="min-width:180px">Produto / SKU</th>
+          <th style="width:74px">Qtd</th>
+          <th style="width:84px">Rateio</th>
+          <th style="width:112px">CIF un. courier</th>
+          <th style="width:112px">CIF un. formal</th>
+          <th style="width:122px">Custo un. courier</th>
+          <th style="width:122px">Custo un. formal</th>
+          <th style="width:104px">Δ un.</th>
+        </tr></thead>
+        <tbody id="unitBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <details>
+    <summary>Memória de cálculo e premissas</summary>
+    <div class="note">
+      <p><strong>Courier (RTS — remessa expressa).</strong> Valor aduaneiro = valor declarado + frete + seguro. Sobre ele incide <code>II 60%</code>. O ICMS entra "por dentro": a base é <code>(VA + II) ÷ (1 − 17%)</code>, e sobre ela aplicam-se <code>16%</code> de ICMS e <code>1%</code> de FECP — a carga equivalente a 17% do Convênio ICMS 81/23. Não há IPI nem PIS/COFINS-importação no RTS. Conferido contra a ND 6637037: VA R$&nbsp;2.280,32 · II R$&nbsp;1.368,19 · ICMS R$&nbsp;703,33 · FECP R$&nbsp;43,96 · adm R$&nbsp;134,90 = R$&nbsp;2.250,38. O botão "Reproduzir a ND" aplica o câmbio 5,0908 e o frete de base R$&nbsp;1.564,96 e fecha centavo a centavo.</p>
+      <p><strong>Frete da DHL.</strong> A nota de débito usa R$&nbsp;1.564,96 apenas como base de cálculo. O que se paga de frete é a fatura RIOIR02480134: R$&nbsp;1.560,82 (US$&nbsp;307,41 ao câmbio 5,0773), já com o desconto de peso de −R$&nbsp;2.337,03 e os extras de fuel, seguro e GoGreen.</p>
+      <p><strong>Importação formal.</strong> Valor aduaneiro = FOB + inland de origem + frete internacional + seguro. Depois: <code>II</code> sobre o VA, <code>IPI</code> sobre VA+II, <code>PIS</code> e <code>COFINS-importação</code> sobre o VA, e AFRMM de 8% sobre o frete apenas no marítimo. O ICMS-importação também é por dentro, com base incluindo VA, II, IPI, PIS/COFINS, Siscomex, AFRMM, armazenagem e capatazia.</p>
+      <p><strong>Créditos (Lucro Real).</strong> Creditam-se PIS e COFINS-importação integralmente, o ICMS menos a parcela de FECP (não creditável no RJ) e, se marcado, o IPI. Honorários de despachante e o frete Teka→galpão ficam fora da base do ICMS, por serem serviços posteriores ao desembaraço.</p>
+      <p><strong>O que ainda é estimativa.</strong> Frete internacional, despachante, armazenagem e terminal vêm com valores plausíveis, não cotados. As alíquotas da formal saíram da TEC/TIPI para a NCM 8472.90.40 — confirmar com o despachante antes de fechar decisão. Vale lembrar também o limite de US$&nbsp;3.000 por remessa no RTS: acima disso o courier deixa de ser opção.</p>
+      <p><strong>Câmbio.</strong> A PTAX de venda vem do Banco Central (série PTAX/Olinda) e é a taxa que a Receita usa na conversão do valor aduaneiro — na DI vale a PTAX do dia útil anterior ao registro. A cotação comercial ao lado é só referência de mercado. Tudo o que você digitar fica salvo neste navegador.</p>
+    </div>
+  </details>
+
+</div>
+</div>
+
+<script src="sidebar.js" defer></script>
+<script>
+(function(){
+  var auth = sessionStorage.getItem('gge_auth');
+  if (auth !== 'gge2026') { window.location.href = '/'; return; }
+})();
+
+(function(){
+  "use strict";
+  var STORE = 'gge_import_calc_v1';
+  var BRL  = new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  var BRL4 = new Intl.NumberFormat('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4});
+  var KG   = new Intl.NumberFormat('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:3});
+  var QT   = new Intl.NumberFormat('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2});
+
+  var DEFAULT_ROWS = [
+    { desc:'Lote completo AWB 6666481813 — troque pelos SKUs', fob:'140,52', qtd:'1', peso:'13,79' }
+  ];
+
+  var FIELDS = ['cambio','modal','rateio','freteModo','freteCour','freteForm','freteKg','inland',
+    'seguroPct','terminal','despachante','armazenagem','siscomex','outrasForm','admCour','outrasCour',
+    'iiCour','icmsCour','fecpCour','iiForm','ipiForm','pisForm','cofinsForm','icmsForm','fecpForm'];
+  var CHECKS = ['creditaIpi','creditaIcmsCour'];
+
+  function num(s){
+    if(s===null||s===undefined) return 0;
+    s=String(s).trim(); if(!s) return 0;
+    if(s.indexOf(',')>-1){ s=s.replace(/\./g,'').replace(',','.'); }
+    var v=parseFloat(s); return isFinite(v)?v:0;
+  }
+  function val(id){ var e=document.getElementById(id); return e?num(e.value):0; }
+  function money(v){ if(!isFinite(v)||Math.abs(v)<0.005) v=0; return (v<0?'−':'')+'R$ '+BRL.format(Math.abs(v)); }
+  function moneyU(v){ if(!isFinite(v)) v=0; var f=Math.abs(v)>=100?BRL:BRL4; return (v<0?'−':'')+'R$ '+f.format(Math.abs(v)); }
+  function signed(v){ if(!isFinite(v)||Math.abs(v)<0.005) return '—'; return (v>0?'+':'−')+'R$ '+BRL.format(Math.abs(v)); }
+  function cls(v){ return v<0?'pos':v>0?'neg':''; }
+  function esc(s){ return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  /* ---------- linhas de produto ---------- */
+  function rowHtml(r){
+    return '<td><input type="text" class="p-desc" aria-label="Descrição" value="'+esc(r.desc)+'"></td>'+
+      '<td><input type="text" class="p-fob" aria-label="FOB unitário em dólar" value="'+esc(r.fob)+'"></td>'+
+      '<td class="c-fobbrl">—</td>'+
+      '<td><input type="text" class="p-qtd" aria-label="Quantidade" value="'+esc(r.qtd)+'"></td>'+
+      '<td><input type="text" class="p-peso" aria-label="Peso unitário em kg" value="'+esc(r.peso)+'"></td>'+
+      '<td class="c-fobtot">—</td><td class="c-pesotot">—</td>'+
+      '<td><button class="icon-btn del" title="Remover linha">&times;</button></td>';
+  }
+  function renderRows(rows){
+    var body=document.getElementById('prodBody'); body.innerHTML='';
+    rows.forEach(function(r){ var tr=document.createElement('tr'); tr.innerHTML=rowHtml(r); body.appendChild(tr); });
+  }
+  function readProducts(){
+    var out=[];
+    document.querySelectorAll('#prodBody tr').forEach(function(tr){
+      out.push({ tr:tr,
+        desc: tr.querySelector('.p-desc').value || 'Sem descrição',
+        fobUsd: num(tr.querySelector('.p-fob').value),
+        qtd: num(tr.querySelector('.p-qtd').value),
+        peso: num(tr.querySelector('.p-peso').value) });
+    });
+    return out;
+  }
+
+  /* ---------- persistência ---------- */
+  function save(){
+    try{
+      var s={f:{},c:{},rows:[]};
+      FIELDS.forEach(function(id){ var e=document.getElementById(id); if(e) s.f[id]=e.value; });
+      CHECKS.forEach(function(id){ var e=document.getElementById(id); if(e) s.c[id]=e.checked; });
+      document.querySelectorAll('#prodBody tr').forEach(function(tr){
+        s.rows.push({ desc:tr.querySelector('.p-desc').value, fob:tr.querySelector('.p-fob').value,
+                      qtd:tr.querySelector('.p-qtd').value, peso:tr.querySelector('.p-peso').value });
+      });
+      localStorage.setItem(STORE, JSON.stringify(s));
+    }catch(e){}
+  }
+  function load(){
+    var s=null;
+    try{ s=JSON.parse(localStorage.getItem(STORE)||'null'); }catch(e){}
+    if(!s){ renderRows(DEFAULT_ROWS); return false; }
+    FIELDS.forEach(function(id){ var e=document.getElementById(id); if(e && s.f && s.f[id]!==undefined) e.value=s.f[id]; });
+    CHECKS.forEach(function(id){ var e=document.getElementById(id); if(e && s.c && s.c[id]!==undefined) e.checked=s.c[id]; });
+    renderRows(s.rows && s.rows.length ? s.rows : DEFAULT_ROWS);
+    return true;
+  }
+
+  /* ---------- cálculo ---------- */
+  function calc(){
+    var cambio = val('cambio') || 1;
+    var modal = document.getElementById('modal').value;
+    var rateioMode = document.getElementById('rateio').value;
+    var freteModo = document.getElementById('freteModo').value;
+
+    document.getElementById('wrapKg').hidden = (freteModo !== 'kg');
+    document.getElementById('rateioHint').textContent =
+      rateioMode==='fob' ? 'Rateio proporcional ao valor FOB' : 'Rateio proporcional ao peso';
+
+    var prods = readProducts();
+    var fobUsdTot=0, fobBrlTot=0, pesoTot=0, qtdTot=0;
+    prods.forEach(function(p){
+      p.fobBrlUn=p.fobUsd*cambio; p.fobBrlTot=p.fobBrlUn*p.qtd; p.pesoTot=p.peso*p.qtd;
+      fobUsdTot+=p.fobUsd*p.qtd; fobBrlTot+=p.fobBrlTot; pesoTot+=p.pesoTot; qtdTot+=p.qtd;
+      p.tr.querySelector('.c-fobbrl').textContent = moneyU(p.fobBrlUn);
+      p.tr.querySelector('.c-fobtot').textContent = money(p.fobBrlTot);
+      p.tr.querySelector('.c-pesotot').textContent = KG.format(p.pesoTot)+' kg';
+    });
+    document.getElementById('tFobUsd').textContent = 'US$ '+BRL.format(fobUsdTot);
+    document.getElementById('tFobBrl').textContent = money(fobBrlTot);
+    document.getElementById('tPeso').textContent   = KG.format(pesoTot)+' kg';
+    document.getElementById('tQtd').textContent    = QT.format(qtdTot);
+
+    /* COURIER */
+    var freteC=val('freteCour');
+    var vaC=fobBrlTot+freteC;
+    var iiC=vaC*val('iiCour')/100;
+    var cargaC=(val('icmsCour')+val('fecpCour'))/100;
+    var baseIcmsC = cargaC<1 ? (vaC+iiC)/(1-cargaC) : 0;
+    var icmsC=baseIcmsC*val('icmsCour')/100;
+    var fecpC=baseIcmsC*val('fecpCour')/100;
+    var admC=val('admCour'), outC=val('outrasCour');
+    var desembC=fobBrlTot+freteC+iiC+icmsC+fecpC+admC+outC;
+    var credIcmsC=document.getElementById('creditaIcmsCour').checked?icmsC:0;
+    var liqC=desembC-credIcmsC;
+
+    /* FORMAL */
+    var freteF = (freteModo==='kg') ? val('freteKg')*pesoTot : val('freteForm');
+    var inland=val('inland');
+    var seguroF=(fobBrlTot+freteF+inland)*val('seguroPct')/100;
+    var vaF=fobBrlTot+inland+freteF+seguroF;
+    var iiF=vaF*val('iiForm')/100;
+    var ipiF=(vaF+iiF)*val('ipiForm')/100;
+    var pisF=vaF*val('pisForm')/100;
+    var cofF=vaF*val('cofinsForm')/100;
+    var afrmm=(modal==='maritimo')?freteF*0.08:0;
+    var sisc=val('siscomex'), armz=val('armazenagem'), desp=val('despachante');
+    var term=val('terminal'), outF=val('outrasForm');
+    var aliqIcmsF=val('icmsForm')/100;
+    var baseIcmsF = aliqIcmsF<1 ? (vaF+iiF+ipiF+pisF+cofF+afrmm+sisc+armz)/(1-aliqIcmsF) : 0;
+    var icmsF=baseIcmsF*aliqIcmsF;
+    var desembF=vaF+iiF+ipiF+pisF+cofF+afrmm+sisc+armz+icmsF+desp+term+outF;
+    var credPisCof=pisF+cofF;
+    var credIcmsF=baseIcmsF*(val('icmsForm')-val('fecpForm'))/100;
+    var credIpi=document.getElementById('creditaIpi').checked?ipiF:0;
+    var credF=credPisCof+credIcmsF+credIpi;
+    var liqF=desembF-credF;
+
+    var rows=[
+      ['h','Mercadoria e logística internacional'],
+      ['s','FOB total', fobBrlTot, fobBrlTot],
+      ['s','Frete interno origem (inland)', 0, inland],
+      ['s','Frete internacional', freteC, freteF],
+      ['s','Seguro', 0, seguroF],
+      ['t','Valor aduaneiro (CIF)', vaC, vaF],
+      ['h','Tributos na importação'],
+      ['s','Imposto de importação', iiC, iiF],
+      ['s','IPI', 0, ipiF],
+      ['s','PIS-importação', 0, pisF],
+      ['s','COFINS-importação', 0, cofF],
+      ['s','ICMS-importação', icmsC, icmsF],
+      ['s','FECP', fecpC, 0],
+      ['s','AFRMM', 0, afrmm],
+      ['t','Total de tributos', iiC+icmsC+fecpC, iiF+ipiF+pisF+cofF+icmsF+afrmm],
+      ['h','Despesas no Brasil'],
+      ['s','Taxa Siscomex', 0, sisc],
+      ['s','Serviços administrativos / adm. DHL', admC, 0],
+      ['s','Armazenagem e capatazia', 0, armz],
+      ['s','Despachante aduaneiro', 0, desp],
+      ['s','Terminal Rio (Teka) → galpão GGE', 0, term],
+      ['s','Outras despesas', outC, outF],
+      ['t','Total de despesas', admC+outC, sisc+armz+desp+term+outF],
+      ['g','Desembolso total', desembC, desembF],
+      ['h','Créditos recuperados'],
+      ['c','Crédito de ICMS', -credIcmsC, -credIcmsF],
+      ['c','Crédito de PIS/COFINS', 0, -credPisCof],
+      ['c','Crédito de IPI', 0, -credIpi],
+      ['t','Total de créditos', -credIcmsC, -credF],
+      ['g','Custo líquido do embarque', liqC, liqF]
+    ];
+    var html='';
+    rows.forEach(function(r){
+      if(r[0]==='h'){ html+='<tr class="sec"><td colspan="4">'+r[1]+'</td></tr>'; return; }
+      var d=r[3]-r[2];
+      var c=r[0]==='t'?'tot':r[0]==='g'?'grand':r[0]==='c'?'sub credit':'sub';
+      html+='<tr class="'+c+'"><td>'+r[1]+'</td>'+
+        '<td class="c-cour">'+money(r[2])+'</td>'+
+        '<td class="c-form">'+money(r[3])+'</td>'+
+        '<td class="'+cls(d)+'">'+signed(d)+'</td></tr>';
+    });
+    document.getElementById('cmpBody').innerHTML=html;
+
+    var baseRateio = rateioMode==='fob' ? fobUsdTot : pesoTot;
+    var uhtml='';
+    prods.forEach(function(p){
+      var meu = rateioMode==='fob' ? p.fobUsd*p.qtd : p.pesoTot;
+      var share = baseRateio>0 ? meu/baseRateio : 0;
+      var unC=p.qtd>0?liqC*share/p.qtd:0, unF=p.qtd>0?liqF*share/p.qtd:0;
+      var cifC=p.qtd>0?vaC*share/p.qtd:0, cifF=p.qtd>0?vaF*share/p.qtd:0;
+      var d=unF-unC;
+      uhtml+='<tr><td>'+esc(p.desc)+'</td><td>'+QT.format(p.qtd)+'</td>'+
+        '<td>'+BRL.format(share*100)+'%</td><td>'+moneyU(cifC)+'</td><td>'+moneyU(cifF)+'</td>'+
+        '<td style="font-weight:600">'+moneyU(unC)+'</td>'+
+        '<td style="font-weight:600">'+moneyU(unF)+'</td>'+
+        '<td class="'+cls(d)+'">'+signed(d)+'</td></tr>';
+    });
+    document.getElementById('unitBody').innerHTML=uhtml;
+
+    var unCg=qtdTot>0?liqC/qtdTot:0, unFg=qtdTot>0?liqF/qtdTot:0;
+    var dUn=unFg-unCg, dTot=liqF-liqC;
+    document.getElementById('vCour').textContent=moneyU(unCg);
+    document.getElementById('vCourS').textContent=money(liqC)+' no embarque';
+    document.getElementById('vForm').textContent=moneyU(unFg);
+    document.getElementById('vFormS').textContent=money(liqF)+' no embarque';
+    var e1=document.getElementById('vDif'), e2=document.getElementById('vDifTot');
+    e1.textContent=signed(dUn); e1.className='v '+cls(dUn);
+    e2.textContent=signed(dTot); e2.className='v '+cls(dTot);
+    document.getElementById('vDifS').textContent = dTot<0?'formal sai mais barata':dTot>0?'courier sai mais barato':'empate';
+    document.getElementById('vDifTotS').textContent = (liqC>0?BRL.format(Math.abs(dTot/liqC*100)):'0,00')+'% sobre o custo courier';
+  }
+
+  /* ---------- eventos ---------- */
+  function onChange(e){
+    if(!e.target.matches || !e.target.matches('input,select')) return;
+    calc(); save();
+  }
+  document.addEventListener('input', onChange);
+  document.addEventListener('change', onChange);
+
+  document.getElementById('addRow').addEventListener('click', function(){
+    var tr=document.createElement('tr');
+    tr.innerHTML=rowHtml({desc:'Novo produto',fob:'0,00',qtd:'1',peso:'0,000'});
+    document.getElementById('prodBody').appendChild(tr); calc(); save();
+  });
+  document.addEventListener('click', function(e){
+    if(e.target.classList && e.target.classList.contains('del')){
+      if(document.querySelectorAll('#prodBody tr').length>1){ e.target.closest('tr').remove(); calc(); save(); }
+    }
+  });
+  document.getElementById('reset').addEventListener('click', function(){
+    try{ localStorage.removeItem(STORE); }catch(e){}
+    window.location.reload();
+  });
+  document.getElementById('presetND').addEventListener('click', function(){
+    document.getElementById('cambio').value='5,0908';
+    document.getElementById('freteCour').value='1.564,96';
+    calc(); save();
+  });
+
+  /* ---------- câmbio ao vivo ---------- */
+  var ptaxValor=null;
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function fmtUS(d){ return pad(d.getMonth()+1)+'-'+pad(d.getDate())+'-'+d.getFullYear(); }
+  function setDot(state){ document.getElementById('fxDot').className='dot'+(state?' '+state:''); }
+
+  function buscarCambio(autoFill){
+    var hoje=new Date(), ini=new Date(Date.now()-12*86400000);
+    var url="https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarPeriodo"+
+      "(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)"+
+      "?@dataInicial='"+fmtUS(ini)+"'&@dataFinalCotacao='"+fmtUS(hoje)+"'"+
+      "&$top=1&$orderby=dataHoraCotacao%20desc&$format=json&$select=cotacaoVenda,dataHoraCotacao";
+    fetch(url).then(function(r){ return r.json(); }).then(function(j){
+      if(!j || !j.value || !j.value.length) throw new Error('sem cotação');
+      var c=j.value[0];
+      ptaxValor=c.cotacaoVenda;
+      document.getElementById('fxPtax').textContent=BRL4.format(c.cotacaoVenda);
+      var dt=String(c.dataHoraCotacao).slice(0,10).split('-');
+      document.getElementById('fxData').textContent='de '+dt[2]+'/'+dt[1];
+      document.getElementById('fxHint').textContent='PTAX de venda do Banco Central — é a taxa que a Receita usa na conversão do valor aduaneiro';
+      setDot('ok');
+      if(autoFill){ document.getElementById('cambio').value=BRL4.format(c.cotacaoVenda); calc(); save(); }
+    }).catch(function(){
+      document.getElementById('fxPtax').textContent='indisponível';
+      document.getElementById('fxHint').textContent='Não consegui falar com o Banco Central — lance o câmbio à mão';
+      setDot('err');
+    });
+
+    fetch("https://economia.awesomeapi.com.br/last/USD-BRL")
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        var v=j && j.USDBRL && parseFloat(j.USDBRL.ask);
+        document.getElementById('fxCom').textContent = v ? BRL4.format(v) : 'indisponível';
+      })
+      .catch(function(){ document.getElementById('fxCom').textContent='indisponível'; });
+  }
+  document.getElementById('usarPtax').addEventListener('click', function(){
+    if(ptaxValor){ document.getElementById('cambio').value=BRL4.format(ptaxValor); calc(); save(); }
+  });
+
+  /* ---------- boot ---------- */
+  var tinhaEstado = load();
+  calc();
+  buscarCambio(!tinhaEstado);
+})();
+</script>
+</body>
+</html>
