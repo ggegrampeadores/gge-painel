@@ -18,12 +18,13 @@
     reputacao:    svgIcon('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'),
     ads:          svgIcon('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
     realinha:     svgIcon('<path d="M2 12h5l3-9 4 18 3-9h5"/>'),
-    saude:        svgIcon('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
+    saude:        svgIcon('<path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
     operador:     svgIcon('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
     grupos:       svgIcon('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
     auditoria:    svgIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
     studio:       svgIcon('<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'),
     custo:        svgIcon('<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="10" x2="16" y2="18"/>'),
+    importacao:   svgIcon('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
     ciclo:        svgIcon('<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>'),
     chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
   };
@@ -56,7 +57,8 @@
     { type: 'separator' },
     { href: '/precificacao',         icon: icons.tabelavd,  label: 'Tabela VD',           key: 'precificacao' },
     { href: '/custo',                icon: icons.custo,     label: 'Calc. Custo',         key: 'custo' },
-    { href: '/custo-mktp', icon: icons.precomktp, label: 'Custos MKTP', key: 'custo-mktp' }
+    { href: '/custo-mktp', icon: icons.precomktp, label: 'Custos MKTP', key: 'custo-mktp' },
+    { href: '/importacao',           icon: icons.importacao, label: 'Importação',         key: 'importacao' }
   ];
   var path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
   function isActive(href) {
