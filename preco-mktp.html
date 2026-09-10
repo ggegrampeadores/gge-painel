@@ -26,6 +26,8 @@
             'gge-yellow': '#eab308',
             'gge-orange': '#f97316',
             'gge-cyan': '#22d3ee',
+            'ml-yellow': '#ffe600',
+            'shopee-orange': '#ee4d2d',
           }
         }
       }
@@ -64,11 +66,27 @@
     .sidebar:not(:hover) .nav-item-label { display: none; }
     .main-with-sidebar { margin-left: 48px; min-height: 100vh; }
 
-    /* Expandable rows */
     .expandable-row { cursor: pointer; }
     .expandable-row:hover { background: rgba(99, 102, 241, 0.08); }
     .atacado-row { background: rgba(99, 102, 241, 0.04); }
-    .atacado-row:hover { background: rgba(99, 102, 241, 0.08); }
+
+    /* Menu superior de plataformas */
+    .topnav { display: flex; gap: 4px; border-bottom: 1px solid #2a2d3e; }
+    .topnav button { padding: 12px 22px; font-size: 14px; font-weight: 600; color: #94a3b8; border-bottom: 3px solid transparent; margin-bottom: -1px; transition: all .15s; }
+    .topnav button:hover { color: #e2e8f0; }
+    .topnav button.on-ml { color: #ffe600; border-color: #ffe600; }
+    .topnav button.on-shopee { color: #ee4d2d; border-color: #ee4d2d; }
+    .topnav button.on-comp { color: #22c55e; border-color: #22c55e; }
+
+    /* Destaques do comparativo (por célula) */
+    .win-ml { text-decoration: underline; text-decoration-color: #ffe600; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+    .win-shopee { text-decoration: underline; text-decoration-color: #ee4d2d; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+    .win-all { font-weight: 700; color: #22c55e !important; background: rgba(34,197,94,.10); border-radius: 4px; }
+    .col-sep { border-left: 2px dashed #2a2d3e; }
+
+    /* Card MC2 editável */
+    .mc2-card { cursor: pointer; user-select: none; }
+    .mc2-card input { width: 120px; background: transparent; border: none; border-bottom: 2px solid #22c55e; color: #22c55e; font-size: 40px; font-weight: 800; text-align: center; outline: none; }
   </style>
   <script src="sidebar.js" defer></script>
 </head>
@@ -80,546 +98,427 @@
   })();
 </script>
   <div id="sidebar-container"></div>
-  <!-- Sidebar (injetado por sidebar.js) -->
-
-  <!-- Main content -->
   <div class="main-with-sidebar">
     <div id="root"></div>
   </div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback, Fragment } = React;
+    const { useState, useEffect, useMemo, useRef, Fragment } = React;
 
     // ── Supabase Client ──
-    const SUPABASE_URL = window.GGE_SUPABASE_URL;
-    const SUPABASE_ANON = window.GGE_SUPABASE_KEY;
-    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    const sb = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
     // ── Formatters ──
-    const brl = (v) => v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const pct = (v) => v == null ? '—' : Number(v).toFixed(1) + '%';
+    const brl = (v) => v == null || isNaN(v) ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pct = (v) => v == null || isNaN(v) ? '—' : Number(v).toFixed(1) + '%';
     const fmtNum = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR');
 
-    // ── Origens de venda ──
-    const ORIGENS = [
-      { key: 'toow', label: 'Toow', custoField: 'custo_cif_sp', modeFrete: 'coleta', regime: 'simples', desc: 'Toow Comercial · Simples Nacional (DAS 8,65%) · Coleta SP' },
-      { key: 'gge_coleta', label: 'GGE Coleta', custoField: 'custo_cif_rj', modeFrete: 'coleta', regime: 'lucro_real', desc: 'GGE Grampeadores · Lucro Real (PIS+COFINS 9,25%) · Coleta RJ' },
-      { key: 'gge_full', label: 'GGE Full', custoField: 'custo_cif_sp', modeFrete: 'fulfillment', regime: 'lucro_real', desc: 'GGE Grampeadores · Lucro Real · Fulfillment SP' },
-      { key: 'gge_sp', label: 'GGE SP', custoField: 'custo_cif_sp', modeFrete: 'coleta', regime: 'lucro_real', desc: 'GGE Filial SP · Lucro Real · Coleta SP' },
+    // ══════════════════════════════════════════════════════════════
+    // MOTOR DE CÁLCULO — segue a skill calculo-margem
+    //   MC2 = PV − custos de plataforma − impostos − custo produto
+    //   GGE (Lucro Real): ICMS + DIFAL (mix de destinos) + PIS/COFINS 9,25% líquido de crédito
+    //   TOOW (Simples): DAS 8,65%, sem ICMS/DIFAL/crédito
+    // ══════════════════════════════════════════════════════════════
+    const PIS_COFINS = 0.0925;
+    const SIMPLES = 0.0865;
+
+    // Origens (canais × empresa × UF). custoField aponta para vw_custo_precificacao.
+    const ORIGENS_ML = [
+      { key: 'ml_gge_coleta', label: 'GGE RJ · Coleta', short: 'GGE RJ Coleta', empresa: 'GGE', uf: 'RJ', custoField: 'custo_gge_sp', modeFrete: 'coleta', desc: 'GGE Matriz RJ · Lucro Real · Coleta RJ · custo CIF SP (canônico)' },
+      { key: 'ml_gge_full',   label: 'GGE RJ · Full SP', short: 'GGE RJ Full', empresa: 'GGE', uf: 'SP', custoField: 'custo_gge_sp', modeFrete: 'fulfillment', desc: 'GGE Matriz RJ · Lucro Real · Fulfillment SP (fiscal SP) · custo CIF SP' },
+      { key: 'ml_gge_sp',     label: 'GGE SP', short: 'GGE SP', empresa: 'GGE', uf: 'SP', custoField: 'custo_gge_sp', modeFrete: 'coleta', desc: 'GGE Filial SP · Lucro Real · Coleta SP · custo CIF SP' },
+      { key: 'ml_toow',       label: 'Toow', short: 'Toow', empresa: 'TOOW', uf: 'SP', custoField: 'custo_toow', modeFrete: 'coleta', desc: 'Toow Comercial · Simples Nacional (DAS 8,65%) · Coleta SP · custo histórico TOOW' },
+    ];
+    const ORIGENS_SHOPEE = [
+      { key: 'sh_gge_rj',   label: 'GGE RJ', short: 'GGE RJ', empresa: 'GGE', uf: 'RJ', custoField: 'custo_gge_sp', desc: 'GGE Matriz RJ · Lucro Real · envio do RJ · custo CIF SP (canônico)' },
+      { key: 'sh_gge_full', label: 'GGE RJ · Full SP', short: 'GGE RJ Full', empresa: 'GGE', uf: 'SP', custoField: 'custo_gge_sp', desc: 'GGE Matriz RJ · estoque em SP (fiscal SP) · custo CIF SP' },
+      { key: 'sh_gge_sp',   label: 'GGE SP', short: 'GGE SP', empresa: 'GGE', uf: 'SP', custoField: 'custo_gge_sp', desc: 'GGE Filial SP · Lucro Real · envio de SP · custo CIF SP' },
     ];
 
     const MARGENS_ALVO = [0, 5, 10, 15, 20, 25, 30];
     const QTDS_ATACADO = [2, 4, 6, 10, 15];
 
-    // ── Frete lookup ──
-    function lookupFrete(faixas, modo, pesoKg, preco) {
-      if (preco < 12.5) return 0;
-      if (preco < 29) return 6.25;
-      if (preco < 50) return 6.50;
-      if (preco < 79) return 6.75;
-
-      const faixa = faixas.find(f =>
-        f.modo === modo && pesoKg <= f.peso_max_kg && preco >= f.preco_min && preco <= f.preco_max
-      );
-      if (faixa) return faixa.frete;
-
-      // Fallback: maior faixa de preço para aquele peso
-      const fallbacks = faixas
-        .filter(f => f.modo === modo && pesoKg <= f.peso_max_kg)
-        .sort((a, b) => b.preco_max - a.preco_max);
-      return fallbacks[0]?.frete ?? 20;
+    // Faixas Shopee — custos da plataforma (comissão + frete) por preço de venda
+    // pct sobre o valor bruto; fixo cobrado uma vez por venda (não por unidade)
+    const SHOPEE_FAIXAS = [
+      { lo: 8.00,   hi: 79.99,    pct: 0.20, fixo: 4.00 },
+      { lo: 80.00,  hi: 99.99,    pct: 0.14, fixo: 16.00 },
+      { lo: 100.00, hi: 199.99,   pct: 0.14, fixo: 20.00 },
+      { lo: 200.00, hi: Infinity, pct: 0.14, fixo: 26.00 },
+    ];
+    function shopeeFaixa(preco) {
+      return SHOPEE_FAIXAS.find(f => preco >= f.lo && preco <= f.hi) || null;
+    }
+    function shopeeTaxa(preco) {
+      const f = shopeeFaixa(preco);
+      return f ? preco * f.pct + f.fixo : null;
     }
 
-    // ── Comissão por categoria ──
+    // Frete ML — tabela_frete_ml por (modo, peso, preço), qualquer faixa de preço.
+    // Faixa fixa R$6,25/6,50/6,75 NÃO é custo (subsídio ML) — removida.
+    function lookupFrete(faixas, modo, pesoKg, preco) {
+      const faixa = faixas.find(f => f.modo === modo && pesoKg <= f.peso_max_kg && preco >= f.preco_min && preco <= f.preco_max);
+      if (faixa) return faixa.frete;
+      const fallbacks = faixas.filter(f => f.modo === modo && pesoKg <= f.peso_max_kg).sort((a, b) => b.preco_max - a.preco_max);
+      if (fallbacks.length) return fallbacks[0].frete;
+      // peso acima da tabela: maior peso disponível
+      const heavy = faixas.filter(f => f.modo === modo).sort((a, b) => b.peso_max_kg - a.peso_max_kg || b.preco_max - a.preco_max);
+      return heavy[0]?.frete ?? null;
+    }
+
     function getComissaoPct(comissoes, categoriaMl, tipoListagem) {
       const match = comissoes.find(c => c.categoria_nome === categoriaMl);
       if (match) return tipoListagem === 'gold_pro' ? match.premium_pct : match.classico_pct;
       return tipoListagem === 'gold_pro' ? 17 : 12;
     }
 
-    // ── Cálculo reverso: preço para atingir margem ──
-    function calcPrecoParaMargem(custo, peso, qtd, margemPct, comissaoPct, faixas, modeFrete, regime, semImpostos) {
-      if (custo <= 0) return null;
-      const custoTotal = custo * qtd;
-      const pesoTotal = peso * qtd;
-      const margem = margemPct / 100;
-
-      let impostoPct = 0;
-      if (!semImpostos) {
-        impostoPct = regime === 'simples' ? 0.0865 : 0.0925;
-      }
-
-      const fatorFixo = 1 - margem - (comissaoPct / 100) - impostoPct;
-      if (fatorFixo <= 0) return null;
-
-      let preco = custoTotal / fatorFixo;
-      for (let i = 0; i < 10; i++) {
-        const frete = lookupFrete(faixas, modeFrete, pesoTotal, preco);
-        const novoPreco = (custoTotal + frete) / fatorFixo;
-        if (Math.abs(novoPreco - preco) < 0.01) { preco = novoPreco; break; }
-        preco = novoPreco;
-      }
-
-      const freteReal = lookupFrete(faixas, modeFrete, pesoTotal, preco);
-      return {
-        preco: Math.ceil(preco * 100) / 100,
-        frete: freteReal,
-        comissao: preco * (comissaoPct / 100),
-        imposto: preco * impostoPct,
-      };
+    // Origem do produto → chave do mix fiscal (Importado / Brasil). Padrão canônico: vazio = Brasil.
+    function origemKey(origem) {
+      return (origem || '').toLowerCase().startsWith('import') ? 'Importado' : 'Brasil';
     }
 
-    // ── Margem atual de um anúncio ──
-    function calcMargemAtual(preco, custo, peso, comissaoPct, faixas, modeFrete, regime) {
-      const frete = lookupFrete(faixas, modeFrete, peso, preco);
-      const comissao = preco * (comissaoPct / 100);
-      const imposto = regime === 'simples' ? preco * 0.0865 : preco * 0.0925;
-      const margem = preco - custo - frete - comissao - imposto;
-      return { margem, margemPct: preco > 0 ? (margem / preco) * 100 : 0, frete, comissao, imposto };
+    // Alíquotas fiscais efetivas para uma origem (empresa/UF) e um SKU
+    function fiscalRates(origem, sku, mix, semImpostos) {
+      if (semImpostos) return { icms: 0, difal: 0, pisCofins: 0, simples: 0, label: 'sem impostos' };
+      if (origem.empresa === 'TOOW') return { icms: 0, difal: 0, pisCofins: 0, simples: SIMPLES, label: 'DAS 8,65%' };
+      const m = mix[`${origem.uf}_${origemKey(sku.origem_produto)}`];
+      if (!m) return null;
+      return { icms: m.icms_pct / 100, difal: m.difal_pct / 100, pisCofins: PIS_COFINS, simples: 0,
+               label: `ICMS ${pct(m.icms_pct)} + DIFAL ${pct(m.difal_pct)} + PIS/COFINS 9,25% (líq.)` };
     }
 
-    // ══════════════════════════════════════════
-    // ── COMPONENTE PRINCIPAL ──
-    // ══════════════════════════════════════════
-    function PrecoMktpApp() {
+    // MC2 dado um preço e custos de plataforma (p = % variável sobre PV, F = parcela fixa em R$)
+    function mc2From(preco, custo, p, F, r) {
+      const plat = preco * p + F;
+      const impostos = preco * (r.icms + r.difal + r.simples) + r.pisCofins * (preco - plat);
+      const margem = preco - plat - impostos - custo;
+      return { margem, margemPct: preco > 0 ? margem / preco * 100 : 0, plat, impostos,
+               comissao: preco * p, fixo: F, credito: r.pisCofins * plat };
+    }
+
+    // Preço reverso (fechado) para MC2 alvo m, dado p e F
+    function solvePV(custo, m, p, F, r) {
+      const den = 1 - m - p - r.icms - r.difal - r.simples - r.pisCofins * (1 - p);
+      if (den <= 0) return null;
+      return (custo + F * (1 - r.pisCofins)) / den;
+    }
+
+    // ── Mercado Livre: iterar porque o frete depende do preço ──
+    function precoML(custo, peso, qtd, margemPct, comissaoPct, faixas, modo, r) {
+      if (!(custo > 0) || !r) return null;
+      const custoTotal = custo * qtd, pesoTotal = peso * qtd, m = margemPct / 100, p = comissaoPct / 100;
+      let preco = solvePV(custoTotal, m, p, 0, r);
+      if (preco == null) return null;
+      let frete = 0;
+      for (let i = 0; i < 20; i++) {
+        frete = lookupFrete(faixas, modo, pesoTotal, preco);
+        if (frete == null) return null;
+        const novo = solvePV(custoTotal, m, p, frete, r);
+        if (novo == null) return null;
+        if (Math.abs(novo - preco) < 0.005) { preco = novo; break; }
+        preco = novo;
+      }
+      preco = Math.ceil(preco * 100) / 100;
+      // GGE não pratica PV < R$12,50 (calculo-margem 2.3): piso; MC2 real fica acima do alvo
+      let noPiso = false;
+      if (preco < 12.5) { preco = 12.5; noPiso = true; }
+      frete = lookupFrete(faixas, modo, pesoTotal, preco);
+      const det = mc2From(preco, custoTotal, p, frete, r);
+      return { preco, frete, ...det, abaixo79: preco < 79, noPiso };
+    }
+    function margemML(preco, custo, peso, comissaoPct, faixas, modo, r) {
+      if (!r || !(preco > 0)) return null;
+      const frete = lookupFrete(faixas, modo, peso, preco);
+      if (frete == null) return null;
+      return { frete, ...mc2From(preco, custo, comissaoPct / 100, frete, r) };
+    }
+
+    // ── Shopee: resolver por faixa, validar, escolher o MENOR preço válido ──
+    // A taxa sobe no degrau (R$79,99 → R$80,00 = +R$7,20), então um alvo pode ser
+    // atingível em uma faixa e não na seguinte. Candidatos: solução dentro da faixa,
+    // ou o piso da faixa quando a solução cai abaixo dele (margem ≥ alvo no piso).
+    function precoShopee(custo, qtd, margemPct, r) {
+      if (!(custo > 0) || !r) return null;
+      const custoTotal = custo * qtd, m = margemPct / 100;
+      const cands = [];
+      for (const f of SHOPEE_FAIXAS) {
+        let pv = solvePV(custoTotal, m, f.pct, f.fixo, r);
+        if (pv == null) continue;
+        let noPiso = false;
+        if (pv < f.lo) { pv = f.lo; noPiso = true; }
+        pv = Math.ceil(pv * 100) / 100;
+        if (pv > f.hi) continue;
+        const det = mc2From(pv, custoTotal, f.pct, f.fixo, r);
+        if (det.margemPct + 1e-6 < margemPct) continue;
+        cands.push({ preco: pv, faixa: f, noPiso, ...det });
+      }
+      if (!cands.length) return null;
+      cands.sort((a, b) => a.preco - b.preco);
+      // noPiso = preço travado no piso da faixa (R$80/100/200): a faixa anterior não
+      // alcança a margem; no piso a MC2 real fica ACIMA do alvo.
+      return cands[0];
+    }
+    function margemShopee(preco, custo, r) {
+      if (!r || !(preco > 0)) return null;
+      const f = shopeeFaixa(preco);
+      if (!f) return null;
+      return { faixa: f, ...mc2From(preco, custo, f.pct, f.fixo, r) };
+    }
+
+    // ── Família do SKU (agrupamento visual) ──
+    function getFamilia(sku) {
+      const prefixes = ['MTXBOLSA','MTX','SPARTA','SPA','PALISAD','DENZEL','OREM','GROSS','PALIS'];
+      const upper = sku.toUpperCase();
+      for (const p of prefixes) if (upper.startsWith(p)) return p;
+      const m = upper.match(/^[A-Z]+/);
+      return m ? m[0].substring(0, 8) : 'OUTROS';
+    }
+    function agruparPorFamilia(list) {
+      const grupos = {};
+      for (const s of list) { const fam = getFamilia(s.sku); (grupos[fam] = grupos[fam] || []).push(s); }
+      const keys = Object.keys(grupos).sort((a, b) => grupos[b].length - grupos[a].length);
+      const out = [];
+      for (const k of keys) { out.push({ _grupo: k, _count: grupos[k].length }); out.push(...grupos[k].sort((a, b) => a.sku.localeCompare(b.sku))); }
+      return out;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // COMPONENTES COMPARTILHADOS
+    // ══════════════════════════════════════════════════════════════
+    function SkuBadges({ sku, qtdAnuncios }) {
+      return (
+        <div className="flex items-center gap-2">
+          <span className="text-white font-mono text-xs font-medium">{sku.sku}</span>
+          {sku.is_combo && <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-medium">KIT</span>}
+          {sku.origem_indefinida && <span className="text-[10px] text-gge-yellow" title="Origem do produto não cadastrada — tratado como Nacional (padrão canônico). Se for importado, ICMS/DIFAL mudam.">⚠</span>}
+          {qtdAnuncios > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-gge-accent/15 text-gge-accent font-medium">{qtdAnuncios} {qtdAnuncios === 1 ? 'anúncio' : 'anúncios'}</span>}
+        </div>
+      );
+    }
+
+    function SearchBox({ value, onChange }) {
+      return (
+        <div className="relative max-w-lg">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gge-muted">🔍</span>
+          <input type="text" placeholder="Buscar SKU ou descrição do produto..." value={value} onChange={e => onChange(e.target.value)}
+            className="w-full bg-gge-card border border-gge-border rounded-lg pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-gge-muted focus:outline-none focus:border-gge-accent transition-colors" />
+          {value && <button onClick={() => onChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gge-muted hover:text-white text-lg">×</button>}
+        </div>
+      );
+    }
+
+    function StatsCards({ items }) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {items.map((c, i) => (
+            <div key={i} className="bg-gge-card border border-gge-border rounded-xl p-4">
+              <p className="text-[11px] text-gge-muted uppercase tracking-wider mb-1">{c.label}</p>
+              <p className={`text-xl font-bold ${c.color}`}>{c.value}</p>
+              {c.sub && <p className="text-[11px] text-gge-muted">{c.sub}</p>}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function FiscalBar({ origem, mix, semImpostos, extra }) {
+      const rows = [];
+      if (origem.empresa === 'TOOW') rows.push('Simples Nacional — DAS 8,65% sobre a venda · sem ICMS/DIFAL · sem crédito');
+      else {
+        for (const k of ['Importado', 'Brasil']) {
+          const m = mix[`${origem.uf}_${k}`];
+          if (m) rows.push(`${k}: ICMS ${pct(m.icms_pct)} + DIFAL ${pct(m.difal_pct)} (mix real de destinos 12m, origem ${origem.uf}, ${fmtNum(m.n_vendas)} vendas, ${pct(m.share_cpf_pct)} CPF) · PIS/COFINS 9,25% com crédito sobre custos de plataforma`);
+        }
+      }
+      return (
+        <div className="bg-gge-card border border-gge-border rounded-xl px-4 py-2.5 text-xs text-gge-muted space-y-0.5">
+          <div><span className="text-gge-accent font-semibold">{origem.label}</span> · {origem.desc}{extra ? ` · ${extra}` : ''}</div>
+          {semImpostos ? <div className="text-gge-cyan font-medium">Impostos excluídos (coluna não comparável com as demais)</div> : rows.map((r, i) => <div key={i}>{r}</div>)}
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ABA MERCADO LIVRE
+    // ══════════════════════════════════════════════════════════════
+    function AbaMercadoLivre({ data }) {
+      const { skus, anuncios, comissoes, faixasFrete, mix } = data;
       const [search, setSearch] = useState('');
-      const [origemAtiva, setOrigemAtiva] = useState('gge_coleta');
+      const [origemKey, setOrigemKey] = useState('ml_gge_coleta');
       const [semImpostos, setSemImpostos] = useState(false);
       const [tipoListagem, setTipoListagem] = useState('gold_special');
-      const [statusFilter, setStatusFilter] = useState('active'); // 'all', 'active', 'paused'
+      const [statusFilter, setStatusFilter] = useState('active');
       const [expandedSku, setExpandedSku] = useState(null);
       const [expandedAnuncio, setExpandedAnuncio] = useState(null);
-
-      // ── Simulador de preço (4 cards) ──
-      const [simCards, setSimCards] = useState([
-        { sku: '', preco: '' },
-        { sku: '', preco: '' },
-        { sku: '', preco: '' },
-        { sku: '', preco: '' },
-      ]);
+      const [simCards, setSimCards] = useState([{ sku: '', preco: '' }, { sku: '', preco: '' }, { sku: '', preco: '' }, { sku: '', preco: '' }]);
       const [simExpanded, setSimExpanded] = useState(true);
+      const origem = ORIGENS_ML.find(o => o.key === origemKey);
+      const defaultComissao = tipoListagem === 'gold_pro' ? 17 : 12;
 
-      const updateSimCard = (idx, field, value) => {
-        setSimCards(prev => {
-          const next = [...prev];
-          next[idx] = { ...next[idx], [field]: value };
-          return next;
-        });
-      };
+      const updateSim = (i, f, v) => setSimCards(p => { const n = [...p]; n[i] = { ...n[i], [f]: v }; return n; });
+      const clearSim = (i) => setSimCards(p => { const n = [...p]; n[i] = { sku: '', preco: '' }; return n; });
 
-      const clearSimCard = (idx) => {
-        setSimCards(prev => {
-          const next = [...prev];
-          next[idx] = { sku: '', preco: '' };
-          return next;
-        });
-      };
-
-      const [skus, setSkus] = useState([]);
-      const [anuncios, setAnuncios] = useState([]);
-      const [comissoes, setComissoes] = useState([]);
-      const [faixasFrete, setFaixasFrete] = useState([]);
-      const [loading, setLoading] = useState(true);
-
-      // ── Helper: fetch all rows (bypasses Supabase 1000-row limit) ──
-      async function fetchAll(buildQuery) {
-        const PAGE = 1000;
-        let allData = [], offset = 0, done = false;
-        while (!done) {
-          const { data, error } = await buildQuery().range(offset, offset + PAGE - 1);
-          if (error) { console.error(error); break; }
-          allData = allData.concat(data || []);
-          done = !data || data.length < PAGE;
-          offset += PAGE;
-        }
-        return allData;
-      }
-
-      // ── Carregar dados ──
-      useEffect(() => {
-        async function loadAll() {
-          const [skuData, anuncData, comRes, freteRes] = await Promise.all([
-            fetchAll(() => sb.from('skus_custo').select('sku, descricao, peso, custo_cif_rj, custo_cif_sp, is_combo, unidade')),
-            fetchAll(() => sb.from('anuncios').select('mlb_id, titulo, sku_vendedor, tipo_listagem, preco_atual, preco_promocional, estoque_declarado, categoria_ml, comissao_efetiva_pct, permalink, status, contas!inner(nome, empresa)').in('status', ['active', 'paused'])),
-            sb.from('comissoes_ml').select('categoria_nome, classico_pct, premium_pct').eq('ativo', true),
-            sb.from('tabela_frete_ml').select('modo, peso_max_kg, preco_min, preco_max, frete'),
-          ]);
-
-          setSkus(skuData.map(r => ({
-            sku: r.sku, descricao: r.descricao || '', peso: Number(r.peso || 0),
-            custo_cif_rj: Number(r.custo_cif_rj || 0), custo_cif_sp: Number(r.custo_cif_sp || 0),
-            is_combo: r.is_combo || false, unidade: r.unidade || '',
-          })));
-
-          setAnuncios(anuncData.map(r => ({
-            mlb_id: r.mlb_id, titulo: r.titulo || '', sku_vendedor: r.sku_vendedor || '',
-            tipo_listagem: r.tipo_listagem || '', preco_atual: Number(r.preco_atual || 0),
-            preco_promocional: r.preco_promocional ? Number(r.preco_promocional) : null,
-            estoque_declarado: Number(r.estoque_declarado || 0), categoria_ml: r.categoria_ml || '',
-            comissao_efetiva_pct: r.comissao_efetiva_pct ? Number(r.comissao_efetiva_pct) : null,
-            permalink: r.permalink || '', status: r.status,
-            conta_nome: r.contas?.nome || '', empresa: r.contas?.empresa || '',
-          })));
-
-          setComissoes((comRes.data || []).map(r => ({
-            categoria_nome: r.categoria_nome || '',
-            classico_pct: Number(r.classico_pct || 12),
-            premium_pct: Number(r.premium_pct || 17),
-          })));
-
-          setFaixasFrete((freteRes.data || []).map(r => ({
-            modo: r.modo, peso_max_kg: Number(r.peso_max_kg),
-            preco_min: Number(r.preco_min), preco_max: Number(r.preco_max), frete: Number(r.frete),
-          })));
-
-          setLoading(false);
-        }
-        loadAll();
-      }, []);
-
-      // ── Mapa de anúncios por SKU (filtrado por status) ──
       const anunciosPorSku = useMemo(() => {
         const map = {};
         for (const a of anuncios) {
           if (!a.sku_vendedor) continue;
           if (statusFilter !== 'all' && a.status !== statusFilter) continue;
-          if (!map[a.sku_vendedor]) map[a.sku_vendedor] = [];
-          map[a.sku_vendedor].push(a);
+          (map[a.sku_vendedor] = map[a.sku_vendedor] || []).push(a);
         }
         return map;
       }, [anuncios, statusFilter]);
 
-      const origemConfig = useMemo(() => ORIGENS.find(o => o.key === origemAtiva), [origemAtiva]);
-      const defaultComissao = tipoListagem === 'gold_pro' ? 17 : 12;
-
-      // ── Extrair família do SKU ──
-      function getFamilia(sku) {
-        const prefixes = ['MTXBOLSA','MTX','SPARTA','SPA','PALISAD','DENZEL','OREM','GROSS','PALIS'];
-        const upper = sku.toUpperCase();
-        for (const p of prefixes) {
-          if (upper.startsWith(p)) return p;
-        }
-        // Fallback: primeiras letras até o primeiro número ou 6 chars
-        const m = upper.match(/^[A-Z]+/);
-        return m ? m[0].substring(0, 8) : 'OUTROS';
-      }
-
-      // ── SKUs filtrados e agrupados ──
-      const skusFiltrados = useMemo(() => {
-        let result = skus;
-        if (search) {
-          const q = search.toLowerCase();
-          result = result.filter(s => s.sku.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q));
-        }
-        // Agrupar por família
-        const grupos = {};
-        for (const s of result) {
-          const fam = getFamilia(s.sku);
-          if (!grupos[fam]) grupos[fam] = [];
-          grupos[fam].push(s);
-        }
-        // Ordenar grupos por tamanho (desc) e internamente por SKU
-        const sortedKeys = Object.keys(grupos).sort((a, b) => grupos[b].length - grupos[a].length);
-        const sorted = [];
-        for (const key of sortedKeys) {
-          sorted.push({ _grupo: key, _count: grupos[key].length });
-          sorted.push(...grupos[key].sort((a, b) => a.sku.localeCompare(b.sku)));
-        }
-        return sorted;
+      const filtrados = useMemo(() => {
+        const q = search.toLowerCase();
+        const list = q ? skus.filter(s => s.sku.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q)) : skus;
+        return agruparPorFamilia(list);
       }, [skus, search]);
+      const somente = useMemo(() => filtrados.filter(s => !s._grupo), [filtrados]);
+      const stats = useMemo(() => ({
+        total: somente.length,
+        comCusto: somente.filter(s => s[origem.custoField] > 0).length,
+        comPeso: somente.filter(s => s.peso > 0).length,
+        comAnuncios: somente.filter(s => (anunciosPorSku[s.sku] || []).length > 0).length,
+      }), [somente, origem, anunciosPorSku]);
 
-      // ── Stats (excluir headers de grupo) ──
-      const skusSomente = useMemo(() => skusFiltrados.filter(s => !s._grupo), [skusFiltrados]);
-      const stats = useMemo(() => {
-        const total = skusSomente.length;
-        const comCusto = skusSomente.filter(s => s[origemConfig.custoField] > 0).length;
-        const comPeso = skusSomente.filter(s => s.peso > 0).length;
-        const comAnuncios = skusSomente.filter(s => (anunciosPorSku[s.sku] || []).length > 0).length;
-        return { total, comCusto, comPeso, comAnuncios };
-      }, [skusSomente, origemConfig, anunciosPorSku]);
+      const rates = (sku) => fiscalRates(origem, sku, mix, semImpostos);
+      const NCOLS = 7 + MARGENS_ALVO.length;
 
-      // ═══ RENDER ═══
       return (
-        <div className="p-6 max-w-[1700px] mx-auto space-y-5 fade-in">
-          {/* Header */}
-          <div>
-            <h1 className="text-2xl font-bold text-white">Preço MKTP</h1>
-            <p className="text-sm text-gge-muted">Precificação para Marketplaces — sugestão de preço por margem desejada</p>
-          </div>
-
-          {/* ══ SIMULADOR DE PREÇO ══ */}
-          {!loading && (
-            <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden fade-in">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gge-border cursor-pointer select-none"
-                   onClick={() => setSimExpanded(!simExpanded)}>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🧮</span>
-                  <h2 className="text-sm font-bold text-white">Simulador de Preço</h2>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-gge-accent/15 text-gge-accent font-medium">
-                    {origemConfig.label} · {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'}
-                  </span>
-                </div>
-                <span className="text-gge-muted text-xs">{simExpanded ? '▲ Recolher' : '▼ Expandir'}</span>
+        <div className="space-y-5 fade-in">
+          {/* Simulador */}
+          <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gge-border cursor-pointer select-none" onClick={() => setSimExpanded(!simExpanded)}>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🧮</span>
+                <h2 className="text-sm font-bold text-white">Simulador de Preço — Mercado Livre</h2>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-gge-accent/15 text-gge-accent font-medium">{origem.label} · {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'}</span>
               </div>
-
-              {simExpanded && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-4">
-                  {simCards.map((card, idx) => {
-                    // Lookup SKU
-                    const skuMatch = card.sku.length >= 2
-                      ? skus.find(s => s.sku.toLowerCase() === card.sku.toLowerCase())
-                      : null;
-                    const custo = skuMatch ? skuMatch[origemConfig.custoField] : 0;
-                    const peso = skuMatch ? skuMatch.peso : 0;
-                    const temCusto = custo > 0;
-                    const temPeso = peso > 0;
-
-                    // Anúncios desse SKU
-                    const anunciosDoSku = skuMatch ? (anunciosPorSku[skuMatch.sku] || []) : [];
-                    const anuncioRef = anunciosDoSku.length > 0 ? anunciosDoSku[0] : null;
-                    const precoAtual = anuncioRef
-                      ? (anuncioRef.preco_promocional || anuncioRef.preco_atual)
-                      : 0;
-                    const comPct = anuncioRef
-                      ? (anuncioRef.comissao_efetiva_pct || getComissaoPct(comissoes, anuncioRef.categoria_ml, anuncioRef.tipo_listagem))
-                      : defaultComissao;
-
-                    // Margem atual
-                    const margemAtual = skuMatch && temCusto && temPeso && precoAtual > 0
-                      ? calcMargemAtual(precoAtual, custo, peso, comPct, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
-                      : null;
-
-                    // Margem simulada
-                    const precoSim = parseFloat(card.preco) || 0;
-                    const margemSim = skuMatch && temCusto && temPeso && precoSim > 0
-                      ? calcMargemAtual(precoSim, custo, peso, comPct, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
-                      : null;
-
-                    // Sugestões de SKU (autocomplete simples)
-                    const sugestoesSku = card.sku.length >= 2 && !skuMatch
-                      ? skus.filter(s => s.sku.toLowerCase().includes(card.sku.toLowerCase())).slice(0, 6)
-                      : [];
-
-                    const isEmpty = !card.sku && !card.preco;
-
-                    return (
-                      <div key={idx} className={`rounded-lg border p-3 space-y-3 transition-all ${
-                        skuMatch ? 'border-gge-accent/40 bg-gge-accent/[0.03]' : 'border-gge-border bg-gge-bg/40'
-                      }`}>
-                        {/* Card header */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Slot {idx + 1}</span>
-                          {!isEmpty && (
-                            <button onClick={() => clearSimCard(idx)}
-                              className="text-[10px] text-gge-muted hover:text-gge-red transition-colors">✕ Limpar</button>
-                          )}
-                        </div>
-
-                        {/* SKU input */}
-                        <div className="relative">
-                          <input type="text" placeholder="Digite o SKU..."
-                            value={card.sku}
-                            onChange={e => updateSimCard(idx, 'sku', e.target.value)}
-                            className="w-full bg-gge-bg border border-gge-border rounded px-3 py-2 text-xs text-white font-mono placeholder:text-gge-muted/50 focus:outline-none focus:border-gge-accent transition-colors"
-                          />
-                          {/* Autocomplete dropdown */}
-                          {sugestoesSku.length > 0 && (
-                            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-gge-card border border-gge-border rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                              {sugestoesSku.map(s => (
-                                <button key={s.sku}
-                                  onClick={() => updateSimCard(idx, 'sku', s.sku)}
-                                  className="w-full text-left px-3 py-2 hover:bg-gge-accent/10 transition-colors border-b border-gge-border/30 last:border-b-0">
-                                  <span className="text-xs text-white font-mono font-medium">{s.sku}</span>
-                                  <span className="text-[10px] text-gge-muted ml-2 truncate">{s.descricao.substring(0, 40)}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info do SKU encontrado */}
-                        {skuMatch && (
-                          <>
-                            <div className="text-[11px] text-gge-muted truncate" title={skuMatch.descricao}>
-                              {skuMatch.descricao.substring(0, 50)}{skuMatch.descricao.length > 50 ? '...' : ''}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 text-[11px]">
-                              <div>
-                                <span className="text-gge-muted block">Custo CIF</span>
-                                <span className={temCusto ? 'text-white font-medium' : 'text-gge-yellow'}>{temCusto ? brl(custo) : 'sem custo'}</span>
-                              </div>
-                              <div>
-                                <span className="text-gge-muted block">Peso</span>
-                                <span className={temPeso ? 'text-white' : 'text-gge-yellow'}>{temPeso ? peso + ' kg' : 'sem peso'}</span>
-                              </div>
-                            </div>
-
-                            {/* Preço atual e margem */}
-                            <div className="bg-gge-bg/60 rounded px-3 py-2 space-y-1">
-                              <div className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Preço atual ML</div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-white font-bold">{precoAtual > 0 ? brl(precoAtual) : '—'}</span>
-                                {margemAtual && (
-                                  <span className={`text-sm font-bold ${margemAtual.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                                    MC2 {pct(margemAtual.margemPct)}
-                                  </span>
-                                )}
-                              </div>
-                              {margemAtual && (
-                                <div className="text-[10px] text-gge-muted">
-                                  {brl(margemAtual.margem)} · Com: {pct(comPct)} · Fr: {brl(margemAtual.frete)}
-                                </div>
-                              )}
-                              {anunciosDoSku.length > 1 && (
-                                <div className="text-[10px] text-gge-muted">{anunciosDoSku.length} anúncios — usando o primeiro</div>
-                              )}
-                            </div>
-
-                            {/* Input preço simulado */}
-                            <div>
-                              <label className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold block mb-1">Preço simulado</label>
-                              <input type="number" step="0.01" min="0" placeholder="R$ 0,00"
-                                value={card.preco}
-                                onChange={e => updateSimCard(idx, 'preco', e.target.value)}
-                                className="w-full bg-gge-bg border border-gge-accent/40 rounded px-3 py-2 text-sm text-white font-bold placeholder:text-gge-muted/30 focus:outline-none focus:border-gge-accent transition-colors"
-                              />
-                            </div>
-
-                            {/* Resultado simulação */}
-                            {margemSim && (
-                              <div className={`rounded px-3 py-2.5 space-y-1 ${
-                                margemSim.margemPct >= 10 ? 'bg-green-900/20 border border-green-700/30' :
-                                margemSim.margemPct >= 0 ? 'bg-yellow-900/20 border border-yellow-700/30' :
-                                'bg-red-900/20 border border-red-700/30'
-                              }`}>
-                                <div className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Margem simulada</div>
-                                <div className="flex items-center justify-between">
-                                  <span className={`text-lg font-bold ${margemSim.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                                    {pct(margemSim.margemPct)}
-                                  </span>
-                                  <span className={`text-sm font-bold ${margemSim.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
-                                    {brl(margemSim.margem)}
-                                  </span>
-                                </div>
-                                <div className="text-[10px] text-gge-muted space-y-0.5">
-                                  <div>Comissão: {brl(margemSim.comissao)} ({pct(comPct)})</div>
-                                  <div>Frete: {brl(margemSim.frete)}</div>
-                                  <div>Impostos: {brl(margemSim.imposto)}</div>
-                                  <div>Custo: {brl(custo)}</div>
-                                </div>
-                                {margemAtual && precoSim !== precoAtual && (
-                                  <div className="text-[10px] pt-1 border-t border-white/10 mt-1">
-                                    <span className="text-gge-muted">Δ preço: </span>
-                                    <span className={precoSim > precoAtual ? 'text-gge-green' : 'text-gge-red'}>
-                                      {precoSim > precoAtual ? '+' : ''}{brl(precoSim - precoAtual)} ({precoAtual > 0 ? (precoSim > precoAtual ? '+' : '') + ((precoSim - precoAtual) / precoAtual * 100).toFixed(1) + '%' : '—'})
-                                    </span>
-                                    <span className="text-gge-muted ml-2">Δ MC2: </span>
-                                    <span className={margemSim.margemPct > margemAtual.margemPct ? 'text-gge-green' : 'text-gge-red'}>
-                                      {margemSim.margemPct > margemAtual.margemPct ? '+' : ''}{(margemSim.margemPct - margemAtual.margemPct).toFixed(1)}pp
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        {/* Empty state */}
-                        {isEmpty && (
-                          <div className="text-center py-4 text-gge-muted/40 text-xs">
-                            Digite um SKU para simular
+              <span className="text-gge-muted text-xs">{simExpanded ? '▲ Recolher' : '▼ Expandir'}</span>
+            </div>
+            {simExpanded && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-4">
+                {simCards.map((card, idx) => {
+                  const skuMatch = card.sku.length >= 2 ? skus.find(s => s.sku.toLowerCase() === card.sku.toLowerCase()) : null;
+                  const custo = skuMatch ? skuMatch[origem.custoField] : 0;
+                  const peso = skuMatch ? skuMatch.peso : 0;
+                  const temCusto = custo > 0, temPeso = peso > 0;
+                  const anuncsDoSku = skuMatch ? (anunciosPorSku[skuMatch.sku] || []) : [];
+                  const anuncioRef = anuncsDoSku[0] || null;
+                  const precoAtual = anuncioRef ? (anuncioRef.preco_promocional || anuncioRef.preco_atual) : 0;
+                  const comPct = anuncioRef ? (anuncioRef.comissao_efetiva_pct || getComissaoPct(comissoes, anuncioRef.categoria_ml, anuncioRef.tipo_listagem)) : defaultComissao;
+                  const r = skuMatch ? rates(skuMatch) : null;
+                  const mAtual = skuMatch && temCusto && temPeso && precoAtual > 0 ? margemML(precoAtual, custo, peso, comPct, faixasFrete, origem.modeFrete, r) : null;
+                  const precoSim = parseFloat(card.preco) || 0;
+                  const mSim = skuMatch && temCusto && temPeso && precoSim > 0 ? margemML(precoSim, custo, peso, comPct, faixasFrete, origem.modeFrete, r) : null;
+                  const sugestoes = card.sku.length >= 2 && !skuMatch ? skus.filter(s => s.sku.toLowerCase().includes(card.sku.toLowerCase())).slice(0, 6) : [];
+                  const isEmpty = !card.sku && !card.preco;
+                  return (
+                    <div key={idx} className={`rounded-lg border p-3 space-y-3 ${skuMatch ? 'border-gge-accent/40 bg-gge-accent/[0.03]' : 'border-gge-border bg-gge-bg/40'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Slot {idx + 1}</span>
+                        {!isEmpty && <button onClick={() => clearSim(idx)} className="text-[10px] text-gge-muted hover:text-gge-red">✕ Limpar</button>}
+                      </div>
+                      <div className="relative">
+                        <input type="text" placeholder="Digite o SKU..." value={card.sku} onChange={e => updateSim(idx, 'sku', e.target.value)}
+                          className="w-full bg-gge-bg border border-gge-border rounded px-3 py-2 text-xs text-white font-mono placeholder:text-gge-muted/50 focus:outline-none focus:border-gge-accent" />
+                        {sugestoes.length > 0 && (
+                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-gge-card border border-gge-border rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                            {sugestoes.map(s => (
+                              <button key={s.sku} onClick={() => updateSim(idx, 'sku', s.sku)} className="w-full text-left px-3 py-2 hover:bg-gge-accent/10 border-b border-gge-border/30 last:border-b-0">
+                                <span className="text-xs text-white font-mono font-medium">{s.sku}</span>
+                                <span className="text-[10px] text-gge-muted ml-2">{s.descricao.substring(0, 40)}</span>
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                      {skuMatch && (
+                        <>
+                          <div className="text-[11px] text-gge-muted truncate" title={skuMatch.descricao}>{skuMatch.descricao.substring(0, 50)}</div>
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            <div><span className="text-gge-muted block">Custo CIF</span><span className={temCusto ? 'text-white font-medium' : 'text-gge-yellow'}>{temCusto ? brl(custo) : 'sem custo'}</span></div>
+                            <div><span className="text-gge-muted block">Peso</span><span className={temPeso ? 'text-white' : 'text-gge-yellow'}>{temPeso ? peso + ' kg' : 'sem peso'}</span></div>
+                          </div>
+                          <div className="bg-gge-bg/60 rounded px-3 py-2 space-y-1">
+                            <div className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Preço atual ML</div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-white font-bold">{precoAtual > 0 ? brl(precoAtual) : '—'}</span>
+                              {mAtual && <span className={`text-sm font-bold ${mAtual.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>MC2 {pct(mAtual.margemPct)}</span>}
+                            </div>
+                            {mAtual && <div className="text-[10px] text-gge-muted">{brl(mAtual.margem)} · Com: {pct(comPct)} · Fr: {brl(mAtual.frete)} · Imp: {brl(mAtual.impostos)}</div>}
+                            {anuncsDoSku.length > 1 && <div className="text-[10px] text-gge-muted">{anuncsDoSku.length} anúncios — usando o primeiro</div>}
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold block mb-1">Preço simulado</label>
+                            <input type="number" step="0.01" min="0" placeholder="R$ 0,00" value={card.preco} onChange={e => updateSim(idx, 'preco', e.target.value)}
+                              className="w-full bg-gge-bg border border-gge-accent/40 rounded px-3 py-2 text-sm text-white font-bold focus:outline-none focus:border-gge-accent" />
+                          </div>
+                          {mSim && (
+                            <div className={`rounded px-3 py-2.5 space-y-1 ${mSim.margemPct >= 10 ? 'bg-green-900/20 border border-green-700/30' : mSim.margemPct >= 0 ? 'bg-yellow-900/20 border border-yellow-700/30' : 'bg-red-900/20 border border-red-700/30'}`}>
+                              <div className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Margem simulada (MC2)</div>
+                              <div className="flex items-center justify-between">
+                                <span className={`text-lg font-bold ${mSim.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{pct(mSim.margemPct)}</span>
+                                <span className={`text-sm font-bold ${mSim.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{brl(mSim.margem)}</span>
+                              </div>
+                              <div className="text-[10px] text-gge-muted space-y-0.5">
+                                <div>Comissão: {brl(mSim.comissao)} ({pct(comPct)})</div>
+                                <div>Frete: {brl(mSim.frete)}</div>
+                                <div>Impostos: {brl(mSim.impostos)} <span className="opacity-60">(crédito PIS/COFINS {brl(mSim.credito)} já abatido)</span></div>
+                                <div>Custo: {brl(custo)}</div>
+                              </div>
+                              {mAtual && precoSim !== precoAtual && (
+                                <div className="text-[10px] pt-1 border-t border-white/10 mt-1">
+                                  <span className="text-gge-muted">Δ preço: </span>
+                                  <span className={precoSim > precoAtual ? 'text-gge-green' : 'text-gge-red'}>{precoSim > precoAtual ? '+' : ''}{brl(precoSim - precoAtual)}</span>
+                                  <span className="text-gge-muted ml-2">Δ MC2: </span>
+                                  <span className={mSim.margemPct > mAtual.margemPct ? 'text-gge-green' : 'text-gge-red'}>{mSim.margemPct > mAtual.margemPct ? '+' : ''}{(mSim.margemPct - mAtual.margemPct).toFixed(1)}pp</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {isEmpty && <div className="text-center py-4 text-gge-muted/40 text-xs">Digite um SKU para simular</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-          {/* Abas de Origem + controles */}
+          {/* Origens + controles */}
           <div className="flex flex-wrap items-center gap-2">
-            {ORIGENS.map(o => (
-              <button key={o.key} onClick={() => setOrigemAtiva(o.key)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
-                  origemAtiva === o.key
-                    ? 'bg-gge-accent/20 border-gge-accent text-white'
-                    : 'bg-gge-card border-gge-border text-gge-muted hover:text-white hover:border-gge-muted'
-                }`}
-                title={o.desc}>
-                {o.label}
-              </button>
+            {ORIGENS_ML.map(o => (
+              <button key={o.key} onClick={() => setOrigemKey(o.key)} title={o.desc}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${origemKey === o.key ? 'bg-gge-accent/20 border-gge-accent text-white' : 'bg-gge-card border-gge-border text-gge-muted hover:text-white hover:border-gge-muted'}`}>{o.label}</button>
             ))}
             <div className="ml-auto flex items-center gap-3">
-              {/* Status filter */}
               <div className="flex items-center rounded-lg border border-gge-border overflow-hidden">
-                {[
-                  { key: 'all', label: 'Todos' },
-                  { key: 'active', label: 'Ativos' },
-                  { key: 'paused', label: 'Pausados' },
-                ].map(sf => (
-                  <button key={sf.key} onClick={() => setStatusFilter(sf.key)}
-                    className={`px-3 py-2 text-xs font-medium transition-all ${
-                      statusFilter === sf.key
-                        ? 'bg-gge-accent/20 text-white'
-                        : 'bg-gge-card text-gge-muted hover:text-white'
-                    }`}>{sf.label}</button>
+                {[{ key: 'all', label: 'Todos' }, { key: 'active', label: 'Ativos' }, { key: 'paused', label: 'Pausados' }].map(sf => (
+                  <button key={sf.key} onClick={() => setStatusFilter(sf.key)} className={`px-3 py-2 text-xs font-medium ${statusFilter === sf.key ? 'bg-gge-accent/20 text-white' : 'bg-gge-card text-gge-muted hover:text-white'}`}>{sf.label}</button>
                 ))}
               </div>
-              <button onClick={() => setSemImpostos(!semImpostos)}
-                className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
-                  semImpostos ? 'bg-gge-cyan/20 border-gge-cyan text-gge-cyan' : 'bg-gge-card border-gge-border text-gge-muted hover:text-white'
-                }`}
-                title="ML cobra imposto do comprador separadamente">
-                ℹ️ Sem impostos
-              </button>
-              <select value={tipoListagem} onChange={e => setTipoListagem(e.target.value)}
-                className="bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-gge-accent">
+              <button onClick={() => setSemImpostos(!semImpostos)} title="Calcula sem ICMS/DIFAL/PIS-COFINS/DAS — apenas referência, não comparável"
+                className={`px-3 py-2 rounded-lg text-xs font-medium border flex items-center gap-1.5 ${semImpostos ? 'bg-gge-cyan/20 border-gge-cyan text-gge-cyan' : 'bg-gge-card border-gge-border text-gge-muted hover:text-white'}`}>ℹ️ Sem impostos</button>
+              <select value={tipoListagem} onChange={e => setTipoListagem(e.target.value)} className="bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-gge-accent">
                 <option value="gold_special">Clássico (~12%)</option>
                 <option value="gold_pro">Premium (~17%)</option>
               </select>
             </div>
           </div>
 
-          {/* Info bar */}
-          <div className="bg-gge-card border border-gge-border rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-2 text-xs text-gge-muted">
-            <span className="text-gge-accent font-semibold">{origemConfig.label}</span>
-            <span>·</span><span>{origemConfig.desc}</span>
-            {semImpostos && <><span>·</span><span className="text-gge-cyan font-medium">Impostos excluídos</span></>}
-          </div>
+          <FiscalBar origem={origem} mix={mix} semImpostos={semImpostos} extra={`frete tabela ML ${origem.modeFrete} × peso`} />
 
-          {/* Stats */}
-          {!loading && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'SKUs encontrados', value: fmtNum(stats.total), color: 'text-white' },
-                { label: 'Com custo', value: fmtNum(stats.comCusto), color: stats.comCusto === stats.total ? 'text-gge-green' : 'text-gge-yellow', sub: stats.total > 0 ? pct(stats.comCusto / stats.total * 100) : '0%' },
-                { label: 'Com peso', value: fmtNum(stats.comPeso), color: stats.comPeso === stats.total ? 'text-gge-green' : 'text-gge-yellow', sub: stats.total > 0 ? pct(stats.comPeso / stats.total * 100) : '0%' },
-                { label: 'Com anúncios ML', value: fmtNum(stats.comAnuncios), color: 'text-white', sub: 'SKUs anunciados' },
-              ].map((c, i) => (
-                <div key={i} className="bg-gge-card border border-gge-border rounded-xl p-4">
-                  <p className="text-[11px] text-gge-muted uppercase tracking-wider mb-1">{c.label}</p>
-                  <p className={`text-xl font-bold ${c.color}`}>{c.value}</p>
-                  {c.sub && <p className="text-[11px] text-gge-muted">{c.sub}</p>}
-                </div>
-              ))}
-            </div>
-          )}
+          <StatsCards items={[
+            { label: 'SKUs encontrados', value: fmtNum(stats.total), color: 'text-white' },
+            { label: 'Com custo', value: fmtNum(stats.comCusto), color: stats.comCusto === stats.total ? 'text-gge-green' : 'text-gge-yellow', sub: stats.total ? pct(stats.comCusto / stats.total * 100) : '0%' },
+            { label: 'Com peso', value: fmtNum(stats.comPeso), color: stats.comPeso === stats.total ? 'text-gge-green' : 'text-gge-yellow', sub: stats.total ? pct(stats.comPeso / stats.total * 100) : '0%' },
+            { label: 'Com anúncios ML', value: fmtNum(stats.comAnuncios), color: 'text-white', sub: 'SKUs anunciados' },
+          ]} />
 
-          {/* Search */}
-          <div className="relative max-w-lg">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gge-muted">🔍</span>
-            <input type="text" placeholder="Buscar SKU ou descrição do produto..."
-              value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full bg-gge-card border border-gge-border rounded-lg pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-gge-muted focus:outline-none focus:border-gge-accent transition-colors" />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gge-muted hover:text-white text-lg">×</button>
-            )}
-          </div>
+          <SearchBox value={search} onChange={setSearch} />
 
-          {/* Tabela principal */}
           <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -631,232 +530,630 @@
                     <th className="text-right px-3 py-3">Peso</th>
                     <th className="text-right px-3 py-3">Custo CIF</th>
                     <th className="text-right px-3 py-3">ML Atual</th>
-                    <th className="text-right px-3 py-3">Margem Atual</th>
-                    {MARGENS_ALVO.map(m => (
-                      <th key={m} className="text-right px-2 py-3 text-gge-accent">{m}%</th>
-                    ))}
+                    <th className="text-right px-3 py-3">MC2 Atual</th>
+                    {MARGENS_ALVO.map(m => <th key={m} className="text-right px-2 py-3 text-ml-yellow">{m}%</th>)}
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
-                    Array.from({ length: 8 }).map((_, i) => (
-                      <tr key={i} className="border-b border-gge-border/50">
-                        {Array.from({ length: 14 }).map((_, j) => (
-                          <td key={j} className="px-3 py-3"><div className="h-4 bg-white/5 rounded pulse-load" /></td>
-                        ))}
+                  {somente.length === 0 ? (
+                    <tr><td colSpan={NCOLS} className="text-center py-12 text-gge-muted">Nenhum SKU encontrado.</td></tr>
+                  ) : filtrados.map(sku => {
+                    if (sku._grupo) return (
+                      <tr key={`grp-${sku._grupo}`} className="border-b border-gge-accent/20 bg-gge-accent/[0.04]">
+                        <td colSpan={NCOLS} className="px-3 py-2"><span className="text-gge-accent font-bold text-xs uppercase tracking-wider">{sku._grupo}</span><span className="text-gge-muted text-[11px] ml-2">({sku._count} SKUs)</span></td>
                       </tr>
-                    ))
-                  ) : skusSomente.length === 0 ? (
-                    <tr><td colSpan={14} className="text-center py-12 text-gge-muted">Nenhum SKU encontrado.</td></tr>
-                  ) : (
-                    skusFiltrados.map((sku, idx) => {
-                      // Group header row
-                      if (sku._grupo) {
-                        return (
-                          <tr key={`grp-${sku._grupo}`} className="border-b border-gge-accent/20 bg-gge-accent/[0.04]">
-                            <td colSpan={14} className="px-3 py-2">
-                              <span className="text-gge-accent font-bold text-xs uppercase tracking-wider">{sku._grupo}</span>
-                              <span className="text-gge-muted text-[11px] ml-2">({sku._count} SKUs)</span>
+                    );
+                    const custo = sku[origem.custoField];
+                    const temCusto = custo > 0, temPeso = sku.peso > 0;
+                    const isExpanded = expandedSku === sku.sku;
+                    const anuncsDoSku = anunciosPorSku[sku.sku] || [];
+                    const qtd = anuncsDoSku.length;
+                    const precoMlAtual = qtd > 0 ? anuncsDoSku.reduce((s, a) => s + (a.preco_promocional || a.preco_atual), 0) / qtd : 0;
+                    const r = rates(sku);
+                    const mAtual = temCusto && precoMlAtual > 0 && temPeso ? margemML(precoMlAtual, custo, sku.peso, defaultComissao, faixasFrete, origem.modeFrete, r) : null;
+                    const sug = MARGENS_ALVO.map(m => temCusto && temPeso ? precoML(custo, sku.peso, 1, m, defaultComissao, faixasFrete, origem.modeFrete, r) : null);
+                    return (
+                      <Fragment key={sku.sku}>
+                        <tr className={`border-b border-gge-border/30 expandable-row ${isExpanded ? 'bg-gge-accent/5' : ''}`} onClick={() => { setExpandedSku(isExpanded ? null : sku.sku); setExpandedAnuncio(null); }}>
+                          <td className="px-3 py-2.5 text-gge-muted">{qtd > 0 ? (isExpanded ? '▼' : '▶') : <span className="opacity-30">·</span>}</td>
+                          <td className="px-3 py-2.5"><SkuBadges sku={sku} qtdAnuncios={qtd} /></td>
+                          <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[250px] truncate hidden lg:table-cell" title={sku.descricao}>{sku.descricao}</td>
+                          <td className="px-3 py-2.5 text-right text-gge-muted tabular-nums text-xs">{temPeso ? `${sku.peso} kg` : <span className="text-gge-yellow">—</span>}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums text-xs ${temCusto ? 'text-white' : 'text-gge-yellow'}`}>{temCusto ? brl(custo) : 'sem custo'}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-xs text-gge-muted">{precoMlAtual > 0 ? brl(precoMlAtual) : '—'}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums text-xs font-semibold ${!mAtual ? 'text-gge-muted' : mAtual.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{mAtual ? pct(mAtual.margemPct) : '—'}</td>
+                          {sug.map((s, i) => (
+                            <td key={i} className={`px-2 py-2.5 text-right tabular-nums text-xs ${!s ? 'text-gge-muted' : 'text-white font-medium'}`} title={s ? `Frete ${brl(s.frete)} · Comissão ${brl(s.comissao)} · Impostos ${brl(s.impostos)} · MC2 ${pct(s.margemPct)}` : ''}>
+                              {s ? brl(s.preco) : '—'}{s && s.noPiso && <span className="text-[9px] text-gge-yellow ml-0.5" title="Piso R$12,50 (GGE não pratica abaixo) — MC2 real acima do alvo">▲</span>}{s && s.abaixo79 && <span className="text-[9px] text-gge-yellow ml-0.5" title="Abaixo de R$79 a estrutura de comissão do ML é diferente">‹79</span>}
                             </td>
-                          </tr>
-                        );
-                      }
-                      const custo = sku[origemConfig.custoField];
-                      const temCusto = custo > 0;
-                      const temPeso = sku.peso > 0;
-                      const isExpanded = expandedSku === sku.sku;
-                      const anunciosDoSku = anunciosPorSku[sku.sku] || [];
-                      const qtdAnuncios = anunciosDoSku.length;
+                          ))}
+                        </tr>
 
-                      const precoMlAtual = qtdAnuncios > 0
-                        ? anunciosDoSku.reduce((s, a) => s + (a.preco_promocional || a.preco_atual), 0) / qtdAnuncios
-                        : 0;
-
-                      const margemAtual = temCusto && precoMlAtual > 0 && temPeso
-                        ? calcMargemAtual(precoMlAtual, custo, sku.peso, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
-                        : null;
-
-                      const sugestoes = MARGENS_ALVO.map(m =>
-                        temCusto && temPeso
-                          ? calcPrecoParaMargem(custo, sku.peso, 1, m, defaultComissao, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
-                          : null
-                      );
-
-                      return (
-                        <Fragment key={sku.sku}>
-                          {/* Linha do SKU */}
-                          <tr className={`border-b border-gge-border/30 expandable-row transition-colors ${isExpanded ? 'bg-gge-accent/5' : ''}`}
-                            onClick={() => { setExpandedSku(isExpanded ? null : sku.sku); setExpandedAnuncio(null); }}>
-                            <td className="px-3 py-2.5 text-gge-muted">
-                              {qtdAnuncios > 0 ? (isExpanded ? '▼' : '▶') : <span className="opacity-30">·</span>}
-                            </td>
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center gap-2">
-                                <span className="text-white font-mono text-xs font-medium">{sku.sku}</span>
-                                {sku.is_combo && <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-medium">KIT</span>}
-                                {qtdAnuncios > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-gge-accent/15 text-gge-accent font-medium">{qtdAnuncios} {qtdAnuncios === 1 ? 'anúncio' : 'anúncios'}</span>}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[250px] truncate hidden lg:table-cell" title={sku.descricao}>{sku.descricao}</td>
-                            <td className="px-3 py-2.5 text-right text-gge-muted tabular-nums text-xs">
-                              {temPeso ? `${sku.peso} kg` : <span className="text-gge-yellow">—</span>}
-                            </td>
-                            <td className={`px-3 py-2.5 text-right tabular-nums text-xs ${temCusto ? 'text-white' : 'text-gge-yellow'}`}>
-                              {temCusto ? brl(custo) : 'sem custo'}
-                            </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-xs text-gge-muted">
-                              {precoMlAtual > 0 ? brl(precoMlAtual) : '—'}
-                            </td>
-                            <td className={`px-3 py-2.5 text-right tabular-nums text-xs font-semibold ${
-                              !margemAtual ? 'text-gge-muted' : margemAtual.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'
-                            }`}>
-                              {margemAtual ? pct(margemAtual.margemPct) : '—'}
-                            </td>
-                            {sugestoes.map((s, i) => (
-                              <td key={i} className={`px-2 py-2.5 text-right tabular-nums text-xs ${!s ? 'text-gge-muted' : 'text-white font-medium'}`}>
-                                {s ? brl(s.preco) : '—'}
-                              </td>
-                            ))}
-                          </tr>
-
-                          {/* Anúncios expandidos */}
-                          {isExpanded && anunciosDoSku.map(anuncio => {
-                            const precoAnuncio = anuncio.preco_promocional || anuncio.preco_atual;
-                            const comPctAnuncio = anuncio.comissao_efetiva_pct || getComissaoPct(comissoes, anuncio.categoria_ml, anuncio.tipo_listagem);
-                            const margemAnuncio = temCusto && temPeso
-                              ? calcMargemAtual(precoAnuncio, custo, sku.peso, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime)
-                              : null;
-
-                            const isAnuncioExp = expandedAnuncio === anuncio.mlb_id;
-                            const tipoLabel = anuncio.tipo_listagem === 'gold_pro' ? 'Premium' : 'Clássico';
-
-                            const sugAnuncio = MARGENS_ALVO.map(m =>
-                              temCusto && temPeso
-                                ? calcPrecoParaMargem(custo, sku.peso, 1, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
-                                : null
-                            );
-
-                            return (
-                              <Fragment key={anuncio.mlb_id}>
-                                <tr className="border-b border-gge-border/20 bg-white/[0.015] expandable-row"
-                                  onClick={e => { e.stopPropagation(); setExpandedAnuncio(isAnuncioExp ? null : anuncio.mlb_id); }}>
-                                  <td className="px-3 py-2 pl-7 text-gge-muted text-xs">
-                                    {isAnuncioExp ? '▼' : '▶'}
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <div className="flex items-center gap-2">
-                                      <span className={`w-2 h-2 rounded-full ${anuncio.status === 'active' ? 'bg-gge-green' : 'bg-gge-muted'}`}></span>
-                                      <a href={anuncio.permalink} target="_blank" rel="noopener"
-                                        onClick={e => e.stopPropagation()}
-                                        className="text-[11px] text-blue-400 hover:text-blue-300 font-mono">
-                                        {anuncio.mlb_id} ↗
-                                      </a>
-                                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
-                                        anuncio.tipo_listagem === 'gold_pro' ? 'bg-gge-yellow/15 text-gge-yellow' : 'bg-white/10 text-gge-muted'
-                                      }`}>{tipoLabel}</span>
-                                      <span className="text-[9px] text-gge-muted">{anuncio.conta_nome}</span>
+                        {isExpanded && anuncsDoSku.map(anuncio => {
+                          const precoAn = anuncio.preco_promocional || anuncio.preco_atual;
+                          const comAn = anuncio.comissao_efetiva_pct || getComissaoPct(comissoes, anuncio.categoria_ml, anuncio.tipo_listagem);
+                          const mAn = temCusto && temPeso ? margemML(precoAn, custo, sku.peso, comAn, faixasFrete, origem.modeFrete, r) : null;
+                          const isAnExp = expandedAnuncio === anuncio.mlb_id;
+                          const sugAn = MARGENS_ALVO.map(m => temCusto && temPeso ? precoML(custo, sku.peso, 1, m, comAn, faixasFrete, origem.modeFrete, r) : null);
+                          return (
+                            <Fragment key={anuncio.mlb_id}>
+                              <tr className="border-b border-gge-border/20 bg-white/[0.015] expandable-row" onClick={e => { e.stopPropagation(); setExpandedAnuncio(isAnExp ? null : anuncio.mlb_id); }}>
+                                <td className="px-3 py-2 pl-7 text-gge-muted text-xs">{isAnExp ? '▼' : '▶'}</td>
+                                <td className="px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${anuncio.status === 'active' ? 'bg-gge-green' : 'bg-gge-muted'}`}></span>
+                                    <a href={anuncio.permalink} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} className="text-[11px] text-blue-400 hover:text-blue-300 font-mono">{anuncio.mlb_id} ↗</a>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${anuncio.tipo_listagem === 'gold_pro' ? 'bg-gge-yellow/15 text-gge-yellow' : 'bg-white/10 text-gge-muted'}`}>{anuncio.tipo_listagem === 'gold_pro' ? 'Premium' : 'Clássico'}</span>
+                                    <span className="text-[9px] text-gge-muted">{anuncio.conta_nome}</span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-gge-muted text-[11px] max-w-[250px] truncate hidden lg:table-cell" title={anuncio.titulo}>{anuncio.titulo}</td>
+                                <td className="px-3 py-2 text-right text-gge-muted tabular-nums text-[11px]">{temPeso ? `${sku.peso} kg` : '—'}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[11px] text-gge-muted">{temCusto ? brl(custo) : '—'}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[11px] text-white font-medium">
+                                  {anuncio.preco_promocional ? <span><span className="text-gge-yellow">{brl(anuncio.preco_promocional)}</span><br/><span className="text-[9px] text-gge-muted line-through">{brl(anuncio.preco_atual)}</span></span> : brl(anuncio.preco_atual)}
+                                </td>
+                                <td className={`px-3 py-2 text-right tabular-nums text-[11px] font-semibold ${!mAn ? 'text-gge-muted' : mAn.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>
+                                  {mAn ? <span>{pct(mAn.margemPct)}<br/><span className="text-[9px] text-gge-muted font-normal">{brl(mAn.margem)} · com {pct(comAn)}</span></span> : '—'}
+                                </td>
+                                {sugAn.map((s, i) => <td key={i} className={`px-2 py-2 text-right tabular-nums text-[11px] ${!s ? 'text-gge-muted' : 'text-white'}`}>{s ? brl(s.preco) : '—'}</td>)}
+                              </tr>
+                              {isAnExp && temCusto && temPeso && (
+                                <tr className="border-b border-gge-border/20 atacado-row">
+                                  <td colSpan={NCOLS} className="px-7 py-3">
+                                    <div className="text-gge-accent font-semibold text-[11px] uppercase tracking-wider mb-2">📦 Atacado — frete consolidado por quantidade</div>
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-[11px]">
+                                        <thead><tr className="text-gge-muted uppercase tracking-wider">
+                                          <th className="text-left py-1.5 pr-4">Qtd</th><th className="text-right py-1.5 px-2">Peso total</th><th className="text-right py-1.5 px-2">Custo total</th>
+                                          {MARGENS_ALVO.map(m => <th key={m} className="text-right py-1.5 px-2 text-ml-yellow">{m}%</th>)}
+                                          {MARGENS_ALVO.map(m => <th key={`u${m}`} className="text-right py-1.5 px-2 text-gge-muted/50">{m}% unit.</th>)}
+                                        </tr></thead>
+                                        <tbody>
+                                          {QTDS_ATACADO.map(q => {
+                                            const sa = MARGENS_ALVO.map(m => precoML(custo, sku.peso, q, m, comAn, faixasFrete, origem.modeFrete, r));
+                                            return (
+                                              <tr key={q} className="border-t border-gge-border/10">
+                                                <td className="py-1.5 pr-4 text-white font-medium">{q} unid.</td>
+                                                <td className="text-right py-1.5 px-2 text-gge-muted tabular-nums">{(sku.peso * q).toFixed(2)} kg</td>
+                                                <td className="text-right py-1.5 px-2 text-gge-muted tabular-nums">{brl(custo * q)}</td>
+                                                {sa.map((s, i) => <td key={i} className={`text-right py-1.5 px-2 tabular-nums ${s ? 'text-white font-medium' : 'text-gge-muted'}`}>{s ? brl(s.preco) : '—'}</td>)}
+                                                {sa.map((s, i) => <td key={`u${i}`} className="text-right py-1.5 px-2 tabular-nums text-gge-muted">{s ? brl(s.preco / q) : '—'}</td>)}
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
                                     </div>
                                   </td>
-                                  <td className="px-3 py-2 text-gge-muted text-[11px] max-w-[250px] truncate hidden lg:table-cell" title={anuncio.titulo}>{anuncio.titulo}</td>
-                                  <td className="px-3 py-2 text-right text-gge-muted tabular-nums text-[11px]">{temPeso ? `${sku.peso} kg` : '—'}</td>
-                                  <td className="px-3 py-2 text-right tabular-nums text-[11px] text-gge-muted">{temCusto ? brl(custo) : '—'}</td>
-                                  <td className="px-3 py-2 text-right tabular-nums text-[11px] text-white font-medium">
-                                    {anuncio.preco_promocional ? (
-                                      <span><span className="text-gge-yellow">{brl(anuncio.preco_promocional)}</span><br/><span className="text-[9px] text-gge-muted line-through">{brl(anuncio.preco_atual)}</span></span>
-                                    ) : brl(anuncio.preco_atual)}
-                                  </td>
-                                  <td className={`px-3 py-2 text-right tabular-nums text-[11px] font-semibold ${
-                                    !margemAnuncio ? 'text-gge-muted' : margemAnuncio.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'
-                                  }`}>
-                                    {margemAnuncio ? (
-                                      <span>{pct(margemAnuncio.margemPct)}<br/><span className="text-[9px] text-gge-muted font-normal">{brl(margemAnuncio.margem)}</span></span>
-                                    ) : '—'}
-                                  </td>
-                                  {sugAnuncio.map((s, i) => (
-                                    <td key={i} className={`px-2 py-2 text-right tabular-nums text-[11px] ${!s ? 'text-gge-muted' : 'text-white'}`}>
-                                      {s ? brl(s.preco) : '—'}
-                                    </td>
-                                  ))}
                                 </tr>
-
-                                {/* Atacado */}
-                                {isAnuncioExp && temCusto && temPeso && (
-                                  <tr className="border-b border-gge-border/20 atacado-row">
-                                    <td colSpan={14} className="px-7 py-3">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <span className="text-gge-accent font-semibold text-[11px] uppercase tracking-wider">📦 Atacado — Frete consolidado por quantidade</span>
-                                      </div>
-                                      <div className="overflow-x-auto">
-                                        <table className="w-full text-[11px]">
-                                          <thead>
-                                            <tr className="text-gge-muted uppercase tracking-wider">
-                                              <th className="text-left py-1.5 pr-4">Qtd</th>
-                                              <th className="text-right py-1.5 px-2">Peso total</th>
-                                              <th className="text-right py-1.5 px-2">Custo total</th>
-                                              {MARGENS_ALVO.map(m => <th key={m} className="text-right py-1.5 px-2 text-gge-accent">{m}%</th>)}
-                                              {MARGENS_ALVO.map(m => <th key={`u${m}`} className="text-right py-1.5 px-2 text-gge-muted/50">{m}% unit.</th>)}
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {QTDS_ATACADO.map(qtd => {
-                                              const sugAtacado = MARGENS_ALVO.map(m =>
-                                                calcPrecoParaMargem(custo, sku.peso, qtd, m, comPctAnuncio, faixasFrete, origemConfig.modeFrete, origemConfig.regime, semImpostos)
-                                              );
-                                              return (
-                                                <tr key={qtd} className="border-t border-gge-border/10">
-                                                  <td className="py-1.5 pr-4 text-white font-medium">{qtd} unid.</td>
-                                                  <td className="text-right py-1.5 px-2 text-gge-muted tabular-nums">{(sku.peso * qtd).toFixed(2)} kg</td>
-                                                  <td className="text-right py-1.5 px-2 text-gge-muted tabular-nums">{brl(custo * qtd)}</td>
-                                                  {sugAtacado.map((s, i) => (
-                                                    <td key={i} className={`text-right py-1.5 px-2 tabular-nums ${s ? 'text-white font-medium' : 'text-gge-muted'}`}>
-                                                      {s ? brl(s.preco) : '—'}
-                                                    </td>
-                                                  ))}
-                                                  {sugAtacado.map((s, i) => (
-                                                    <td key={`u${i}`} className="text-right py-1.5 px-2 tabular-nums text-gge-muted">
-                                                      {s ? brl(s.preco / qtd) : '—'}
-                                                    </td>
-                                                  ))}
-                                                </tr>
-                                              );
-                                            })}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </Fragment>
-                            );
-                          })}
-
-                          {isExpanded && anunciosDoSku.length === 0 && (
-                            <tr className="border-b border-gge-border/20 bg-white/[0.01]">
-                              <td colSpan={14} className="px-7 py-3 text-xs text-gge-muted italic">
-                                Nenhum anúncio ativo encontrado para este SKU no Mercado Livre.
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })
-                  )}
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                        {isExpanded && qtd === 0 && (
+                          <tr className="border-b border-gge-border/20"><td colSpan={NCOLS} className="px-7 py-3 text-xs text-gge-muted italic">Nenhum anúncio encontrado para este SKU no Mercado Livre (filtro atual).</td></tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Notas */}
           <div className="space-y-1 text-[11px] text-gge-muted">
-            <p>* Preços sugeridos arredondados para cima. Comissão: {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'} (default {defaultComissao}%, ajustado por categoria quando disponível).</p>
-            <p>* Frete calculado pela tabela ML ({origemConfig.modeFrete}) × peso do produto. Atacado: frete consolidado pelo peso total.</p>
-            {semImpostos && <p className="text-gge-cyan">* Modo "Sem impostos": preço calculado sem PIS/COFINS/DAS — o ML acrescenta imposto ao comprador com base em geolocalização e CPF/CNPJ.</p>}
+            <p>* Preço sugerido = menor preço que entrega a MC2 da coluna, arredondado para cima ao centavo. Comissão {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'} (default {defaultComissao}%; por categoria/anúncio quando disponível).</p>
+            <p>* Frete = tabela ML ({origem.modeFrete}) × peso, em qualquer faixa de preço. Faixa fixa R$6,25/6,50/6,75 não é custo (subsídio ML). Atacado: frete pelo peso total.</p>
+            <p>* Impostos GGE: ICMS e DIFAL ponderados pelo mix real de destinos (12 meses) por UF de origem e origem do produto; PIS/COFINS 9,25% com crédito sobre comissão+frete. Toow: DAS 8,65%.</p>
+            <p>* Custo = último registro de skus_custo_historico por empresa (GGE: CIF SP em todas as origens — padrão canônico da vw_margem_canonica; Toow: histórico próprio). O que muda entre RJ e SP são os impostos.</p>
           </div>
         </div>
       );
     }
 
-    // ── Render ──
+    // ══════════════════════════════════════════════════════════════
+    // ABA SHOPEE
+    // ══════════════════════════════════════════════════════════════
+    function AbaShopee({ data }) {
+      const { skus, mix } = data;
+      const [search, setSearch] = useState('');
+      const [origemKey, setOrigemKey] = useState('sh_gge_rj');
+      const [semImpostos, setSemImpostos] = useState(false);
+      const [expandedSku, setExpandedSku] = useState(null);
+      const [simCards, setSimCards] = useState([{ sku: '', preco: '' }, { sku: '', preco: '' }, { sku: '', preco: '' }, { sku: '', preco: '' }]);
+      const [simExpanded, setSimExpanded] = useState(true);
+      const origem = ORIGENS_SHOPEE.find(o => o.key === origemKey);
+      const updateSim = (i, f, v) => setSimCards(p => { const n = [...p]; n[i] = { ...n[i], [f]: v }; return n; });
+      const clearSim = (i) => setSimCards(p => { const n = [...p]; n[i] = { sku: '', preco: '' }; return n; });
+
+      const filtrados = useMemo(() => {
+        const q = search.toLowerCase();
+        const list = q ? skus.filter(s => s.sku.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q)) : skus;
+        return agruparPorFamilia(list);
+      }, [skus, search]);
+      const somente = useMemo(() => filtrados.filter(s => !s._grupo), [filtrados]);
+      const stats = useMemo(() => {
+        const comCusto = somente.filter(s => s[origem.custoField] > 0);
+        const r15 = comCusto.map(s => precoShopee(s[origem.custoField], 1, 15, fiscalRates(origem, s, mix, semImpostos))).filter(Boolean);
+        return { total: somente.length, comCusto: comCusto.length, ate80: r15.filter(x => x.preco < 80).length, noPiso: r15.filter(x => x.noPiso).length };
+      }, [somente, origem, mix, semImpostos]);
+      const rates = (sku) => fiscalRates(origem, sku, mix, semImpostos);
+      const NCOLS = 5 + MARGENS_ALVO.length;
+
+      return (
+        <div className="space-y-5 fade-in">
+          {/* Simulador */}
+          <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gge-border cursor-pointer select-none" onClick={() => setSimExpanded(!simExpanded)}>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🧮</span>
+                <h2 className="text-sm font-bold text-white">Simulador de Preço — Shopee</h2>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-shopee-orange/15 text-shopee-orange font-medium">{origem.label}</span>
+              </div>
+              <span className="text-gge-muted text-xs">{simExpanded ? '▲ Recolher' : '▼ Expandir'}</span>
+            </div>
+            {simExpanded && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-4">
+                {simCards.map((card, idx) => {
+                  const skuMatch = card.sku.length >= 2 ? skus.find(s => s.sku.toLowerCase() === card.sku.toLowerCase()) : null;
+                  const custo = skuMatch ? skuMatch[origem.custoField] : 0;
+                  const temCusto = custo > 0;
+                  const r = skuMatch ? rates(skuMatch) : null;
+                  const precoSim = parseFloat(card.preco) || 0;
+                  const mSim = skuMatch && temCusto && precoSim > 0 ? margemShopee(precoSim, custo, r) : null;
+                  const p15 = skuMatch && temCusto ? precoShopee(custo, 1, 15, r) : null;
+                  const sugestoes = card.sku.length >= 2 && !skuMatch ? skus.filter(s => s.sku.toLowerCase().includes(card.sku.toLowerCase())).slice(0, 6) : [];
+                  const isEmpty = !card.sku && !card.preco;
+                  return (
+                    <div key={idx} className={`rounded-lg border p-3 space-y-3 ${skuMatch ? 'border-shopee-orange/40 bg-shopee-orange/[0.03]' : 'border-gge-border bg-gge-bg/40'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Slot {idx + 1}</span>
+                        {!isEmpty && <button onClick={() => clearSim(idx)} className="text-[10px] text-gge-muted hover:text-gge-red">✕ Limpar</button>}
+                      </div>
+                      <div className="relative">
+                        <input type="text" placeholder="Digite o SKU..." value={card.sku} onChange={e => updateSim(idx, 'sku', e.target.value)}
+                          className="w-full bg-gge-bg border border-gge-border rounded px-3 py-2 text-xs text-white font-mono placeholder:text-gge-muted/50 focus:outline-none focus:border-shopee-orange" />
+                        {sugestoes.length > 0 && (
+                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-gge-card border border-gge-border rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                            {sugestoes.map(s => (
+                              <button key={s.sku} onClick={() => updateSim(idx, 'sku', s.sku)} className="w-full text-left px-3 py-2 hover:bg-shopee-orange/10 border-b border-gge-border/30 last:border-b-0">
+                                <span className="text-xs text-white font-mono font-medium">{s.sku}</span>
+                                <span className="text-[10px] text-gge-muted ml-2">{s.descricao.substring(0, 40)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {skuMatch && (
+                        <>
+                          <div className="text-[11px] text-gge-muted truncate" title={skuMatch.descricao}>{skuMatch.descricao.substring(0, 50)}</div>
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            <div><span className="text-gge-muted block">Custo CIF</span><span className={temCusto ? 'text-white font-medium' : 'text-gge-yellow'}>{temCusto ? brl(custo) : 'sem custo'}</span></div>
+                            <div><span className="text-gge-muted block">Preço p/ MC2 15%</span><span className="text-white">{p15 ? brl(p15.preco) : '—'}</span></div>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold block mb-1">Preço simulado</label>
+                            <input type="number" step="0.01" min="0" placeholder="R$ 0,00" value={card.preco} onChange={e => updateSim(idx, 'preco', e.target.value)}
+                              className="w-full bg-gge-bg border border-shopee-orange/40 rounded px-3 py-2 text-sm text-white font-bold focus:outline-none focus:border-shopee-orange" />
+                          </div>
+                          {precoSim > 0 && !mSim && temCusto && <div className="text-[11px] text-gge-yellow">Preço fora das faixas Shopee (mínimo R$ 8,00).</div>}
+                          {mSim && (
+                            <div className={`rounded px-3 py-2.5 space-y-1 ${mSim.margemPct >= 10 ? 'bg-green-900/20 border border-green-700/30' : mSim.margemPct >= 0 ? 'bg-yellow-900/20 border border-yellow-700/30' : 'bg-red-900/20 border border-red-700/30'}`}>
+                              <div className="text-[10px] text-gge-muted uppercase tracking-wider font-semibold">Margem simulada (MC2)</div>
+                              <div className="flex items-center justify-between">
+                                <span className={`text-lg font-bold ${mSim.margemPct >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{pct(mSim.margemPct)}</span>
+                                <span className={`text-sm font-bold ${mSim.margem >= 0 ? 'text-gge-green' : 'text-gge-red'}`}>{brl(mSim.margem)}</span>
+                              </div>
+                              <div className="text-[10px] text-gge-muted space-y-0.5">
+                                <div>Taxa Shopee: {brl(mSim.plat)} ({(mSim.faixa.pct * 100).toFixed(0)}% + {brl(mSim.faixa.fixo)})</div>
+                                <div>Impostos: {brl(mSim.impostos)} <span className="opacity-60">(crédito PIS/COFINS {brl(mSim.credito)} já abatido)</span></div>
+                                <div>Custo: {brl(custo)}</div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {isEmpty && <div className="text-center py-4 text-gge-muted/40 text-xs">Digite um SKU para simular</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {ORIGENS_SHOPEE.map(o => (
+              <button key={o.key} onClick={() => setOrigemKey(o.key)} title={o.desc}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${origemKey === o.key ? 'bg-shopee-orange/20 border-shopee-orange text-white' : 'bg-gge-card border-gge-border text-gge-muted hover:text-white hover:border-gge-muted'}`}>{o.label}</button>
+            ))}
+            <div className="ml-auto flex items-center gap-3">
+              <button onClick={() => setSemImpostos(!semImpostos)} title="Calcula sem ICMS/DIFAL/PIS-COFINS — apenas referência, não comparável"
+                className={`px-3 py-2 rounded-lg text-xs font-medium border flex items-center gap-1.5 ${semImpostos ? 'bg-gge-cyan/20 border-gge-cyan text-gge-cyan' : 'bg-gge-card border-gge-border text-gge-muted hover:text-white'}`}>ℹ️ Sem impostos</button>
+            </div>
+          </div>
+
+          <FiscalBar origem={origem} mix={mix} semImpostos={semImpostos} extra="frete do vendedor incluído na taxa Shopee" />
+
+          {/* Faixas Shopee */}
+          <div className="bg-gge-card border border-gge-border rounded-xl px-4 py-3">
+            <div className="text-[11px] text-gge-muted uppercase tracking-wider font-semibold mb-2">Custos da plataforma Shopee (comissão + frete) — fixo cobrado uma vez por venda</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              {SHOPEE_FAIXAS.map((f, i) => (
+                <div key={i} className="rounded-lg border border-shopee-orange/30 bg-shopee-orange/[0.05] px-3 py-2">
+                  <div className="text-gge-muted">{brl(f.lo)} {f.hi === Infinity ? 'ou acima' : `a ${brl(f.hi)}`}</div>
+                  <div className="text-white font-bold">{(f.pct * 100).toFixed(0)}% + {brl(f.fixo)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <StatsCards items={[
+            { label: 'SKUs encontrados', value: fmtNum(stats.total), color: 'text-white' },
+            { label: 'Com custo', value: fmtNum(stats.comCusto), color: stats.comCusto === stats.total ? 'text-gge-green' : 'text-gge-yellow', sub: stats.total ? pct(stats.comCusto / stats.total * 100) : '0%' },
+            { label: 'Preço 15% abaixo de R$80', value: fmtNum(stats.ate80), color: 'text-white', sub: 'faixa 20% + R$4' },
+            { label: 'Travados no piso de faixa', value: fmtNum(stats.noPiso), color: stats.noPiso ? 'text-gge-yellow' : 'text-white', sub: 'R$80/100/200 — MC2 acima do alvo' },
+          ]} />
+
+          <SearchBox value={search} onChange={setSearch} />
+
+          <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-gge-border text-[11px] text-gge-muted uppercase tracking-wider">
+                    <th className="text-left px-3 py-3 w-8"></th>
+                    <th className="text-left px-3 py-3">SKU</th>
+                    <th className="text-left px-3 py-3 hidden lg:table-cell">Descrição</th>
+                    <th className="text-right px-3 py-3">Peso</th>
+                    <th className="text-right px-3 py-3">Custo CIF</th>
+                    {MARGENS_ALVO.map(m => <th key={m} className="text-right px-2 py-3 text-shopee-orange">{m}%</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {somente.length === 0 ? (
+                    <tr><td colSpan={NCOLS} className="text-center py-12 text-gge-muted">Nenhum SKU encontrado.</td></tr>
+                  ) : filtrados.map(sku => {
+                    if (sku._grupo) return (
+                      <tr key={`grp-${sku._grupo}`} className="border-b border-shopee-orange/20 bg-shopee-orange/[0.04]">
+                        <td colSpan={NCOLS} className="px-3 py-2"><span className="text-shopee-orange font-bold text-xs uppercase tracking-wider">{sku._grupo}</span><span className="text-gge-muted text-[11px] ml-2">({sku._count} SKUs)</span></td>
+                      </tr>
+                    );
+                    const custo = sku[origem.custoField];
+                    const temCusto = custo > 0;
+                    const isExpanded = expandedSku === sku.sku;
+                    const r = rates(sku);
+                    const sug = MARGENS_ALVO.map(m => temCusto ? precoShopee(custo, 1, m, r) : null);
+                    return (
+                      <Fragment key={sku.sku}>
+                        <tr className={`border-b border-gge-border/30 expandable-row ${isExpanded ? 'bg-shopee-orange/5' : ''}`} onClick={() => setExpandedSku(isExpanded ? null : sku.sku)}>
+                          <td className="px-3 py-2.5 text-gge-muted">{temCusto ? (isExpanded ? '▼' : '▶') : <span className="opacity-30">·</span>}</td>
+                          <td className="px-3 py-2.5"><SkuBadges sku={sku} qtdAnuncios={0} /></td>
+                          <td className="px-3 py-2.5 text-gge-muted text-xs max-w-[250px] truncate hidden lg:table-cell" title={sku.descricao}>{sku.descricao}</td>
+                          <td className="px-3 py-2.5 text-right text-gge-muted tabular-nums text-xs">{sku.peso > 0 ? `${sku.peso} kg` : '—'}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums text-xs ${temCusto ? 'text-white' : 'text-gge-yellow'}`}>{temCusto ? brl(custo) : 'sem custo'}</td>
+                          {sug.map((s, i) => (
+                            <td key={i} className={`px-2 py-2.5 text-right tabular-nums text-xs ${!s ? 'text-gge-muted' : 'text-white font-medium'}`} title={s ? `Taxa Shopee ${brl(s.plat)} (${(s.faixa.pct*100).toFixed(0)}% + ${brl(s.faixa.fixo)}) · Impostos ${brl(s.impostos)} · MC2 ${pct(s.margemPct)}` : ''}>
+                              {s ? brl(s.preco) : '—'}{s && s.noPiso && <span className="text-[9px] text-gge-yellow ml-0.5" title="Travado no piso da faixa: a faixa anterior não alcança a margem; aqui a MC2 real fica acima do alvo">▲</span>}
+                            </td>
+                          ))}
+                        </tr>
+                        {isExpanded && temCusto && (
+                          <tr className="border-b border-gge-border/20 atacado-row">
+                            <td colSpan={NCOLS} className="px-7 py-3">
+                              <div className="text-shopee-orange font-semibold text-[11px] uppercase tracking-wider mb-2">📦 Atacado — % sobre o bruto do pedido + fixo cobrado uma vez</div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-[11px]">
+                                  <thead><tr className="text-gge-muted uppercase tracking-wider">
+                                    <th className="text-left py-1.5 pr-4">Qtd</th><th className="text-right py-1.5 px-2">Custo total</th>
+                                    {MARGENS_ALVO.map(m => <th key={m} className="text-right py-1.5 px-2 text-shopee-orange">{m}%</th>)}
+                                    {MARGENS_ALVO.map(m => <th key={`u${m}`} className="text-right py-1.5 px-2 text-gge-muted/50">{m}% unit.</th>)}
+                                  </tr></thead>
+                                  <tbody>
+                                    {QTDS_ATACADO.map(q => {
+                                      const sa = MARGENS_ALVO.map(m => precoShopee(custo, q, m, r));
+                                      return (
+                                        <tr key={q} className="border-t border-gge-border/10">
+                                          <td className="py-1.5 pr-4 text-white font-medium">{q} unid.</td>
+                                          <td className="text-right py-1.5 px-2 text-gge-muted tabular-nums">{brl(custo * q)}</td>
+                                          {sa.map((s, i) => <td key={i} className={`text-right py-1.5 px-2 tabular-nums ${s ? 'text-white font-medium' : 'text-gge-muted'}`}>{s ? brl(s.preco) : '—'}</td>)}
+                                          {sa.map((s, i) => <td key={`u${i}`} className="text-right py-1.5 px-2 tabular-nums text-gge-muted">{s ? brl(s.preco / q) : '—'}</td>)}
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="space-y-1 text-[11px] text-gge-muted">
+            <p>* Preço sugerido = menor preço que entrega a MC2 da coluna, resolvido faixa a faixa (a taxa sobe no degrau: R$79,99 paga R$20,00; R$80,00 paga R$27,20). ▲ = preço travado no piso da faixa (MC2 real acima do alvo).</p>
+            <p>* Taxa Shopee = % sobre o valor bruto + fixo por venda; o vendedor não paga frete além disso. Sem custo por peso. Vendas abaixo de R$8,00 não existem.</p>
+            <p>* Impostos GGE: ICMS e DIFAL pelo mix real de destinos (12 meses, vendas ML) por UF de origem e origem do produto; PIS/COFINS 9,25% com crédito sobre a taxa Shopee.</p>
+            <p>* Anúncios e preços atuais da Shopee ainda não estão no banco (Módulo 7) — por isso não há coluna "Atual" nesta aba.</p>
+          </div>
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ABA COMPARATIVO
+    // ══════════════════════════════════════════════════════════════
+    const COLS_COMP = [
+      { key: 'ml_rj_premium', plat: 'ml', label: 'ML GGE RJ Premium', origem: ORIGENS_ML[0], tipo: 'gold_pro' },
+      { key: 'ml_rj_coleta',  plat: 'ml', label: 'ML GGE RJ Coleta',  origem: ORIGENS_ML[0] },
+      { key: 'ml_rj_full',    plat: 'ml', label: 'ML GGE RJ Full SP', origem: ORIGENS_ML[1] },
+      { key: 'ml_sp',         plat: 'ml', label: 'ML GGE SP',         origem: ORIGENS_ML[2] },
+      { key: 'ml_toow',       plat: 'ml', label: 'ML Toow',           origem: ORIGENS_ML[3] },
+      { key: 'sh_rj',         plat: 'shopee', label: 'Shopee GGE RJ',         origem: ORIGENS_SHOPEE[0] },
+      { key: 'sh_rj_full',    plat: 'shopee', label: 'Shopee GGE RJ Full SP', origem: ORIGENS_SHOPEE[1] },
+      { key: 'sh_sp',         plat: 'shopee', label: 'Shopee GGE SP',         origem: ORIGENS_SHOPEE[2] },
+    ];
+    const COLS_SEM_IMP = [
+      { key: 'si_ml', plat: 'ml', label: 'ML GGE RJ Coleta', origem: ORIGENS_ML[0], semImpostos: true },
+      { key: 'si_sh', plat: 'shopee', label: 'Shopee GGE RJ', origem: ORIGENS_SHOPEE[0], semImpostos: true },
+    ];
+
+    function Mc2Card({ value, onChange }) {
+      const [editing, setEditing] = useState(false);
+      const [draft, setDraft] = useState(String(value));
+      const ref = useRef(null);
+      useEffect(() => { if (editing && ref.current) { ref.current.focus(); ref.current.select(); } }, [editing]);
+      const commit = () => {
+        const v = parseFloat(String(draft).replace(',', '.'));
+        if (!isNaN(v) && v >= -50 && v < 90) onChange(Math.round(v * 10) / 10);
+        setEditing(false);
+      };
+      return (
+        <div className="mc2-card bg-gge-card border-2 border-gge-green/50 rounded-xl px-6 py-4 min-w-[220px] text-center"
+             onDoubleClick={() => { setDraft(String(value)); setEditing(true); }} title="Duplo clique para editar a margem alvo">
+          <div className="text-[11px] text-gge-muted uppercase tracking-wider">MC2 alvo</div>
+          {editing ? (
+            <input ref={ref} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit}
+              onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }} />
+          ) : (
+            <div className="text-[40px] leading-none font-extrabold text-gge-green py-1">{Number(value).toLocaleString('pt-BR')}%</div>
+          )}
+          <div className="text-[10px] text-gge-muted mt-1">{editing ? 'Enter aplica · Esc cancela' : 'duplo clique para editar · padrão 15%'}</div>
+        </div>
+      );
+    }
+
+    function AbaComparativo({ data }) {
+      const { skus, faixasFrete, mix } = data;
+      const [search, setSearch] = useState('');
+      const [mc2, setMc2] = useState(15);
+      const [tipoListagem, setTipoListagem] = useState('gold_special');
+      const comDefault = tipoListagem === 'gold_pro' ? 17 : 12;
+
+      const calcCol = (col, sku) => {
+        const custo = sku[col.origem.custoField];
+        if (!(custo > 0)) return null;
+        const r = fiscalRates(col.origem, sku, mix, !!col.semImpostos);
+        if (col.plat === 'ml') {
+          if (!(sku.peso > 0)) return null;
+          const com = col.tipo === 'gold_pro' ? 17 : comDefault;
+          return precoML(custo, sku.peso, 1, mc2, com, faixasFrete, col.origem.modeFrete, r);
+        }
+        return precoShopee(custo, 1, mc2, r);
+      };
+
+      const linhas = useMemo(() => {
+        const q = search.toLowerCase();
+        const list = q ? skus.filter(s => s.sku.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q)) : skus;
+        return agruparPorFamilia(list).map(sku => {
+          if (sku._grupo) return sku;
+          const vals = {};
+          for (const c of COLS_COMP) vals[c.key] = calcCol(c, sku);
+          for (const c of COLS_SEM_IMP) vals[c.key] = calcCol(c, sku);
+          const minOf = (plat) => {
+            let best = null;
+            for (const c of COLS_COMP) if (c.plat === plat && vals[c.key] && (!best || vals[c.key].preco < best.preco)) best = { key: c.key, preco: vals[c.key].preco };
+            return best;
+          };
+          const minML = minOf('ml'), minSH = minOf('shopee');
+          let minAll = null, vencedor = null;
+          if (minML && minSH) {
+            if (Math.abs(minML.preco - minSH.preco) < 0.005) { minAll = minML; vencedor = 'empate'; }
+            else if (minML.preco < minSH.preco) { minAll = minML; vencedor = 'ml'; }
+            else { minAll = minSH; vencedor = 'shopee'; }
+          } else if (minML) { minAll = minML; vencedor = 'ml'; }
+          else if (minSH) { minAll = minSH; vencedor = 'shopee'; }
+          const delta = minML && minSH ? minML.preco - minSH.preco : null;
+          return { sku, vals, minML, minSH, minAll, vencedor, delta };
+        });
+      }, [skus, search, mc2, comDefault, faixasFrete, mix]);
+
+      const placar = useMemo(() => {
+        const p = { ml: 0, shopee: 0, empate: 0, semDados: 0, total: 0 };
+        for (const l of linhas) { if (l._grupo) continue; p.total++; if (l.vencedor) p[l.vencedor]++; else p.semDados++; }
+        return p;
+      }, [linhas]);
+
+      const NCOLS = 3 + COLS_COMP.length + 1 + COLS_SEM_IMP.length;
+
+      return (
+        <div className="space-y-5 fade-in">
+          <div className="flex flex-wrap items-center gap-4">
+            <Mc2Card value={mc2} onChange={setMc2} />
+            <div className="bg-gge-card border border-gge-border rounded-xl px-5 py-4 flex-1 min-w-[280px]">
+              <div className="text-[11px] text-gge-muted uppercase tracking-wider mb-2">Menor preço para MC2 {mc2}% — placar por SKU</div>
+              <div className="flex flex-wrap gap-5 text-sm">
+                <div><span className="text-2xl font-bold text-ml-yellow">{fmtNum(placar.ml)}</span> <span className="text-gge-muted">Mercado Livre</span></div>
+                <div><span className="text-2xl font-bold text-shopee-orange">{fmtNum(placar.shopee)}</span> <span className="text-gge-muted">Shopee</span></div>
+                <div><span className="text-2xl font-bold text-white">{fmtNum(placar.empate)}</span> <span className="text-gge-muted">empate</span></div>
+                <div><span className="text-2xl font-bold text-gge-muted">{fmtNum(placar.semDados)}</span> <span className="text-gge-muted">sem custo/peso</span></div>
+              </div>
+              <div className="text-[10px] text-gge-muted mt-2">Menor preço = canal mais eficiente em custo para a mesma margem. Δ = menor ML − menor Shopee (positivo: Shopee mais barata).</div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <select value={tipoListagem} onChange={e => setTipoListagem(e.target.value)} className="bg-gge-card border border-gge-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-gge-accent" title="Comissão das colunas ML (a 1ª coluna é sempre Premium)">
+                <option value="gold_special">ML: Clássico (12%)</option>
+                <option value="gold_pro">ML: Premium (17%)</option>
+              </select>
+              <div className="text-[10px] text-gge-muted leading-tight max-w-[200px]">
+                <span className="win-ml">amarelo</span> menor ML · <span className="win-shopee">laranja</span> menor Shopee · <span className="win-all px-1">verde</span> menor geral
+              </div>
+            </div>
+          </div>
+
+          <SearchBox value={search} onChange={setSearch} />
+
+          <div className="bg-gge-card border border-gge-border rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-gge-border text-[10px] text-gge-muted uppercase tracking-wider">
+                    <th className="text-left px-3 py-3">SKU</th>
+                    <th className="text-left px-3 py-3 hidden xl:table-cell">Descrição</th>
+                    <th className="text-right px-2 py-3">Peso</th>
+                    {COLS_COMP.map(c => <th key={c.key} className={`text-right px-2 py-3 ${c.plat === 'ml' ? 'text-ml-yellow' : 'text-shopee-orange'} ${c.key === 'sh_rj' ? 'col-sep' : ''}`}>{c.label}</th>)}
+                    <th className="text-right px-2 py-3 col-sep">Δ ML−Shopee</th>
+                    {COLS_SEM_IMP.map((c, i) => <th key={c.key} className={`text-right px-2 py-3 text-gge-cyan ${i === 0 ? 'col-sep' : ''}`}>Sem imp. {c.label}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {placar.total === 0 ? (
+                    <tr><td colSpan={NCOLS} className="text-center py-12 text-gge-muted">Nenhum SKU encontrado.</td></tr>
+                  ) : linhas.map(l => {
+                    if (l._grupo) return (
+                      <tr key={`grp-${l._grupo}`} className="border-b border-gge-border bg-white/[0.03]">
+                        <td colSpan={NCOLS} className="px-3 py-2"><span className="text-white font-bold text-xs uppercase tracking-wider">{l._grupo}</span><span className="text-gge-muted text-[11px] ml-2">({l._count} SKUs)</span></td>
+                      </tr>
+                    );
+                    const { sku, vals, minML, minSH, minAll, delta } = l;
+                    return (
+                      <tr key={sku.sku} className="border-b border-gge-border/30 hover:bg-white/[0.02]">
+                        <td className="px-3 py-2"><SkuBadges sku={sku} qtdAnuncios={0} /></td>
+                        <td className="px-3 py-2 text-gge-muted text-xs max-w-[220px] truncate hidden xl:table-cell" title={sku.descricao}>{sku.descricao}</td>
+                        <td className="px-2 py-2 text-right text-gge-muted tabular-nums text-xs">{sku.peso > 0 ? `${sku.peso}` : <span className="text-gge-yellow">—</span>}</td>
+                        {COLS_COMP.map(c => {
+                          const v = vals[c.key];
+                          const isMinPlat = (c.plat === 'ml' && minML && minML.key === c.key) || (c.plat === 'shopee' && minSH && minSH.key === c.key);
+                          const isMinAll = minAll && minAll.key === c.key;
+                          const cls = isMinAll ? 'win-all' : isMinPlat ? (c.plat === 'ml' ? 'win-ml' : 'win-shopee') : '';
+                          const tip = v ? (c.plat === 'ml'
+                            ? `${c.label} · custo ${brl(sku[c.origem.custoField])} · frete ${brl(v.frete)} · comissão ${brl(v.comissao)} · impostos ${brl(v.impostos)} · MC2 ${pct(v.margemPct)}`
+                            : `${c.label} · custo ${brl(sku[c.origem.custoField])} · taxa ${brl(v.plat)} (${(v.faixa.pct*100).toFixed(0)}%+${brl(v.faixa.fixo)}) · impostos ${brl(v.impostos)} · MC2 ${pct(v.margemPct)}`)
+                            : (sku[c.origem.custoField] > 0 ? 'sem peso' : 'sem custo nesta empresa');
+                          return (
+                            <td key={c.key} className={`px-2 py-2 text-right tabular-nums text-xs ${c.key === 'sh_rj' ? 'col-sep' : ''}`} title={tip}>
+                              <span className={`inline-block px-1 ${v ? 'text-white' : 'text-gge-muted'} ${cls}`}>{v ? brl(v.preco) : '—'}</span>
+                              {v && v.noPiso && <span className="text-[9px] text-gge-yellow" title="Travado no piso (faixa Shopee R$80/100/200 ou piso ML R$12,50) — MC2 real acima do alvo">▲</span>}
+                              {v && v.abaixo79 && <span className="text-[9px] text-gge-yellow" title="Abaixo de R$79 a estrutura de comissão do ML é diferente">‹79</span>}
+                            </td>
+                          );
+                        })}
+                        <td className={`px-2 py-2 text-right tabular-nums text-xs col-sep ${delta == null ? 'text-gge-muted' : delta > 0 ? 'text-shopee-orange' : delta < 0 ? 'text-ml-yellow' : 'text-white'}`}>
+                          {delta == null ? '—' : <span>{delta > 0 ? '+' : ''}{brl(delta)}<span className="text-[9px] text-gge-muted ml-1">({(delta / minML.preco * 100).toFixed(1)}%)</span></span>}
+                        </td>
+                        {COLS_SEM_IMP.map((c, i) => <td key={c.key} className={`px-2 py-2 text-right tabular-nums text-xs text-gge-cyan/80 ${i === 0 ? 'col-sep' : ''}`}>{vals[c.key] ? brl(vals[c.key].preco) : '—'}</td>)}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="space-y-1 text-[11px] text-gge-muted">
+            <p>* Todas as colunas = preço de venda bruto sugerido para a MC2 do card. Colunas ML usam comissão {tipoListagem === 'gold_pro' ? 'Premium 17%' : 'Clássico 12%'} (1ª coluna sempre Premium 17%) e frete da tabela ML por peso; colunas Shopee usam a taxa da faixa (frete incluído).</p>
+            <p>* Impostos iguais nas duas plataformas para a mesma origem (ICMS + DIFAL pelo mix de destinos, PIS/COFINS líquido; Toow DAS 8,65%) — é isso que torna a comparação válida. As colunas "Sem impostos" ficam separadas porque não são comparáveis.</p>
+            <p>* Passe o mouse sobre um preço para ver a composição (custo, frete/taxa, comissão, impostos, MC2 conferida).</p>
+          </div>
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // APP — menu superior + carga de dados
+    // ══════════════════════════════════════════════════════════════
+    function fetchAll(buildQuery) {
+      return (async () => {
+        const PAGE = 1000; let all = [], offset = 0, done = false;
+        while (!done) {
+          const { data, error } = await buildQuery().range(offset, offset + PAGE - 1);
+          if (error) { console.error(error); break; }
+          all = all.concat(data || []); done = !data || data.length < PAGE; offset += PAGE;
+        }
+        return all;
+      })();
+    }
+
+    const ABAS = [
+      { key: 'ml', label: 'Mercado Livre', cls: 'on-ml' },
+      { key: 'shopee', label: 'Shopee', cls: 'on-shopee' },
+      { key: 'comp', label: 'Comparativo', cls: 'on-comp' },
+    ];
+
+    function PrecoMktpApp() {
+      const hash = (window.location.hash || '').replace('#', '');
+      const [aba, setAba] = useState(ABAS.some(a => a.key === hash) ? hash : 'ml');
+      const [data, setData] = useState(null);
+      const [erro, setErro] = useState(null);
+      useEffect(() => { window.location.hash = aba; }, [aba]);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const [skuData, anuncData, comRes, freteRes, mixRes] = await Promise.all([
+              fetchAll(() => sb.from('vw_custo_precificacao').select('sku, descricao, peso, is_combo, unidade, origem_produto, origem_indefinida, custo_gge_sp, custo_gge_rj, custo_toow')),
+              fetchAll(() => sb.from('anuncios').select('mlb_id, titulo, sku_vendedor, tipo_listagem, preco_atual, preco_promocional, estoque_declarado, categoria_ml, comissao_efetiva_pct, permalink, status, contas!inner(nome, empresa)').in('status', ['active', 'paused'])),
+              sb.from('comissoes_ml').select('categoria_nome, classico_pct, premium_pct').eq('ativo', true),
+              sb.from('tabela_frete_ml').select('modo, peso_max_kg, preco_min, preco_max, frete'),
+              sb.from('vw_mix_fiscal_precificacao').select('*'),
+            ]);
+            if (comRes.error) throw comRes.error; if (freteRes.error) throw freteRes.error; if (mixRes.error) throw mixRes.error;
+            const skus = skuData.map(r => ({
+              sku: r.sku, descricao: r.descricao || '', peso: Number(r.peso || 0), is_combo: !!r.is_combo, unidade: r.unidade || '',
+              origem_produto: r.origem_produto || 'Brasil', origem_indefinida: !!r.origem_indefinida,
+              custo_gge_sp: Number(r.custo_gge_sp || 0), custo_gge_rj: Number(r.custo_gge_rj || 0), custo_toow: Number(r.custo_toow || 0),
+            }));
+            const anuncios = anuncData.map(r => ({
+              mlb_id: r.mlb_id, titulo: r.titulo || '', sku_vendedor: r.sku_vendedor || '', tipo_listagem: r.tipo_listagem || '',
+              preco_atual: Number(r.preco_atual || 0), preco_promocional: r.preco_promocional ? Number(r.preco_promocional) : null,
+              categoria_ml: r.categoria_ml || '', comissao_efetiva_pct: r.comissao_efetiva_pct ? Number(r.comissao_efetiva_pct) : null,
+              permalink: r.permalink || '', status: r.status, conta_nome: r.contas?.nome || '',
+            }));
+            const comissoes = (comRes.data || []).map(r => ({ categoria_nome: r.categoria_nome || '', classico_pct: Number(r.classico_pct || 12), premium_pct: Number(r.premium_pct || 17) }));
+            const faixasFrete = (freteRes.data || []).map(r => ({ modo: r.modo, peso_max_kg: Number(r.peso_max_kg), preco_min: Number(r.preco_min), preco_max: Number(r.preco_max), frete: Number(r.frete) }));
+            const mix = {};
+            for (const m of (mixRes.data || [])) mix[`${m.uf_origem}_${m.origem_produto}`] = { icms_pct: Number(m.icms_pct), difal_pct: Number(m.difal_pct), share_cpf_pct: Number(m.share_cpf_pct), n_vendas: Number(m.n_vendas) };
+            if (!mix['RJ_Brasil'] || !mix['SP_Brasil']) throw new Error('vw_mix_fiscal_precificacao sem dados para RJ/SP');
+            setData({ skus, anuncios, comissoes, faixasFrete, mix });
+          } catch (e) { console.error(e); setErro(e.message || String(e)); }
+        })();
+      }, []);
+
+      return (
+        <div className="p-6 max-w-[1800px] mx-auto space-y-5">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Preço MKTP</h1>
+            <p className="text-sm text-gge-muted">Precificação para Marketplaces — preço de venda sugerido por margem (MC2) desejada</p>
+          </div>
+          <div className="topnav">
+            {ABAS.map(a => <button key={a.key} onClick={() => setAba(a.key)} className={aba === a.key ? a.cls : ''}>{a.label}</button>)}
+          </div>
+          {erro && <div className="bg-red-900/20 border border-red-700/40 rounded-xl p-4 text-sm text-gge-red">Erro ao carregar dados: {erro}</div>}
+          {!data && !erro && (
+            <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-10 bg-white/5 rounded pulse-load" />)}</div>
+          )}
+          {data && aba === 'ml' && <AbaMercadoLivre data={data} />}
+          {data && aba === 'shopee' && <AbaShopee data={data} />}
+          {data && aba === 'comp' && <AbaComparativo data={data} />}
+        </div>
+      );
+    }
+
     ReactDOM.createRoot(document.getElementById('root')).render(<PrecoMktpApp />);
   </script>
 </body>
