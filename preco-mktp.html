@@ -644,7 +644,7 @@
 
           <div className="space-y-1 text-[11px] text-gge-muted">
             <p>* Preço sugerido = menor preço que entrega a MC2 da coluna, arredondado para cima ao centavo. Comissão {tipoListagem === 'gold_pro' ? 'Premium' : 'Clássico'} (default {defaultComissao}%; por categoria/anúncio quando disponível).</p>
-            <p>* Frete = tabela ML ({origem.modeFrete}) × peso, em qualquer faixa de preço. Faixa fixa R$6,25/6,50/6,75 não é custo (subsídio ML). Atacado: frete pelo peso total.</p>
+            <p>* Frete = tabela ML ({origem.modeFrete}) × peso. Abaixo de R$79 a tabela traz as medianas reais do custo do vendedor (senders.cost, 12 meses: custo base − desconto), não o subsídio fixo. Atacado: frete pelo peso total.</p>
             <p>* Impostos GGE: ICMS e DIFAL ponderados pelo mix real de destinos (12 meses) por UF de origem e origem do produto; PIS/COFINS 9,25% com crédito sobre comissão+frete. Toow: DAS 8,65%.</p>
             <p>* Custo = último registro de skus_custo_historico por empresa (GGE: CIF SP em todas as origens — padrão canônico da vw_margem_canonica; Toow: histórico próprio). O que muda entre RJ e SP são os impostos.</p>
           </div>
@@ -1125,7 +1125,7 @@
               permalink: r.permalink || '', status: r.status, conta_nome: r.contas?.nome || '',
             }));
             const comissoes = (comRes.data || []).map(r => ({ categoria_nome: r.categoria_nome || '', classico_pct: Number(r.classico_pct || 12), premium_pct: Number(r.premium_pct || 17) }));
-            const faixasFrete = (freteRes.data || []).map(r => ({ modo: r.modo, peso_max_kg: Number(r.peso_max_kg), preco_min: Number(r.preco_min), preco_max: Number(r.preco_max), frete: Number(r.frete) }));
+            const faixasFrete = (freteRes.data || []).map(r => ({ modo: r.modo, peso_max_kg: Number(r.peso_max_kg), preco_min: Number(r.preco_min), preco_max: Number(r.preco_max), frete: Number(r.frete) })).sort((a, b) => a.peso_max_kg - b.peso_max_kg || a.preco_min - b.preco_min); // menor faixa de peso primeiro (lookup pega a 1ª que cabe)
             const mix = {};
             for (const m of (mixRes.data || [])) mix[`${m.uf_origem}_${m.origem_produto}`] = { icms_pct: Number(m.icms_pct), difal_pct: Number(m.difal_pct), share_cpf_pct: Number(m.share_cpf_pct), n_vendas: Number(m.n_vendas) };
             if (!mix['RJ_Brasil'] || !mix['SP_Brasil']) throw new Error('vw_mix_fiscal_precificacao sem dados para RJ/SP');
