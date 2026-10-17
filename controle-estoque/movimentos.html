@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movimentos · Controle de Estoque GGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="est.js"></script>
+</head>
+<body>
+<div class="est-main">
+  <h1>Livro de movimentos</h1>
+  <div class="subtitle">Todo movimento é definitivo. Erro se corrige com estorno (movimento inverso), nunca apagando.</div>
+  <div class="toolbar">
+    <select id="f-emp" onchange="load()"><option value="">GGE + Toow</option><option>GGE</option><option>TOOW</option></select>
+    <input id="f-sku" placeholder="SKU" style="width:160px" onchange="load()">
+    <select id="f-tipo" onchange="load()"><option value="">Todos os tipos</option></select>
+    <select id="f-dep" onchange="load()"><option value="">Todos os depósitos</option></select>
+    <input id="f-de" type="date" onchange="load()"> <input id="f-ate" type="date" onchange="load()">
+    <span class="muted small" id="info"></span>
+  </div>
+  <div class="card" style="max-height:75vh;overflow:auto">
+    <table><thead><tr><th>Data</th><th>Emp</th><th>SKU</th><th>Tipo</th><th>Origem</th><th>Destino</th><th class="num">Qtd</th><th class="num">Custo un.</th><th>Documento</th><th>Motivo / obs.</th><th>Usuário</th><th></th></tr></thead><tbody id="body"></tbody></table>
+  </div>
+</div>
+<script>
+var tipos = {};
+async function load(){
+  var sb = EST.sb, q = sb.from('est_movimentos').select('*').order('data', {ascending:false}).order('criado_em', {ascending:false}).limit(500);
+  var emp=v('f-emp'), sku=v('f-sku').toUpperCase(), tp=v('f-tipo'), dep=v('f-dep'), de=v('f-de'), ate=v('f-ate');
+  if (emp) q=q.eq('empresa',emp); if (sku) q=q.ilike('sku','%'+sku+'%'); if (tp) q=q.eq('tipo',tp);
+  if (dep) q=q.or('deposito_origem_id.eq.'+dep+',deposito_destino_id.eq.'+dep); if (de) q=q.gte('data', de); if (ate) q=q.lte('data', ate+'T23:59:59');
+  var rows = await EST.sel(q);
+  document.getElementById('info').textContent = rows.length + (rows.length===500?'+':'') + ' movimentos';
+  var canEst = EST.can('entrada_manual', true);
+  document.getElementById('body').innerHTML = rows.map(function(m){
+    var doc = m.documento_tipo ? EST.esc(m.documento_tipo)+(m.documento_numero?' '+EST.esc(m.documento_numero):'') : '';
+    var est = m.estorna_id ? '<span class="badge b-cinza">estorno</span> ' : '';
+    return '<tr><td class="small">'+EST.dt(m.data)+'</td><td>'+m.empresa+'</td><td><b>'+EST.esc(m.sku)+'</b></td><td>'+est+'<span class="badge b-azul">'+EST.esc(m.tipo)+'</span></td><td class="small">'+(m.deposito_origem_id?EST.esc(EST.dep(m.deposito_origem_id).nome):'<span class="muted">—</span>')+'</td><td class="small">'+(m.deposito_destino_id?EST.esc(EST.dep(m.deposito_destino_id).nome):'<span class="muted">—</span>')+'</td><td class="num"><b>'+EST.fmt(m.quantidade)+'</b>'+(m.qtd_documento&&Number(m.qtd_documento)!==Number(m.quantidade)?' <span class="small warn" title="quantidade no documento">/'+EST.fmt(m.qtd_documento)+'</span>':'')+'</td><td class="num muted">'+EST.money(m.custo_unitario)+'</td><td class="small">'+doc+'</td><td class="small muted">'+EST.esc(m.motivo||'')+(m.observacao?' · '+EST.esc(m.observacao):'')+'</td><td class="small muted">'+EST.esc((m.usuario_email||'').split('@')[0])+'</td><td>'+(canEst && m.tipo!=='ESTORNO' ? '<button class="sm sec" onclick="estornar(\''+m.id+'\',\''+EST.esc(m.sku)+'\')">Estornar</button>':'')+'</td></tr>';
+  }).join('') || '<tr><td colspan="12" class="muted" style="padding:16px;text-align:center">Nenhum movimento.</td></tr>';
+}
+function v(id){ return document.getElementById(id).value; }
+async function estornar(id, sku){
+  if (!await EST.confirm('Estornar movimento de '+sku, '<label>Motivo</label><input id="mot-e" placeholder="obrigatório">', 'Tem certeza — estornar')) return;
+  var mot = (window.__motE||'').trim(); window.__motE='';
+  if (!mot) return EST.toast('Motivo obrigatório. Nada foi feito.', 'err');
+  try { await EST.rpc('est_estornar_movimento', { p_id: id, p_motivo: mot }); EST.toast('Estornado.', 'ok'); load(); } catch(e){ EST.toast(e.message, 'err'); }
+}
+document.addEventListener('input', function(e){ if (e.target && e.target.id==='mot-e') window.__motE = e.target.value; });
+EST.ready.then(async function(p){ if(!p) return;
+  var t = await EST.sel(EST.sb.from('est_tipos_movimento').select('*').order('fase').order('codigo'));
+  document.getElementById('f-tipo').innerHTML += t.map(function(x){ return '<option value="'+x.codigo+'">'+EST.esc(x.descricao)+'</option>'; }).join('');
+  document.getElementById('f-dep').innerHTML += EST.depositos.map(function(d){ return '<option value="'+d.id+'">'+d.empresa+' · '+EST.esc(d.nome)+'</option>'; }).join('');
+  var u = new URLSearchParams(location.search); if (u.get('sku')) document.getElementById('f-sku').value = u.get('sku');
+  load();
+});
+</script>
+</body>
+</html>

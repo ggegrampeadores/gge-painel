@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saldos · Controle de Estoque GGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="est.js"></script>
+<style>
+  td.div{background:rgba(210,153,34,.10)}
+  td.ext{color:#8b949e}
+  .legend{display:flex;gap:14px;font-size:12px;color:#8b949e;margin-bottom:10px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+  .pend-row.enviado td{color:#8b949e}
+</style>
+</head>
+<body>
+<div class="est-main">
+  <h1>Saldos por depósito</h1>
+  <div class="subtitle">Livro de movimentos × Bling. Editar uma célula cria uma pendência; nada muda no Bling até você enviar e confirmar.</div>
+
+  <div class="toolbar">
+    <div class="seg" id="seg-emp"><button class="on" data-v="GGE">GGE</button><button data-v="TOOW">Toow</button></div>
+    <div class="seg" id="seg-view"><button class="on" data-v="nosso">Ver: Nosso</button><button data-v="bling">Ver: Bling</button></div>
+    <input type="text" id="busca" placeholder="Buscar SKU ou descrição…" style="width:240px" oninput="render()">
+    <label class="muted small"><input type="checkbox" id="soDiv" onchange="render()"> só divergências</label>
+    <label class="muted small"><input type="checkbox" id="soSaldo" checked onchange="render()"> só com saldo</label>
+    <span style="flex:1"></span>
+    <button class="sec" id="btn-reler" onclick="relerBling()">Reler Bling</button>
+    <button id="btn-enviar" onclick="enviarTodos()" disabled>Enviar alterados ao Bling</button>
+  </div>
+  <div class="legend">
+    <span><i style="background:rgba(210,153,34,.5)"></i> divergência Nosso ≠ Bling</span>
+    <span><i style="border:1px solid #d29922"></i> célula editada (pendente)</span>
+    <span id="info" class="muted"></span>
+  </div>
+
+  <div class="card" style="max-height:70vh;overflow:auto">
+    <table id="tb"><thead><tr id="hdr"></tr></thead><tbody id="body"><tr><td class="muted" style="padding:24px;text-align:center">Carregando…</td></tr></tbody></table>
+  </div>
+
+  <div class="card">
+    <div class="toolbar" style="margin-bottom:8px"><b>Pendências de envio ao Bling</b><span class="muted small" id="pend-info"></span></div>
+    <table><thead><tr><th>Quando</th><th>SKU</th><th>Depósito</th><th class="num">Bling lido</th><th class="num">Novo</th><th class="num">Δ</th><th>Motivo</th><th>Status</th><th>Por</th><th></th></tr></thead>
+    <tbody id="pend"></tbody></table>
+  </div>
+  <div class="card nota">
+    <b style="color:#c9d1d9">Como funciona.</b> "Nosso" é a soma do livro de movimentos (abertura, NFs, ajustes). "Bling" é o último saldo lido. Depósitos virtuais (Compras a receber) e externos (Full) não são editáveis.
+    Ao enviar, o sistema relê o saldo do Bling; se mudou desde a sua leitura, a linha é bloqueada para você decidir. O envio é por diferença (entrada/saída), nunca por balanço, e gera um ajuste no livro.
+  </div>
+</div>
+
+<script>
+var EMP = 'GGE', VIEW = 'nosso', rows = [], bling = {}, pend = [], deps = [], dirty = {};
+document.querySelectorAll('#seg-emp button').forEach(function(b){ b.onclick = function(){ EMP = b.dataset.v; seg('seg-emp', b); dirty = {}; load(); }; });
+document.querySelectorAll('#seg-view button').forEach(function(b){ b.onclick = function(){ VIEW = b.dataset.v; seg('seg-view', b); render(); }; });
+function seg(id, b){ document.querySelectorAll('#'+id+' button').forEach(function(x){ x.classList.toggle('on', x===b); }); }
+
+async function load(){
+  var sb = EST.sb;
+  deps = EST.depositos.filter(function(d){ return d.empresa===EMP && d.ativo; });
+  var [saldos, bl, pd] = await Promise.all([
+    EST.sel(sb.from('vw_est_saldos_sku').select('*').eq('empresa', EMP)),
+    EST.sel(sb.from('est_bling_saldos').select('*').eq('empresa', EMP)),
+    EST.sel(sb.from('est_pendencias_bling').select('*').eq('empresa', EMP).order('criado_em', {ascending:false}).limit(200))
+  ]);
+  bling = {}; bl.forEach(function(b){ bling[b.sku+'|'+b.deposito_id] = b; });
+  var map = {}; saldos.forEach(function(s){ map[s.sku] = s; });
+  bl.forEach(function(b){ if(!map[b.sku]) map[b.sku] = { empresa:EMP, sku:b.sku, descricao:null, unidade:'UN', saldos:{}, total_empresa:0, existe_no_bling:true }; });
+  rows = Object.values(map).sort(function(a,b){ return a.sku.localeCompare(b.sku); });
+  pend = pd;
+  var lido = bl.length ? bl.reduce(function(m,b){ return b.lido_em>m?b.lido_em:m; }, '') : null;
+  document.getElementById('info').textContent = rows.length + ' SKUs · Bling lido ' + (lido ? EST.dt(lido) : 'nunca');
+  render(); renderPend();
+}
+
+function custo(r){ return EMP==='TOOW' ? r.custo_toow : r.custo_gge_rj; }
+function nosso(r, d){ return r.saldos && r.saldos[d.id] !== undefined ? Number(r.saldos[d.id]) : 0; }
+function blingDe(r, d){ var b = bling[r.sku+'|'+d.id]; return b ? Number(b.saldo_fisico) : null; }
+
+function render(){
+  var q = document.getElementById('busca').value.trim().toLowerCase();
+  var soDiv = document.getElementById('soDiv').checked, soSaldo = document.getElementById('soSaldo').checked;
+  var fis = deps.filter(function(d){ return d.tipo==='fisico'; }), virt = deps.filter(function(d){ return d.tipo==='virtual'; }), ext = deps.filter(function(d){ return d.tipo==='externo'; });
+  var h = '<th>SKU</th><th>Descrição</th><th>Un</th><th class="num">Últ. FOB</th><th class="num">Últ. CIF</th><th class="num">Total</th>';
+  virt.forEach(function(d){ h += '<th class="num muted">'+EST.esc(d.nome)+'</th>'; });
+  fis.forEach(function(d){ h += '<th class="num">'+EST.esc(d.nome)+'</th>'; });
+  ext.forEach(function(d){ h += '<th class="num muted">'+EST.esc(d.nome)+'</th>'; });
+  document.getElementById('hdr').innerHTML = h;
+  var canEdit = EST.can('editar_saldos', true);
+  var out = '', n = 0;
+  rows.forEach(function(r){
+    if (q && (r.sku+' '+(r.descricao||'')).toLowerCase().indexOf(q) < 0) return;
+    var anyDiv = false, anySaldo = Math.abs(Number(r.total_empresa||0))>0;
+    fis.forEach(function(d){ var b = blingDe(r,d); if (b!==null && Math.abs(b)>0) anySaldo = true; if (b!==null && Math.abs(nosso(r,d)-b) > 1e-9) anyDiv = true; });
+    if (soDiv && !anyDiv) return; if (soSaldo && !anySaldo) return;
+    n++;
+    var t = '<tr><td><b>'+EST.esc(r.sku)+'</b>'+(r.existe_no_bling===false?' <span class="badge b-vermelho" title="SKU não existe no Bling">fora do Bling</span>':'')+'</td><td class="muted">'+EST.esc(r.descricao||'')+'</td><td class="muted">'+EST.esc(r.unidade||'')+'</td>';
+    t += '<td class="num muted">'+EST.money(r.preco_fob)+'</td><td class="num">'+EST.money(custo(r))+'</td><td class="num"><b>'+EST.fmt(r.total_empresa)+'</b></td>';
+    virt.forEach(function(d){ t += '<td class="num muted">'+EST.fmt(nosso(r,d))+'</td>'; });
+    fis.forEach(function(d){
+      var nv = nosso(r,d), bv = blingDe(r,d), div = bv!==null && Math.abs(nv-bv)>1e-9;
+      var shown = VIEW==='bling' ? bv : nv, key = r.sku+'|'+d.id;
+      var title = 'Nosso '+EST.fmt(nv)+' · Bling '+(bv===null?'—':EST.fmt(bv));
+      if (canEdit && d.editavel) {
+        var val = dirty[key] !== undefined ? dirty[key] : (shown===null?'':shown);
+        t += '<td class="num'+(div?' div':'')+'" title="'+title+'"><input class="cell'+(dirty[key]!==undefined?' dirty':'')+'" type="number" step="any" value="'+val+'" data-k="'+key+'" onchange="edit(this)"></td>';
+      } else t += '<td class="num'+(div?' div':'')+'" title="'+title+'">'+(shown===null?'<span class="muted">—</span>':EST.fmt(shown))+'</td>';
+    });
+    ext.forEach(function(d){ var b = blingDe(r,d); t += '<td class="num ext">'+(b===null?'—':EST.fmt(b))+'</td>'; });
+    out += t + '</tr>';
+  });
+  document.getElementById('body').innerHTML = out || '<tr><td colspan="20" class="muted" style="padding:24px;text-align:center">Nenhum SKU. Faça a abertura de estoque ou clique em "Reler Bling".</td></tr>';
+  document.getElementById('btn-enviar').disabled = !Object.keys(dirty).length || !EST.can('enviar_bling', true);
+}
+
+function edit(inp){
+  var k = inp.dataset.k, v = inp.value === '' ? null : Number(inp.value);
+  var p = k.split('|'), r = rows.find(function(x){ return x.sku===p[0]; }), d = EST.dep(p[1]);
+  var base = VIEW==='bling' ? blingDe(r,d) : nosso(r,d);
+  if (v===null || (base!==null && Math.abs(v-base)<1e-9)) { delete dirty[k]; inp.classList.remove('dirty'); }
+  else { dirty[k] = v; inp.classList.add('dirty'); }
+  document.getElementById('btn-enviar').disabled = !Object.keys(dirty).length || !EST.can('enviar_bling', true);
+}
+
+async function enviarTodos(){
+  var keys = Object.keys(dirty); if (!keys.length) return;
+  var html = '<table><tr><th>SKU</th><th>Depósito</th><th class="num">Bling lido</th><th class="num">Nosso</th><th class="num">Novo</th><th class="num">Δ Bling</th></tr>';
+  var itens = keys.map(function(k){ var p=k.split('|'), r=rows.find(function(x){return x.sku===p[0];}), d=EST.dep(p[1]); var bv=blingDe(r,d), nv=nosso(r,d), novo=dirty[k];
+    html += '<tr><td>'+EST.esc(r.sku)+'</td><td>'+EST.esc(d.nome)+'</td><td class="num">'+(bv===null?'—':EST.fmt(bv))+'</td><td class="num">'+EST.fmt(nv)+'</td><td class="num"><b>'+EST.fmt(novo)+'</b></td><td class="num '+((novo-(bv||0))>=0?'pos':'neg')+'">'+EST.fmt(novo-(bv||0))+'</td></tr>';
+    return { empresa:EMP, sku:r.sku, deposito_id:d.id, saldo_lido:bv, saldo_nosso:nv, saldo_novo:novo, motivo:null, criado_por:EST.user.email }; });
+  html += '</table><label>Motivo (obrigatório)</label><input id="mot" placeholder="ex.: contagem física de 17/10">';
+  html += '<p class="nota" style="margin-top:10px">Tem certeza? O Bling receberá um lançamento de entrada/saída pela diferença em cada linha, após releitura do saldo atual.</p>';
+  if (!await EST.confirm('Enviar '+keys.length+' alteração(ões) ao Bling', html, 'Tem certeza — enviar')) return;
+  var mot = (window.__mot || '').trim(); window.__mot = '';
+  if (!mot) { EST.toast('Informe o motivo. Nada foi enviado.', 'err'); return; }
+  itens.forEach(function(i){ i.motivo = mot; });
+  try {
+    var ins = await EST.sel(EST.sb.from('est_pendencias_bling').insert(itens).select('id'));
+    var ids = ins.map(function(x){ return x.id; });
+    dirty = {};
+    await enviarPendencias(ids);
+  } catch(e){ EST.toast(e.message, 'err'); }
+}
+document.addEventListener('input', function(e){ if (e.target && e.target.id==='mot') window.__mot = e.target.value; });
+
+async function enviarPendencias(ids){
+  var s = await EST.sb.auth.getSession();
+  var r = await fetch('https://opceujqpqyvxsatzdarg.supabase.co/functions/v1/est-bling-enviar', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+s.data.session.access_token }, body: JSON.stringify({ ids: ids }) });
+  var j = await r.json().catch(function(){ return {}; });
+  if (!r.ok) { EST.toast('Envio ao Bling falhou: '+(j.error||r.status)+'. As pendências ficaram registradas.', 'err'); }
+  else EST.toast('Enviado: '+(j.enviados||0)+' · bloqueados: '+(j.bloqueados||0)+' · erros: '+(j.erros||0), (j.erros||j.bloqueados)?'':'ok');
+  load();
+}
+
+async function relerBling(){
+  var b = document.getElementById('btn-reler'); b.disabled = true; b.textContent = 'Lendo…';
+  try {
+    var s = await EST.sb.auth.getSession();
+    var r = await fetch('https://opceujqpqyvxsatzdarg.supabase.co/functions/v1/est-bling-saldos', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+s.data.session.access_token }, body: JSON.stringify({ empresa: EMP }) });
+    var j = await r.json().catch(function(){ return {}; });
+    if (!r.ok) throw new Error(j.error || ('HTTP '+r.status));
+    EST.toast('Bling lido: '+(j.linhas||0)+' saldos'+(j.sem_id_bling&&j.sem_id_bling.length?' · '+j.sem_id_bling.length+' SKUs sem cadastro no Bling':''), 'ok');
+    await load();
+  } catch(e){ EST.toast('Leitura do Bling indisponível: '+e.message, 'err'); }
+  b.disabled = false; b.textContent = 'Reler Bling';
+}
+
+function renderPend(){
+  var st = { pendente:'b-amarelo', enviado:'b-verde', bloqueado:'b-vermelho', erro:'b-vermelho', cancelado:'b-cinza' };
+  document.getElementById('pend-info').textContent = pend.filter(function(p){return p.status==='pendente'||p.status==='bloqueado';}).length + ' em aberto';
+  document.getElementById('pend').innerHTML = pend.map(function(p){
+    var acts = '';
+    if (p.status==='pendente'||p.status==='bloqueado'||p.status==='erro') {
+      if (EST.can('enviar_bling', true)) acts += '<button class="sm" onclick="enviarPendencias([\''+p.id+'\'])">Reenviar</button> ';
+      acts += '<button class="sm sec" onclick="cancelar(\''+p.id+'\')">Cancelar</button>';
+    }
+    var extra = p.status==='bloqueado' ? ' <span class="small warn">Bling agora: '+EST.fmt(p.bloqueio_saldo_atual)+'</span>' : (p.status==='erro' && p.resposta_bling ? ' <span class="small neg" title="'+EST.esc(JSON.stringify(p.resposta_bling))+'">ver erro</span>' : '');
+    return '<tr class="pend-row '+p.status+'"><td class="small">'+EST.dt(p.criado_em)+'</td><td>'+EST.esc(p.sku)+'</td><td>'+EST.esc(EST.dep(p.deposito_id).nome)+'</td><td class="num">'+EST.fmt(p.saldo_lido)+'</td><td class="num">'+EST.fmt(p.saldo_novo)+'</td><td class="num '+(p.delta>=0?'pos':'neg')+'">'+EST.fmt(p.delta)+'</td><td class="small">'+EST.esc(p.motivo||'')+'</td><td><span class="badge '+(st[p.status]||'b-cinza')+'">'+p.status+'</span>'+extra+'</td><td class="small muted">'+EST.esc((p.enviado_por||p.criado_por||'').split('@')[0])+'</td><td>'+acts+'</td></tr>';
+  }).join('') || '<tr><td colspan="10" class="muted" style="padding:14px;text-align:center">Nenhuma pendência.</td></tr>';
+}
+async function cancelar(id){ try { await EST.sel(EST.sb.from('est_pendencias_bling').update({ status:'cancelado' }).eq('id', id)); load(); } catch(e){ EST.toast(e.message,'err'); } }
+
+EST.ready.then(function(p){ if (p) load(); });
+</script>
+</body>
+</html>

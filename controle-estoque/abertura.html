@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abertura · Controle de Estoque GGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="est.js"></script>
+<style>td input.cell{width:100px}tr.zero td{opacity:.55}</style>
+</head>
+<body>
+<div class="est-main">
+  <h1>Inventário de abertura</h1>
+  <div class="subtitle">Ponto de partida do livro, um depósito por vez. Pré-preenchido com o último saldo lido do Bling; corrija pela contagem física. Depois da abertura, diferenças entram como ajuste.</div>
+
+  <div class="card">
+    <div class="toolbar">
+      <select id="emp" onchange="fillDeps()"><option>GGE</option><option>TOOW</option></select>
+      <select id="dep" onchange="prep()"></select>
+      <label class="muted small">Data de corte <input id="data" type="date"></label>
+      <button class="sec" onclick="prep()">Carregar do Bling</button>
+      <label class="sec" style="cursor:pointer;border:1px solid #30363d;border-radius:6px;padding:6px 12px;color:#c9d1d9;font-weight:600">Importar CSV (sku;quantidade)<input type="file" id="csv" accept=".csv,.txt" style="display:none" onchange="importar(this)"></label>
+      <span class="muted small" id="status"></span>
+    </div>
+    <div class="toolbar">
+      <input id="add-sku" placeholder="Adicionar SKU" style="width:180px"><input id="add-qtd" type="number" step="any" placeholder="qtd" style="width:90px"><button class="sm sec" onclick="addLinha()">Adicionar</button>
+      <input id="busca" placeholder="filtrar" style="width:160px" oninput="render()">
+      <span style="flex:1"></span>
+      <button id="btn" onclick="gravar()" disabled>Gravar abertura</button>
+    </div>
+  </div>
+  <div class="card" style="max-height:62vh;overflow:auto">
+    <table><thead><tr><th>SKU</th><th>Descrição</th><th class="num">Bling</th><th class="num">Contado</th><th class="num">Custo vigente</th><th></th></tr></thead><tbody id="body"></tbody></table>
+  </div>
+  <p class="nota">Linhas com quantidade vazia ou zero não são gravadas. Para a Toow, quantidades negativas são aceitas (saldo devido à GGE). O custo vigente vem de <code>vw_custo_precificacao</code> (NF mais recente) e é só informativo aqui.</p>
+</div>
+<script>
+var linhas = {}, info = {}, aberto = false;
+function fillDeps(){ var emp = document.getElementById('emp').value; document.getElementById('dep').innerHTML = EST.depositos.filter(function(d){ return d.empresa===emp && d.tipo==='fisico' && d.ativo; }).map(function(d){ return '<option value="'+d.id+'">'+EST.esc(d.nome)+'</option>'; }).join(''); prep(); }
+async function prep(){
+  var emp = document.getElementById('emp').value, dep = document.getElementById('dep').value; if (!dep) return;
+  linhas = {}; info = {};
+  var st = await EST.sel(EST.sb.from('vw_est_abertura_status').select('*').eq('deposito_id', dep));
+  aberto = st.length && (st[0].skus_abertos > 0 || st[0].movimentos > 0);
+  document.getElementById('status').textContent = aberto ? 'Depósito já tem movimentos ('+st[0].movimentos+'); abertura bloqueada — use Entradas › ajuste.' : 'Depósito sem movimentos: pronto para abertura.';
+  var bl = await EST.sel(EST.sb.from('est_bling_saldos').select('sku,saldo_fisico').eq('empresa', emp).eq('deposito_id', dep));
+  bl.forEach(function(b){ linhas[b.sku] = { bling: Number(b.saldo_fisico), qtd: Number(b.saldo_fisico) }; });
+  await enrich(Object.keys(linhas));
+  render();
+}
+async function enrich(skus){
+  if (!skus.length) return;
+  for (var i=0;i<skus.length;i+=200){
+    var part = skus.slice(i,i+200);
+    var emp = document.getElementById('emp').value;
+    var r = await EST.sel(EST.sb.from('vw_custo_precificacao').select('sku,descricao,custo_gge_rj,custo_toow').in('sku', part));
+    r.forEach(function(x){ info[x.sku] = { descricao: x.descricao, custo: emp==='TOOW'?x.custo_toow:x.custo_gge_rj }; });
+  }
+}
+function render(){
+  var q = document.getElementById('busca').value.toLowerCase();
+  var skus = Object.keys(linhas).sort();
+  document.getElementById('body').innerHTML = skus.filter(function(s){ return !q || (s+' '+((info[s]||{}).descricao||'')).toLowerCase().indexOf(q)>=0; }).map(function(s){
+    var l = linhas[s], i = info[s]||{};
+    return '<tr class="'+(!l.qtd?'zero':'')+'"><td><b>'+EST.esc(s)+'</b>'+(i.descricao===undefined?' <span class="badge b-amarelo" title="SKU não encontrado no cadastro de custo">sem cadastro</span>':'')+'</td><td class="muted small">'+EST.esc(i.descricao||'')+'</td><td class="num muted">'+(l.bling===undefined?'—':EST.fmt(l.bling))+'</td><td class="num"><input class="cell" type="number" step="any" value="'+(l.qtd===undefined||l.qtd===null?'':l.qtd)+'" onchange="linhas[\''+s+'\'].qtd=this.value===\'\'?null:Number(this.value);upd()"></td><td class="num muted">'+EST.money(i.custo)+'</td><td><button class="sm sec" onclick="delete linhas[\''+s+'\'];render()">×</button></td></tr>';
+  }).join('') || '<tr><td colspan="6" class="muted" style="padding:16px;text-align:center">Nenhuma linha. Carregue do Bling, importe um CSV ou adicione SKUs.</td></tr>';
+  upd();
+}
+function upd(){ var n = Object.keys(linhas).filter(function(s){ return linhas[s].qtd; }).length; document.getElementById('btn').textContent = 'Gravar abertura ('+n+' SKUs)'; document.getElementById('btn').disabled = aberto || !n || !document.getElementById('data').value || !EST.can('abertura', true); }
+async function addLinha(){ var s = document.getElementById('add-sku').value.trim().toUpperCase(), q = document.getElementById('add-qtd').value; if (!s) return; linhas[s] = { qtd: q===''?null:Number(q) }; await enrich([s]); document.getElementById('add-sku').value=''; document.getElementById('add-qtd').value=''; render(); }
+function importar(inp){ var f = inp.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = async function(){
+  var novos = []; rd.result.split(/\r?\n/).forEach(function(ln){ var p = ln.split(/[;,\t]/); if (p.length<2) return; var s = p[0].trim().toUpperCase(), q = Number(String(p[1]).replace(',','.')); if (!s || s==='SKU' || isNaN(q)) return; linhas[s] = Object.assign(linhas[s]||{}, { qtd: q }); novos.push(s); });
+  await enrich(novos); render(); EST.toast(novos.length+' linhas importadas.', 'ok'); inp.value=''; }; rd.readAsText(f); }
+async function gravar(){
+  var emp = document.getElementById('emp').value, dep = document.getElementById('dep').value, data = document.getElementById('data').value;
+  var itens = Object.keys(linhas).filter(function(s){ return linhas[s].qtd; }).map(function(s){ return { sku: s, quantidade: linhas[s].qtd }; });
+  if (!await EST.confirm('Gravar abertura de '+EST.dep(dep).nome+' ('+emp+')', '<p>'+itens.length+' SKUs com data de corte <b>'+EST.d(data)+'</b>. Isso cria o ponto de partida do livro para este depósito e não pode ser repetido (só ajustes depois).</p>', 'Tem certeza — gravar')) return;
+  try { var r = await EST.rpc('est_abertura_lote', { p_empresa: emp, p_deposito: dep, p_data: data, p_itens: itens });
+    EST.toast('Gravados '+r.gravados+' SKUs'+(r.erros.length?' · '+r.erros.length+' erros: '+r.erros.map(function(e){return e.sku+': '+e.erro;}).join(' | '):''), r.erros.length?'err':'ok'); prep();
+  } catch(e){ EST.toast(e.message, 'err'); }
+}
+document.getElementById('data').addEventListener('change', upd);
+EST.ready.then(function(p){ if (p) { document.getElementById('data').value = new Date().toISOString().slice(0,10); fillDeps(); } });
+</script>
+</body>
+</html>

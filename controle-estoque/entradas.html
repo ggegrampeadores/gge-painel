@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entradas · Controle de Estoque GGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="est.js"></script>
+<style>
+  .tabs{display:flex;gap:8px;margin-bottom:16px}.tab{padding:8px 16px;border-radius:6px;background:#161b22;border:1px solid #30363d;color:#8b949e;cursor:pointer;font-weight:600}.tab.active{background:#1a3a5c;color:#58a6ff;border-color:#58a6ff}
+  tr.sel td{background:#1a2a3c}
+  .itens td input.cell{width:90px}
+</style>
+</head>
+<body>
+<div class="est-main">
+  <h1>Entradas</h1>
+  <div class="subtitle">NF de compra → Compras a receber (hub) → Recebimento no depósito físico. Entrada manual direta, sem custo.</div>
+  <div class="tabs"><div class="tab active" data-t="nf" onclick="tab('nf')">NFs de compra</div><div class="tab" data-t="hub" onclick="tab('hub')">A receber (hub)</div><div class="tab" data-t="manual" onclick="tab('manual')">Entrada manual / ajuste</div></div>
+
+  <div id="pane-nf">
+    <div class="toolbar">
+      <div class="seg" id="seg-emp"><button class="on" data-v="GGE">GGE</button><button data-v="TOOW">Toow</button></div>
+      <label class="muted small"><input type="checkbox" id="soPend" checked onchange="renderNfs()"> só não lançadas</label>
+      <input type="text" id="busca-nf" placeholder="NF, fornecedor…" oninput="renderNfs()" style="width:220px">
+      <span class="muted small" id="nf-info"></span>
+    </div>
+    <div class="card" style="max-height:40vh;overflow:auto"><table><thead><tr><th>Emissão</th><th>NF</th><th>Fornecedor</th><th class="num">Valor</th><th class="num">Itens</th><th>Alertas</th><th>Status</th><th></th></tr></thead><tbody id="nfs"></tbody></table></div>
+    <div class="card" id="nf-det" style="display:none">
+      <div class="toolbar" style="margin-bottom:8px"><b id="nf-tit"></b><span style="flex:1"></span><button id="btn-lancar" onclick="lancarNf()">Dar entrada no hub</button></div>
+      <table class="itens"><thead><tr><th>#</th><th>Código NF</th><th>Descrição NF</th><th class="num">Qtd NF</th><th>SKU</th><th class="num">CIF unit.</th><th>CFOP</th><th>Situação</th></tr></thead><tbody id="nf-itens"></tbody></table>
+      <p class="nota" style="margin-top:8px">Itens sem SKU ou com CFOP que não é de compra são pulados. Mapeie o SKU para incluir o item. O custo unitário é o CIF calculado pelo importador de NFs conforme a regra canônica (NF item a item).</p>
+    </div>
+  </div>
+
+  <div id="pane-hub" style="display:none">
+    <div class="toolbar"><div class="seg" id="seg-emp2"><button class="on" data-v="GGE">GGE</button><button data-v="TOOW">Toow</button></div><span class="muted small" id="hub-info"></span></div>
+    <div class="card"><table><thead><tr><th>NF</th><th>Emissão</th><th class="num">Dias</th><th>SKU</th><th class="num">Qtd NF</th><th class="num">Pendente</th><th class="num">Receber</th><th>Depósito</th><th></th></tr></thead><tbody id="hub"></tbody></table></div>
+    <p class="nota">"Receber" grava a quantidade conferida saindo do hub para o depósito. Se conferir menos que a NF, a diferença continua pendente no hub e vira divergência de fornecedor.</p>
+  </div>
+
+  <div id="pane-manual" style="display:none">
+    <div class="card" style="max-width:620px">
+      <label class="muted small">Empresa</label><br><select id="m-emp" onchange="fillDeps()"><option>GGE</option><option>TOOW</option></select>
+      <div class="grid2" style="margin-top:10px">
+        <div><label class="muted small">Tipo</label><br><select id="m-tipo" style="width:100%"><option value="ENTRADA_MANUAL">Entrada manual (+)</option><option value="AJUSTE_ENTRADA">Ajuste positivo (+)</option><option value="AJUSTE_SAIDA">Ajuste negativo (−)</option></select></div>
+        <div><label class="muted small">Depósito</label><br><select id="m-dep" style="width:100%"></select></div>
+        <div><label class="muted small">SKU</label><br><input id="m-sku" style="width:100%" placeholder="ex.: PNF30CX5"></div>
+        <div><label class="muted small">Quantidade</label><br><input id="m-qtd" type="number" step="any" min="0" style="width:100%"></div>
+      </div>
+      <label class="muted small" style="display:block;margin-top:10px">Motivo (obrigatório)</label><input id="m-mot" style="width:100%" placeholder="ex.: contagem física, sobra de reembalagem…">
+      <label class="muted small" style="display:block;margin-top:10px">Observação</label><input id="m-obs" style="width:100%">
+      <div style="margin-top:14px"><button onclick="manual()">Registrar movimento</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var EMP='GGE', nfs=[], sel=null, itens=[];
+function tab(t){ document.querySelectorAll('.tab').forEach(function(x){ x.classList.toggle('active', x.dataset.t===t); }); ['nf','hub','manual'].forEach(function(k){ document.getElementById('pane-'+k).style.display = k===t?'':'none'; }); if (t==='hub') loadHub(); }
+['seg-emp','seg-emp2'].forEach(function(id){ document.querySelectorAll('#'+id+' button').forEach(function(b){ b.onclick=function(){ EMP=b.dataset.v; document.querySelectorAll('#seg-emp button,#seg-emp2 button').forEach(function(x){ x.classList.toggle('on', x.dataset.v===EMP); }); loadNfs(); loadHub(); }; }); });
+
+async function loadNfs(){
+  nfs = await EST.sel(EST.sb.from('vw_est_nfs_pendentes').select('*').eq('empresa', EMP).order('data_emissao', {ascending:false}).limit(400));
+  sel=null; document.getElementById('nf-det').style.display='none'; renderNfs();
+}
+function renderNfs(){
+  var q=document.getElementById('busca-nf').value.toLowerCase(), so=document.getElementById('soPend').checked, n=0;
+  document.getElementById('nfs').innerHTML = nfs.filter(function(f){ if (so && f.lancada) return false; return !q || (f.numero_nf+' '+(f.fornecedor_nome||'')).toLowerCase().indexOf(q)>=0; }).map(function(f){ n++;
+    var al=[]; if (f.itens_sem_sku>0) al.push('<span class="badge b-vermelho">'+f.itens_sem_sku+' sem SKU</span>'); if (f.itens_fora_bling>0) al.push('<span class="badge b-amarelo">'+f.itens_fora_bling+' fora do Bling</span>');
+    return '<tr class="'+(sel&&sel.id===f.id?'sel':'')+'"><td>'+EST.d(f.data_emissao)+'</td><td><b>'+EST.esc(f.numero_nf)+'</b></td><td>'+EST.esc(f.fornecedor_nome||'')+'</td><td class="num">'+EST.money(f.valor_total)+'</td><td class="num">'+f.itens+'</td><td>'+al.join(' ')+'</td><td>'+(f.lancada?'<span class="badge b-verde">lançada</span>':'<span class="badge b-cinza">pendente</span>')+'</td><td><button class="sm sec" onclick="abrir(\''+f.id+'\')">Itens</button></td></tr>';
+  }).join('') || '<tr><td colspan="8" class="muted" style="padding:14px;text-align:center">Nenhuma NF.</td></tr>';
+  document.getElementById('nf-info').textContent = n+' NFs';
+}
+async function abrir(id){
+  sel = nfs.find(function(f){ return f.id===id; });
+  itens = await EST.sel(EST.sb.from('nfs_entrada_itens').select('*').eq('nf_entrada_id', id).order('criado_em'));
+  var ok = ['5101','5102','6101','6102','5401','5403','6401','6403','5119','6119','5405','6108'];
+  document.getElementById('nf-tit').textContent = 'NF '+sel.numero_nf+' · '+(sel.fornecedor_nome||'');
+  document.getElementById('btn-lancar').disabled = sel.lancada || !EST.can('entrada_nf', true);
+  document.getElementById('btn-lancar').textContent = sel.lancada ? 'Já lançada' : 'Dar entrada no hub';
+  document.getElementById('nf-itens').innerHTML = itens.map(function(it,i){
+    var sit, cls;
+    if (!it.sku) { sit='sem SKU — mapear'; cls='b-vermelho'; }
+    else if (it.sku==='IGNORAR') { sit='ignorado (insumo)'; cls='b-cinza'; }
+    else if (it.cfop && ok.indexOf(String(it.cfop).slice(0,4))<0) { sit='CFOP não é compra'; cls='b-cinza'; }
+    else if (it.custo_cif_unitario===null) { sit='sem custo (entra sem custo)'; cls='b-amarelo'; }
+    else { sit='ok'; cls='b-verde'; }
+    var skuCell = it.sku ? EST.esc(it.sku) : '<input class="cell" style="width:130px;text-align:left" placeholder="SKU" data-i="'+i+'" onchange="mapear(this)">';
+    return '<tr><td class="muted">'+(i+1)+'</td><td>'+EST.esc(it.codigo_bling||'')+'</td><td class="small">'+EST.esc(it.descricao||'')+'</td><td class="num">'+EST.fmt(it.quantidade)+'</td><td>'+skuCell+'</td><td class="num">'+EST.money(it.custo_cif_unitario)+'</td><td class="muted">'+EST.esc(it.cfop||'')+'</td><td><span class="badge '+cls+'">'+sit+'</span></td></tr>';
+  }).join('');
+  document.getElementById('nf-det').style.display=''; renderNfs();
+}
+async function mapear(inp){
+  var it = itens[Number(inp.dataset.i)], sku = inp.value.trim().toUpperCase(); if (!sku) return;
+  try {
+    if (sku!=='IGNORAR') { var ex = await EST.sel(EST.sb.from('skus_custo').select('sku').eq('sku', sku).limit(1)); if (!ex.length && !await EST.confirm('SKU não cadastrado', 'O SKU <b>'+EST.esc(sku)+'</b> não existe em skus_custo. Mapear mesmo assim?')) { inp.value=''; return; } }
+    await EST.rpc('est_mapear_item_nf', { p_item_id: it.id, p_sku: sku });
+    EST.toast('Mapeado '+it.codigo_bling+' → '+sku, 'ok'); await loadNfs(); abrir(sel.id);
+  } catch(e){ EST.toast('Não foi possível mapear: '+e.message, 'err'); }
+}
+async function lancarNf(){
+  var vivos = itens.filter(function(it){ return it.sku && it.sku!=='IGNORAR'; }).length;
+  if (!await EST.confirm('Dar entrada da NF '+sel.numero_nf, '<p>'+vivos+' item(ns) entram em <b>Compras a receber ('+EMP+')</b> com o custo da NF. Itens sem SKU ficam de fora.</p>', 'Tem certeza — lançar')) return;
+  try { var r = await EST.rpc('est_entrada_nf', { p_nf_id: sel.id }); EST.toast('Lançados '+r.itens_lancados+' · pulados '+r.itens_pulados, 'ok'); loadNfs(); } catch(e){ EST.toast(e.message, 'err'); }
+}
+
+async function loadHub(){
+  var h = await EST.sel(EST.sb.from('vw_est_hub_aberto').select('*').eq('empresa', EMP).order('data_emissao'));
+  var fis = EST.depositos.filter(function(d){ return d.empresa===EMP && d.tipo==='fisico' && d.ativo; });
+  var opts = fis.map(function(d){ return '<option value="'+d.id+'">'+EST.esc(d.nome)+'</option>'; }).join('');
+  document.getElementById('hub-info').textContent = h.length+' linhas a receber';
+  document.getElementById('hub').innerHTML = h.map(function(x,i){ return '<tr><td><b>'+EST.esc(x.numero_nf||'')+'</b></td><td>'+EST.d(x.data_emissao)+'</td><td class="num '+(x.dias>15?'warn':'')+'">'+x.dias+'</td><td>'+EST.esc(x.sku)+'</td><td class="num">'+EST.fmt(x.qtd_nf)+'</td><td class="num"><b>'+EST.fmt(x.qtd_pendente)+'</b></td><td class="num"><input class="cell" type="number" step="any" id="rq'+i+'" value="'+x.qtd_pendente+'"></td><td><select id="rd'+i+'">'+opts+'</select></td><td><button class="sm" onclick=\'receber('+JSON.stringify(x)+','+i+')\'>Receber</button></td></tr>'; }).join('') || '<tr><td colspan="9" class="muted" style="padding:14px;text-align:center">Nada a receber.</td></tr>';
+}
+async function receber(x,i){
+  var q = Number(document.getElementById('rq'+i).value), dep = document.getElementById('rd'+i).value;
+  if (!(q>0) || q > Number(x.qtd_pendente)+1e-9) return EST.toast('Quantidade inválida.', 'err');
+  try { await EST.rpc('est_registrar_movimento', { p_empresa: EMP, p_sku: x.sku, p_tipo: 'RECEBIMENTO', p_quantidade: q, p_origem: EMP==='TOOW'?'HUB_TOOW':'HUB_GGE', p_destino: dep, p_qtd_documento: x.qtd_nf, p_doc_tipo: 'nf_entrada', p_doc_id: x.nf_id, p_doc_numero: x.numero_nf, p_obs: q<Number(x.qtd_pendente)?'Recebimento parcial: conferido '+q+' de '+x.qtd_pendente:null }); EST.toast('Recebido '+q+' de '+x.sku+' em '+EST.dep(dep).nome, 'ok'); loadHub(); } catch(e){ EST.toast(e.message, 'err'); }
+}
+
+function fillDeps(){ var emp=document.getElementById('m-emp').value; document.getElementById('m-dep').innerHTML = EST.depositos.filter(function(d){ return d.empresa===emp && d.tipo==='fisico' && d.ativo; }).map(function(d){ return '<option value="'+d.id+'">'+EST.esc(d.nome)+'</option>'; }).join(''); }
+async function manual(){
+  var emp=document.getElementById('m-emp').value, tipo=document.getElementById('m-tipo').value, dep=document.getElementById('m-dep').value, sku=document.getElementById('m-sku').value.trim().toUpperCase(), q=Number(document.getElementById('m-qtd').value), mot=document.getElementById('m-mot').value.trim(), obs=document.getElementById('m-obs').value.trim();
+  if (!sku || !(q>0) || !mot) return EST.toast('SKU, quantidade e motivo são obrigatórios.', 'err');
+  var saida = tipo==='AJUSTE_SAIDA';
+  if (!await EST.confirm('Registrar '+tipo, '<p><b>'+EST.esc(sku)+'</b> · '+(saida?'−':'+')+EST.fmt(q)+' em <b>'+EST.esc(EST.dep(dep).nome)+'</b> ('+emp+')</p><p class="muted small">Motivo: '+EST.esc(mot)+'</p>', 'Tem certeza — registrar')) return;
+  try { await EST.rpc('est_registrar_movimento', { p_empresa: emp, p_sku: sku, p_tipo: tipo, p_quantidade: q, p_origem: saida?dep:null, p_destino: saida?null:dep, p_doc_tipo: 'manual', p_motivo: mot, p_obs: obs||null }); EST.toast('Movimento registrado.', 'ok'); document.getElementById('m-qtd').value=''; } catch(e){ EST.toast(e.message, 'err'); }
+}
+EST.ready.then(function(p){ if (!p) return; fillDeps(); loadNfs(); if (!EST.can('entrada_nf')) tab('manual'); });
+</script>
+</body>
+</html>

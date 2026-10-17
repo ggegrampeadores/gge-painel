@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usuários · Controle de Estoque GGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="est.js"></script>
+<style>
+  .mx th.rot{writing-mode:vertical-rl;transform:rotate(180deg);padding:6px 4px;white-space:nowrap;position:static}
+  .mx td.c{text-align:center}.mx td.c label{margin:0 4px;font-size:11px;color:#8b949e}
+</style>
+</head>
+<body>
+<div class="est-main">
+  <h1>Usuários e funções</h1>
+  <div class="subtitle">Coluna A: usuário · B: papel/ativo · C em diante: cada função com <b>ver</b> e <b>editar</b>. Admin tem tudo; usuário comum só o que estiver marcado. O e-mail precisa ter conta (botão "Primeiro acesso" na tela de login).</div>
+  <div class="card">
+    <div class="toolbar"><input id="n-email" placeholder="e-mail" style="width:240px"><input id="n-nome" placeholder="nome" style="width:160px"><select id="n-papel"><option value="usuario">usuário</option><option value="admin">admin</option></select><button onclick="criar()">Cadastrar</button></div>
+  </div>
+  <div class="card" style="overflow:auto">
+    <table class="mx"><thead><tr id="hdr"></tr></thead><tbody id="body"></tbody></table>
+  </div>
+  <p class="nota">"Enviar ao Bling" é separada de "Editar saldos": dá para deixar alguém editar e criar pendências sem poder confirmá-las no Bling. Desativar um usuário bloqueia o acesso na hora, sem apagar o histórico dele.</p>
+</div>
+<script>
+var funcs = [], users = [], mat = {};
+async function load(){
+  funcs = await EST.sel(EST.sb.from('est_funcoes').select('*').order('ordem'));
+  users = await EST.sel(EST.sb.from('est_usuarios').select('*').order('criado_em'));
+  var uf = await EST.sel(EST.sb.from('est_usuarios_funcoes').select('*'));
+  mat = {}; uf.forEach(function(x){ mat[x.email+'|'+x.funcao] = x; });
+  document.getElementById('hdr').innerHTML = '<th>Usuário</th><th>Papel</th><th>Ativo</th>' + funcs.map(function(f){ return '<th class="rot">'+EST.esc(f.nome)+'</th>'; }).join('');
+  document.getElementById('body').innerHTML = users.map(function(u){
+    var cells = funcs.map(function(f){ var k=u.email+'|'+f.codigo, x=mat[k]||{}; var dis = u.papel==='admin'?'disabled checked':'';
+      return '<td class="c"><label><input type="checkbox" '+(dis||(x.visualizar?'checked':''))+' onchange="setF(\''+u.email+'\',\''+f.codigo+'\',\'visualizar\',this.checked)">ver</label><label><input type="checkbox" '+(dis||(x.editar?'checked':''))+' onchange="setF(\''+u.email+'\',\''+f.codigo+'\',\'editar\',this.checked)">editar</label></td>'; }).join('');
+    return '<tr><td><b>'+EST.esc(u.nome||'')+'</b><br><span class="small muted">'+EST.esc(u.email)+'</span></td><td><select onchange="setU(\''+u.email+'\',{papel:this.value})"><option value="usuario" '+(u.papel==='usuario'?'selected':'')+'>usuário</option><option value="admin" '+(u.papel==='admin'?'selected':'')+'>admin</option></select></td><td class="c"><input type="checkbox" '+(u.ativo?'checked':'')+' onchange="setU(\''+u.email+'\',{ativo:this.checked})"></td>'+cells+'</tr>';
+  }).join('');
+}
+async function criar(){
+  var email = document.getElementById('n-email').value.trim().toLowerCase(), nome = document.getElementById('n-nome').value.trim(), papel = document.getElementById('n-papel').value;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return EST.toast('E-mail inválido.', 'err');
+  try { await EST.sel(EST.sb.from('est_usuarios').insert({ email: email, nome: nome, papel: papel, criado_por: EST.user.email })); EST.toast('Cadastrado. A pessoa cria a senha em "Primeiro acesso" na tela de login.', 'ok'); load(); } catch(e){ EST.toast(e.message, 'err'); }
+}
+async function setU(email, upd){
+  if (email===EST.user.email && (upd.ativo===false || upd.papel==='usuario') && !await EST.confirm('Alterar o próprio acesso?', '<p>Você pode perder o acesso de admin agora. Tem certeza?</p>')) { load(); return; }
+  try { await EST.sel(EST.sb.from('est_usuarios').update(upd).eq('email', email)); EST.toast('Salvo.', 'ok'); load(); } catch(e){ EST.toast(e.message, 'err'); load(); }
+}
+async function setF(email, funcao, campo, val){
+  var k = email+'|'+funcao, x = mat[k] || { email: email, funcao: funcao, visualizar: false, editar: false };
+  x[campo] = val; if (campo==='editar' && val) x.visualizar = true; if (campo==='visualizar' && !val) x.editar = false;
+  try { await EST.sel(EST.sb.from('est_usuarios_funcoes').upsert(x, { onConflict: 'email,funcao' })); mat[k] = x; load(); } catch(e){ EST.toast(e.message, 'err'); }
+}
+EST.ready.then(function(p){ if (p) load(); });
+</script>
+</body>
+</html>

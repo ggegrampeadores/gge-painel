@@ -40,6 +40,7 @@
     { href: '/fluxo-caixa',          icon: icons.fluxocaixa, label: 'Fluxo de Caixa',     key: 'fluxo-caixa' },
     { href: '/ciclo-caixa',          icon: icons.ciclo,     label: 'Ciclo de Caixa',      key: 'ciclo-caixa' },
     { href: '/estoque',              icon: icons.full,      label: 'Estoque & Compras',   key: 'estoque' },
+    { href: '/controle-estoque/',    icon: icons.full,      label: 'Controle de Estoque', key: 'controle-estoque' },
     {
       icon: icons.catalogo, label: 'Catálogo', key: 'catalogo-group',
       children: [

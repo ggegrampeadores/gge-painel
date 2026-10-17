@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parâmetros · Controle de Estoque GGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="est.js"></script>
+<style>td input{width:120px}td input.wide{width:220px}</style>
+</head>
+<body>
+<div class="est-main">
+  <h1>Parâmetros e depósitos</h1>
+  <div class="subtitle">Set-up dos administradores. Toda alteração fica na auditoria.</div>
+  <div class="grid2">
+    <div class="card">
+      <b>Parâmetros</b>
+      <table style="margin-top:8px"><thead><tr><th>Chave</th><th>Valor</th><th>Descrição</th><th></th></tr></thead><tbody id="cfg"></tbody></table>
+    </div>
+    <div class="card">
+      <b>Depósitos</b>
+      <table style="margin-top:8px"><thead><tr><th>Id</th><th>Emp</th><th>Nome</th><th>Tipo</th><th>Id Bling</th><th>Ativo</th><th>Editável</th><th>Negativo</th><th></th></tr></thead><tbody id="deps"></tbody></table>
+      <p class="nota" style="margin-top:8px">Depósitos de fase 2 ficam inativos até a fase existir. "Negativo" só deve estar ligado na Matriz Toow.</p>
+    </div>
+  </div>
+</div>
+<script>
+async function load(){
+  var cfg = await EST.sel(EST.sb.from('est_config').select('*').order('chave'));
+  document.getElementById('cfg').innerHTML = cfg.map(function(c){ return '<tr><td><code>'+EST.esc(c.chave)+'</code></td><td><input class="wide" id="c-'+c.chave+'" value="'+EST.esc(JSON.stringify(c.valor))+'"></td><td class="small muted">'+EST.esc(c.descricao||'')+'<br><span class="small">'+(c.atualizado_por?EST.esc(c.atualizado_por.split('@')[0])+' · '+EST.dt(c.atualizado_em):'')+'</span></td><td><button class="sm" onclick="salvarCfg(\''+c.chave+'\')">Salvar</button></td></tr>'; }).join('');
+  var deps = await EST.sel(EST.sb.from('est_depositos').select('*').order('empresa').order('ordem'));
+  document.getElementById('deps').innerHTML = deps.map(function(d){ return '<tr><td><code class="small">'+d.id+'</code></td><td>'+d.empresa+'</td><td><input id="n-'+d.id+'" value="'+EST.esc(d.nome)+'"></td><td class="muted">'+d.tipo+'</td><td><input id="b-'+d.id+'" value="'+EST.esc(d.bling_deposito_id||'')+'" style="width:110px"></td><td><input type="checkbox" id="a-'+d.id+'" '+(d.ativo?'checked':'')+'></td><td><input type="checkbox" id="e-'+d.id+'" '+(d.editavel?'checked':'')+' '+(d.tipo!=='fisico'?'disabled':'')+'></td><td><input type="checkbox" id="g-'+d.id+'" '+(d.permite_negativo?'checked':'')+'></td><td><button class="sm" onclick="salvarDep(\''+d.id+'\')">Salvar</button></td></tr>'; }).join('');
+}
+async function salvarCfg(k){
+  var raw = document.getElementById('c-'+k).value, val; try { val = JSON.parse(raw); } catch(e){ val = raw; }
+  try { await EST.sel(EST.sb.from('est_config').update({ valor: val, atualizado_em: new Date().toISOString(), atualizado_por: EST.user.email }).eq('chave', k)); EST.toast('Salvo '+k, 'ok'); load(); } catch(e){ EST.toast(e.message, 'err'); }
+}
+async function salvarDep(id){
+  var g = function(p){ return document.getElementById(p+'-'+id); };
+  var upd = { nome: g('n').value, bling_deposito_id: g('b').value||null, ativo: g('a').checked, editavel: g('e').checked, permite_negativo: g('g').checked };
+  if (upd.permite_negativo && id!=='MATRIZ_TOOW' && !await EST.confirm('Permitir negativo em '+id+'?', '<p>Só a Matriz Toow deveria aceitar saldo negativo. Tem certeza?</p>')) return;
+  try { await EST.sel(EST.sb.from('est_depositos').update(upd).eq('id', id)); EST.toast('Depósito salvo.', 'ok'); EST.depositos=null; await EST.loadDepositos(); load(); } catch(e){ EST.toast(e.message, 'err'); }
+}
+EST.ready.then(function(p){ if (p) load(); });
+</script>
+</body>
+</html>
