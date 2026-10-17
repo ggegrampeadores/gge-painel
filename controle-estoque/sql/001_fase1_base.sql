@@ -391,7 +391,7 @@ left join nfs_entrada_itens i on i.nf_entrada_id = nf.id
 where coalesce(nf.tipo_nf,0) = 0
   and (nf.fornecedor_cnpj is null
        or exists (select 1 from fornecedores_reais fr where fr.ativo and left(regexp_replace(nf.fornecedor_cnpj,'\D','','g'),8) = regexp_replace(fr.cnpj_raiz,'\D','','g'))
-       or exists (select 1 from fornecedores_aprovados fa where upper(nf.fornecedor_nome) like '%'||upper(fa.nome)||'%'))
+       or exists (select 1 from fornecedores_aprovados fa where fa.ativo and upper(nf.fornecedor_nome) like '%'||upper(fa.nome_parcial)||'%'))
 group by nf.id;
 
 -- Compras a receber (hub) com idade
