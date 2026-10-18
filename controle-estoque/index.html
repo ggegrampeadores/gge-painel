@@ -26,11 +26,13 @@
     <label class="muted small"><input type="checkbox" id="soSaldo" checked onchange="render()"> só com saldo</label>
     <span style="flex:1"></span>
     <button class="sec" id="btn-reler" onclick="relerBling()">Reler Bling</button>
+    <button class="sec" id="btn-full" onclick="relerFull()">Reler Full ML</button>
     <button id="btn-enviar" onclick="enviarTodos()" disabled>Enviar alterados ao Bling</button>
   </div>
   <div class="legend">
     <span><i style="background:rgba(210,153,34,.5)"></i> divergência Nosso ≠ Bling</span>
     <span><i style="border:1px solid #d29922"></i> célula editada (pendente)</span>
+    <span>Full ML vem da API do Mercado Livre (fonte confiável); "+Nr" = reservado; amarelo = leitura antiga</span>
     <span id="info" class="muted"></span>
   </div>
 
@@ -45,12 +47,13 @@
   </div>
   <div class="card nota">
     <b style="color:#c9d1d9">Como funciona.</b> "Nosso" é a soma do livro de movimentos (abertura, NFs, ajustes). "Bling" é o último saldo lido. Depósitos virtuais (Compras a receber) e externos (Full) não são editáveis.
+    Até a abertura de um depósito (contagem), ele fica em <b>modo ensaio</b>: a coluna mostra o Bling e não aceita edição. Kits não têm estoque próprio (o Bling calcula pelos componentes) e não entram no livro.
     Ao enviar, o sistema relê o saldo do Bling; se mudou desde a sua leitura, a linha é bloqueada para você decidir. O envio é por diferença (entrada/saída), nunca por balanço, e gera um ajuste no livro.
   </div>
 </div>
 
 <script>
-var EMP = 'GGE', VIEW = 'nosso', rows = [], bling = {}, pend = [], deps = [], dirty = {};
+var EMP = 'GGE', VIEW = 'nosso', rows = [], bling = {}, pend = [], deps = [], dirty = {}, full = {}, aberto = {}, kits = {};
 document.querySelectorAll('#seg-emp button').forEach(function(b){ b.onclick = function(){ EMP = b.dataset.v; seg('seg-emp', b); dirty = {}; load(); }; });
 document.querySelectorAll('#seg-view button').forEach(function(b){ b.onclick = function(){ VIEW = b.dataset.v; seg('seg-view', b); render(); }; });
 function seg(id, b){ document.querySelectorAll('#'+id+' button').forEach(function(x){ x.classList.toggle('on', x===b); }); }
@@ -58,18 +61,28 @@ function seg(id, b){ document.querySelectorAll('#'+id+' button').forEach(functio
 async function load(){
   var sb = EST.sb;
   deps = EST.depositos.filter(function(d){ return d.empresa===EMP && d.ativo; });
-  var [saldos, bl, pd] = await Promise.all([
+  var [saldos, bl, pd, fl, ab, kt] = await Promise.all([
     EST.sel(sb.from('vw_est_saldos_sku').select('*').eq('empresa', EMP)),
     EST.sel(sb.from('est_bling_saldos').select('*').eq('empresa', EMP)),
-    EST.sel(sb.from('est_pendencias_bling').select('*').eq('empresa', EMP).order('criado_em', {ascending:false}).limit(200))
+    EST.sel(sb.from('est_pendencias_bling').select('*').eq('empresa', EMP).order('criado_em', {ascending:false}).limit(200)),
+    EST.sel(sb.from('vw_est_full_ml').select('*').eq('empresa', EMP)),
+    EST.sel(sb.from('vw_est_abertura_status').select('*').eq('empresa', EMP)),
+    EST.sel(sb.from('bling_produtos').select('codigo,formato').eq('empresa', EMP).neq('situacao', 'E'))
   ]);
   bling = {}; bl.forEach(function(b){ bling[b.sku+'|'+b.deposito_id] = b; });
-  var map = {}; saldos.forEach(function(s){ map[s.sku] = s; });
+  full = {}; fl.forEach(function(f){ if (f.sku) full[f.sku] = f; });
+  aberto = {}; ab.forEach(function(a){ aberto[a.deposito_id] = (a.skus_abertos > 0 || a.movimentos > 0); });
+  kits = {}; var simples = {}; kt.forEach(function(k){ if (k.codigo && k.formato==='S') simples[k.codigo] = true; }); kt.forEach(function(k){ if (k.codigo && k.formato!=='S' && !simples[k.codigo]) kits[k.codigo] = true; });
+  var map = {}; saldos.forEach(function(s){ map[s.sku] = s; if (s.eh_kit) kits[s.sku] = true; });
   bl.forEach(function(b){ if(!map[b.sku]) map[b.sku] = { empresa:EMP, sku:b.sku, descricao:null, unidade:'UN', saldos:{}, total_empresa:0, existe_no_bling:true }; });
+  fl.forEach(function(f){ if(f.sku && !map[f.sku]) map[f.sku] = { empresa:EMP, sku:f.sku, descricao:null, unidade:'UN', saldos:{}, total_empresa:0, existe_no_bling:null }; });
   rows = Object.values(map).sort(function(a,b){ return a.sku.localeCompare(b.sku); });
   pend = pd;
   var lido = bl.length ? bl.reduce(function(m,b){ return b.lido_em>m?b.lido_em:m; }, '') : null;
-  document.getElementById('info').textContent = rows.length + ' SKUs · Bling lido ' + (lido ? EST.dt(lido) : 'nunca');
+  var fullRef = fl.length ? fl.reduce(function(m,f){ return f.data_ref>m?f.data_ref:m; }, '') : null;
+  var ensaio = deps.filter(function(d){ return d.tipo==='fisico' && !aberto[d.id]; });
+  document.getElementById('info').innerHTML = rows.length + ' SKUs · Bling lido ' + (lido ? EST.dt(lido) : 'nunca') + ' · Full ML ' + (fullRef ? EST.d(fullRef) : 'sem leitura') +
+    (ensaio.length ? ' · <span class="warn">modo ensaio: ' + ensaio.map(function(d){ return EST.esc(d.nome); }).join(', ') + ' sem abertura — mostrando o Bling, sem edição</span>' : '');
   render(); renderPend();
 }
 
@@ -90,23 +103,30 @@ function render(){
   var out = '', n = 0;
   rows.forEach(function(r){
     if (q && (r.sku+' '+(r.descricao||'')).toLowerCase().indexOf(q) < 0) return;
-    var anyDiv = false, anySaldo = Math.abs(Number(r.total_empresa||0))>0;
-    fis.forEach(function(d){ var b = blingDe(r,d); if (b!==null && Math.abs(b)>0) anySaldo = true; if (b!==null && Math.abs(nosso(r,d)-b) > 1e-9) anyDiv = true; });
+    var kit = !!kits[r.sku], f = full[r.sku];
+    var anyDiv = false, anySaldo = Math.abs(Number(r.total_empresa||0))>0 || (f && Number(f.total_no_full)>0);
+    fis.forEach(function(d){ var b = blingDe(r,d); if (b!==null && Math.abs(b)>0) anySaldo = true; if (!kit && aberto[d.id] && b!==null && Math.abs(nosso(r,d)-b) > 1e-9) anyDiv = true; });
     if (soDiv && !anyDiv) return; if (soSaldo && !anySaldo) return;
     n++;
-    var t = '<tr><td><b>'+EST.esc(r.sku)+'</b>'+(r.existe_no_bling===false?' <span class="badge b-vermelho" title="SKU não existe no Bling">fora do Bling</span>':'')+'</td><td class="muted">'+EST.esc(r.descricao||'')+'</td><td class="muted">'+EST.esc(r.unidade||'')+'</td>';
+    var t = '<tr><td><b>'+EST.esc(r.sku)+'</b>'+(r.existe_no_bling===false?' <span class="badge b-vermelho" title="SKU não existe no Bling">fora do Bling</span>':'')+(kit?' <span class="badge b-cinza" title="Kit/composição no Bling: o estoque é dos componentes; não se edita nem se conta">kit</span>':'')+'</td><td class="muted">'+EST.esc(r.descricao||'')+'</td><td class="muted">'+EST.esc(r.unidade||'')+'</td>';
     t += '<td class="num muted">'+EST.money(r.preco_fob)+'</td><td class="num">'+EST.money(custo(r))+'</td><td class="num"><b>'+EST.fmt(r.total_empresa)+'</b></td>';
     virt.forEach(function(d){ t += '<td class="num muted">'+EST.fmt(nosso(r,d))+'</td>'; });
     fis.forEach(function(d){
-      var nv = nosso(r,d), bv = blingDe(r,d), div = bv!==null && Math.abs(nv-bv)>1e-9;
-      var shown = VIEW==='bling' ? bv : nv, key = r.sku+'|'+d.id;
-      var title = 'Nosso '+EST.fmt(nv)+' · Bling '+(bv===null?'—':EST.fmt(bv));
-      if (canEdit && d.editavel) {
+      var nv = nosso(r,d), bv = blingDe(r,d), ens = !aberto[d.id];
+      var div = !kit && !ens && bv!==null && Math.abs(nv-bv)>1e-9;
+      var shown = (VIEW==='bling' || ens) ? bv : nv, key = r.sku+'|'+d.id;
+      var title = ens ? 'Ensaio: Bling '+(bv===null?'—':EST.fmt(bv))+' (depósito sem abertura)' : 'Nosso '+EST.fmt(nv)+' · Bling '+(bv===null?'—':EST.fmt(bv));
+      if (canEdit && d.editavel && !kit && !ens) {
         var val = dirty[key] !== undefined ? dirty[key] : (shown===null?'':shown);
         t += '<td class="num'+(div?' div':'')+'" title="'+title+'"><input class="cell'+(dirty[key]!==undefined?' dirty':'')+'" type="number" step="any" value="'+val+'" data-k="'+key+'" onchange="edit(this)"></td>';
-      } else t += '<td class="num'+(div?' div':'')+'" title="'+title+'">'+(shown===null?'<span class="muted">—</span>':EST.fmt(shown))+'</td>';
+      } else t += '<td class="num'+(div?' div':'')+(ens?' ext':'')+'" title="'+title+'">'+(shown===null?'<span class="muted">—</span>':EST.fmt(shown))+'</td>';
     });
-    ext.forEach(function(d){ var b = blingDe(r,d); t += '<td class="num ext">'+(b===null?'—':EST.fmt(b))+'</td>'; });
+    ext.forEach(function(d){
+      var isML = d.fonte_saldo==='ml_full', v = isML ? (f ? Number(f.disponivel) : null) : blingDe(r,d);
+      var tt = isML && f ? 'Full ML: disponível '+EST.fmt(f.disponivel)+' · reservado '+EST.fmt(f.reservada)+' · quarentena '+EST.fmt(f.quarentena)+' · danificado '+EST.fmt(f.danificada)+' · lido '+EST.d(f.data_ref)+(f.fonte_direta?'':' (coleta antiga, não direta)') : '';
+      var old = isML && f && (!f.fonte_direta || Number(f.inventarios_sem_leitura_recente)>0);
+      t += '<td class="num ext'+(old?' warn':'')+'" title="'+EST.esc(tt)+'">'+(v===null?'—':EST.fmt(v))+(f && Number(f.reservada)>0 && isML?' <span class="small muted">+'+EST.fmt(f.reservada)+'r</span>':'')+'</td>';
+    });
     out += t + '</tr>';
   });
   document.getElementById('body').innerHTML = out || '<tr><td colspan="20" class="muted" style="padding:24px;text-align:center">Nenhum SKU. Faça a abertura de estoque ou clique em "Reler Bling".</td></tr>';
@@ -163,6 +183,19 @@ async function relerBling(){
     await load();
   } catch(e){ EST.toast('Leitura do Bling indisponível: '+e.message, 'err'); }
   b.disabled = false; b.textContent = 'Reler Bling';
+}
+
+async function relerFull(){
+  var b = document.getElementById('btn-full'); b.disabled = true; b.textContent = 'Lendo…';
+  try {
+    var s = await EST.sb.auth.getSession();
+    var r = await fetch('https://opceujqpqyvxsatzdarg.supabase.co/functions/v1/est-ml-full', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+s.data.session.access_token }, body: JSON.stringify({ empresa: EMP }) });
+    var j = await r.json().catch(function(){ return {}; });
+    if (!r.ok) throw new Error(j.error || ('HTTP '+r.status));
+    EST.toast('Full ML lido: '+(j.lidos||0)+' estoques'+(j.erros?' · '+j.erros+' erros':'')+(j.pendentes_por_tempo?' · '+j.pendentes_por_tempo+' ficaram para a próxima leitura':''), j.erros?'':'ok');
+    await load();
+  } catch(e){ EST.toast('Leitura do Full indisponível: '+e.message, 'err'); }
+  b.disabled = false; b.textContent = 'Reler Full ML';
 }
 
 function renderPend(){

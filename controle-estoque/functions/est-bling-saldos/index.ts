@@ -1,5 +1,6 @@
 // est-bling-saldos — lê saldos por depósito no Bling e grava em est_bling_saldos.
 // POST { empresa: 'GGE'|'TOOW', skus?: string[] }  (sem skus = todos os produtos da empresa em bling_produtos)
+// v2 (18/10/2026): ignora cadastros excluídos; produto simples prevalece sobre kit homônimo.
 // Chamada pelo painel (JWT do usuário, função 'saldos') ou pelo cron (service role).
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -50,10 +51,10 @@ Deno.serve(async (req: Request) => {
     if (!Object.keys(depMap).length) return json({ error: `Nenhum depósito da ${empresa} tem id Bling configurado (Parâmetros › Depósitos)` }, 400);
 
     // SKUs → id Bling (bling_produtos da empresa; fallback consulta /produtos?codigo=)
-    let q = sb.from('bling_produtos').select('codigo, bling_id').eq('empresa', empresa);
+    let q = sb.from('bling_produtos').select('codigo, bling_id, formato').eq('empresa', empresa).neq('situacao', 'E').order('formato', { ascending: false }).limit(5000);
     if (Array.isArray(body.skus) && body.skus.length) q = q.in('codigo', body.skus);
     const { data: prods } = await q;
-    const idMap: Record<string, string> = {}; for (const p of (prods || [])) if (p.codigo && p.bling_id) idMap[p.codigo] = String(p.bling_id);
+    const idMap: Record<string, string> = {}; for (const p of (prods || [])) if (p.codigo && p.bling_id && (!idMap[p.codigo] || p.formato === 'S')) idMap[p.codigo] = String(p.bling_id); // produto simples tem prioridade sobre kit com o mesmo código
     const semId: string[] = [];
     if (Array.isArray(body.skus)) for (const s of body.skus) if (!idMap[s]) {
       try { const d = await bling(token, `/produtos?codigo=${encodeURIComponent(s)}`); const pid = d?.data?.[0]?.id; if (pid) idMap[s] = String(pid); else semId.push(s); } catch { semId.push(s); }

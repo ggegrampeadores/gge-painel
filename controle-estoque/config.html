@@ -19,11 +19,32 @@
     <div class="card">
       <b>Depósitos</b>
       <table style="margin-top:8px"><thead><tr><th>Id</th><th>Emp</th><th>Nome</th><th>Tipo</th><th>Id Bling</th><th>Ativo</th><th>Editável</th><th>Negativo</th><th></th></tr></thead><tbody id="deps"></tbody></table>
-      <p class="nota" style="margin-top:8px">Depósitos de fase 2 ficam inativos até a fase existir. "Negativo" só deve estar ligado na Matriz Toow.</p>
+      <p class="nota" style="margin-top:8px">Depósitos de fase 2 ficam inativos até a fase existir. "Negativo" só deve estar ligado na Matriz Toow. Filial SP fica ativa com saldo zero enquanto não opera.</p>
     </div>
+  </div>
+  <div class="card">
+    <b>Alimentações</b>
+    <div class="toolbar" style="margin-top:8px">
+      <button class="sec" onclick="rodar('est-bling-produtos', {empresa:'ALL'}, this)">Atualizar catálogo do Bling (GGE + Toow)</button>
+      <button class="sec" onclick="rodar('est-ml-full', {empresa:'ALL'}, this)">Reler Full ML (GGE + Toow)</button>
+      <button class="sec" onclick="rodar('est-bling-saldos', {empresa:'GGE'}, this)">Reler saldos Bling GGE</button>
+      <button class="sec" onclick="rodar('est-bling-saldos', {empresa:'TOOW'}, this)">Reler saldos Bling Toow</button>
+    </div>
+    <p class="nota">Automático: saldos Bling e Full ML a cada 6 h; catálogo do Bling (kits e componentes) uma vez por dia. Aqui é só para forçar agora.</p>
+    <pre id="log" class="small muted" style="white-space:pre-wrap;margin-top:6px"></pre>
   </div>
 </div>
 <script>
+async function rodar(fn, body, btn){
+  btn.disabled = true; var t = btn.textContent; btn.textContent = 'Rodando…';
+  try { var s = await EST.sb.auth.getSession();
+    var r = await fetch('https://opceujqpqyvxsatzdarg.supabase.co/functions/v1/'+fn, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+s.data.session.access_token }, body: JSON.stringify(body) });
+    var j = await r.json().catch(function(){ return {}; });
+    document.getElementById('log').textContent = fn+' → '+JSON.stringify(j, null, 1);
+    EST.toast(r.ok ? fn+' concluída' : (j.error || 'HTTP '+r.status), r.ok ? 'ok' : 'err');
+  } catch(e){ EST.toast(e.message, 'err'); }
+  btn.disabled = false; btn.textContent = t;
+}
 async function load(){
   var cfg = await EST.sel(EST.sb.from('est_config').select('*').order('chave'));
   document.getElementById('cfg').innerHTML = cfg.map(function(c){ return '<tr><td><code>'+EST.esc(c.chave)+'</code></td><td><input class="wide" id="c-'+c.chave+'" value="'+EST.esc(JSON.stringify(c.valor))+'"></td><td class="small muted">'+EST.esc(c.descricao||'')+'<br><span class="small">'+(c.atualizado_por?EST.esc(c.atualizado_por.split('@')[0])+' · '+EST.dt(c.atualizado_em):'')+'</span></td><td><button class="sm" onclick="salvarCfg(\''+c.chave+'\')">Salvar</button></td></tr>'; }).join('');

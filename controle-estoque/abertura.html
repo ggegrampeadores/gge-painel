@@ -5,36 +5,47 @@
 <title>Abertura · Controle de Estoque GGE</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="est.js"></script>
-<style>td input.cell{width:100px}tr.zero td{opacity:.55}</style>
+<style>
+  td input.cell{width:100px}tr.zero td{opacity:.55}tr.dif td{background:rgba(210,153,34,.10)}tr.kit td{opacity:.5;text-decoration:line-through}
+  body.cego .col-bling{display:none}
+  @media print { .est-top,.toolbar,.nota,.no-print{display:none!important} body{background:#fff;color:#000} .card{border:none;max-height:none!important;overflow:visible!important} table{font-size:12px} th{background:#fff;color:#000;position:static} td{border-bottom:1px solid #999;padding:8px 6px;color:#000} .col-bling,.col-dif,.col-custo,.col-x{display:none} td.contado{width:120px;border:1px solid #000} td.contado input{display:none} .print-title{display:block!important} }
+  .print-title{display:none;font-size:16px;margin-bottom:10px}
+</style>
 </head>
-<body>
+<body class="cego">
 <div class="est-main">
-  <h1>Inventário de abertura</h1>
-  <div class="subtitle">Ponto de partida do livro, um depósito por vez. Pré-preenchido com o último saldo lido do Bling; corrija pela contagem física. Depois da abertura, diferenças entram como ajuste.</div>
+  <h1>Inventário de abertura (contagem)</h1>
+  <div class="subtitle">Ponto de partida do livro, um depósito por vez. <b>Contagem cega</b>: imprima a folha sem saldos, conte, digite ou importe o CSV; depois compare com o Bling e reconte só o que diferir. Kits não se contam (o Bling calcula pelos componentes).</div>
 
   <div class="card">
     <div class="toolbar">
       <select id="emp" onchange="fillDeps()"><option>GGE</option><option>TOOW</option></select>
       <select id="dep" onchange="prep()"></select>
-      <label class="muted small">Data de corte <input id="data" type="date"></label>
-      <button class="sec" onclick="prep()">Carregar do Bling</button>
+      <label class="muted small">Data da contagem <input id="data" type="date"></label>
+      <button class="sec" onclick="prep()">Carregar SKUs do Bling</button>
+      <button class="sec" onclick="window.print()">Imprimir folha de contagem</button>
       <label class="sec" style="cursor:pointer;border:1px solid #30363d;border-radius:6px;padding:6px 12px;color:#c9d1d9;font-weight:600">Importar CSV (sku;quantidade)<input type="file" id="csv" accept=".csv,.txt" style="display:none" onchange="importar(this)"></label>
       <span class="muted small" id="status"></span>
     </div>
     <div class="toolbar">
-      <input id="add-sku" placeholder="Adicionar SKU" style="width:180px"><input id="add-qtd" type="number" step="any" placeholder="qtd" style="width:90px"><button class="sm sec" onclick="addLinha()">Adicionar</button>
-      <input id="busca" placeholder="filtrar" style="width:160px" oninput="render()">
+      <label class="muted small"><input type="checkbox" id="cego" checked onchange="document.body.classList.toggle('cego', this.checked); render()"> contagem cega (esconder Bling)</label>
+      <label class="muted small"><input type="checkbox" id="soDif" onchange="render()"> só diferenças acima da tolerância</label>
+      <label class="muted small">tolerância <input id="tol" type="number" step="0.5" min="0" value="2" style="width:60px" onchange="render()"> %</label>
+      <button class="sm sec" id="btn-bling" onclick="usarBling()" title="Para depósitos que não se contam (ex.: Matriz Toow, saldo virtual)">Usar saldo do Bling como contagem</button>
+      <input id="add-sku" placeholder="Adicionar SKU" style="width:160px"><input id="add-qtd" type="number" step="any" placeholder="qtd" style="width:80px"><button class="sm sec" onclick="addLinha()">Adicionar</button>
+      <input id="busca" placeholder="filtrar" style="width:140px" oninput="render()">
       <span style="flex:1"></span>
       <button id="btn" onclick="gravar()" disabled>Gravar abertura</button>
     </div>
   </div>
   <div class="card" style="max-height:62vh;overflow:auto">
-    <table><thead><tr><th>SKU</th><th>Descrição</th><th class="num">Bling</th><th class="num">Contado</th><th class="num">Custo vigente</th><th></th></tr></thead><tbody id="body"></tbody></table>
+    <div class="print-title" id="print-title"></div>
+    <table><thead><tr><th>SKU</th><th>Descrição</th><th>Un</th><th class="num col-bling">Bling</th><th class="num">Contado</th><th class="num col-dif">Dif.</th><th class="num col-custo">Custo vigente</th><th class="col-x"></th></tr></thead><tbody id="body"></tbody></table>
   </div>
-  <p class="nota">Linhas com quantidade vazia ou zero não são gravadas. Para a Toow, quantidades negativas são aceitas (saldo devido à GGE). O custo vigente vem de <code>vw_custo_precificacao</code> (NF mais recente) e é só informativo aqui.</p>
+  <p class="nota">Linhas com quantidade vazia ou zero não são gravadas. Para a Toow, quantidades negativas são aceitas (saldo devido à GGE). A data da contagem vira o <b>corte</b>: NFs com entrada até essa data não serão lançadas depois (já estão na contagem). O custo vigente vem de <code>vw_custo_precificacao</code> e é só informativo.</p>
 </div>
 <script>
-var linhas = {}, info = {}, aberto = false;
+var linhas = {}, info = {}, aberto = false, kits = {}, unid = {};
 function fillDeps(){ var emp = document.getElementById('emp').value; document.getElementById('dep').innerHTML = EST.depositos.filter(function(d){ return d.empresa===emp && d.tipo==='fisico' && d.ativo; }).map(function(d){ return '<option value="'+d.id+'">'+EST.esc(d.nome)+'</option>'; }).join(''); prep(); }
 async function prep(){
   var emp = document.getElementById('emp').value, dep = document.getElementById('dep').value; if (!dep) return;
@@ -42,8 +53,14 @@ async function prep(){
   var st = await EST.sel(EST.sb.from('vw_est_abertura_status').select('*').eq('deposito_id', dep));
   aberto = st.length && (st[0].skus_abertos > 0 || st[0].movimentos > 0);
   document.getElementById('status').textContent = aberto ? 'Depósito já tem movimentos ('+st[0].movimentos+'); abertura bloqueada — use Entradas › ajuste.' : 'Depósito sem movimentos: pronto para abertura.';
-  var bl = await EST.sel(EST.sb.from('est_bling_saldos').select('sku,saldo_fisico').eq('empresa', emp).eq('deposito_id', dep));
-  bl.forEach(function(b){ linhas[b.sku] = { bling: Number(b.saldo_fisico), qtd: Number(b.saldo_fisico) }; });
+  var [bl, kt] = await Promise.all([
+    EST.sel(EST.sb.from('est_bling_saldos').select('sku,saldo_fisico,lido_em').eq('empresa', emp).eq('deposito_id', dep)),
+    EST.sel(EST.sb.from('bling_produtos').select('codigo,formato,nome').eq('empresa', emp).neq('situacao', 'E'))
+  ]);
+  kits = {}; unid = {}; var simples = {}; kt.forEach(function(k){ if (k.codigo && k.formato==='S') simples[k.codigo] = true; });
+  kt.forEach(function(k){ if (k.codigo && k.formato!=='S' && !simples[k.codigo]) kits[k.codigo] = true; if (k.codigo && !info[k.codigo]) info[k.codigo] = { descricao: k.nome }; });
+  bl.forEach(function(b){ if (kits[b.sku]) return; linhas[b.sku] = { bling: Number(b.saldo_fisico), qtd: null }; });
+  document.getElementById('print-title').textContent = 'Folha de contagem · '+EST.dep(dep).nome+' ('+emp+') · '+(document.getElementById('data').value||'data: ____/____/____')+' · contador: ______________________';
   await enrich(Object.keys(linhas));
   render();
 }
@@ -53,33 +70,42 @@ async function enrich(skus){
     var part = skus.slice(i,i+200);
     var emp = document.getElementById('emp').value;
     var r = await EST.sel(EST.sb.from('vw_custo_precificacao').select('sku,descricao,custo_gge_rj,custo_toow').in('sku', part));
-    r.forEach(function(x){ info[x.sku] = { descricao: x.descricao, custo: emp==='TOOW'?x.custo_toow:x.custo_gge_rj }; });
+    r.forEach(function(x){ info[x.sku] = Object.assign(info[x.sku]||{}, { descricao: x.descricao || (info[x.sku]||{}).descricao, custo: emp==='TOOW'?x.custo_toow:x.custo_gge_rj }); });
+    var u = await EST.sel(EST.sb.from('skus_custo').select('sku,unidade').in('sku', part));
+    u.forEach(function(x){ unid[x.sku] = x.unidade; });
   }
 }
+function difOk(l){ var tol = Number(document.getElementById('tol').value||0); if (l.qtd===null||l.qtd===undefined||l.bling===undefined) return false; var base = Math.max(Math.abs(l.bling), 1); return Math.abs(l.qtd - l.bling) / base * 100 > tol; }
 function render(){
-  var q = document.getElementById('busca').value.toLowerCase();
+  var q = document.getElementById('busca').value.toLowerCase(), soDif = document.getElementById('soDif').checked;
   var skus = Object.keys(linhas).sort();
-  document.getElementById('body').innerHTML = skus.filter(function(s){ return !q || (s+' '+((info[s]||{}).descricao||'')).toLowerCase().indexOf(q)>=0; }).map(function(s){
-    var l = linhas[s], i = info[s]||{};
-    return '<tr class="'+(!l.qtd?'zero':'')+'"><td><b>'+EST.esc(s)+'</b>'+(i.descricao===undefined?' <span class="badge b-amarelo" title="SKU não encontrado no cadastro de custo">sem cadastro</span>':'')+'</td><td class="muted small">'+EST.esc(i.descricao||'')+'</td><td class="num muted">'+(l.bling===undefined?'—':EST.fmt(l.bling))+'</td><td class="num"><input class="cell" type="number" step="any" value="'+(l.qtd===undefined||l.qtd===null?'':l.qtd)+'" onchange="linhas[\''+s+'\'].qtd=this.value===\'\'?null:Number(this.value);upd()"></td><td class="num muted">'+EST.money(i.custo)+'</td><td><button class="sm sec" onclick="delete linhas[\''+s+'\'];render()">×</button></td></tr>';
-  }).join('') || '<tr><td colspan="6" class="muted" style="padding:16px;text-align:center">Nenhuma linha. Carregue do Bling, importe um CSV ou adicione SKUs.</td></tr>';
-  upd();
+  var n = 0, difs = 0;
+  document.getElementById('body').innerHTML = skus.filter(function(s){ if (q && (s+' '+((info[s]||{}).descricao||'')).toLowerCase().indexOf(q)<0) return false; if (soDif && !difOk(linhas[s])) return false; return true; }).map(function(s){
+    var l = linhas[s], i = info[s]||{}, dif = difOk(l); if (dif) difs++; n++;
+    var d = (l.qtd!==null && l.qtd!==undefined && l.bling!==undefined) ? l.qtd - l.bling : null;
+    return '<tr class="'+(!l.qtd?'zero':'')+(dif?' dif':'')+(kits[s]?' kit':'')+'"><td><b>'+EST.esc(s)+'</b>'+(kits[s]?' <span class="badge b-cinza">kit — não conta</span>':'')+(i.descricao===undefined?' <span class="badge b-amarelo" title="SKU sem cadastro">sem cadastro</span>':'')+'</td><td class="muted small">'+EST.esc(i.descricao||'')+'</td><td class="muted small">'+EST.esc(unid[s]||'')+'</td><td class="num muted col-bling">'+(l.bling===undefined?'—':EST.fmt(l.bling))+'</td><td class="num contado"><input class="cell" type="number" step="any" value="'+(l.qtd===undefined||l.qtd===null?'':l.qtd)+'" onchange="linhas[\''+s+'\'].qtd=this.value===\'\'?null:Number(this.value);render()"></td><td class="num col-dif '+(d===null?'muted':(d>0?'pos':(d<0?'neg':'')))+'">'+(d===null?'—':EST.fmt(d))+'</td><td class="num muted col-custo">'+EST.money(i.custo)+'</td><td class="col-x"><button class="sm sec" onclick="delete linhas[\''+s+'\'];render()">×</button></td></tr>';
+  }).join('') || '<tr><td colspan="8" class="muted" style="padding:16px;text-align:center">Nenhuma linha. Carregue do Bling, importe um CSV ou adicione SKUs.</td></tr>';
+  var contados = Object.keys(linhas).filter(function(s){ return linhas[s].qtd; }).length;
+  document.getElementById('btn').textContent = 'Gravar abertura ('+contados+' SKUs'+(difs?' · '+difs+' acima da tolerância':'')+')';
+  document.getElementById('btn').disabled = aberto || !contados || !document.getElementById('data').value || !EST.can('abertura', true);
 }
-function upd(){ var n = Object.keys(linhas).filter(function(s){ return linhas[s].qtd; }).length; document.getElementById('btn').textContent = 'Gravar abertura ('+n+' SKUs)'; document.getElementById('btn').disabled = aberto || !n || !document.getElementById('data').value || !EST.can('abertura', true); }
-async function addLinha(){ var s = document.getElementById('add-sku').value.trim().toUpperCase(), q = document.getElementById('add-qtd').value; if (!s) return; linhas[s] = { qtd: q===''?null:Number(q) }; await enrich([s]); document.getElementById('add-sku').value=''; document.getElementById('add-qtd').value=''; render(); }
+function usarBling(){ Object.keys(linhas).forEach(function(s){ if (linhas[s].bling!==undefined && (linhas[s].qtd===null||linhas[s].qtd===undefined)) linhas[s].qtd = linhas[s].bling; }); render(); }
+async function addLinha(){ var s = document.getElementById('add-sku').value.trim().toUpperCase(), q = document.getElementById('add-qtd').value; if (!s) return; if (kits[s]) return EST.toast(s+' é kit: conte o componente.', 'err'); linhas[s] = Object.assign(linhas[s]||{}, { qtd: q===''?null:Number(q) }); await enrich([s]); document.getElementById('add-sku').value=''; document.getElementById('add-qtd').value=''; render(); }
 function importar(inp){ var f = inp.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = async function(){
-  var novos = []; rd.result.split(/\r?\n/).forEach(function(ln){ var p = ln.split(/[;,\t]/); if (p.length<2) return; var s = p[0].trim().toUpperCase(), q = Number(String(p[1]).replace(',','.')); if (!s || s==='SKU' || isNaN(q)) return; linhas[s] = Object.assign(linhas[s]||{}, { qtd: q }); novos.push(s); });
-  await enrich(novos); render(); EST.toast(novos.length+' linhas importadas.', 'ok'); inp.value=''; }; rd.readAsText(f); }
+  var novos = [], pulados = []; rd.result.split(/\r?\n/).forEach(function(ln){ var p = ln.split(/[;,\t]/); if (p.length<2) return; var s = p[0].trim().toUpperCase(), q = Number(String(p[1]).trim().replace(/\./g,'').replace(',','.')); if (!s || s==='SKU' || isNaN(q)) return; if (kits[s]) { pulados.push(s); return; } linhas[s] = Object.assign(linhas[s]||{}, { qtd: q }); novos.push(s); });
+  await enrich(novos); render(); EST.toast(novos.length+' linhas importadas.'+(pulados.length?' Kits ignorados: '+pulados.join(', '):''), pulados.length?'':'ok'); inp.value=''; }; rd.readAsText(f); }
 async function gravar(){
   var emp = document.getElementById('emp').value, dep = document.getElementById('dep').value, data = document.getElementById('data').value;
-  var itens = Object.keys(linhas).filter(function(s){ return linhas[s].qtd; }).map(function(s){ return { sku: s, quantidade: linhas[s].qtd }; });
-  if (!await EST.confirm('Gravar abertura de '+EST.dep(dep).nome+' ('+emp+')', '<p>'+itens.length+' SKUs com data de corte <b>'+EST.d(data)+'</b>. Isso cria o ponto de partida do livro para este depósito e não pode ser repetido (só ajustes depois).</p>', 'Tem certeza — gravar')) return;
+  var itens = Object.keys(linhas).filter(function(s){ return linhas[s].qtd && !kits[s]; }).map(function(s){ return { sku: s, quantidade: linhas[s].qtd }; });
+  var difs = Object.keys(linhas).filter(function(s){ return difOk(linhas[s]); }).length;
+  var semBling = Object.keys(linhas).filter(function(s){ return linhas[s].qtd && linhas[s].bling===undefined; }).length;
+  if (!await EST.confirm('Gravar abertura de '+EST.dep(dep).nome+' ('+emp+')', '<p>'+itens.length+' SKUs com data de contagem <b>'+EST.d(data)+'</b>.</p>'+(difs?'<p class="warn">'+difs+' SKU(s) diferem do Bling acima da tolerância. Já recontou?</p>':'')+(semBling?'<p class="muted small">'+semBling+' SKU(s) não existem no saldo do Bling deste depósito.</p>':'')+'<p>Isso cria o ponto de partida do livro para este depósito e <b>não pode ser repetido</b> (só ajustes depois). A data vira o corte para lançamento de NFs.</p>', 'Tem certeza — gravar')) return;
   try { var r = await EST.rpc('est_abertura_lote', { p_empresa: emp, p_deposito: dep, p_data: data, p_itens: itens });
     EST.toast('Gravados '+r.gravados+' SKUs'+(r.erros.length?' · '+r.erros.length+' erros: '+r.erros.map(function(e){return e.sku+': '+e.erro;}).join(' | '):''), r.erros.length?'err':'ok'); prep();
   } catch(e){ EST.toast(e.message, 'err'); }
 }
-document.getElementById('data').addEventListener('change', upd);
-EST.ready.then(function(p){ if (p) { document.getElementById('data').value = new Date().toISOString().slice(0,10); fillDeps(); } });
+document.getElementById('data').addEventListener('change', function(){ render(); var dep=document.getElementById('dep').value; if (dep) document.getElementById('print-title').textContent = 'Folha de contagem · '+EST.dep(dep).nome+' ('+document.getElementById('emp').value+') · '+this.value+' · contador: ______________________'; });
+EST.ready.then(function(p){ if (p) fillDeps(); });
 </script>
 </body>
 </html>
