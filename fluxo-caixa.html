@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/auth.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fluxo de Caixa - Controle Total GGE</title>
@@ -226,9 +227,7 @@
 
 <script src="sidebar.js" defer onerror="void 0"></script>
 <script>
-/* ===== Auth (padrão do projeto) — lenient em preview local ===== */
-(function(){ var local=location.protocol==='file:'||location.hostname==='localhost';
-  if(!local && sessionStorage.getItem('gge_auth')!=='gge2026'){ location.href='/'; } })();
+/* sessao verificada por auth.js */
 
 /* ===== Supabase ===== */
 var SB_URL = window.GGE_SUPABASE_URL || 'https://opceujqpqyvxsatzdarg.supabase.co';
@@ -470,7 +469,7 @@ document.querySelectorAll('#segEmpresa button').forEach(function(b){b.onclick=fu
 
 document.getElementById('btnAtualizar').onclick=async function(){var b=this;b.disabled=true;toast('Sincronizando Bling…');
   try{
-    await fetch(SB_URL+'/functions/v1/fcx-sync-bling-pagar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:'{}'});
+    await fetch(SB_URL+'/functions/v1/fcx-sync-bling-pagar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer ' + ggeToken()},body:'{}'});
     await loadAll();render();stamp();toast('Atualizado do Bling');
   }catch(e){toast('Falha ao atualizar: '+(e.message||e),true);}
   b.disabled=false;

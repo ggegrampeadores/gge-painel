@@ -149,15 +149,52 @@
     'sb.addEventListener("mouseleave",function(){groups.forEach(function(g){' +
     'if(!g.querySelector(".nav-item.active")){g.querySelector(".nav-sub-items").style.maxHeight="0"}})})' +
     '});<\/script>';
+  // Rodapé do menu: quem está logado e o botão de sair.
+  function rodapeUsuario() {
+    return '<style>' +
+      '.sidebar:not(:hover) #sidebar-user-nome,.sidebar:not(:hover) #sidebar-sair{display:none}' +
+      '#sidebar-sair:hover{opacity:1;text-decoration:underline}' +
+      '</style>' +
+      '<div class="sidebar-user" id="sidebar-user" style="position:sticky;bottom:0;margin-top:auto;' +
+      'background:#0a0e14;padding:12px 14px;' +
+      'border-top:1px solid rgba(255,255,255,.08);font-size:12px;line-height:1.4;' +
+      'display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden">' +
+      '<span style="width:26px;height:26px;border-radius:50%;background:#FFFF00;color:#111;' +
+      'display:flex;align-items:center;justify-content:center;font-weight:700;flex:0 0 auto" id="sidebar-user-ini">·</span>' +
+      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis" id="sidebar-user-nome">—</span>' +
+      '<a id="sidebar-sair" title="Sair" style="cursor:pointer;opacity:.7;flex:0 0 auto">sair</a>' +
+      '</div>';
+  }
+
+  function ligarRodapeUsuario() {
+    function pintar(u) {
+      var nome = document.getElementById('sidebar-user-nome');
+      var ini = document.getElementById('sidebar-user-ini');
+      if (!nome || !u) return;
+      var n = u.nome || (u.email || '').split('@')[0];
+      nome.textContent = n.charAt(0).toUpperCase() + n.slice(1);
+      nome.title = u.email || '';
+      if (ini) ini.textContent = (n.charAt(0) || '·').toUpperCase();
+    }
+    var sair = document.getElementById('sidebar-sair');
+    if (sair) sair.addEventListener('click', function () {
+      if (typeof window.ggeSair === 'function') window.ggeSair();
+      else location.replace('/login.html');
+    });
+    if (window.GGE_USUARIO) pintar(window.GGE_USUARIO);
+    else document.addEventListener('gge:autenticado', function (e) { pintar(e.detail); }, { once: true });
+  }
+
   var html = '<div class="sidebar" id="sidebar">' +
     '<div class="sidebar-header"><div class="sidebar-logo">' +
     '<span class="sidebar-logo-text">GGE</span>' +
     '<span class="sidebar-logo-sub">Controle Total</span>' +
     '</div></div>' +
-    '<nav class="sidebar-nav">' + navHtml + '</nav></div>' + expandScript;
+    '<nav class="sidebar-nav">' + navHtml + '</nav>' + rodapeUsuario() + '</div>' + expandScript;
   var el = document.getElementById('sidebar-container');
   if (el) { el.innerHTML = html; }
   else { document.body.insertAdjacentHTML('afterbegin', html); }
+  ligarRodapeUsuario();
   // ═══════════════════════════════════════════════════════════
   // DATA QUALITY ALERT SYSTEM
   // Consulta vw_data_quality e mostra banners de alerta
@@ -195,7 +232,7 @@
     fetch(url, {
       headers: {
         'apikey': window.GGE_SUPABASE_KEY,
-        'Authorization': 'Bearer ' + window.GGE_SUPABASE_KEY
+        'Authorization': 'Bearer ' + ggeToken()
       }
     })
     .then(function(r) { return r.json(); })

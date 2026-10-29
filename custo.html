@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/auth.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calculadora de Custo - Controle Total GGE</title>
@@ -211,7 +212,7 @@
 
   <script src="sidebar.js" defer></script>
   <script>
-    (function(){ var a=sessionStorage.getItem('gge_auth'); if(a!=='gge2026'){ window.location.href='/'; return; } })();
+    /* sessao verificada por auth.js */
     if (window.GGE_SUPABASE_URL) { try { window.sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY); } catch(e){} }
 
     // Tabela ICMS — fonte: icms_aliquotas_uf (Supabase, 19/06/2026). interna = alíquota interna; ss = região Sul/Sudeste (12% interestadual nacional).

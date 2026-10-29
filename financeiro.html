@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/auth.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Financeiro - Controle Total GGE</title>
@@ -172,10 +173,7 @@
   </div>
   <script src="sidebar.js" defer></script>
   <script>
-    (function() {
-      var auth = sessionStorage.getItem('gge_auth');
-      if (auth !== 'gge2026') { window.location.href = '/'; return; }
-    })();
+    /* sessao verificada por auth.js */
     var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
 
     // ===== DADOS BLING (snapshot 12/06/2026) =====

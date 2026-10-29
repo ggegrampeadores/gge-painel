@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/auth.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Auditoria - Controle Total GGE</title>
@@ -157,9 +158,7 @@
   <script src="sidebar.js" defer></script>
   <script>
   (function(){
-    var auth = sessionStorage.getItem('gge_auth');
-    if (auth !== 'gge2026') { window.location.href = '/'; return; }
-
+    /* sessao verificada por auth.js */
     var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
     var PAGE_SIZE = 100;
     var offset = 0;

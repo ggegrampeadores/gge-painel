@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Entrar · Controle Total GGE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f1117;--card:#1a1d27;--linha:#2a2d3a;--texto:#e4e4e7;--fraco:#8b8fa3;--acento:#6366f1;--erro:#ef4444;--ok:#22c55e;--amarelo:#FFFF00}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+       background:var(--bg);color:var(--texto);font-family:Inter,-apple-system,sans-serif}
+  .card{width:100%;max-width:400px;background:var(--card);border:1px solid var(--linha);border-radius:14px;padding:36px 32px}
+  .marca{display:flex;align-items:center;gap:10px;margin-bottom:26px}
+  .marca .sq{width:26px;height:26px;background:var(--amarelo);border-radius:3px;flex:0 0 auto}
+  .marca b{font-size:15px;letter-spacing:.02em}
+  .marca span{display:block;font-size:11px;color:var(--fraco);font-weight:400;letter-spacing:.08em;text-transform:uppercase}
+  h1{font-size:19px;margin:0 0 6px}
+  .sub{color:var(--fraco);font-size:13.5px;margin:0 0 22px;line-height:1.45}
+  label{display:block;font-size:12px;color:var(--fraco);margin:0 0 6px}
+  input{width:100%;padding:11px 12px;background:var(--bg);border:1px solid var(--linha);color:var(--texto);
+        border-radius:8px;font-size:14px;outline:none;margin-bottom:14px;font-family:inherit}
+  input:focus{border-color:var(--acento)}
+  button{width:100%;padding:12px;background:var(--acento);color:#fff;border:0;border-radius:8px;
+         font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  button:disabled{opacity:.6;cursor:default}
+  .msg{font-size:13px;margin-top:14px;display:none;line-height:1.45}
+  .msg.erro{color:var(--erro);display:block}
+  .msg.ok{color:var(--ok);display:block}
+  .dica{font-size:11.5px;color:var(--fraco);margin-top:18px;line-height:1.5}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="marca"><div class="sq"></div><div><b>Controle Total</b><span>GGE Grampeadores</span></div></div>
+
+  <form id="formLogin">
+    <h1>Entrar</h1>
+    <p class="sub">Use o e-mail e a senha que a GGE forneceu.</p>
+    <label for="email">E-mail</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="senha">Senha</label>
+    <input id="senha" type="password" autocomplete="current-password" required>
+    <button id="btnEntrar" type="submit">Entrar</button>
+    <p class="msg" id="msgLogin"></p>
+  </form>
+
+  <form id="formTroca" class="hidden">
+    <h1>Criar sua senha</h1>
+    <p class="sub">Este é o primeiro acesso com a senha provisória. Escolha uma senha sua para continuar.</p>
+    <label for="nova">Nova senha</label>
+    <input id="nova" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="nova2">Repita a nova senha</label>
+    <input id="nova2" type="password" autocomplete="new-password" minlength="8" required>
+    <button id="btnTrocar" type="submit">Salvar e entrar</button>
+    <p class="msg" id="msgTroca"></p>
+    <p class="dica">Mínimo de 8 caracteres. Evite o seu nome, a palavra "gge" e sequências como 123456.</p>
+  </form>
+</div>
+
+<script src="/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  var sb = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+  var q = new URLSearchParams(location.search);
+  var destino = q.get("next") || "/index.html";
+  if (!/^\/[^/]/.test(destino)) destino = "/index.html";   // só caminhos internos
+
+  var formLogin = document.getElementById("formLogin");
+  var formTroca = document.getElementById("formTroca");
+  var msgLogin  = document.getElementById("msgLogin");
+  var msgTroca  = document.getElementById("msgTroca");
+
+  function mostra(el, texto, classe) { el.textContent = texto; el.className = "msg " + classe; }
+
+  function abrirTroca() {
+    formLogin.classList.add("hidden");
+    formTroca.classList.remove("hidden");
+    document.getElementById("nova").focus();
+  }
+
+  function precisaTrocar(user) {
+    return !!(user && user.user_metadata && user.user_metadata.must_change_password);
+  }
+
+  // Estar autenticado não basta: o e-mail precisa constar em public.usuarios (ativo).
+  async function liberado() {
+    var r = await sb.rpc("gge_autorizado");
+    if (r.error) return true;            // falha de rede não tranca a porta; o RLS protege os dados
+    return r.data === true;
+  }
+
+  // Já logado? Decide entre trocar a senha ou seguir.
+  sb.auth.getSession().then(function (r) {
+    var s = r.data.session;
+    if (!s) return;
+    if (precisaTrocar(s.user) || q.get("trocar") === "1") abrirTroca();
+    else location.replace(destino);
+  });
+
+  formLogin.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var btn = document.getElementById("btnEntrar");
+    btn.disabled = true; mostra(msgLogin, "", "");
+    var r = await sb.auth.signInWithPassword({
+      email: document.getElementById("email").value.trim(),
+      password: document.getElementById("senha").value
+    });
+    if (r.error) {
+      btn.disabled = false;
+      mostra(msgLogin, r.error.message === "Invalid login credentials"
+        ? "E-mail ou senha incorretos." : "Não foi possível entrar: " + r.error.message, "erro");
+      return;
+    }
+    if (!(await liberado())) {
+      await sb.auth.signOut();
+      btn.disabled = false;
+      mostra(msgLogin, "Este e-mail não está liberado no painel. Peça a liberação a um administrador.", "erro");
+      return;
+    }
+    btn.disabled = false;
+    if (precisaTrocar(r.data.user)) abrirTroca();
+    else location.replace(destino);
+  });
+
+  formTroca.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var nova = document.getElementById("nova").value;
+    var nova2 = document.getElementById("nova2").value;
+    if (nova !== nova2) { mostra(msgTroca, "As duas senhas não são iguais.", "erro"); return; }
+    if (nova.length < 8) { mostra(msgTroca, "A senha precisa ter ao menos 8 caracteres.", "erro"); return; }
+    if (/^(senha|123|gge)/i.test(nova)) { mostra(msgTroca, "Escolha uma senha menos óbvia.", "erro"); return; }
+
+    var btn = document.getElementById("btnTrocar");
+    btn.disabled = true; mostra(msgTroca, "", "");
+    var r = await sb.auth.updateUser({ password: nova, data: { must_change_password: false } });
+    if (r.error) { btn.disabled = false; mostra(msgTroca, "Não foi possível salvar: " + r.error.message, "erro"); return; }
+    // Reemite o token para que ele deixe de carregar must_change_password.
+    var nv = await sb.auth.refreshSession();
+    btn.disabled = false;
+    if (nv.error) { mostra(msgTroca, "Senha salva, mas a sessão não renovou. Entre de novo.", "erro"); return; }
+    mostra(msgTroca, "Senha salva. Entrando...", "ok");
+    setTimeout(function () { location.replace(destino); }, 500);
+  });
+})();
+</script>
+</body>
+</html>

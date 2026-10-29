@@ -2,81 +2,19 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Entrar · Controle de Estoque GGE</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="est.js"></script>
-<style>
-  body{display:flex;align-items:center;justify-content:center;min-height:100vh}
-  .box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:32px 36px;width:min(400px,92vw)}
-  .box h1{font-size:20px;margin-bottom:2px}.box .sub{color:#8b949e;font-size:13px;margin-bottom:20px}
-  .box label{display:block;color:#8b949e;font-size:12px;margin:12px 0 4px}.box input{width:100%}
-  .box button{width:100%;margin-top:16px;padding:10px}
-  .links{margin-top:14px;font-size:12px;color:#8b949e;display:flex;justify-content:space-between}.links a{color:#58a6ff;cursor:pointer}
-  #msg{margin-top:12px;font-size:13px;min-height:18px}
-</style>
-</head>
-<body>
-<div class="box">
-  <h1>Controle de Estoque</h1>
-  <div class="sub">GGE Grampeadores · Toow</div>
-  <div id="f-login">
-    <label>E-mail</label><input id="email" type="email" autocomplete="username">
-    <label>Senha</label><input id="senha" type="password" autocomplete="current-password">
-    <button id="btn" onclick="entrar()">Entrar</button>
-    <div class="links"><a onclick="modo('reset')">Esqueci a senha</a><a onclick="modo('novo')">Primeiro acesso</a></div>
-  </div>
-  <div id="f-reset" style="display:none">
-    <p class="sub">Enviamos um link para o seu e-mail. Abra-o neste navegador e defina a nova senha.</p>
-    <label>E-mail</label><input id="email-r" type="email">
-    <button onclick="reset()">Enviar link</button>
-    <div class="links"><a onclick="modo('login')">Voltar</a></div>
-  </div>
-  <div id="f-novo" style="display:none">
-    <p class="sub">Crie sua senha. O acesso só funciona se um administrador já tiver cadastrado seu e-mail em Usuários.</p>
-    <label>E-mail</label><input id="email-n" type="email">
-    <label>Senha (mín. 8)</label><input id="senha-n" type="password" autocomplete="new-password">
-    <button onclick="novo()">Criar acesso</button>
-    <div class="links"><a onclick="modo('login')">Voltar</a></div>
-  </div>
-  <div id="f-nova" style="display:none">
-    <p class="sub">Defina a nova senha.</p>
-    <label>Nova senha (mín. 8)</label><input id="senha-x" type="password" autocomplete="new-password">
-    <button onclick="novaSenha()">Salvar senha</button>
-  </div>
-  <div id="msg"></div>
-</div>
+<meta name="robots" content="noindex,nofollow">
+<title>Entrar · Controle Total GGE</title>
 <script>
-  var sb = EST.sb;
-  function modo(m){ ['login','reset','novo','nova'].forEach(function(k){ document.getElementById('f-'+k).style.display = k===m?'':'none'; }); msg(''); }
-  function msg(t, err){ var m=document.getElementById('msg'); m.textContent=t; m.style.color = err?'#f85149':'#3fb950'; }
-  function next(){ var n=new URLSearchParams(location.search).get('next'); return n && /^[a-z-]+$/.test(n) ? n : 'index'; }
-  async function entrar(){
-    var r = await sb.auth.signInWithPassword({ email: document.getElementById('email').value.trim(), password: document.getElementById('senha').value });
-    if (r.error) return msg('E-mail ou senha inválidos.', true);
-    location.href = next();
-  }
-  async function reset(){
-    var e = document.getElementById('email-r').value.trim(); if(!e) return;
-    var r = await sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + '/controle-estoque/login' });
-    msg(r.error ? r.error.message : 'Se o e-mail existir, o link foi enviado.', !!r.error);
-  }
-  async function novo(){
-    var e = document.getElementById('email-n').value.trim(), p = document.getElementById('senha-n').value;
-    if (p.length < 8) return msg('Senha muito curta.', true);
-    var r = await sb.auth.signUp({ email: e, password: p, options: { emailRedirectTo: location.origin + '/controle-estoque/login' } });
-    if (r.error) return msg(r.error.message, true);
-    if (r.data.session) { location.href = next(); return; }
-    msg('Conta criada. Confirme pelo link enviado ao e-mail e depois entre.');
-  }
-  async function novaSenha(){
-    var p = document.getElementById('senha-x').value; if (p.length < 8) return msg('Senha muito curta.', true);
-    var r = await sb.auth.updateUser({ password: p });
-    if (r.error) return msg(r.error.message, true);
-    msg('Senha salva.'); setTimeout(function(){ location.href='index'; }, 800);
-  }
-  sb.auth.onAuthStateChange(function(ev){ if (ev === 'PASSWORD_RECOVERY') modo('nova'); });
-  (async function(){ var s = await sb.auth.getSession(); if (s.data.session && !location.hash.includes('type=recovery')) location.href = next(); })();
-  document.getElementById('senha').addEventListener('keydown', function(e){ if(e.key==='Enter') entrar(); });
+  // O Controle de Estoque passou a usar o login unico do painel (/login.html).
+  // A sessao e a mesma, entao basta encaminhar para la com o destino de volta.
+  (function () {
+    var n = new URLSearchParams(location.search).get('next');
+    var destino = n && /^[a-z-]+$/.test(n) ? '/controle-estoque/' + n : '/controle-estoque/index.html';
+    location.replace('/login.html?next=' + encodeURIComponent(destino));
+  })();
 </script>
+</head>
+<body style="background:#0f1117;color:#8b8fa3;font-family:Inter,-apple-system,sans-serif;padding:24px">
+  <p>Encaminhando para o login do painel… <a href="/login.html" style="color:#6366f1">continuar</a></p>
 </body>
 </html>

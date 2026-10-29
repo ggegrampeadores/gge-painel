@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/auth.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle Total GGE - Dashboard</title>
@@ -857,34 +858,6 @@
         </div>
     </div>
 
-    <!-- LOGIN OVERLAY -->
-    <div id="login-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#0f1117;align-items:center;justify-content:center">
-      <div style="text-align:center;max-width:320px;width:100%;padding:20px">
-        <div style="font-size:32px;font-weight:700;color:#58a6ff;margin-bottom:8px">GGE</div>
-        <div style="font-size:12px;color:#8b949e;margin-bottom:32px">Controle Total</div>
-        <input id="login-key" type="password" placeholder="Chave de acesso"
-          style="width:100%;padding:12px 16px;background:#161b22;border:1px solid #2a2d3a;border-radius:8px;color:#e6edf3;font-size:14px;outline:none;margin-bottom:12px"
-          onkeydown="if(event.key==='Enter')document.getElementById('login-btn').click()" autofocus />
-        <button id="login-btn" onclick="(function(){var k=document.getElementById('login-key').value;if(k==='gge2026'){sessionStorage.setItem('gge_auth','gge2026');document.getElementById('login-overlay').style.display='none';document.querySelector('.container').style.display='';initDashboard()}else{document.getElementById('login-key').style.borderColor='#f85149';document.getElementById('login-key').placeholder='Chave incorreta'}})()"
-          style="width:100%;padding:12px;background:#238636;border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer">
-          Entrar
-        </button>
-        <div id="login-error" style="color:#f85149;font-size:12px;margin-top:8px"></div>
-      </div>
-    </div>
-
-    <script>
-      // Auth gate: show login if not authenticated
-      (function() {
-        var auth = sessionStorage.getItem('gge_auth');
-        if (auth !== 'gge2026') {
-          document.getElementById('login-overlay').style.display = 'flex';
-          var c = document.querySelector('.container');
-          if (c) c.style.display = 'none';
-        }
-      })();
-    </script>
-
     <script src="/config.js"></script>
     <script src="/dados.js" onerror="console.warn('dados.js not found')"></script>
     <script>
@@ -913,7 +886,7 @@
                 method: 'POST',
                 headers: {
                     'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Authorization': `Bearer ${ggeToken()}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(params)
@@ -939,7 +912,7 @@
             const response = await fetch(url, {
                 headers: {
                     'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Authorization': `Bearer ${ggeToken()}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -1382,7 +1355,7 @@
                     if (extraFilter) url += extraFilter;
                     const resp = await fetch(url, { headers: {
                         'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Authorization': `Bearer ${ggeToken()}`,
                         'Prefer': 'count=exact'
                     }});
                     const range = resp.headers.get('content-range');
@@ -1434,7 +1407,7 @@
                 ].join('');
 
                 // Now render visits using RPC sum_visitas (avoids 1000-row limit)
-                const rpcHeaders = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+                const rpcHeaders = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${ggeToken()}`, 'Content-Type': 'application/json' };
                 async function sumVisitas(from, to) {
                     // NOTE: p_conta_id is passed but the RPC may not yet support it server-side.
                     // Until the RPC is updated, visits will show all-account totals.
@@ -1499,7 +1472,7 @@
                 const response = await fetch(url, {
                     headers: {
                         'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Authorization': `Bearer ${ggeToken()}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -1613,7 +1586,7 @@
                 const response = await fetch(url, {
                     headers: {
                         'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                        'Authorization': `Bearer ${ggeToken()}`
                     }
                 });
                 if (!response.ok) throw new Error(`Query error: ${response.status}`);
@@ -1795,7 +1768,7 @@
                     const resp = await fetch(baseUrl, {
                         headers: {
                             'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Authorization': `Bearer ${ggeToken()}`,
                             'Range': `${off}-${off + PG - 1}`
                         }
                     });
@@ -1956,7 +1929,7 @@
                     let urlMC2 = `${SUPABASE_URL}/rest/v1/mat_margem_canonica?select=margem_valor&data_venda=gte.${fromStr}&data_venda=lt.${toStr}&limit=10000`;
                     if (currentConta) urlMC2 += `&conta_id=eq.${currentConta}`;
 
-                    const hdrs = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+                    const hdrs = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${ggeToken()}` };
 
                     const [respV, respM] = await Promise.all([
                         fetch(urlVendas, { headers: hdrs }),
@@ -2020,9 +1993,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (sessionStorage.getItem('gge_auth') === 'gge2026') {
-                initDashboard();
-            }
+            // auth.js libera a pagina; so carregamos os dados depois disso.
+            if (window.GGE_USUARIO) { initDashboard(); return; }
+            document.addEventListener('gge:autenticado', initDashboard, { once: true });
         });
     </script>
 </body>

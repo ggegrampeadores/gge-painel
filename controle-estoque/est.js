@@ -3,7 +3,8 @@
 (function () {
   var URL = 'https://opceujqpqyvxsatzdarg.supabase.co';
   var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc';
-  var sb = window.supabase.createClient(URL, KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'est_auth' } });
+  // Sessao unica: mesma chave de armazenamento do painel, entao o login de /login.html serve aqui.
+  var sb = window.supabase.createClient(URL, KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
   var PAGES = [
     { href: 'index',      label: 'Saldos',               func: 'saldos' },
@@ -86,8 +87,18 @@
     document.body.insertBefore(top, document.body.firstChild);
   }
 
+  // est.js é carregado no <head>, então document.body ainda não existe quando este
+  // bloco começa. Sem esperar, a guarda quebrava na primeira linha e a tela abria sem sessão.
+  function corpoPronto() {
+    return new Promise(function (ok) {
+      if (document.body) return ok();
+      document.addEventListener('DOMContentLoaded', function () { ok(); }, { once: true });
+    });
+  }
+
   EST.ready = (async function () {
     if (page() === 'login') return null;
+    await corpoPronto();
     document.body.style.visibility = 'hidden';
     var s = await sb.auth.getSession();
     if (!s.data.session) { location.href = 'login?next=' + encodeURIComponent(page()); return null; }

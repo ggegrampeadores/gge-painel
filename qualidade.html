@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/auth.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Saúde dos Dados - Controle Total GGE</title>
@@ -60,7 +61,7 @@
 
   <script src="sidebar.js" defer></script>
   <script>
-    (function(){ var a = sessionStorage.getItem('gge_auth'); if (a !== 'gge2026') { window.location.href='/'; return; } })();
+    /* sessao verificada por auth.js */
     var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
     var SEV_ORDER = { CRITICO:0, ALTO:1, MEDIO:2 };
 

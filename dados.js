@@ -183,12 +183,12 @@
   // 8. AUTH CHECK
   // ═══════════════════════════════════════════
   GGE.checkAuth = function() {
-    var auth = sessionStorage.getItem('gge_auth');
-    if (!auth || (auth !== 'owner' && auth !== 'gge2026' && !auth.startsWith('token:'))) {
-      window.location.href = '/';
-      return false;
-    }
-    return true;
+    // A guarda de sessao e o auth.js, carregado no <head> de toda pagina protegida.
+    // Aqui so confirmamos que ele rodou; ele mesmo manda para /login.html quando falta sessao.
+    if (window.GGE_USUARIO) return true;
+    if (typeof window.ggeToken === 'function') return true;   // auth.js presente, ainda renovando
+    window.location.href = '/login.html';
+    return false;
   };
 
   // ═══════════════════════════════════════════
@@ -210,7 +210,7 @@
       method: 'POST',
       headers: {
         'apikey': window.GGE_SUPABASE_KEY,
-        'Authorization': 'Bearer ' + window.GGE_SUPABASE_KEY,
+        'Authorization': 'Bearer ' + ggeToken(),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(params || {})
@@ -228,7 +228,7 @@
     var resp = await fetch(url, {
       headers: {
         'apikey': window.GGE_SUPABASE_KEY,
-        'Authorization': 'Bearer ' + window.GGE_SUPABASE_KEY
+        'Authorization': 'Bearer ' + ggeToken()
       }
     });
     if (!resp.ok) throw new Error('Query ' + table + ' falhou: ' + resp.status);

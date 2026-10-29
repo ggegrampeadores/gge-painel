@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/auth.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle Total GGE</title>
@@ -65,10 +66,7 @@
 </head>
 <body>
 <script>
-  (function() {
-    var auth = sessionStorage.getItem('gge_auth');
-    if (auth !== 'gge2026') { window.location.href = '/'; return; }
-  })();
+  /* sessao verificada por auth.js */
 </script>
   <div id="sidebar-container"></div>
   <!-- Sidebar (injetado por sidebar.js) -->

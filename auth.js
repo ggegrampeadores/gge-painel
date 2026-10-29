@@ -1,91 +1,137 @@
-(function(){
-  var SB="https://opceujqpqyvxsatzdarg.supabase.co";
-  var SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc";
-  var OWNER_KEY="gge2026";
+/* Controle Total GGE — guarda de sessão.
+   Sem dependências: lê a sessão que o supabase-js grava no localStorage,
+   renova se o token expirou e manda para /login.html quando não há sessão válida.
+   Deve ser carregado no <head> de toda página protegida. */
+(function () {
+  var REF = "opceujqpqyvxsatzdarg";
+  var URL_BASE = "https://" + REF + ".supabase.co";
+  var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY2V1anFwcXl2eHNhdHpkYXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzIwMDEsImV4cCI6MjA4OTA0ODAwMX0.XKhgaNBJF8xiHiGEWEs8HL1dq5KFJpo2_RQckjsY9kc";
+  var STORE = "sb-" + REF + "-auth-token";
 
-  function getParam(k){var u=new URLSearchParams(window.location.search);return u.get(k);}
+  // A própria tela de login não é protegida.
+  if (/\/login\.html?$/.test(location.pathname)) return;
 
-  function showGate(){
-    document.body.innerHTML="";
-    document.body.style.cssText="background:#0f1117;color:#e4e4e7;font-family:Inter,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;";
-    var d=document.createElement("div");
-    d.style.cssText="text-align:center;background:#1a1d27;border:1px solid #2a2d3a;border-radius:14px;padding:40px 48px;max-width:400px;";
-    d.innerHTML='<div style="font-size:32px;margin-bottom:16px;">&#128274;</div><h2 style="margin-bottom:8px;">Acesso Restrito</h2><p style="color:#8b8fa3;font-size:14px;margin-bottom:24px;">Este painel requer autorização para acesso.</p><input id="authInput" type="password" placeholder="Digite a chave de acesso" style="width:100%;padding:12px;background:#0f1117;border:1px solid #2a2d3a;color:#e4e4e7;border-radius:8px;font-size:14px;margin-bottom:12px;outline:none;"><button id="authBtn" style="width:100%;padding:12px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Entrar</button><p id="authErr" style="color:#ef4444;font-size:13px;margin-top:12px;display:none;">Chave inválida ou expirada</p>';
-    document.body.appendChild(d);
-    var inp=document.getElementById("authInput");
-    var btn=document.getElementById("authBtn");
-    var err=document.getElementById("authErr");
-    btn.onclick=function(){tryAuth(inp.value.trim(),err);};
-    inp.onkeydown=function(e){if(e.key==="Enter")tryAuth(inp.value.trim(),err);};
-    inp.focus();
+  function lerSessao() {
+    try {
+      var raw = localStorage.getItem(STORE);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (s && s.currentSession) s = s.currentSession; // formato antigo
+      return s && s.access_token ? s : null;
+    } catch (e) { return null; }
   }
 
-  async function tryAuth(val,errEl){
-    if(!val)return;
-    if(val===OWNER_KEY){
-      sessionStorage.setItem("gge_auth","gge2026");
-      window.location.reload();
-      return;
-    }
-    try{
-      var r=await fetch(SB+"/rest/v1/access_tokens?token=eq."+encodeURIComponent(val)+"&ativo=eq.true&select=id,expira_em",{
-        headers:{"apikey":SK,"Authorization":"Bearer "+SK}
-      });
-      var data=await r.json();
-      if(data.length>0){
-        var exp=new Date(data[0].expira_em);
-        if(exp>new Date()){
-          sessionStorage.setItem("gge_auth","gge2026");
-          fetch(SB+"/rest/v1/access_tokens?id=eq."+data[0].id,{
-            method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},
-            body:JSON.stringify({usado_em:new Date().toISOString()})
-          });
-          window.location.reload();
-          return;
-        }
-      }
-    }catch(e){}
-    errEl.style.display="block";
+  function payload(token) {
+    try {
+      var b = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      return JSON.parse(decodeURIComponent(escape(atob(b))));
+    } catch (e) { return null; }
   }
 
-  async function checkAuth(){
-    var s=sessionStorage.getItem("gge_auth");
-    if(s==="gge2026"||s==="owner")return true;
-    if(s&&s.startsWith("token:")){
-      var tk=s.substring(6);
-      try{
-        var r=await fetch(SB+"/rest/v1/access_tokens?token=eq."+encodeURIComponent(tk)+"&ativo=eq.true&select=expira_em",{
-          headers:{"apikey":SK,"Authorization":"Bearer "+SK}
-        });
-        var data=await r.json();
-        if(data.length>0&&new Date(data[0].expira_em)>new Date())return true;
-      }catch(e){}
-      sessionStorage.removeItem("gge_auth");
-    }
-    var urlToken=getParam("token");
-    if(urlToken){
-      try{
-        var r2=await fetch(SB+"/rest/v1/access_tokens?token=eq."+encodeURIComponent(urlToken)+"&ativo=eq.true&select=id,expira_em",{
-          headers:{"apikey":SK,"Authorization":"Bearer "+SK}
-        });
-        var data2=await r2.json();
-        if(data2.length>0&&new Date(data2[0].expira_em)>new Date()){
-          sessionStorage.setItem("gge_auth","gge2026");
-          fetch(SB+"/rest/v1/access_tokens?id=eq."+data2[0].id,{
-            method:"PATCH",headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},
-            body:JSON.stringify({usado_em:new Date().toISOString()})
-          });
-          return true;
-        }
-      }catch(e){}
-    }
-    return false;
+  function gravar(s) { try { localStorage.setItem(STORE, JSON.stringify(s)); } catch (e) {} }
+
+  function renovar(refresh) {
+    return fetch(URL_BASE + "/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: { "apikey": ANON, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refresh })
+    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
   }
 
-  var origDisplay=document.body.style.display;
-  document.body.style.display="none";
-  checkAuth().then(function(ok){
-    if(ok){document.body.style.display=origDisplay||"";}
-    else{showGate();}
-  });
+  function paraLogin(extra) {
+    var next = encodeURIComponent(location.pathname + location.search);
+    location.replace("/login.html?" + (extra ? extra + "&" : "") + "next=" + next);
+  }
+
+  // Esconde a página enquanto verifica, para não piscar conteúdo.
+  var estilo = document.createElement("style");
+  estilo.id = "gge-auth-oculta";
+  estilo.textContent = "body{visibility:hidden !important}";
+  (document.head || document.documentElement).appendChild(estilo);
+
+  function semAcesso(email) {
+    var e = document.getElementById("gge-auth-oculta");
+    if (e) e.remove();
+    document.body.innerHTML =
+      '<div style="font-family:Inter,-apple-system,sans-serif;background:#0f1117;color:#e4e4e7;' +
+      'min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;margin:0">' +
+      '<div style="max-width:420px;background:#1a1d27;border:1px solid #2a2d3a;border-radius:14px;padding:32px">' +
+      '<h1 style="font-size:19px;margin:0 0 10px">Sem acesso ao painel</h1>' +
+      '<p style="color:#8b8fa3;font-size:13.5px;line-height:1.5;margin:0 0 20px">O e-mail <b>' +
+      String(email || "").replace(/[<>&]/g, "") +
+      '</b> está autenticado, mas não está liberado no Controle Total. Peça a liberação a um administrador.</p>' +
+      '<button onclick="window.ggeSair()" style="padding:10px 16px;background:#6366f1;color:#fff;border:0;' +
+      'border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Sair</button>' +
+      "</div></div>";
+  }
+
+  // Estar autenticado não basta: o e-mail precisa constar em public.usuarios (ativo).
+  function autorizado(token) {
+    return fetch(URL_BASE + "/rest/v1/rpc/gge_autorizado", {
+      method: "POST",
+      headers: { "apikey": ANON, "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+      body: "{}"
+    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+
+  function liberar(sessao) {
+    window.GGE_SESSAO = sessao;
+    var p = payload(sessao.access_token) || {};
+    window.GGE_USUARIO = {
+      id: p.sub,
+      email: p.email,
+      nome: (p.user_metadata && p.user_metadata.nome) || (p.email || "").split("@")[0],
+      token: sessao.access_token
+    };
+    autorizado(sessao.access_token).then(function (ok) {
+      // null = não deu para verificar (rede/função fora); não tranca a porta por falha de rede,
+      // o RLS continua sendo a defesa real dos dados.
+      if (ok === false) { semAcesso(p.email); return; }
+      var e = document.getElementById("gge-auth-oculta");
+      if (e) e.remove();
+      document.dispatchEvent(new CustomEvent("gge:autenticado", { detail: window.GGE_USUARIO }));
+    });
+  }
+
+  function verificar() {
+    var s = lerSessao();
+    if (!s) { paraLogin(); return; }
+
+    var p = payload(s.access_token);
+    if (!p) { paraLogin(); return; }
+
+    if (p.user_metadata && p.user_metadata.must_change_password) { paraLogin("trocar=1"); return; }
+
+    // margem de 60s para não liberar um token prestes a expirar
+    if (p.exp && p.exp * 1000 > Date.now() + 60000) { liberar(s); return; }
+
+    if (!s.refresh_token) { paraLogin(); return; }
+    renovar(s.refresh_token).then(function (nova) {
+      if (!nova || !nova.access_token) { paraLogin(); return; }
+      gravar(nova);
+      var np = payload(nova.access_token);
+      if (np && np.user_metadata && np.user_metadata.must_change_password) { paraLogin("trocar=1"); return; }
+      liberar(nova);
+    });
+  }
+
+  verificar();
+
+  // Utilitário para as páginas que chamam a API na mão.
+  window.ggeAuthHeaders = function () {
+    var s = window.GGE_SESSAO || lerSessao();
+    var tk = s && s.access_token ? s.access_token : ANON;
+    return { "apikey": ANON, "Authorization": "Bearer " + tk };
+  };
+
+  // Token do usuário logado (cai na chave anônima se ainda não houver sessão).
+  window.ggeToken = function () {
+    var s = window.GGE_SESSAO || lerSessao();
+    return s && s.access_token ? s.access_token : ANON;
+  };
+
+  window.ggeSair = function () {
+    try { localStorage.removeItem(STORE); } catch (e) {}
+    location.replace("/login.html");
+  };
 })();

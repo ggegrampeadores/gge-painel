@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/auth.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Saúde dos Dados · Controle Total GGE</title>
-    <script src="auth.js" defer></script>
     <script src="sidebar.js" defer></script>
     <style>
         :root {
@@ -320,7 +320,7 @@
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/rpc_saude_banco`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${ggeToken()}` }
                 });
                 if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 const data = await response.json();
@@ -356,7 +356,7 @@
             const body = document.getElementById('canarioBody');
             try {
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/vw_margem_qa?select=*`, {
-                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${ggeToken()}` }
                 });
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 const rows = await r.json();
@@ -392,7 +392,7 @@
             const body = document.getElementById('quarentenaBody');
             try {
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/custo_quarentena?select=*&order=criado_em.desc&limit=200`, {
-                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${ggeToken()}` }
                 });
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 const rows = await r.json();
