@@ -152,7 +152,23 @@
     var btn = document.getElementById("btnTrocar");
     btn.disabled = true; mostra(msgTroca, "", "");
     var r = await sb.auth.updateUser({ password: nova, data: { must_change_password: false } });
-    if (r.error) { btn.disabled = false; mostra(msgTroca, "Não foi possível salvar: " + r.error.message, "erro"); return; }
+    if (r.error) {
+      btn.disabled = false;
+      // O Supabase confere cada senha nova contra bases públicas de vazamento e
+      // responde em inglês. Sem traduzir, a pessoa lê "weak" e acha que é curta.
+      var cod = r.error.code || "";
+      var msg = r.error.message || "";
+      if (cod === "weak_password" || /known to be weak|weak and easy/i.test(msg)) {
+        mostra(msgTroca, "Essa senha já apareceu em vazamentos públicos na internet, "
+             + "então qualquer um pode testá-la. Não é questão de tamanho: troque uma "
+             + "das palavras por outra que você não veria numa lista pronta.", "erro");
+      } else if (/at least|minimum|too short/i.test(msg)) {
+        mostra(msgTroca, "A senha é curta demais para o servidor. Use mais caracteres.", "erro");
+      } else {
+        mostra(msgTroca, "Não foi possível salvar: " + msg, "erro");
+      }
+      return;
+    }
     // Reemite o token para que ele deixe de carregar must_change_password.
     var nv = await sb.auth.refreshSession();
     btn.disabled = false;
