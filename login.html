@@ -57,7 +57,7 @@
     <input id="nova2" type="password" autocomplete="new-password" minlength="8" required>
     <button id="btnTrocar" type="submit">Salvar e entrar</button>
     <p class="msg" id="msgTroca"></p>
-    <p class="dica">Mínimo de 8 caracteres. Evite o seu nome, a palavra "gge" e sequências como 123456.</p>
+    <p class="dica">Mínimo de 8 caracteres. Só não pode ser uma senha óbvia — "gge2026", "senha123", 12345678 e parecidas.</p>
   </form>
 </div>
 
@@ -133,7 +133,21 @@
     var nova2 = document.getElementById("nova2").value;
     if (nova !== nova2) { mostra(msgTroca, "As duas senhas não são iguais.", "erro"); return; }
     if (nova.length < 8) { mostra(msgTroca, "A senha precisa ter ao menos 8 caracteres.", "erro"); return; }
-    if (/^(senha|123|gge)/i.test(nova)) { mostra(msgTroca, "Escolha uma senha menos óbvia.", "erro"); return; }
+    // A regra antiga recusava tudo o que começasse com gge, senha ou 123, e só olhava
+    // o começo: quem trabalha na GGE batia nela o tempo todo, sem entender o motivo.
+    // Agora o que é recusado é a senha óbvia inteira, não o começo dela.
+    var simples = ["123456", "1234567", "12345678", "123456789", "1234567890",
+                   "senha123", "senha1234", "gge2026", "gge2025", "gge1234",
+                   "password", "qwerty", "qwerty123", "abcd1234", "ggegrampeadores"];
+    var min = nova.toLowerCase();
+    var letras = min.replace(/[^a-zà-ú]/g, "");
+    if (simples.indexOf(min) >= 0 || letras === "gge" || letras === "senha"
+        || /^(.)\1+$/.test(min) || /^0?123456/.test(min)) {
+      mostra(msgTroca, "Essa senha é fácil demais de adivinhar. Vale usar \"gge\" ou o seu nome, "
+           + "desde que haja mais coisa junto — o que não serve é a senha ser só isso, "
+           + "ou uma sequência de números.", "erro");
+      return;
+    }
 
     var btn = document.getElementById("btnTrocar");
     btn.disabled = true; mostra(msgTroca, "", "");
