@@ -77,10 +77,15 @@
 
   function page() { var p = location.pathname.replace(/\.html$/, '').replace(/\/$/, ''); var last = p.split('/').pop(); return last === 'controle-estoque' || last === '' ? 'index' : last; }
 
+  // A Vercel serve estas telas em dois endereços: /controle-estoque/ e /controle-estoque.
+  // Sem a barra, todo link relativo cai na raiz do site. Por isso os caminhos daqui
+  // para dentro são sempre absolutos.
+  var BASE = '/controle-estoque/';
+
   function renderTop() {
     var cur = page();
     var nav = PAGES.filter(function (p) { return EST.can(p.func) || (p.alt && EST.can(p.alt)); })
-      .map(function (p) { return '<a href="' + p.href + '" class="' + (p.href === cur ? 'active' : '') + '">' + p.label + '</a>'; }).join('');
+      .map(function (p) { return '<a href="' + BASE + p.href + '" class="' + (p.href === cur ? 'active' : '') + '">' + p.label + '</a>'; }).join('');
     var top = document.createElement('div'); top.className = 'est-top';
     top.innerHTML = '<a class="brand" href="/">GGE<small>Controle de Estoque</small></a><div class="est-nav">' + nav + '</div>' +
       '<div class="who"><b>' + EST.esc(EST.perm.nome || EST.user.email) + '</b> · ' + EST.esc(EST.perm.papel) + '<a onclick="EST.logout()">sair</a></div>';
@@ -101,7 +106,7 @@
     await corpoPronto();
     document.body.style.visibility = 'hidden';
     var s = await sb.auth.getSession();
-    if (!s.data.session) { location.href = 'login?next=' + encodeURIComponent(page()); return null; }
+    if (!s.data.session) { location.href = '/login?next=' + encodeURIComponent(BASE + page()); return null; }
     EST.user = s.data.session.user;
     try { EST.perm = await EST.rpc('est_minhas_permissoes'); } catch (e) { EST.perm = { ativo: false }; }
     if (!EST.perm.ativo) {
@@ -111,7 +116,7 @@
     }
     var pg = PAGES.find(function (p) { return p.href === page(); });
     if (pg && !(EST.can(pg.func) || (pg.alt && EST.can(pg.alt)))) {
-      document.body.innerHTML = '<div class="est-main"><div class="card"><h1>Função não liberada</h1><p class="muted">Você não tem acesso a esta tela. <a href="index" style="color:#58a6ff">Voltar</a></p></div></div>';
+      document.body.innerHTML = '<div class="est-main"><div class="card"><h1>Função não liberada</h1><p class="muted">Você não tem acesso a esta tela. <a href="/controle-estoque/index" style="color:#58a6ff">Voltar</a></p></div></div>';
       document.body.style.visibility = ''; return null;
     }
     await EST.loadDepositos();
