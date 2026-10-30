@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="/auth.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoria do Catálogo - Controle Total GGE</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background:#0d1117; color:#e6edf3; }
+    .main-with-sidebar { margin-left:48px; min-height:100vh; padding:24px 28px; }
+    h1 { font-size:22px; margin-bottom:4px; }
+    .subtitle { color:#8b949e; font-size:13px; margin-bottom:20px; max-width:860px; line-height:1.6; }
+    .topo { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+    .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:22px; }
+    .kpi { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:14px 16px; }
+    .kpi .label { color:#8b949e; font-size:12px; margin-bottom:6px; }
+    .kpi .value { font-size:22px; font-weight:700; }
+    .kpi .detail { color:#8b949e; font-size:12px; margin-top:4px; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:18px; margin-bottom:20px; }
+    .card.largo { overflow-x:auto; }
+    h2 { font-size:15px; margin-bottom:12px; font-weight:600; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; color:#8b949e; font-weight:600; padding:8px 10px; border-bottom:1px solid #30363d; white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid #21262d; vertical-align:top; }
+    tr:hover td { background:#1c2128; }
+    .num { text-align:right; font-variant-numeric:tabular-nums; }
+    th.num { text-align:right; }
+    .muted { color:#8b949e; }
+    .loading { color:#8b949e; padding:30px; text-align:center; }
+    a { color:#58a6ff; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+
+    .botao { background:#238636; color:#fff; border:0; border-radius:6px; padding:9px 16px;
+             font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .botao:hover { background:#2ea043; }
+    .botao:disabled { background:#21262d; color:#8b949e; cursor:default; }
+    .botao.sec { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
+    .botao.sec:hover { background:#30363d; }
+
+    .nota-pill { display:inline-block; min-width:44px; text-align:center; padding:3px 8px;
+                 border-radius:12px; font-weight:700; font-size:12px; font-variant-numeric:tabular-nums; }
+    .n-bom { background:rgba(63,185,80,.15); color:#3fb950; }
+    .n-medio { background:rgba(210,153,34,.15); color:#d29922; }
+    .n-ruim { background:rgba(248,81,73,.15); color:#f85149; }
+
+    .chip { display:inline-block; background:rgba(248,81,73,.12); color:#f3a6a2;
+            border:1px solid rgba(248,81,73,.25); border-radius:11px;
+            padding:2px 8px; font-size:11px; margin:2px 4px 2px 0; white-space:nowrap; }
+    .chip.schema { background:rgba(88,166,255,.10); color:#9ecbff; border-color:rgba(88,166,255,.25); }
+    .chip.info { background:rgba(139,148,158,.12); color:#a8b1ba; border-color:rgba(139,148,158,.25); }
+
+    .filtros { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+    input[type=search], select { background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+      border-radius:6px; padding:8px 10px; font-size:13px; }
+    input[type=search] { min-width:260px; }
+    label.chkbox { display:flex; align-items:center; gap:6px; font-size:13px; color:#c9d1d9; cursor:pointer; }
+
+    .aviso { background:rgba(210,153,34,.10); border:1px solid rgba(210,153,34,.3);
+             color:#d8b765; border-radius:6px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
+    .erro { background:rgba(248,81,73,.10); border:1px solid rgba(248,81,73,.3);
+            color:#f3a6a2; border-radius:6px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
+    .titulo-prod { font-weight:600; max-width:330px; white-space:normal; }
+    .barra { height:6px; border-radius:3px; background:#21262d; overflow:hidden; margin-top:6px; }
+    .barra > div { height:100%; background:#3fb950; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <div class="topo">
+      <div>
+        <h1>Auditoria do Catálogo</h1>
+        <div class="subtitle">
+          O que cada anúncio do site tem e o que falta: preço, peso, dimensões, SKU, imagens,
+          texto, meta tags e os dados estruturados que as buscas e as IAs leem.
+          A nota é a fração dos 22 pontos de conferência que o anúncio passou.
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center">
+        <button class="botao" id="btnAtualizar">Atualizar agora</button>
+      </div>
+    </div>
+
+    <div id="avisos"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2>O que mais falta no catálogo</h2>
+      <div class="muted" style="font-size:12px; margin-bottom:10px">
+        Clique numa linha para filtrar a tabela só pelos anúncios com aquele problema.
+      </div>
+      <table><tbody id="tbodyFaltas"><tr><td class="loading">Carregando…</td></tr></tbody></table>
+    </div>
+
+    <div class="card largo">
+      <h2>Anúncio por anúncio</h2>
+      <div class="filtros">
+        <input type="search" id="busca" placeholder="Buscar por título, SKU ou ID…">
+        <select id="ordem">
+          <option value="nota">Pior nota primeiro</option>
+          <option value="nota-desc">Melhor nota primeiro</option>
+          <option value="titulo">Título (A–Z)</option>
+          <option value="id">ID</option>
+        </select>
+        <label class="chkbox"><input type="checkbox" id="soProblema"> só com problema</label>
+        <label class="chkbox"><input type="checkbox" id="semOcultos" checked> esconder os consolidados</label>
+        <span class="muted" id="contagem" style="font-size:12px"></span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th class="num">Nota</th>
+            <th>Anúncio</th>
+            <th>SKU</th>
+            <th class="num">Preço</th>
+            <th class="num">Peso</th>
+            <th>Dimensões</th>
+            <th class="num">Imagens</th>
+            <th>O que falta</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><tr><td colspan="8" class="loading">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/sidebar.js"></script>
+  <script>
+    var sb = window.supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+    var LINHAS = [], FILTRO_FALTA = null;
+
+    var fmt = function (n, casas) {
+      if (n === null || n === undefined) return '—';
+      return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: casas || 0, maximumFractionDigits: casas || 0 });
+    };
+    var esc = function (s) {
+      return String(s === null || s === undefined ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    var quando = function (iso) {
+      if (!iso) return '—';
+      var d = new Date(iso), ag = new Date(), h = Math.round((ag - d) / 36e5);
+      if (h < 1) return 'há poucos minutos';
+      if (h < 24) return 'há ' + h + 'h';
+      return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    };
+    var classeNota = function (n) { return n >= 85 ? 'n-bom' : (n >= 65 ? 'n-medio' : 'n-ruim'); };
+
+    // Um anúncio consolidado (duplicado que aponta para o original) está noindex
+    // de propósito — não é defeito, e por isso ele sai da conta por padrão.
+    var consolidado = function (l) {
+      return l.visibilidade === 'hidden' || (l.robots || '').indexOf('noindex') >= 0;
+    };
+
+    async function carregar() {
+      var r = await sb.from('auditoria_catalogo').select('*');
+      if (r.error) {
+        document.getElementById('avisos').innerHTML =
+          '<div class="erro">Não consegui ler a auditoria: ' + esc(r.error.message) + '</div>';
+        return;
+      }
+      LINHAS = r.data || [];
+      var e = await sb.from('auditoria_execucao').select('*').order('id', { ascending: false }).limit(1);
+      pintarKpis((e.data || [])[0]);
+      pintarFaltas();
+      pintarTabela();
+    }
+
+    function pintarKpis(exec) {
+      var vivos = LINHAS.filter(function (l) { return !consolidado(l); });
+      var media = vivos.length ? vivos.reduce(function (s, l) { return s + l.nota; }, 0) / vivos.length : 0;
+      var perfeitos = vivos.filter(function (l) { return l.faltas.length === 0; }).length;
+      var comProblema = vivos.length - perfeitos;
+      var html = ''
+        + kpi('Anúncios no ar', fmt(vivos.length), LINHAS.length + ' varridos, ' + (LINHAS.length - vivos.length) + ' consolidados')
+        + kpi('Nota média', fmt(media, 0), barra(media))
+        + kpi('Sem nenhuma falta', fmt(perfeitos), perfeitos === 0 ? 'nenhum ainda' : 'de ' + vivos.length)
+        + kpi('Com algo a corrigir', fmt(comProblema), 'a lista está abaixo')
+        + kpi('Última varredura', quando(exec && exec.terminou_em),
+              exec && exec.por ? 'por ' + esc(exec.por) : '');
+      document.getElementById('kpis').innerHTML = html;
+    }
+    function kpi(label, valor, detalhe) {
+      return '<div class="kpi"><div class="label">' + label + '</div><div class="value">' + valor + '</div>'
+           + '<div class="detail">' + (detalhe || '') + '</div></div>';
+    }
+    function barra(pct) {
+      return '<div class="barra"><div style="width:' + Math.max(0, Math.min(100, pct)) + '%"></div></div>';
+    }
+
+    function pintarFaltas() {
+      var vivos = LINHAS.filter(function (l) { return !consolidado(l); });
+      var conta = {};
+      vivos.forEach(function (l) {
+        l.faltas.forEach(function (f) {
+          // "só 2 imagem(ns)…" vira um grupo só, senão viram cinco linhas quase iguais
+          var chave = /imagem\(ns\), o ideal/.test(f) ? 'menos de 4 imagens'
+                    : /imagem\(ns\) sem alt/.test(f) ? 'imagem sem texto alternativo' : f;
+          conta[chave] = (conta[chave] || 0) + 1;
+        });
+      });
+      var lista = Object.keys(conta).map(function (k) { return [k, conta[k]]; })
+                        .sort(function (a, b) { return b[1] - a[1]; });
+      if (!lista.length) {
+        document.getElementById('tbodyFaltas').innerHTML =
+          '<tr><td class="loading">Nenhuma falta — o catálogo está completo.</td></tr>';
+        return;
+      }
+      document.getElementById('tbodyFaltas').innerHTML = lista.map(function (x) {
+        var sel = FILTRO_FALTA === x[0];
+        return '<tr style="cursor:pointer' + (sel ? ';background:#1c2128' : '') + '" data-falta="' + esc(x[0]) + '">'
+          + '<td style="width:52px" class="num"><b>' + x[1] + '</b></td>'
+          + '<td>' + esc(x[0]) + (sel ? ' <span class="muted">(filtrando — clique para limpar)</span>' : '') + '</td>'
+          + '<td style="width:220px">' + barra(x[1] / vivos.length * 100) + '</td></tr>';
+      }).join('');
+      [].forEach.call(document.querySelectorAll('#tbodyFaltas tr[data-falta]'), function (tr) {
+        tr.onclick = function () {
+          var f = tr.getAttribute('data-falta');
+          FILTRO_FALTA = (FILTRO_FALTA === f) ? null : f;
+          pintarFaltas(); pintarTabela();
+        };
+      });
+    }
+
+    function casaFalta(l, chave) {
+      return l.faltas.some(function (f) {
+        if (chave === 'menos de 4 imagens') return /imagem\(ns\), o ideal/.test(f);
+        if (chave === 'imagem sem texto alternativo') return /imagem\(ns\) sem alt/.test(f);
+        return f === chave;
+      });
+    }
+
+    function pintarTabela() {
+      var termo = document.getElementById('busca').value.trim().toLowerCase();
+      var soProblema = document.getElementById('soProblema').checked;
+      var semOcultos = document.getElementById('semOcultos').checked;
+      var ordem = document.getElementById('ordem').value;
+
+      var l = LINHAS.slice();
+      if (semOcultos) l = l.filter(function (x) { return !consolidado(x); });
+      if (soProblema) l = l.filter(function (x) { return x.faltas.length > 0; });
+      if (FILTRO_FALTA) l = l.filter(function (x) { return casaFalta(x, FILTRO_FALTA); });
+      if (termo) l = l.filter(function (x) {
+        return (x.titulo || '').toLowerCase().indexOf(termo) >= 0
+            || (x.sku || '').toLowerCase().indexOf(termo) >= 0
+            || String(x.produto_id).indexOf(termo) >= 0;
+      });
+
+      l.sort(function (a, b) {
+        if (ordem === 'nota') return a.nota - b.nota || a.produto_id - b.produto_id;
+        if (ordem === 'nota-desc') return b.nota - a.nota || a.produto_id - b.produto_id;
+        if (ordem === 'titulo') return (a.titulo || '').localeCompare(b.titulo || '');
+        return a.produto_id - b.produto_id;
+      });
+
+      document.getElementById('contagem').textContent =
+        l.length + ' de ' + LINHAS.length + ' anúncios' + (FILTRO_FALTA ? ' · filtrando por "' + FILTRO_FALTA + '"' : '');
+
+      if (!l.length) {
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">Nada com esse filtro.</td></tr>';
+        return;
+      }
+
+      document.getElementById('tbody').innerHTML = l.map(function (x) {
+        var dim = (x.dim_c || x.dim_l || x.dim_a)
+          ? [x.dim_c, x.dim_l, x.dim_a].map(function (v) { return v ? fmt(v, 0) : '?'; }).join(' × ') + ' cm'
+          : '<span class="muted">—</span>';
+        var chips = x.faltas.map(function (f) {
+          var cls = /^schema/.test(f) ? 'chip schema' : (/999|consolid/.test(f) ? 'chip info' : 'chip');
+          return '<span class="' + cls + '">' + esc(f) + '</span>';
+        }).join('') || '<span class="muted">nada a corrigir</span>';
+        return '<tr>'
+          + '<td class="num"><span class="nota-pill ' + classeNota(x.nota) + '">' + x.nota + '</span></td>'
+          + '<td class="titulo-prod"><a href="' + esc(x.permalink) + '" target="_blank" rel="noopener">' + esc(x.titulo) + '</a>'
+          + '<div class="muted" style="font-size:11px;font-weight:400">#' + x.produto_id
+          + (consolidado(x) ? ' · consolidado' : '') + '</div></td>'
+          + '<td class="muted">' + (x.sku ? esc(x.sku) : '<span style="color:#f85149">sem SKU</span>') + '</td>'
+          + '<td class="num">' + (x.preco !== null ? 'R$ ' + fmt(x.preco, 2) : '—') + '</td>'
+          + '<td class="num">' + (x.peso !== null ? fmt(x.peso, 3) + ' kg' : '—') + '</td>'
+          + '<td>' + dim + '</td>'
+          + '<td class="num">' + x.imagens + (x.imagens_sem_alt ? ' <span class="muted">(' + x.imagens_sem_alt + ' s/ alt)</span>' : '') + '</td>'
+          + '<td style="white-space:normal;max-width:430px">' + chips + '</td>'
+          + '</tr>';
+      }).join('');
+    }
+
+    async function atualizar() {
+      var btn = document.getElementById('btnAtualizar');
+      var avisos = document.getElementById('avisos');
+      btn.disabled = true; btn.textContent = 'Lendo o site… (até 2 minutos)';
+      avisos.innerHTML = '<div class="aviso">Abrindo os ' +
+        (LINHAS.length || 78) + ' anúncios do site um a um para conferir o conteúdo e os dados estruturados. Pode deixar a aba aberta.</div>';
+      try {
+        var s = await sb.auth.getSession();
+        var r = await fetch(window.GGE_SUPABASE_URL + '/functions/v1/auditoria-catalogo', {
+          method: 'POST',
+          headers: {
+            apikey: window.GGE_SUPABASE_KEY,
+            Authorization: 'Bearer ' + (s.data.session ? s.data.session.access_token : ''),
+            'Content-Type': 'application/json'
+          },
+          body: '{}'
+        });
+        var j = await r.json();
+        if (!r.ok) throw new Error(j.erro || ('erro ' + r.status));
+        avisos.innerHTML = '<div class="aviso">Pronto: ' + j.produtos + ' anúncios lidos, nota média ' + j.nota_media + '.</div>';
+        await carregar();
+      } catch (e) {
+        avisos.innerHTML = '<div class="erro">Não consegui atualizar: ' + esc(e.message) + '</div>';
+      }
+      btn.disabled = false; btn.textContent = 'Atualizar agora';
+    }
+
+    document.getElementById('btnAtualizar').onclick = atualizar;
+    ['busca', 'ordem', 'soProblema', 'semOcultos'].forEach(function (id) {
+      var el = document.getElementById(id);
+      el.addEventListener(el.tagName === 'INPUT' && el.type === 'search' ? 'input' : 'change', pintarTabela);
+    });
+    carregar();
+  </script>
+</body>
+</html>

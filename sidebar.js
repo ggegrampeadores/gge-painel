@@ -47,6 +47,7 @@
         { href: '/catalogo-dash', icon: icons.dashcatalogo, label: 'Dashboard',  key: 'catalogo-dash' },
         { href: '/catalogo',      icon: icons.catalogoitem, label: 'Catálogo',   key: 'catalogo' },
         { href: '/catalogo-oportunidades', icon: icons.catalogoitem, label: 'Oportunidades', key: 'catalogo-oportunidades' },
+        { href: '/auditoria-catalogo', icon: icons.auditoria, label: 'Auditoria do site', key: 'auditoria-catalogo' },
         { href: '/automacao',     icon: icons.automacao,    label: 'Automação',  key: 'automacao' }
       ]
     },
