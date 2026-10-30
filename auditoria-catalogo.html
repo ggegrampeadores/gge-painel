@@ -123,6 +123,7 @@
             <th class="num">Peso</th>
             <th>Dimensões</th>
             <th class="num">Imagens</th>
+            <th class="num">Avaliações</th>
             <th>O que falta</th>
           </tr>
         </thead>
@@ -153,6 +154,17 @@
     };
     var classeNota = function (n) { return n >= 85 ? 'n-bom' : (n >= 65 ? 'n-medio' : 'n-ruim'); };
 
+    // Anúncio sem nenhuma opinião de cliente aparece em vermelho de propósito:
+    // é o que mais segura a compra de quem chega na página pela primeira vez.
+    var avaliacoes = function (x) {
+      var n = x.qtd_avaliacoes || 0;
+      if (!n) return '<span style="color:#f85149">nenhuma</span>';
+      var m = x.nota_media === null || x.nota_media === undefined ? null : Number(x.nota_media);
+      var cor = m === null ? '#8b949e' : (m >= 4.5 ? '#3fb950' : (m >= 4 ? '#d29922' : '#f85149'));
+      return '<span style="color:' + cor + ';font-weight:600">' + (m === null ? '—' : m.toFixed(1) + '★') + '</span>'
+        + ' <span class="muted">(' + n + ')</span>';
+    };
+
     // Um anúncio consolidado (duplicado que aponta para o original) está noindex
     // de propósito — não é defeito, e por isso ele sai da conta por padrão.
     var consolidado = function (l) {
@@ -178,9 +190,22 @@
       var media = vivos.length ? vivos.reduce(function (s, l) { return s + l.nota; }, 0) / vivos.length : 0;
       var perfeitos = vivos.filter(function (l) { return l.faltas.length === 0; }).length;
       var comProblema = vivos.length - perfeitos;
+
+      // opinião de cliente: quantos anúncios já têm, e qual a média de quem tem
+      var comAval = vivos.filter(function (l) { return (l.qtd_avaliacoes || 0) > 0; });
+      var semAval = vivos.length - comAval.length;
+      var totalAval = comAval.reduce(function (s, l) { return s + (l.qtd_avaliacoes || 0); }, 0);
+      var mediaAval = totalAval
+        ? comAval.reduce(function (s, l) { return s + Number(l.nota_media || 0) * (l.qtd_avaliacoes || 0); }, 0) / totalAval
+        : 0;
+
       var html = ''
         + kpi('Anúncios no ar', fmt(vivos.length), LINHAS.length + ' varridos, ' + (LINHAS.length - vivos.length) + ' consolidados')
         + kpi('Nota média', fmt(media, 0), barra(media))
+        + kpi('Avaliação dos clientes', totalAval ? fmt(mediaAval, 1) + '★' : '—',
+              totalAval ? fmt(totalAval) + ' opiniões em ' + comAval.length + ' anúncios' : 'nenhuma ainda')
+        + kpi('Sem nenhuma avaliação', fmt(semAval),
+              semAval === 0 ? 'todos têm opinião de cliente' : 'de ' + vivos.length + ' no ar')
         + kpi('Sem nenhuma falta', fmt(perfeitos), perfeitos === 0 ? 'nenhum ainda' : 'de ' + vivos.length)
         + kpi('Com algo a corrigir', fmt(comProblema), 'a lista está abaixo')
         + kpi('Última varredura', quando(exec && exec.terminou_em),
@@ -286,6 +311,7 @@
           + '<td class="num">' + (x.peso !== null ? fmt(x.peso, 3) + ' kg' : '—') + '</td>'
           + '<td>' + dim + '</td>'
           + '<td class="num">' + x.imagens + (x.imagens_sem_alt ? ' <span class="muted">(' + x.imagens_sem_alt + ' s/ alt)</span>' : '') + '</td>'
+          + '<td class="num">' + avaliacoes(x) + '</td>'
           + '<td style="white-space:normal;max-width:430px">' + chips + '</td>'
           + '</tr>';
       }).join('');

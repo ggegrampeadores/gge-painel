@@ -149,6 +149,8 @@ function auditar(p: any, schema: any, cabeca: any) {
   const d = [num(p.dimensions?.length), num(p.dimensions?.width), num(p.dimensions?.height)];
   const curta = String(p.short_description ?? "").replace(/<[^>]+>/g, "").trim().length;
   const longa = String(p.description ?? "").replace(/<[^>]+>/g, "").trim().length;
+  const qtdAval = Number(p.rating_count ?? 0) || 0;
+  const notaAval = qtdAval ? (num(p.average_rating) ?? null) : null;
 
   const faltas: string[] = [];
   if (!p.sku) faltas.push("SKU");
@@ -168,6 +170,9 @@ function auditar(p: any, schema: any, cabeca: any) {
   if (!cabeca.meta_descricao) faltas.push("meta descrição");
   if ((cabeca.robots ?? "").includes("noindex")) faltas.push("noindex");
   if (!(p.categories ?? []).length) faltas.push("categoria");
+  // Anúncio sem nenhuma opinião de cliente é página sem prova de que o produto
+  // funciona — e, pelo que o Neco vê no Shopping, é o que mais segura a compra.
+  if (!qtdAval) faltas.push("sem nenhuma avaliação");
 
   if (!schema.ok) faltas.push("schema de produto");
   else {
@@ -176,8 +181,8 @@ function auditar(p: any, schema: any, cabeca: any) {
     }
   }
 
-  // A nota é a fração dos 22 pontos de conferência que passaram.
-  const TOTAL = 22;
+  // A nota é a fração dos 23 pontos de conferência que passaram.
+  const TOTAL = 23;
   const nota = Math.max(0, Math.round(((TOTAL - faltas.length) / TOTAL) * 100));
 
   return {
@@ -197,6 +202,8 @@ function auditar(p: any, schema: any, cabeca: any) {
     desc_longa: longa,
     imagens: imagens.length,
     imagens_sem_alt: semAlt,
+    nota_media: notaAval,
+    qtd_avaliacoes: qtdAval,
     categorias: (p.categories ?? []).map((c: any) => c.name),
     meta_titulo: cabeca.meta_titulo,
     meta_descricao: cabeca.meta_descricao,
