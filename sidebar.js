@@ -26,6 +26,7 @@
     custo:        svgIcon('<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="10" x2="16" y2="18"/>'),
     importacao:   svgIcon('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
     ciclo:        svgIcon('<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>'),
+    tecnofast:    svgIcon('<path d="M2 20h20"/><path d="M4 20V9l5 3V9l5 3V5h4v15"/><path d="M18 9h2v11"/><line x1="7" y1="16" x2="7" y2="16.01"/><line x1="11" y1="16" x2="11" y2="16.01"/><line x1="15" y1="16" x2="15" y2="16.01"/>'),
     chevron:      svgIcon('<polyline points="6 9 12 15 18 9"/>')
   };
   // Menu na ordem definida pelo Neco (06/05/2026)
@@ -39,6 +40,7 @@
     { href: '/full',                 icon: icons.full,      label: 'Controle Full',       key: 'full' },
     { href: '/fluxo-caixa',          icon: icons.fluxocaixa, label: 'Fluxo de Caixa',     key: 'fluxo-caixa' },
     { href: '/ciclo-caixa',          icon: icons.ciclo,     label: 'Ciclo de Caixa',      key: 'ciclo-caixa' },
+    { href: '/tecnofast',            icon: icons.tecnofast, label: 'Tecnofast / Airfix',  key: 'tecnofast' },
     { href: '/estoque',              icon: icons.full,      label: 'Estoque & Compras',   key: 'estoque' },
     { href: '/controle-estoque/',    icon: icons.full,      label: 'Controle de Estoque', key: 'controle-estoque' },
     {
