@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="/auth.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tecnofast / Airfix - Controle Total GGE</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0d1117; color:#e6edf3; }
+    .main-with-sidebar { margin-left:48px; min-height:100vh; padding:24px 28px; }
+    h1 { font-size:22px; margin-bottom:4px; }
+    .subtitle { color:#8b949e; font-size:13px; margin-bottom:22px; }
+    .bloco { margin-bottom:26px; }
+    .bloco-head { display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap; }
+    .bloco-titulo { font-size:13px; font-weight:700; letter-spacing:.06em; color:#c9d1d9; text-transform:uppercase; }
+    .bloco-sub { color:#8b949e; font-size:12px; }
+    .row5 { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }
+    .row8 { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:10px; }
+    @media (max-width:1400px) { .row8 { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    @media (max-width:900px) { .row5 { grid-template-columns:repeat(2,minmax(0,1fr)); } .row8 { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    .kpi { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:13px 15px; min-width:0; }
+    .kpi .label { color:#8b949e; font-size:12px; margin-bottom:6px; }
+    .kpi .value { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .kpi .detail { color:#8b949e; font-size:12px; margin-top:5px; line-height:1.5; }
+    .kpi .detail b { color:#c9d1d9; font-weight:600; }
+    .kpi.atual { border-color:#58a6ff; }
+    .kpi.alerta .value { color:#f85149; }
+    .kpi.aviso .value { color:#d29922; }
+    .sem { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+    .sem .n { font-size:15px; font-weight:700; color:#58a6ff; }
+    .sem .d { font-size:11px; color:#8b949e; }
+    .par { font-variant-numeric:tabular-nums; }
+    .par .tot { font-size:16px; font-weight:700; }
+    .par .barra { color:#484f58; margin:0 3px; }
+    .par .atr { font-size:14px; font-weight:700; color:#d29922; }
+    .mini { color:#8b949e; font-size:11px; margin-top:6px; line-height:1.5; }
+    .mini b { color:#c9d1d9; font-weight:600; }
+    .flag { color:#d29922; font-size:11px; margin-top:4px; }
+    .ctrl { display:inline-flex; align-items:center; gap:8px; background:#161b22; border:1px solid #30363d; border-radius:6px; padding:5px 10px; font-size:12px; color:#8b949e; }
+    .ctrl input { width:52px; background:#0d1117; border:1px solid #30363d; color:#e6edf3; border-radius:4px; padding:3px 6px; font-size:13px; font-weight:700; text-align:center; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:16px; margin-bottom:20px; overflow-x:auto; }
+    .filtros { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+    .filtros button { background:#0d1117; border:1px solid #30363d; color:#8b949e; border-radius:14px; padding:4px 12px; font-size:12px; cursor:pointer; }
+    .filtros button.on { border-color:#58a6ff; color:#58a6ff; }
+    .filtros .cont { color:#8b949e; font-size:12px; margin-left:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; color:#c9d1d9; font-weight:700; font-size:11px; letter-spacing:.04em; padding:8px 10px; border-bottom:1px solid #30363d; white-space:nowrap; cursor:pointer; user-select:none; }
+    th:hover { color:#58a6ff; }
+    th .seta { color:#58a6ff; margin-left:3px; }
+    td { padding:8px 10px; border-bottom:1px solid #21262d; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    tr:hover td { background:#1c2128; }
+    .num { text-align:right; }
+    th.num { text-align:right; }
+    .tag { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:700; margin-left:6px; }
+    .t-verm { background:rgba(248,81,73,.15); color:#f85149; }
+    .t-amar { background:rgba(210,153,34,.15); color:#d29922; }
+    .t-verde { background:rgba(63,185,80,.15); color:#3fb950; }
+    .t-cinza { background:rgba(139,148,158,.15); color:#8b949e; }
+    .muted { color:#8b949e; }
+    .nota { color:#8b949e; font-size:12px; line-height:1.7; }
+    .nota b { color:#c9d1d9; }
+    .loading { color:#8b949e; padding:30px; text-align:center; }
+    .erro { color:#f85149; padding:20px; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="main-with-sidebar">
+    <h1>Tecnofast / Airfix — compras e duplicatas</h1>
+    <div class="subtitle" id="subtitulo">Carregando…</div>
+
+    <div class="bloco">
+      <div class="bloco-head"><span class="bloco-titulo">1. Geral — compras</span><span class="bloco-sub">soma das NFs de entrada (data de emissão), todas as filiais Tecnofast</span></div>
+      <div class="row5" id="b1"></div>
+    </div>
+
+    <div class="bloco">
+      <div class="bloco-head"><span class="bloco-titulo">2. Pagamentos em aberto</span><span class="bloco-sub">atraso contado do vencimento original (como emitido na NF)</span></div>
+      <div class="row5" id="b2"></div>
+    </div>
+
+    <div class="bloco">
+      <div class="bloco-head"><span class="bloco-titulo">3. Em aberto — passado</span><span class="bloco-sub">total em aberto / acumulado 1–20 dias de atraso, no fim de cada semana</span></div>
+      <div class="row8" id="b3"></div>
+    </div>
+
+    <div class="bloco">
+      <div class="bloco-head">
+        <span class="bloco-titulo">4. Em aberto — futuro</span>
+        <span class="ctrl">cenário: cada duplicata paga com <input type="number" id="nDias" value="20" min="0" max="90"> dias de atraso</span>
+        <span class="bloco-sub" id="b4sub"></span>
+      </div>
+      <div class="row8" id="b4"></div>
+    </div>
+
+    <div class="card">
+      <div class="filtros" id="filtros">
+        <button data-f="aberto" class="on">Em aberto</button>
+        <button data-f="vencidas">Vencidas</button>
+        <button data-f="pagas">Pagas (últimos 75 dias)</button>
+        <button data-f="todas">Todas desde 2025</button>
+        <span class="cont" id="contagem"></span>
+      </div>
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"><tr><td colspan="8" class="loading">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card nota" id="nota"></div>
+  </div>
+
+  <script src="sidebar.js" defer></script>
+  <script>
+    /* sessao verificada por auth.js */
+    var sb = supabase.createClient(window.GGE_SUPABASE_URL, window.GGE_SUPABASE_KEY);
+    var DUPS = [], COMPRAS = [], HOJE = '', JANELA_INI = '', ATUALIZADO = null;
+    var ordem = { col: 'venc', dir: 1 }, filtro = 'aberto';
+
+    // ---------- datas (tudo em data local de Brasília, sem hora) ----------
+    function hojeBR() { var d = new Date(Date.now() - 3 * 3600000); return d.toISOString().slice(0, 10); }
+    function addDias(s, n) { var d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+    function dias(a, b) { if (!a || !b) return null; return Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000); }
+    function semanaISO(s) {
+      var d = new Date(s + 'T12:00:00Z'); var dia = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - dia + 3);
+      var p = new Date(Date.UTC(d.getUTCFullYear(), 0, 4)); return 1 + Math.round(((d - p) / 86400000 - 3 + ((p.getUTCDay() + 6) % 7)) / 7);
+    }
+    function domingoDaSemana(s) { var d = new Date(s + 'T12:00:00Z'); var dia = (d.getUTCDay() + 6) % 7; return addDias(s, 6 - dia); }
+    function br(s) { if (!s) return '—'; var p = s.split('-'); return p[2] + '/' + p[1] + '/' + p[0].slice(2); }
+    function brCurto(s) { var p = s.split('-'); return p[2] + '/' + p[1]; }
+    function R(n) { return 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+    function R2(n) { return Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function Rk(n) { n = Number(n || 0); return n >= 100000 ? 'R$ ' + (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil' : R(n); }
+
+    // ---------- regras ----------
+    // aberta em D: emitida ate D e (situacao aberta/parcial hoje, ou paga depois de D)
+    function abertaEm(r, D) {
+      if (r.data_emissao && r.data_emissao > D) return false;
+      if (r.situacao === '1' || r.situacao === '3') return true;
+      if (r.situacao === '2') return !!(r.data_pagamento && r.data_pagamento > D);
+      return false;
+    }
+    function atrasoEm(r, D) { return dias(r.venc_original, D); }
+    function resumo(lista, D, maxAtraso) {
+      var o = { tot: 0, n: 0, acum: 0, nAcum: 0, acima: 0, nAcima: 0, aVencer: 0 };
+      lista.forEach(function (r) {
+        var v = Number(r.valor || 0), a = atrasoEm(r, D);
+        o.tot += v; o.n++;
+        if (a >= 1 && a <= maxAtraso) { o.acum += v; o.nAcum++; }
+        else if (a > maxAtraso) { o.acima += v; o.nAcima++; }
+        else o.aVencer += v;
+      });
+      o.medio = o.n ? o.tot / o.n : 0;
+      return o;
+    }
+
+    // ---------- carga ----------
+    async function carregarTudo(view, sel, filtrar) {
+      var out = [], de = 0, passo = 1000;
+      while (true) {
+        var q = sb.from(view).select(sel).range(de, de + passo - 1);
+        if (filtrar) q = filtrar(q);
+        var r = await q;
+        if (r.error) throw new Error(view + ': ' + r.error.message);
+        out = out.concat(r.data || []);
+        if (!r.data || r.data.length < passo) break;
+        de += passo;
+      }
+      return out;
+    }
+
+    async function init() {
+      HOJE = hojeBR(); JANELA_INI = addDias(HOJE, -75);
+      try {
+        var res = await Promise.all([
+          carregarTudo('vw_tecnofast_duplicatas', 'bling_id,numero_documento,data_emissao,data_entrada,valor,venc_atual,venc_original,fonte_venc_original,situacao,data_pagamento,pago_antes_janela,atualizado_em', function (q) { return q.gte('venc_original', '2025-01-01'); }),
+          carregarTudo('vw_tecnofast_compras', 'numero_nf,data_emissao,valor_total', function (q) { return q.gte('data_emissao', addDias(HOJE, -365)); })
+        ]);
+        DUPS = res[0]; COMPRAS = res[1];
+        DUPS.forEach(function (r) { if (r.atualizado_em && (!ATUALIZADO || r.atualizado_em > ATUALIZADO)) ATUALIZADO = r.atualizado_em; });
+      } catch (e) {
+        document.getElementById('subtitulo').innerHTML = '<span class="erro">Erro ao carregar: ' + e.message + '</span>';
+        return;
+      }
+      document.getElementById('subtitulo').textContent = 'Hoje ' + br(HOJE) + ' · semana ' + semanaISO(HOJE) + ' · dados do Bling (conta GGE), atualizados ' + (ATUALIZADO ? new Date(ATUALIZADO).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—') + ' · coleta a cada 2h';
+      bloco1(); bloco2(); bloco3(); bloco4(); montarTabela(); nota();
+      document.getElementById('nDias').addEventListener('input', bloco4);
+    }
+
+    // ---------- bloco 1 ----------
+    function bloco1() {
+      var periodos = [['Últimos 12 meses', 365], ['Últimos 3 meses', 90], ['Últimos 2 meses', 60], ['Último mês', 30], ['Últimos 15 dias', 15]];
+      document.getElementById('b1').innerHTML = periodos.map(function (p) {
+        var ini = addDias(HOJE, -p[1] + 1), s = 0, n = 0;
+        COMPRAS.forEach(function (c) { if (c.data_emissao >= ini && c.data_emissao <= HOJE) { s += Number(c.valor_total || 0); n++; } });
+        var media = p[1] >= 30 ? ' · média/mês <b>' + R(s / (p[1] / 30)) + '</b>' : '';
+        return '<div class="kpi"><div class="label">' + p[0] + '</div><div class="value">' + R(s) + '</div><div class="detail">' + n + ' NF' + (n === 1 ? '' : 's') + ' desde ' + br(ini) + media + '</div></div>';
+      }).join('');
+    }
+
+    // ---------- bloco 2 ----------
+    function bloco2() {
+      var ab = DUPS.filter(function (r) { return r.situacao === '1' || r.situacao === '3'; });
+      var faixa = function (a, b) { var s = 0, n = 0; ab.forEach(function (r) { var x = atrasoEm(r, HOJE); if (x >= a && x <= b) { s += Number(r.valor); n++; } }); return { s: s, n: n }; };
+      var tot = ab.reduce(function (s, r) { return s + Number(r.valor); }, 0);
+      var aVencer = faixa(-99999, 0), mais20 = faixa(21, 99999);
+      var f = [faixa(1, 5), faixa(6, 10), faixa(11, 15), faixa(16, 20)];
+      var acum = [f[0].s, f[0].s + f[1].s, f[0].s + f[1].s + f[2].s, f[0].s + f[1].s + f[2].s + f[3].s];
+      var nAcum = [f[0].n, f[0].n + f[1].n, f[0].n + f[1].n + f[2].n, f[0].n + f[1].n + f[2].n + f[3].n];
+      var html = '<div class="kpi atual"><div class="label">Total em aberto (vencidas + a vencer)</div><div class="value">' + R(tot) + '</div><div class="detail">' + ab.length + ' duplicatas · a vencer <b>' + R(aVencer.s) + '</b><br>vencidas +20 dias <b style="color:#f85149">' + R(mais20.s) + '</b> (' + mais20.n + ')</div></div>';
+      var rot = ['1 a 5 dias de atraso', '6 a 10 dias de atraso', '11 a 15 dias de atraso', '16 a 20 dias de atraso'];
+      var lim = [5, 10, 15, 20];
+      for (var i = 0; i < 4; i++) {
+        var cls = f[i].s > 0 ? (i >= 2 ? ' alerta' : ' aviso') : '';
+        html += '<div class="kpi' + cls + '"><div class="label">' + rot[i] + '</div><div class="value">' + R(f[i].s) + '</div><div class="detail">' + f[i].n + ' duplicata' + (f[i].n === 1 ? '' : 's') +
+          (i > 0 ? '<br>acumulado 1–' + lim[i] + ' dias <b>' + R(acum[i]) + '</b> (' + nAcum[i] + ')' : '') + '</div></div>';
+      }
+      document.getElementById('b2').innerHTML = html;
+    }
+
+    function cardSemana(D, rotulo, atual, o, maxAtraso, extra) {
+      return '<div class="kpi' + (atual ? ' atual' : '') + '">' +
+        '<div class="sem"><span class="n">Sem ' + semanaISO(D) + '</span><span class="d">' + rotulo + '</span></div>' +
+        '<div class="par"><span class="tot">' + Rk(o.tot) + '</span><span class="barra">/</span><span class="atr">' + Rk(o.acum) + '</span></div>' +
+        '<div class="mini">total / acum. 1–' + maxAtraso + 'd<br><b>' + o.n + '</b> dupl. · média <b>' + R(o.medio) + '</b>' +
+        (o.acima > 0 ? '<br>+' + maxAtraso + ' dias: <b style="color:#f85149">' + Rk(o.acima) + '</b>' : '') + '</div>' + (extra || '') + '</div>';
+    }
+
+    // ---------- bloco 3 ----------
+    function bloco3() {
+      var html = '';
+      for (var k = 0; k < 8; k++) {
+        var D = k === 0 ? HOJE : domingoDaSemana(addDias(HOJE, -7 * k));
+        var lista = DUPS.filter(function (r) { return abertaEm(r, D); });
+        var flag = D < JANELA_INI ? '<div class="flag">pagamentos anteriores a ' + br(JANELA_INI) + ' não detalhados</div>' : '';
+        html += cardSemana(D, k === 0 ? 'hoje ' + brCurto(D) : 'fim ' + brCurto(D), k === 0, resumo(lista, D, 20), 20, flag);
+      }
+      document.getElementById('b3').innerHTML = html;
+    }
+
+    // ---------- bloco 4 ----------
+    function bloco4() {
+      var N = parseInt(document.getElementById('nDias').value, 10);
+      if (isNaN(N) || N < 0) N = 20;
+      var ab = DUPS.filter(function (r) { return r.situacao === '1' || r.situacao === '3'; });
+      // ja passaram de N dias hoje: no cenario entram como pagas ainda nesta semana
+      var jaAcima = ab.filter(function (r) { return atrasoEm(r, HOJE) > N; });
+      var html = '';
+      for (var k = 0; k < 8; k++) {
+        var D = k === 0 ? HOJE : domingoDaSemana(addDias(HOJE, 7 * k));
+        var lista = k === 0 ? ab : ab.filter(function (r) {   // semana atual = situacao real de hoje
+          var pg = addDias(r.venc_original, N);         // dia em que seria paga no cenario
+          if (pg < HOJE) pg = HOJE;                     // ja passou de N dias: paga ainda nesta semana
+          return pg > D;                                 // ainda nao chegou o dia de pagar
+        });
+        html += cardSemana(D, k === 0 ? 'hoje ' + brCurto(D) : 'fim ' + brCurto(D), k === 0, resumo(lista, D, N), N);
+      }
+      document.getElementById('b4').innerHTML = html;
+      var sJa = jaAcima.reduce(function (s, r) { return s + Number(r.valor); }, 0);
+      document.getElementById('b4sub').innerHTML = 'só duplicatas já emitidas (compras novas não entram)' +
+        (jaAcima.length ? ' · ' + jaAcima.length + ' já passaram de ' + N + ' dias (' + R(sJa) + ') e entram como pagas ainda nesta semana' : '');
+    }
+
+    // ---------- tabela ----------
+    var COLS = [
+      { k: 'num',  t: 'NÚMERO',        v: function (r) { return r.numero_documento || ''; } },
+      { k: 'emis', t: 'EMISSÃO',       v: function (r) { return r.data_emissao || ''; } },
+      { k: 'val',  t: 'VALOR R$',      v: function (r) { return Number(r.valor || 0); }, num: 1 },
+      { k: 'entr', t: 'ENTRADA',       v: function (r) { return r.data_entrada || ''; } },
+      { k: 'venc', t: 'VENCIMENTO',    v: function (r) { return r.venc_original || ''; } },
+      { k: 'de',   t: 'DIF. EMISS. × ENTR.', v: function (r) { return dias(r.data_emissao, r.data_entrada); }, num: 1 },
+      { k: 'dv',   t: 'DIF. EMISS. × VENC.', v: function (r) { return dias(r.data_emissao, r.venc_original); }, num: 1 },
+      { k: 'ev',   t: 'DIF. ENTR. × VENC.',  v: function (r) { return dias(r.data_entrada, r.venc_original); }, num: 1 }
+    ];
+    function montarTabela() {
+      document.getElementById('thead').innerHTML = COLS.map(function (c) {
+        return '<th data-k="' + c.k + '"' + (c.num ? ' class="num"' : '') + '>' + c.t + (ordem.col === c.k ? '<span class="seta">' + (ordem.dir > 0 ? '▲' : '▼') + '</span>' : '') + '</th>';
+      }).join('');
+      document.querySelectorAll('#thead th').forEach(function (th) {
+        th.onclick = function () { var k = th.dataset.k; if (ordem.col === k) ordem.dir *= -1; else { ordem.col = k; ordem.dir = 1; } montarTabela(); };
+      });
+      var lista = DUPS.filter(function (r) {
+        var aberta = r.situacao === '1' || r.situacao === '3';
+        if (filtro === 'aberto') return aberta;
+        if (filtro === 'vencidas') return aberta && atrasoEm(r, HOJE) >= 1;
+        if (filtro === 'pagas') return r.situacao === '2' && r.data_pagamento;
+        return true;
+      });
+      var col = COLS.filter(function (c) { return c.k === ordem.col; })[0];
+      lista.sort(function (a, b) {
+        var x = col.v(a), y = col.v(b);
+        var vx = x === null || x === '', vy = y === null || y === '';
+        if (vx && vy) return 0; if (vx) return 1; if (vy) return -1;
+        return (x < y ? -1 : x > y ? 1 : 0) * ordem.dir;
+      });
+      var soma = lista.reduce(function (s, r) { return s + Number(r.valor || 0); }, 0);
+      document.getElementById('contagem').textContent = lista.length + ' duplicatas · ' + R(soma);
+      if (!lista.length) { document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">Nenhuma duplicata neste filtro.</td></tr>'; return; }
+      document.getElementById('tbody').innerHTML = lista.map(function (r) {
+        var aberta = r.situacao === '1' || r.situacao === '3';
+        var tag = '';
+        if (aberta) {
+          var a = atrasoEm(r, HOJE);
+          if (a > 20) tag = '<span class="tag t-verm">' + a + 'd</span>';
+          else if (a >= 1) tag = '<span class="tag t-amar">' + a + 'd</span>';
+        } else if (r.situacao === '2') {
+          tag = '<span class="tag t-verde" title="pago">' + (r.data_pagamento ? 'pago ' + brCurto(r.data_pagamento) : 'pago') + '</span>';
+        }
+        var prorr = r.venc_atual && r.venc_original && r.venc_atual !== r.venc_original
+          ? '<span class="tag t-cinza" title="Prorrogada no Bling para ' + br(r.venc_atual) + '">prorr. ' + brCurto(r.venc_atual) + '</span>' : '';
+        var c = function (n) { return n === null ? '<span class="muted">—</span>' : n; };
+        return '<tr>' +
+          '<td>' + (r.numero_documento || '<span class="muted">' + r.bling_id + '</span>') + '</td>' +
+          '<td>' + br(r.data_emissao) + '</td>' +
+          '<td class="num">' + R2(r.valor) + '</td>' +
+          '<td>' + (r.data_entrada ? br(r.data_entrada) : '<span class="muted">—</span>') + '</td>' +
+          '<td>' + br(r.venc_original) + tag + prorr + '</td>' +
+          '<td class="num">' + c(dias(r.data_emissao, r.data_entrada)) + '</td>' +
+          '<td class="num">' + c(dias(r.data_emissao, r.venc_original)) + '</td>' +
+          '<td class="num">' + c(dias(r.data_entrada, r.venc_original)) + '</td></tr>';
+      }).join('');
+    }
+    document.getElementById('filtros').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      filtro = b.dataset.f;
+      document.querySelectorAll('#filtros button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      montarTabela();
+    });
+
+    function nota() {
+      var semNf = DUPS.filter(function (r) { return (r.situacao === '1' || r.situacao === '3') && r.fonte_venc_original !== 'nf'; }).length;
+      document.getElementById('nota').innerHTML =
+        '<b>Fontes:</b> contas a pagar e NFs de entrada da Tecnofast (todas as filiais, raiz de CNPJ 05.034.587) no Bling da GGE, sincronizadas pela função <b>sync-tecnofast</b> a cada 2h. ' +
+        '<b>Vencimento</b> = vencimento original da parcela na NF; quando a duplicata foi prorrogada no Bling, a nova data aparece na etiqueta "prorr.". ' +
+        '<b>Valor</b> = valor atual no Bling (pode incluir juros de prorrogação). <b>Entrada</b> = data de operação da NF de entrada no Bling. ' +
+        '<b>Semanas</b> = numeração ISO; semanas passadas são lidas no domingo de cada semana. Datas de pagamento são detalhadas nos últimos 75 dias. ' +
+        (semNf ? '<br><b>' + semNf + ' duplicata(s) em aberto</b> sem NF localizada: vencimento original vem do primeiro registro visto (histórico de ago/2026 ou primeira coleta).' : '');
+    }
+
+    init();
+  </script>
+</body>
+</html>
