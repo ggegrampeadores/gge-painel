@@ -45,6 +45,25 @@
     .ctrl { display:inline-flex; align-items:center; gap:8px; background:#161b22; border:1px solid #30363d; border-radius:6px; padding:5px 10px; font-size:12px; color:#8b949e; }
     .ctrl input { width:52px; background:#0d1117; border:1px solid #30363d; color:#e6edf3; border-radius:4px; padding:3px 6px; font-size:13px; font-weight:700; text-align:center; }
     .card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:16px; margin-bottom:20px; overflow-x:auto; }
+    .divisor { height:20px; background:#6e7681; border-radius:3px; margin:6px 0 24px; }
+    .topo { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+    .btn-atualizar { background:#1f6feb; border:1px solid #388bfd; color:#fff; border-radius:6px; padding:7px 16px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .btn-atualizar:hover { background:#388bfd; }
+    .btn-atualizar:disabled { background:#21262d; border-color:#30363d; color:#8b949e; cursor:wait; }
+    .status-atualizar { color:#8b949e; font-size:12px; margin-top:6px; text-align:right; max-width:360px; }
+    .row16 { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:8px; }
+    @media (max-width:900px) { .row16 { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    .mini-card { background:#161b22; border:1px solid #30363d; border-radius:6px; padding:8px 10px; min-width:0; }
+    .mini-card.atual { border-color:#58a6ff; }
+    .mini-card .s { display:flex; justify-content:space-between; align-items:baseline; }
+    .mini-card .s b { color:#58a6ff; font-size:13px; }
+    .mini-card .s span { color:#8b949e; font-size:10px; }
+    .mini-card .v { font-size:15px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .mini-card .q { color:#8b949e; font-size:11px; margin-top:2px; }
+    .mini-card.zero .v { color:#484f58; }
+    .tabela-wrap { overflow-x:auto; }
+    .tabela-wrap table { width:auto; margin:0 auto; font-size:14px; }
+    .tabela-wrap th, .tabela-wrap td, .tabela-wrap th.num, .tabela-wrap .num { text-align:center; padding:8px 14px; }
     .filtros { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
     .filtros button { background:#0d1117; border:1px solid #30363d; color:#8b949e; border-radius:14px; padding:4px 12px; font-size:12px; cursor:pointer; }
     .filtros button.on { border-color:#58a6ff; color:#58a6ff; }
@@ -72,8 +91,16 @@
 <body>
   <div id="sidebar-container"></div>
   <div class="main-with-sidebar">
-    <h1>Tecnofast / Airfix — compras e duplicatas</h1>
-    <div class="subtitle" id="subtitulo">Carregando…</div>
+    <div class="topo">
+      <div>
+        <h1>Tecnofast / Airfix — compras e duplicatas</h1>
+        <div class="subtitle" id="subtitulo">Carregando…</div>
+      </div>
+      <div>
+        <button class="btn-atualizar" id="btnAtualizar">Atualizar do Bling</button>
+        <div class="status-atualizar" id="statusAtualizar"></div>
+      </div>
+    </div>
 
     <div class="bloco">
       <div class="bloco-head"><span class="bloco-titulo">1. Geral — compras</span><span class="bloco-sub">soma das NFs de entrada (data de emissão), todas as filiais Tecnofast</span></div>
@@ -84,6 +111,8 @@
       <div class="bloco-head"><span class="bloco-titulo">2. Pagamentos em aberto</span><span class="bloco-sub">atraso contado do vencimento original (como emitido na NF)</span></div>
       <div class="row5" id="b2"></div>
     </div>
+
+    <div class="divisor"></div>
 
     <div class="bloco">
       <div class="bloco-head"><span class="bloco-titulo">3. Em aberto — passado</span><span class="bloco-sub">total em aberto / acumulado 1–20 dias de atraso, no fim de cada semana</span></div>
@@ -99,6 +128,15 @@
       <div class="row8" id="b4"></div>
     </div>
 
+    <div class="divisor"></div>
+
+    <div class="bloco">
+      <div class="bloco-head"><span class="bloco-titulo">5. Quanto sai por semana</span><span class="bloco-sub" id="b5sub"></span></div>
+      <div class="row16" id="b5"></div>
+    </div>
+
+    <div class="divisor"></div>
+
     <div class="card">
       <div class="filtros" id="filtros">
         <button data-f="aberto" class="on">Em aberto</button>
@@ -107,10 +145,12 @@
         <button data-f="todas">Todas desde 2025</button>
         <span class="cont" id="contagem"></span>
       </div>
+      <div class="tabela-wrap">
       <table>
         <thead><tr id="thead"></tr></thead>
         <tbody id="tbody"><tr><td colspan="8" class="loading">Carregando…</td></tr></tbody>
       </table>
+      </div>
     </div>
 
     <div class="card nota" id="nota"></div>
@@ -188,10 +228,69 @@
         document.getElementById('subtitulo').innerHTML = '<span class="erro">Erro ao carregar: ' + e.message + '</span>';
         return;
       }
-      document.getElementById('subtitulo').textContent = 'Hoje ' + br(HOJE) + ' · semana ' + semanaISO(HOJE) + ' · dados do Bling (conta GGE), atualizados ' + (ATUALIZADO ? new Date(ATUALIZADO).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—') + ' · coleta a cada 2h';
-      bloco1(); bloco2(); bloco3(); bloco4(); montarTabela(); nota();
-      document.getElementById('nDias').addEventListener('input', bloco4);
+      document.getElementById('subtitulo').textContent = 'Hoje ' + br(HOJE) + ' · semana ' + semanaISO(HOJE) + ' · dados do Bling (conta GGE), atualizados ' + (ATUALIZADO ? new Date(ATUALIZADO).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—') + ' · coleta diária às 07:50 ou pelo botão Atualizar';
+      bloco1(); bloco2(); bloco3(); bloco4(); bloco5(); montarTabela(); nota();
     }
+    document.getElementById('nDias').addEventListener('input', function () { bloco4(); bloco5(); });
+
+    // ---------- bloco 5: quanto sai por semana (16 semanas), pagando com N dias de atraso ----------
+    function diasCenario() { var N = parseInt(document.getElementById('nDias').value, 10); return (isNaN(N) || N < 0) ? 20 : N; }
+    function bloco5() {
+      var N = diasCenario();
+      var ab = DUPS.filter(function (r) { return r.situacao === '1' || r.situacao === '3'; });
+      var semanas = [];
+      for (var k = 0; k < 16; k++) {
+        var fim = domingoDaSemana(addDias(HOJE, 7 * k));
+        semanas.push({ ini: addDias(fim, -6), fim: fim, s: 0, n: 0 });
+      }
+      var depois = { s: 0, n: 0 };
+      ab.forEach(function (r) {
+        var pg = addDias(r.venc_original, N);
+        if (pg < HOJE) pg = HOJE;                    // ja passou de N dias: sai nesta semana
+        for (var i = 0; i < 16; i++) {
+          if (pg <= semanas[i].fim) { semanas[i].s += Number(r.valor); semanas[i].n++; return; }
+        }
+        depois.s += Number(r.valor); depois.n++;
+      });
+      document.getElementById('b5').innerHTML = semanas.map(function (w, i) {
+        return '<div class="mini-card' + (i === 0 ? ' atual' : '') + (w.n ? '' : ' zero') + '">' +
+          '<div class="s"><b>Sem ' + semanaISO(w.fim) + '</b><span>' + brCurto(w.ini) + '–' + brCurto(w.fim) + '</span></div>' +
+          '<div class="v">' + R(w.s) + '</div>' +
+          '<div class="q">' + (w.n ? w.n + ' dupl.' : '—') + '</div></div>';
+      }).join('');
+      var tot = semanas.reduce(function (s, w) { return s + w.s; }, 0);
+      document.getElementById('b5sub').innerHTML = 'pagando cada duplicata com <b>' + N + '</b> dias de atraso (mesmo valor do cenário acima) · 16 semanas: ' + R(tot) +
+        (depois.n ? ' · depois disso: ' + R(depois.s) + ' (' + depois.n + ')' : '');
+    }
+
+    // ---------- botao Atualizar: roda a coleta do Bling e recarrega ----------
+    document.getElementById('btnAtualizar').addEventListener('click', async function () {
+      var btn = this, st = document.getElementById('statusAtualizar'), t0 = Date.now();
+      btn.disabled = true; btn.textContent = 'Atualizando…';
+      var tick = setInterval(function () { st.textContent = 'Buscando no Bling… ' + Math.round((Date.now() - t0) / 1000) + 's (pode levar até 2 min)'; }, 1000);
+      try {
+        // dispara a coleta no banco (pg_net) e acompanha ate terminar
+        var d = await sb.rpc('tecnofast_atualizar');
+        if (d.error) throw new Error(d.error.message);
+        var req = d.data, j = null;
+        while (Date.now() - t0 < 200000) {
+          await new Promise(function (res) { setTimeout(res, 4000); });
+          var s = await sb.rpc('tecnofast_atualizar_status', { p_req: req });
+          if (s.error) throw new Error(s.error.message);
+          if (s.data && s.data.terminou) { j = s.data.resposta || {}; if (!s.data.ok) throw new Error(j.error || s.data.erro || 'falha na coleta'); break; }
+        }
+        if (!j) throw new Error('a coleta não respondeu em 3 min; tente de novo mais tarde');
+        st.textContent = 'Recarregando…';
+        ATUALIZADO = null;
+        await init();
+        st.textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) +
+          (j.novos ? ' · ' + j.novos + ' duplicata(s) nova(s)' : '') + (j.pagos_achados ? ' · ' + j.pagos_achados + ' pagamento(s) conferido(s)' : '');
+      } catch (e) {
+        st.innerHTML = '<span style="color:#f85149">Falhou: ' + e.message + '</span>';
+      } finally {
+        clearInterval(tick); btn.disabled = false; btn.textContent = 'Atualizar do Bling';
+      }
+    });
 
     // ---------- bloco 1 ----------
     function bloco1() {
@@ -246,8 +345,7 @@
 
     // ---------- bloco 4 ----------
     function bloco4() {
-      var N = parseInt(document.getElementById('nDias').value, 10);
-      if (isNaN(N) || N < 0) N = 20;
+      var N = diasCenario();
       var ab = DUPS.filter(function (r) { return r.situacao === '1' || r.situacao === '3'; });
       // ja passaram de N dias hoje: no cenario entram como pagas ainda nesta semana
       var jaAcima = ab.filter(function (r) { return atrasoEm(r, HOJE) > N; });
@@ -336,7 +434,7 @@
     function nota() {
       var semNf = DUPS.filter(function (r) { return (r.situacao === '1' || r.situacao === '3') && r.fonte_venc_original !== 'nf'; }).length;
       document.getElementById('nota').innerHTML =
-        '<b>Fontes:</b> contas a pagar e NFs de entrada da Tecnofast (todas as filiais, raiz de CNPJ 05.034.587) no Bling da GGE, sincronizadas pela função <b>sync-tecnofast</b> a cada 2h. ' +
+        '<b>Fontes:</b> contas a pagar e NFs de entrada da Tecnofast (todas as filiais, raiz de CNPJ 05.034.587) no Bling da GGE, sincronizadas pela função <b>sync-tecnofast</b> todo dia às 07:50 e quando o botão Atualizar é usado.' +
         '<b>Vencimento</b> = vencimento original da parcela na NF; quando a duplicata foi prorrogada no Bling, a nova data aparece na etiqueta "prorr.". ' +
         '<b>Valor</b> = valor atual no Bling (pode incluir juros de prorrogação). <b>Entrada</b> = data de operação da NF de entrada no Bling. ' +
         '<b>Semanas</b> = numeração ISO; semanas passadas são lidas no domingo de cada semana. Datas de pagamento são detalhadas nos últimos 75 dias. ' +
